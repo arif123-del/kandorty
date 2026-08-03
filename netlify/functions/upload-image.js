@@ -1,4 +1,4 @@
-const OWNER = 'arif123-del';
+7const OWNER = 'arif123-del';
 const REPO = 'kandorty';
 const BRANCH = 'main';
 const FIREBASE_API_KEY = 'AIzaSyAn-ZDc8AWOx6gNS3fWwopQOmC0Gaw0rfI';
