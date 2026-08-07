@@ -587,18 +587,53 @@ function changePin(){resetAdminPassword()}
 const CART_KEY='kandorty_cart_v1', ORDERS_KEY='kandorty_orders_v1';
 let cart=[], orders=[];
 let adminOrdersUnsubscribe=null;
+let adminOrdersInitialLoaded=false;
+
 function loadCommerce(){
   try{cart=JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch(e){cart=[]}
   try{orders=JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]')}catch(e){orders=[]}
   updateCartCount(); renderProfileOrders();
 }
+
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
+
+  adminOrdersInitialLoaded=false;
+
   adminOrdersUnsubscribe=db.collection('orders').onSnapshot(
     snapshot=>{
-      orders=snapshot.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
-      localStorage.setItem(ORDERS_KEY,JSON.stringify(orders)); renderOrders(); renderProfileOrders();
-    }, error=>console.error('Firestore orders read error:',error)
+      const newlyAdded = adminOrdersInitialLoaded
+        ? snapshot.docChanges().filter(change=>change.type==='added')
+        : [];
+
+      orders=snapshot.docs
+        .map(doc=>({id:doc.id,...doc.data()}))
+        .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+
+      localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+      renderOrders();
+      renderProfileOrders();
+
+      if(adminOrdersInitialLoaded && newlyAdded.length){
+        newlyAdded.forEach(change=>{
+          const order={id:change.doc.id,...change.doc.data()};
+          const customer=order.customer||{};
+          const firstItem=(order.items||[])[0]||{};
+          const productName=firstItem.name||firstItem.code||'منتج';
+          alert(
+            '🔔 طلب جديد!\n\n' +
+            'العميل: ' + (customer.name||'-') + '\n' +
+            'الهاتف: ' + (customer.phone||'-') + '\n' +
+            'المنتج: ' + productName + '\n' +
+            'المجموع: ' + money(order.total||0) + '\n' +
+            'رقم الطلب: ' + (order.id||'-')
+          );
+        });
+      }
+
+      adminOrdersInitialLoaded=true;
+    },
+    error=>console.error('Firestore orders read error:',error)
   );
 }
 function saveCart(){localStorage.setItem(CART_KEY,JSON.stringify(cart));updateCartCount();renderCart()}
