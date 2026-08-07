@@ -144,7 +144,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" id="trackBtn">تتبع الطلب</button>
 <button class="btn ghost" id="cartBtn">السلة <span id="cartCount" class="header-count">0</span></button>
 <button class="btn ghost" id="langBtn">EN</button>
-<button class="btn ghost" id="adminBtn">الإدارة</button>
+<button class="btn ghost" id="adminBtn">الإدارة <span id="newOrderHeaderCount" class="header-count" style="display:none">0</span></button>
 </div></div></header>
 
 
@@ -207,7 +207,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="loginView" class="login-box"><p>تسجيل دخول الإدارة</p><input id="adminEmail" type="email" autocomplete="username" placeholder="البريد الإلكتروني"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')loginAdmin()"><button id="adminLoginButton" class="btn dark" style="width:100%" onclick="loginAdmin()">دخول آمن</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button><p id="loginError" style="font-size:13px;color:#b00020;line-height:1.7"></p><p id="authDebug" style="font-size:12px;color:#777;direction:ltr;text-align:left;word-break:break-word"></p><p style="font-size:13px;color:#777">استخدمي حساب الإدارة الموجود في Firebase Authentication.</p></div>
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
-<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button class="tab" onclick="showAdminTab('orders',this)">الطلبات</button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
+<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -485,7 +485,7 @@ function syncAdminView(user){
   if(loggedIn){renderAdminList(); startAdminOrdersListener();}
 }
 auth.onAuthStateChanged(syncAdminView);
-function showAdminTab(name,btn){['Form','List','Orders','Customers','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders')renderOrders();if(name==='customers')renderCustomers();if(name==='settings')loadSettingsForm()}
+function showAdminTab(name,btn){['Form','List','Orders','Customers','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=68*1024;
 let previewObjectUrls=[];
@@ -588,11 +588,64 @@ const CART_KEY='kandorty_cart_v1', ORDERS_KEY='kandorty_orders_v1';
 let cart=[], orders=[];
 let adminOrdersUnsubscribe=null;
 let adminOrdersInitialLoaded=false;
+let unreadNewOrders=0;
+let orderAudioContext=null;
 
 function loadCommerce(){
   try{cart=JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch(e){cart=[]}
   try{orders=JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]')}catch(e){orders=[]}
   updateCartCount(); renderProfileOrders();
+}
+
+function updateNewOrderBadges(){
+  ['newOrderHeaderCount','newOrderTabCount'].forEach(id=>{
+    const el=$(id);
+    if(!el)return;
+    el.textContent=unreadNewOrders>99?'99+':String(unreadNewOrders);
+    el.style.display=unreadNewOrders>0?'inline-grid':'none';
+  });
+}
+
+function clearNewOrderBadges(){
+  unreadNewOrders=0;
+  updateNewOrderBadges();
+}
+
+function unlockOrderSound(){
+  try{
+    if(!orderAudioContext){
+      orderAudioContext=new (window.AudioContext||window.webkitAudioContext)();
+    }
+    if(orderAudioContext.state==='suspended'){
+      orderAudioContext.resume();
+    }
+  }catch(e){}
+}
+
+document.addEventListener('pointerdown',unlockOrderSound,{once:true});
+document.addEventListener('keydown',unlockOrderSound,{once:true});
+
+function playNewOrderSound(){
+  try{
+    unlockOrderSound();
+    if(!orderAudioContext)return;
+    const now=orderAudioContext.currentTime;
+    [0,0.18,0.36].forEach((delay,index)=>{
+      const osc=orderAudioContext.createOscillator();
+      const gain=orderAudioContext.createGain();
+      osc.type='sine';
+      osc.frequency.value=[740,920,1100][index];
+      gain.gain.setValueAtTime(0.0001,now+delay);
+      gain.gain.exponentialRampToValueAtTime(0.20,now+delay+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+0.14);
+      osc.connect(gain);
+      gain.connect(orderAudioContext.destination);
+      osc.start(now+delay);
+      osc.stop(now+delay+0.16);
+    });
+  }catch(e){
+    console.warn('Order sound blocked:',e);
+  }
 }
 
 function startAdminOrdersListener(){
@@ -615,20 +668,24 @@ function startAdminOrdersListener(){
       renderProfileOrders();
 
       if(adminOrdersInitialLoaded && newlyAdded.length){
-        newlyAdded.forEach(change=>{
-          const order={id:change.doc.id,...change.doc.data()};
-          const customer=order.customer||{};
-          const firstItem=(order.items||[])[0]||{};
-          const productName=firstItem.name||firstItem.code||'منتج';
-          alert(
-            '🔔 طلب جديد!\n\n' +
-            'العميل: ' + (customer.name||'-') + '\n' +
-            'الهاتف: ' + (customer.phone||'-') + '\n' +
-            'المنتج: ' + productName + '\n' +
-            'المجموع: ' + money(order.total||0) + '\n' +
-            'رقم الطلب: ' + (order.id||'-')
-          );
-        });
+        unreadNewOrders += newlyAdded.length;
+        updateNewOrderBadges();
+        playNewOrderSound();
+
+        const change=newlyAdded[0];
+        const order={id:change.doc.id,...change.doc.data()};
+        const customer=order.customer||{};
+        const firstItem=(order.items||[])[0]||{};
+        const productName=firstItem.name||firstItem.code||'منتج';
+
+        alert(
+          '🔔 طلب جديد!\n\n' +
+          'العميل: ' + (customer.name||'-') + '\n' +
+          'الهاتف: ' + (customer.phone||'-') + '\n' +
+          'المنتج: ' + productName + '\n' +
+          'المجموع: ' + money(order.total||0) + '\n' +
+          'رقم الطلب: ' + (order.id||'-')
+        );
       }
 
       adminOrdersInitialLoaded=true;
