@@ -31,8 +31,11 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.contai
 footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.footer-logo{width:165px;background:#fff;padding:8px;border-radius:10px;object-fit:contain}
 .modal{position:fixed;inset:0;background:#0008;z-index:100;display:grid;place-items:center;padding:12px}.modal-card{background:#fff;width:min(720px,100%);max-height:94vh;overflow:auto;border-radius:20px;padding:22px}
 .modal-head{display:flex;justify-content:space-between;align-items:center}.x{font-size:26px;background:none;border:0;cursor:pointer}
-.product-images-large{display:flex;flex-direction:column;gap:18px;margin:14px 0}
-.product-images-large img{display:block;width:100%;height:auto;object-fit:contain;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
+.product-gallery-mainwrap{margin:14px 0}
+.product-gallery-mainimg{display:block;width:100%;aspect-ratio:3/4;object-fit:contain;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
+.product-gallery-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 2px}
+.product-gallery-thumb{width:64px;height:80px;object-fit:cover;border-radius:9px;border:2px solid transparent;cursor:pointer;flex:0 0 auto;background:#f6f3f4}
+.product-gallery-thumb.active{border-color:var(--red)}
 .admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{border:1px solid var(--line);background:#fff;padding:10px 13px;border-radius:10px}.tab.active{background:#111;color:#fff}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid .full{grid-column:1/-1}
 .form-grid input,.form-grid select,.form-grid textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}
@@ -192,7 +195,10 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="productModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
-<div id="modalImagesLarge" class="product-images-large"></div>
+<div id="modalGallery" class="product-gallery-mainwrap">
+<img id="modalMainImage" class="product-gallery-mainimg" alt="">
+<div id="modalThumbs" class="product-gallery-thumbs"></div>
+</div>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
 </div></div>
 
@@ -389,18 +395,37 @@ function render(){
  <div class="card-actions"><button class="btn ghost" onclick="openProduct('${p.id}')">${lang==='ar'?'التفاصيل':'Details'}</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+let currentProductImages=[];
+let currentProductImageIndex=0;
+
+function renderProductGallery(){
+  if(!currentProductImages.length){
+    $('modalGallery').style.display='none';
+    return;
+  }
+  $('modalGallery').style.display='block';
+  $('modalMainImage').src=currentProductImages[currentProductImageIndex];
+  $('modalThumbs').innerHTML=currentProductImages.map((img,index)=>`
+    <img src="${img}" class="product-gallery-thumb ${index===currentProductImageIndex?'active':''}" data-image-index="${index}" alt="">
+  `).join('');
+
+  $('modalThumbs').querySelectorAll('.product-gallery-thumb').forEach(el=>{
+    el.addEventListener('click',()=>{
+      currentProductImageIndex=Number(el.dataset.imageIndex);
+      renderProductGallery();
+    });
+  });
+}
+
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
   $('modalName').textContent=p.nameAr;
   $('modalCode').textContent=p.code;
   $('modalPrice').textContent=money(p.salePrice||p.price);
-
-  const images=(p.images||[]).filter(Boolean);
-  $('modalImagesLarge').innerHTML=images.length
-    ? images.map((img,index)=>`<img src="${img}" alt="${p.nameAr} ${index+1}" loading="lazy">`).join('')
-    : `<div class="empty">لا توجد صور لهذا المنتج</div>`;
-
+  currentProductImages=(p.images||[]).filter(Boolean);
+  currentProductImageIndex=0;
+  renderProductGallery();
   $('productModal').classList.remove('hidden');
 }
 function closeProduct(){$('productModal').classList.add('hidden')}
