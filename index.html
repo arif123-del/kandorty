@@ -31,14 +31,8 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.contai
 footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.footer-logo{width:165px;background:#fff;padding:8px;border-radius:10px;object-fit:contain}
 .modal{position:fixed;inset:0;background:#0008;z-index:100;display:grid;place-items:center;padding:12px}.modal-card{background:#fff;width:min(720px,100%);max-height:94vh;overflow:auto;border-radius:20px;padding:22px}
 .modal-head{display:flex;justify-content:space-between;align-items:center}.x{font-size:26px;background:none;border:0;cursor:pointer}
-.product-gallery{position:relative;margin:12px 0}
-.product-gallery-main{width:100%;max-height:68vh;aspect-ratio:3/4;object-fit:contain;background:#f6f3f4;border-radius:14px;border:1px solid var(--line);display:block}
-.gallery-btn{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;border-radius:50%;background:#111c;color:#fff;font-size:26px;cursor:pointer;display:grid;place-items:center;z-index:2}
-.gallery-prev{right:10px}.gallery-next{left:10px}
-.gallery-counter{text-align:center;margin-top:8px;font-size:14px;color:var(--muted)}
-.gallery-thumbs{display:flex;gap:7px;overflow-x:auto;padding:8px 2px}
-.gallery-thumbs img{width:58px;height:72px;object-fit:cover;border-radius:8px;border:2px solid transparent;cursor:pointer;flex:0 0 auto}
-.gallery-thumbs img.active{border-color:var(--red)}
+.product-images-large{display:flex;flex-direction:column;gap:18px;margin:14px 0}
+.product-images-large img{display:block;width:100%;height:auto;object-fit:contain;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
 .admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{border:1px solid var(--line);background:#fff;padding:10px 13px;border-radius:10px}.tab.active{background:#111;color:#fff}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid .full{grid-column:1/-1}
 .form-grid input,.form-grid select,.form-grid textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}
@@ -198,13 +192,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="productModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
-<div id="modalGallery" class="product-gallery">
-<img id="modalMainImage" class="product-gallery-main" alt="">
-<button id="galleryPrev" class="gallery-btn gallery-prev" type="button" onclick="changeProductImage(-1)">‹</button>
-<button id="galleryNext" class="gallery-btn gallery-next" type="button" onclick="changeProductImage(1)">›</button>
-<div id="galleryCounter" class="gallery-counter"></div>
-<div id="galleryThumbs" class="gallery-thumbs"></div>
-</div><p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<div id="modalImagesLarge" class="product-images-large"></div>
+<p id="modalCode"></p><div id="modalPrice" class="price"></div>
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
@@ -400,51 +389,22 @@ function render(){
  <div class="card-actions"><button class="btn ghost" onclick="openProduct('${p.id}')">${lang==='ar'?'التفاصيل':'Details'}</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-let modalProductImages=[];
-let modalProductImageIndex=0;
-
-function renderProductGallery(){
-  const hasImages=modalProductImages.length>0;
-  $('modalGallery').style.display=hasImages?'block':'none';
-  if(!hasImages)return;
-  modalProductImageIndex=(modalProductImageIndex+modalProductImages.length)%modalProductImages.length;
-  $('modalMainImage').src=modalProductImages[modalProductImageIndex];
-  $('galleryCounter').textContent=`${modalProductImageIndex+1} / ${modalProductImages.length}`;
-  $('galleryPrev').style.display=modalProductImages.length>1?'grid':'none';
-  $('galleryNext').style.display=modalProductImages.length>1?'grid':'none';
-  $('galleryThumbs').style.display=modalProductImages.length>1?'flex':'none';
-  $('galleryThumbs').innerHTML=modalProductImages.map((img,index)=>`<img src="${img}" class="${index===modalProductImageIndex?'active':''}" onclick="showProductImage(${index})" alt="">`).join('');
-}
-
-function showProductImage(index){
-  modalProductImageIndex=index;
-  renderProductGallery();
-}
-
-function changeProductImage(step){
-  modalProductImageIndex+=step;
-  renderProductGallery();
-}
-
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
   $('modalName').textContent=p.nameAr;
   $('modalCode').textContent=p.code;
   $('modalPrice').textContent=money(p.salePrice||p.price);
-  modalProductImages=(p.images||[]).filter(Boolean);
-  modalProductImageIndex=0;
-  renderProductGallery();
+
+  const images=(p.images||[]).filter(Boolean);
+  $('modalImagesLarge').innerHTML=images.length
+    ? images.map((img,index)=>`<img src="${img}" alt="${p.nameAr} ${index+1}" loading="lazy">`).join('')
+    : `<div class="empty">لا توجد صور لهذا المنتج</div>`;
+
   $('productModal').classList.remove('hidden');
 }
 function closeProduct(){$('productModal').classList.add('hidden')}
 
-let galleryTouchStartX=0;
-$('modalGallery').addEventListener('touchstart',e=>{galleryTouchStartX=e.changedTouches[0].clientX},{passive:true});
-$('modalGallery').addEventListener('touchend',e=>{
-  const dx=e.changedTouches[0].clientX-galleryTouchStartX;
-  if(Math.abs(dx)>45&&modalProductImages.length>1)changeProductImage(dx>0?-1:1);
-},{passive:true});
 $('adminBtn').onclick=()=>{$('adminModal').classList.remove('hidden'); syncAdminView(auth.currentUser)};function closeAdmin(){$('adminModal').classList.add('hidden')}
 function authErrorMessage(error){
   const code=error?.code||'auth/unknown';
