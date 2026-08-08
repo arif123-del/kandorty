@@ -157,6 +157,39 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 .newsletter{padding:0 0 70px}.newsletter-box{border-radius:26px;background:linear-gradient(125deg,#b40018,#750010);color:#fff;padding:42px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;overflow:hidden}.newsletter-box:after{content:"K";font-family:Georgia,serif;position:absolute;left:4%;top:-80px;font-size:250px;color:rgba(255,255,255,.07)}.newsletter-box h2{font-size:34px;margin:0 0 8px}.newsletter-box p{margin:0;color:#ffe3e8}.newsletter-form{display:flex;gap:8px;position:relative;z-index:1}.newsletter-form input{min-width:270px;padding:13px 15px;border:0;border-radius:12px;outline:0}
 @media(max-width:900px){.hero-v2-grid{grid-template-columns:1fr}.fashion-stage{min-height:410px}.trust-grid{grid-template-columns:repeat(2,1fr)}.trust-item:nth-child(2){border-inline-end:0}.cats-v2{grid-template-columns:repeat(2,1fr)}.cats-v2 .cat:first-child{grid-column:1/-1}.collection-banner{grid-template-columns:1fr}.collection-art{min-height:170px}.shop-top{align-items:stretch;flex-direction:column}.toolbar-v2 input{min-width:0;flex:1}.newsletter-box{align-items:flex-start;flex-direction:column}}
 @media(max-width:540px){.announcement{font-size:11px}.hero-v2{padding:48px 0}.hero-v2 h1{font-size:44px}.hero-v2 .lead{font-size:16px}.fashion-stage{min-height:330px}.lookbook{width:270px}.mini-card{font-size:11px}.trust-grid{grid-template-columns:1fr}.trust-item{border-inline-end:0;border-bottom:1px solid var(--line)}.cats-v2{gap:10px}.cats-v2 .cat{min-height:135px;padding:14px}.home-section,.shop-v2{padding:48px 0}.collection-copy{padding:28px}.toolbar-v2{width:100%}.toolbar-v2 input{width:100%}.newsletter-box{padding:28px}.newsletter-form{width:100%;flex-direction:column}.newsletter-form input{min-width:0;width:100%}}
+
+/* Put the six header controls BELOW the logo so the logo stays fully visible */
+.top .nav{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  padding:8px 0 10px!important;
+}
+.top .logo{
+  width:170px!important;
+  height:68px!important;
+  max-width:70vw!important;
+  flex:0 0 auto!important;
+}
+.top .actions{
+  width:100%!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+}
+.top .actions .btn{
+  padding:9px 11px!important;
+  white-space:nowrap!important;
+}
+@media(max-width:600px){
+  .top .logo{width:165px!important;height:66px!important}
+  .top .actions{gap:5px!important}
+  .top .actions .btn{padding:8px 9px!important;font-size:13px!important}
+}
 </style>
 
 </head>
