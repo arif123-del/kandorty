@@ -117,7 +117,25 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 .hero-v2 h1{font-size:clamp(42px,7vw,78px);line-height:1.05;margin:18px 0 16px;letter-spacing:-1.8px;color:var(--ink)}.hero-v2 h1 span{color:var(--red)}
 .hero-v2 .lead{font-size:19px;line-height:1.9;color:#6f5e63;max-width:590px;margin:0 0 27px}.hero-cta{display:flex;gap:11px;flex-wrap:wrap}.hero-cta .btn{padding:14px 22px;border-radius:14px;font-weight:800}
 .hero-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:28px;color:#65575b;font-size:14px}.hero-meta b{display:block;color:#171114;font-size:18px;margin-bottom:3px}
-.fashion-stage{position:relative;min-height:480px;display:grid;place-items:center}.fashion-orbit{position:absolute;inset:20px;border-radius:50%;border:1px dashed rgba(180,0,24,.2);animation:spin 35s linear infinite}.fashion-orbit:before,.fashion-orbit:after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:var(--red)}.fashion-orbit:before{top:12%;right:13%}.fashion-orbit:after{bottom:9%;left:18%;background:var(--gold)}
+.fashion-stage{position:relative;min-height:480px;display:grid;place-items:center}
+.home-banner-slider{width:min(430px,94%);position:relative;border-radius:28px;overflow:hidden;background:#f6f1f2;border:7px solid rgba(255,255,255,.9);box-shadow:0 35px 70px rgba(91,0,18,.25)}
+.home-banner-slider.hidden{display:none!important}
+.home-banner-main{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;transition:opacity .35s ease}
+.home-banner-arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;border-radius:50%;background:rgba(17,17,17,.72);color:#fff;font-size:25px;display:grid;place-items:center;cursor:pointer;z-index:2}
+.home-banner-prev{right:12px}.home-banner-next{left:12px}
+.home-banner-dots{position:absolute;left:0;right:0;bottom:13px;display:flex;justify-content:center;gap:7px;z-index:2}
+.home-banner-dot{width:9px;height:9px;border-radius:50%;border:0;background:rgba(255,255,255,.55);padding:0;cursor:pointer}
+.home-banner-dot.active{background:#fff;transform:scale(1.25)}
+.fashion-stage.has-banner>.fashion-orbit,
+.fashion-stage.has-banner>.lookbook,
+.fashion-stage.has-banner>.mini-card{display:none}
+.banner-admin-box{border:1px solid var(--line);border-radius:18px;padding:18px;background:#fff}
+.banner-admin-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.banner-admin-item{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#f4f1f2}
+.banner-admin-item img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover}
+.banner-remove{position:absolute;top:6px;right:6px;width:30px;height:30px;border:0;border-radius:50%;background:#111;color:#fff;cursor:pointer}
+@media(max-width:600px){.banner-admin-preview{grid-template-columns:repeat(2,1fr)}}
+.fashion-orbit{position:absolute;inset:20px;border-radius:50%;border:1px dashed rgba(180,0,24,.2);animation:spin 35s linear infinite}.fashion-orbit:before,.fashion-orbit:after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:var(--red)}.fashion-orbit:before{top:12%;right:13%}.fashion-orbit:after{bottom:9%;left:18%;background:var(--gold)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .lookbook{width:min(390px,90%);aspect-ratio:4/5;border-radius:190px 190px 28px 28px;background:linear-gradient(160deg,#1a1114,#3e0712 62%,#a20825);box-shadow:0 35px 70px rgba(91,0,18,.28);position:relative;overflow:hidden;border:7px solid rgba(255,255,255,.85)}
 .lookbook:before{content:"K";position:absolute;inset:0;display:grid;place-items:center;font-family:Georgia,serif;font-size:220px;color:rgba(255,255,255,.1)}
@@ -157,7 +175,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="hero-cta"><button class="btn primary" onclick="document.getElementById('shop').scrollIntoView({behavior:'smooth'})" data-ar="تسوقي المجموعة" data-en="Shop the collection">تسوقي المجموعة</button><button class="btn ghost" onclick="document.getElementById('categories').scrollIntoView({behavior:'smooth'})" data-ar="استكشفي الأقسام" data-en="Explore categories">استكشفي الأقسام</button></div>
 <div class="hero-meta"><div><b>100%</b><span data-ar="اختيارات أنيقة" data-en="Elegant choices">اختيارات أنيقة</span></div><div><b>UAE</b><span data-ar="توصيل لجميع الإمارات" data-en="Local delivery">توصيل لجميع الإمارات</span></div><div><b>AED</b><span data-ar="أسعار واضحة" data-en="Clear pricing">أسعار واضحة</span></div></div>
 </div>
-<div class="fashion-stage" aria-label="Kandorty fashion showcase"><div class="fashion-orbit"></div><div class="lookbook"><div class="fabric-line"></div></div><div class="mini-card one"><strong data-ar="وصل حديثاً" data-en="New arrival">وصل حديثاً</strong><span data-ar="تفاصيل راقية" data-en="Refined details">تفاصيل راقية</span></div><div class="mini-card two"><strong data-ar="اختيار مميز" data-en="Special pick">اختيار مميز</strong><span data-ar="للمناسبات والبيت" data-en="For occasions & home">للمناسبات والبيت</span></div></div>
+<div class="fashion-stage" id="fashionStage" aria-label="Kandorty fashion showcase">
+<div id="homeBannerSlider" class="home-banner-slider hidden">
+<img id="homeBannerImage" class="home-banner-main" alt="Kandorty">
+<button class="home-banner-arrow home-banner-prev" type="button" onclick="changeHomeBanner(-1)" aria-label="Previous image">‹</button>
+<button class="home-banner-arrow home-banner-next" type="button" onclick="changeHomeBanner(1)" aria-label="Next image">›</button>
+<div id="homeBannerDots" class="home-banner-dots"></div>
+</div><div class="fashion-orbit"></div><div class="lookbook"><div class="fabric-line"></div></div><div class="mini-card one"><strong data-ar="وصل حديثاً" data-en="New arrival">وصل حديثاً</strong><span data-ar="تفاصيل راقية" data-en="Refined details">تفاصيل راقية</span></div><div class="mini-card two"><strong data-ar="اختيار مميز" data-en="Special pick">اختيار مميز</strong><span data-ar="للمناسبات والبيت" data-en="For occasions & home">للمناسبات والبيت</span></div></div>
 </div></section>
 
 <div class="trust-strip"><div class="container trust-grid">
@@ -209,7 +233,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button><p id="loginError" style="font-size:13px;color:#b00020;line-height:1.7"></p><p id="authDebug" style="font-size:12px;color:#777;direction:ltr;text-align:left;word-break:break-word"></p><p style="font-size:13px;color:#777">استخدمي حساب الإدارة الموجود في Firebase Authentication.</p></div>
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
-<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
+<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -240,6 +264,20 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
 <div id="adminOrdersTab" class="hidden"><div id="ordersList" class="admin-list"></div></div>
 <div id="adminCustomersTab" class="hidden"><div id="customersList" class="admin-list"></div></div>
+
+<div id="adminBannerTab" class="hidden">
+<div class="banner-admin-box">
+<h3 style="margin-top:0">بانر الصفحة الرئيسية</h3>
+<p style="color:var(--muted);line-height:1.7">اختاري حتى 5 صور. ستتحرك الصور تلقائياً في الصفحة الرئيسية ويمكنك تغييرها في أي وقت.</p>
+<input id="bannerImageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+<div id="bannerAdminPreview" class="banner-admin-preview"></div>
+<div id="bannerAdminStatus" style="margin:10px 0;color:var(--muted);font-size:13px"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button id="saveBannerBtn" class="btn primary" type="button" onclick="saveBannerImages()">حفظ صور البانر</button>
+<button class="btn ghost" type="button" onclick="clearBannerImages()">حذف كل صور البانر</button>
+</div>
+</div>
+</div>
 
 <div id="adminSettingsTab" class="hidden">
 <form id="settingsForm" class="form-grid">
@@ -520,7 +558,7 @@ function syncAdminView(user){
   if(loggedIn){renderAdminList(); startAdminOrdersListener();}
 }
 auth.onAuthStateChanged(syncAdminView);
-function showAdminTab(name,btn){['Form','List','Orders','Customers','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='settings')loadSettingsForm()}
+function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=68*1024;
 let previewObjectUrls=[];
@@ -802,20 +840,22 @@ function updateOrderStatus(id,status){orders=orders.map(o=>o.id===id?{...o,statu
 
 
 const SETTINGS_KEY='kandorty_settings_v1';
-let settings={whatsapp:'',instagram:'',snapchat:'',email:''};
+let settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[]};
 
 function loadSettings(){
   db.collection('settings').doc('store').onSnapshot(
     doc=>{
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',...(doc.exists?doc.data():{})};
+      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],...(doc.exists?doc.data():{})};
       localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
       renderSocialLinks();
+      renderHomeBanner();
     },
     error=>{
       console.error('Firestore settings read error:',error);
       try{settings=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}catch(e){settings={}}
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',...settings};
+      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],...settings};
       renderSocialLinks();
+      renderHomeBanner();
     }
   );
 }
@@ -823,6 +863,7 @@ async function saveSettings(){
   localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
   await db.collection('settings').doc('store').set(settings);
   renderSocialLinks();
+  renderHomeBanner();
 }
 function loadSettingsForm(){
   $('whatsappNumber').value=settings.whatsapp||'';
@@ -839,6 +880,141 @@ $('settingsForm').onsubmit=e=>{
   saveSettings();
   alert('تم حفظ الإعدادات');
 }
+
+const MAX_BANNER_IMAGES=5;
+let homeBannerIndex=0;
+let homeBannerTimer=null;
+let bannerDraftImages=[];
+let pendingBannerFiles=[];
+
+function renderHomeBanner(){
+  const images=Array.isArray(settings.bannerImages)?settings.bannerImages.filter(Boolean).slice(0,MAX_BANNER_IMAGES):[];
+  const slider=$('homeBannerSlider');
+  const stage=$('fashionStage');
+  if(!slider||!stage)return;
+
+  clearInterval(homeBannerTimer);
+
+  if(!images.length){
+    slider.classList.add('hidden');
+    stage.classList.remove('has-banner');
+    return;
+  }
+
+  stage.classList.add('has-banner');
+  slider.classList.remove('hidden');
+  homeBannerIndex=Math.min(homeBannerIndex,images.length-1);
+  showHomeBannerImage(homeBannerIndex);
+
+  if(images.length>1){
+    homeBannerTimer=setInterval(()=>changeHomeBanner(1),4500);
+  }
+}
+
+function showHomeBannerImage(index){
+  const images=Array.isArray(settings.bannerImages)?settings.bannerImages.filter(Boolean).slice(0,MAX_BANNER_IMAGES):[];
+  if(!images.length)return;
+  homeBannerIndex=(index+images.length)%images.length;
+  const img=$('homeBannerImage');
+  img.style.opacity='0';
+  img.onload=()=>{img.style.opacity='1'};
+  img.src=images[homeBannerIndex];
+  $('homeBannerDots').innerHTML=images.map((_,i)=>`<button type="button" class="home-banner-dot ${i===homeBannerIndex?'active':''}" onclick="goHomeBanner(${i})" aria-label="Banner ${i+1}"></button>`).join('');
+}
+
+function changeHomeBanner(step){
+  const images=Array.isArray(settings.bannerImages)?settings.bannerImages.filter(Boolean).slice(0,MAX_BANNER_IMAGES):[];
+  if(images.length<2)return;
+  showHomeBannerImage(homeBannerIndex+step);
+}
+
+function goHomeBanner(index){
+  showHomeBannerImage(index);
+  clearInterval(homeBannerTimer);
+  const images=Array.isArray(settings.bannerImages)?settings.bannerImages.filter(Boolean).slice(0,MAX_BANNER_IMAGES):[];
+  if(images.length>1)homeBannerTimer=setInterval(()=>changeHomeBanner(1),4500);
+}
+
+function loadBannerAdmin(){
+  bannerDraftImages=[...(Array.isArray(settings.bannerImages)?settings.bannerImages:[])].slice(0,MAX_BANNER_IMAGES);
+  pendingBannerFiles=[];
+  if($('bannerImageFiles'))$('bannerImageFiles').value='';
+  renderBannerAdminPreview();
+}
+
+function renderBannerAdminPreview(){
+  const box=$('bannerAdminPreview');
+  if(!box)return;
+  const saved=bannerDraftImages.map((img,i)=>`<div class="banner-admin-item"><img src="${img}" alt=""><button class="banner-remove" type="button" onclick="removeBannerSaved(${i})">×</button></div>`).join('');
+  const pending=pendingBannerFiles.map((file,i)=>{
+    const url=URL.createObjectURL(file);
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    return `<div class="banner-admin-item"><img src="${url}" alt=""><button class="banner-remove" type="button" onclick="removeBannerPending(${i})">×</button></div>`;
+  }).join('');
+  box.innerHTML=saved+pending;
+  $('bannerAdminStatus').textContent=`${bannerDraftImages.length+pendingBannerFiles.length} / ${MAX_BANNER_IMAGES} صور`;
+}
+
+function removeBannerSaved(index){
+  bannerDraftImages.splice(index,1);
+  renderBannerAdminPreview();
+}
+
+function removeBannerPending(index){
+  pendingBannerFiles.splice(index,1);
+  if($('bannerImageFiles'))$('bannerImageFiles').value='';
+  renderBannerAdminPreview();
+}
+
+$('bannerImageFiles').addEventListener('change',e=>{
+  const room=Math.max(0,MAX_BANNER_IMAGES-bannerDraftImages.length);
+  pendingBannerFiles=Array.from(e.target.files||[])
+    .filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type))
+    .slice(0,room);
+  renderBannerAdminPreview();
+});
+
+async function saveBannerImages(){
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  const btn=$('saveBannerBtn');
+  btn.disabled=true;
+  try{
+    const prepared=[];
+    for(let i=0;i<pendingBannerFiles.length;i++){
+      $('bannerAdminStatus').textContent=`يتم تجهيز الصورة ${i+1}/${pendingBannerFiles.length}...`;
+      prepared.push(await compressProductImage(pendingBannerFiles[i]));
+    }
+    const finalImages=[...bannerDraftImages,...prepared].slice(0,MAX_BANNER_IMAGES);
+    const totalBytes=finalImages.reduce((sum,img)=>sum+new Blob([img]).size,0);
+    if(totalBytes>700*1024)throw new Error('حجم صور البانر كبير. اختاري صوراً أقل أو أصغر.');
+    settings.bannerImages=finalImages;
+    await saveSettings();
+    bannerDraftImages=[...finalImages];
+    pendingBannerFiles=[];
+    $('bannerImageFiles').value='';
+    renderBannerAdminPreview();
+    $('bannerAdminStatus').textContent='تم حفظ صور البانر بنجاح.';
+    alert('تم حفظ بانر الصفحة الرئيسية');
+  }catch(err){
+    console.error('Banner save error:',err);
+    $('bannerAdminStatus').textContent='فشل الحفظ: '+(err.message||'خطأ غير معروف');
+    alert(err.message||'تعذر حفظ صور البانر');
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function clearBannerImages(){
+  if(!confirm('حذف جميع صور البانر؟'))return;
+  settings.bannerImages=[];
+  bannerDraftImages=[];
+  pendingBannerFiles=[];
+  if($('bannerImageFiles'))$('bannerImageFiles').value='';
+  await saveSettings();
+  renderBannerAdminPreview();
+  alert('تم حذف صور البانر');
+}
+
 function renderSocialLinks(){
   if(!$('socialLinks'))return;
   const parts=[];
