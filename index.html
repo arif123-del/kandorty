@@ -293,7 +293,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="adminBackupTab" class="hidden">
 <button class="btn dark" onclick="exportBackup()">تصدير نسخة احتياطية</button>
 <label class="btn ghost" style="display:inline-block">استيراد نسخة<input id="importFile" type="file" accept=".json" hidden></label>
-<button class="btn ghost" onclick="resetAdminPassword()">تغيير كلمة مرور الإدارة</button>
+<button class="btn ghost" onclick="openSetAdminPassword()">تعيين كلمة مرور للحساب</button>
+<button class="btn ghost" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button>
 </div>
 </div></div></div>
 
@@ -305,6 +306,17 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 
 
+
+<div id="setPasswordModal" class="modal hidden"><div class="modal-card" style="max-width:480px">
+<div class="modal-head"><h2>تعيين كلمة مرور</h2><button class="x" onclick="closeSetAdminPassword()">×</button></div>
+<p style="color:var(--muted);line-height:1.8">سجلي الدخول بحساب Google أولاً، ثم اكتبي كلمة مرور جديدة لهذا الحساب.</p>
+<div class="form-grid">
+<input id="newAdminPassword" class="full" type="password" minlength="6" placeholder="كلمة المرور الجديدة">
+<input id="confirmAdminPassword" class="full" type="password" minlength="6" placeholder="تأكيد كلمة المرور">
+<button id="setAdminPasswordBtn" class="btn primary full" type="button" onclick="setAdminPassword()">حفظ كلمة المرور</button>
+</div>
+<p id="setPasswordStatus" style="font-size:13px;color:#777;line-height:1.7"></p>
+</div></div>
 
 <div id="profileModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2>حساب العميل</h2><button class="x" onclick="closeProfile()">×</button></div>
@@ -535,6 +547,55 @@ async function loginAdminGoogle(){
   }finally{
     button.disabled=false;
     button.textContent='الدخول باستخدام Google';
+  }
+}
+
+
+function openSetAdminPassword(){
+  if(!auth.currentUser){alert('سجلي الدخول باستخدام Google أولاً.');return;}
+  $('newAdminPassword').value='';
+  $('confirmAdminPassword').value='';
+  $('setPasswordStatus').textContent='';
+  $('setPasswordModal').classList.remove('hidden');
+}
+function closeSetAdminPassword(){
+  $('setPasswordModal').classList.add('hidden');
+}
+async function setAdminPassword(){
+  const user=auth.currentUser;
+  if(!user){alert('سجلي الدخول باستخدام Google أولاً.');return;}
+  const email=(user.email||'').toLowerCase();
+  if(email!=='aliyajan200011@gmail.com'){alert('هذا الحساب ليس حساب الإدارة.');return;}
+
+  const p1=$('newAdminPassword').value;
+  const p2=$('confirmAdminPassword').value;
+  const status=$('setPasswordStatus');
+  const btn=$('setAdminPasswordBtn');
+
+  if(p1.length<6){status.style.color='#b00020';status.textContent='كلمة المرور يجب أن تكون 6 أحرف على الأقل.';return;}
+  if(p1!==p2){status.style.color='#b00020';status.textContent='كلمتا المرور غير متطابقتين.';return;}
+
+  btn.disabled=true;
+  status.style.color='#777';
+  status.textContent='جارٍ حفظ كلمة المرور...';
+
+  try{
+    const credential=firebase.auth.EmailAuthProvider.credential(email,p1);
+    const hasPassword=(user.providerData||[]).some(p=>p.providerId==='password');
+    if(hasPassword){await user.updatePassword(p1);}
+    else{await user.linkWithCredential(credential);}
+    status.style.color='#16733b';
+    status.textContent='تم تعيين كلمة المرور بنجاح. يمكنك الآن استخدام نسيت كلمة المرور عبر البريد.';
+  }catch(error){
+    console.error('Set password error:',error);
+    status.style.color='#b00020';
+    if(error.code==='auth/requires-recent-login'){
+      status.textContent='سجلي الخروج ثم ادخلي بحساب Google مرة أخرى وحاولي.';
+    }else{
+      status.textContent=authErrorMessage(error);
+    }
+  }finally{
+    btn.disabled=false;
   }
 }
 
