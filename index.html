@@ -204,7 +204,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2>لوحة إدارة Kandorty</h2><button class="x" onclick="closeAdmin()">×</button></div>
-<div id="loginView" class="login-box"><p>تسجيل دخول الإدارة</p><input id="adminEmail" type="email" autocomplete="username" placeholder="البريد الإلكتروني"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')loginAdmin()"><button id="adminLoginButton" class="btn dark" style="width:100%" onclick="loginAdmin()">دخول آمن</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button><p id="loginError" style="font-size:13px;color:#b00020;line-height:1.7"></p><p id="authDebug" style="font-size:12px;color:#777;direction:ltr;text-align:left;word-break:break-word"></p><p style="font-size:13px;color:#777">استخدمي حساب الإدارة الموجود في Firebase Authentication.</p></div>
+<div id="loginView" class="login-box"><p>تسجيل دخول الإدارة</p><input id="adminEmail" type="email" autocomplete="username" placeholder="البريد الإلكتروني"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')loginAdmin()"><button id="adminLoginButton" class="btn dark" style="width:100%" onclick="loginAdmin()">دخول آمن</button>
+<button id="googleAdminLoginButton" class="btn ghost" style="width:100%;margin-top:8px" onclick="loginAdminGoogle()">الدخول باستخدام Google</button>
+<button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button><p id="loginError" style="font-size:13px;color:#b00020;line-height:1.7"></p><p id="authDebug" style="font-size:12px;color:#777;direction:ltr;text-align:left;word-break:break-word"></p><p style="font-size:13px;color:#777">استخدمي حساب الإدارة الموجود في Firebase Authentication.</p></div>
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
 <div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
@@ -464,6 +466,39 @@ async function loginAdmin(){
     button.disabled=false; button.textContent='دخول آمن';
   }
 }
+async function loginAdminGoogle(){
+  const button=$('googleAdminLoginButton');
+  $('loginError').textContent='';
+  button.disabled=true;
+  button.textContent='جارٍ فتح Google...';
+  try{
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    const provider=new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt:'select_account'});
+    const result=await auth.signInWithPopup(provider);
+
+    const email=(result.user?.email||'').toLowerCase();
+    if(email!=='aliyajan200011@gmail.com'){
+      await auth.signOut();
+      $('loginError').textContent='هذا الحساب ليس حساب الإدارة.';
+      return;
+    }
+    $('loginError').textContent='';
+  }catch(error){
+    console.error('Google login error:',error);
+    if(error.code==='auth/popup-blocked'){
+      $('loginError').textContent='المتصفح منع نافذة Google. فعّلي Pop-ups ثم حاولي مرة أخرى.';
+    }else if(error.code==='auth/popup-closed-by-user'){
+      $('loginError').textContent='تم إغلاق نافذة Google قبل إكمال الدخول.';
+    }else{
+      $('loginError').textContent=authErrorMessage(error);
+    }
+  }finally{
+    button.disabled=false;
+    button.textContent='الدخول باستخدام Google';
+  }
+}
+
 async function resetAdminPassword(){
   const email=$('adminEmail').value.trim().toLowerCase();
   $('loginError').textContent='';
