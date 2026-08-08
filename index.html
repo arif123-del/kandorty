@@ -233,6 +233,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button><p id="loginError" style="font-size:13px;color:#b00020;line-height:1.7"></p><p id="authDebug" style="font-size:12px;color:#777;direction:ltr;text-align:left;word-break:break-word"></p><p style="font-size:13px;color:#777">استخدمي حساب الإدارة الموجود في Firebase Authentication.</p></div>
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
+<button id="orderSoundBtn" class="btn ghost" type="button" onclick="enableOrderSound()" style="margin:10px 0">🔊 تفعيل صوت الطلبات</button>
 <div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
@@ -658,6 +659,8 @@ $('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new 
 function changePin(){resetAdminPassword()}
 
 const CART_KEY='kandorty_cart_v1', ORDERS_KEY='kandorty_orders_v1';
+const SEEN_ORDERS_KEY='kandorty_seen_order_ids_v1';
+const SOUND_ENABLED_KEY='kandorty_order_sound_enabled_v1';
 let cart=[], orders=[];
 let adminOrdersUnsubscribe=null;
 let adminOrdersInitialLoaded=false;
@@ -670,6 +673,13 @@ function loadCommerce(){
   updateCartCount(); renderProfileOrders();
 }
 
+function getSeenOrderIds(){
+  try{return new Set(JSON.parse(localStorage.getItem(SEEN_ORDERS_KEY)||'[]'))}catch(e){return new Set()}
+}
+function saveSeenOrderIds(set){
+  try{localStorage.setItem(SEEN_ORDERS_KEY,JSON.stringify([...set].slice(-500)))}catch(e){}
+}
+
 function updateNewOrderBadges(){
   ['newOrderHeaderCount','newOrderTabCount'].forEach(id=>{
     const el=$(id);
@@ -680,42 +690,64 @@ function updateNewOrderBadges(){
 }
 
 function clearNewOrderBadges(){
+  const seen=getSeenOrderIds();
+  orders.forEach(o=>seen.add(o.id));
+  saveSeenOrderIds(seen);
   unreadNewOrders=0;
   updateNewOrderBadges();
 }
 
-function unlockOrderSound(){
+async function unlockOrderSound(force=false){
   try{
+    if(!force && localStorage.getItem(SOUND_ENABLED_KEY)!=='1')return false;
     if(!orderAudioContext){
       orderAudioContext=new (window.AudioContext||window.webkitAudioContext)();
     }
     if(orderAudioContext.state==='suspended'){
-      orderAudioContext.resume();
+      await orderAudioContext.resume();
     }
-  }catch(e){}
+    return orderAudioContext.state==='running';
+  }catch(e){
+    console.warn('Audio unlock failed:',e);
+    return false;
+  }
 }
 
-document.addEventListener('pointerdown',unlockOrderSound,{once:true});
-document.addEventListener('keydown',unlockOrderSound,{once:true});
+async function enableOrderSound(){
+  localStorage.setItem(SOUND_ENABLED_KEY,'1');
+  const ok=await unlockOrderSound(true);
+  if(ok){
+    playNewOrderSound(true);
+    const btn=$('orderSoundBtn');
+    if(btn)btn.textContent='🔊 صوت الطلبات مُفعّل';
+  }else{
+    alert('تعذر تشغيل الصوت. ارفعي صوت الهاتف ثم حاولي مرة أخرى.');
+  }
+}
 
-function playNewOrderSound(){
+document.addEventListener('pointerdown',()=>{unlockOrderSound(false)},{passive:true});
+document.addEventListener('keydown',()=>{unlockOrderSound(false)});
+
+async function playNewOrderSound(force=false){
   try{
-    unlockOrderSound();
-    if(!orderAudioContext)return;
-    const now=orderAudioContext.currentTime;
-    [0,0.18,0.36].forEach((delay,index)=>{
+    if(!force && localStorage.getItem(SOUND_ENABLED_KEY)!=='1')return;
+    const ok=await unlockOrderSound(force);
+    if(!ok)return;
+    const now=orderAudioContext.currentTime+0.03;
+    [0,0.22,0.44].forEach((delay,index)=>{
       const osc=orderAudioContext.createOscillator();
       const gain=orderAudioContext.createGain();
       osc.type='sine';
-      osc.frequency.value=[740,920,1100][index];
+      osc.frequency.value=[740,980,1240][index];
       gain.gain.setValueAtTime(0.0001,now+delay);
-      gain.gain.exponentialRampToValueAtTime(0.20,now+delay+0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+0.14);
+      gain.gain.exponentialRampToValueAtTime(0.28,now+delay+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+0.17);
       osc.connect(gain);
       gain.connect(orderAudioContext.destination);
       osc.start(now+delay);
-      osc.stop(now+delay+0.16);
+      osc.stop(now+delay+0.19);
     });
+    if(navigator.vibrate)navigator.vibrate([180,100,180]);
   }catch(e){
     console.warn('Order sound blocked:',e);
   }
@@ -728,25 +760,31 @@ function startAdminOrdersListener(){
 
   adminOrdersUnsubscribe=db.collection('orders').onSnapshot(
     snapshot=>{
-      const newlyAdded = adminOrdersInitialLoaded
-        ? snapshot.docChanges().filter(change=>change.type==='added')
-        : [];
-
-      orders=snapshot.docs
+      const docs=snapshot.docs
         .map(doc=>({id:doc.id,...doc.data()}))
         .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
 
+      orders=docs;
       localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
       renderOrders();
       renderProfileOrders();
 
-      if(adminOrdersInitialLoaded && newlyAdded.length){
-        unreadNewOrders += newlyAdded.length;
-        updateNewOrderBadges();
+      let seen=getSeenOrderIds();
+
+      if(!localStorage.getItem(SEEN_ORDERS_KEY)){
+        // First run after installing this fix: don't mark old orders as newly arrived.
+        orders.forEach(o=>seen.add(o.id));
+        saveSeenOrderIds(seen);
+      }
+
+      const unseen=orders.filter(o=>!seen.has(o.id));
+      unreadNewOrders=unseen.length;
+      updateNewOrderBadges();
+
+      if(adminOrdersInitialLoaded && unseen.length){
         playNewOrderSound();
 
-        const change=newlyAdded[0];
-        const order={id:change.doc.id,...change.doc.data()};
+        const order=unseen[0];
         const customer=order.customer||{};
         const firstItem=(order.items||[])[0]||{};
         const productName=firstItem.name||firstItem.code||'منتج';
@@ -765,6 +803,11 @@ function startAdminOrdersListener(){
     },
     error=>console.error('Firestore orders read error:',error)
   );
+
+  if(localStorage.getItem(SOUND_ENABLED_KEY)==='1'){
+    const btn=$('orderSoundBtn');
+    if(btn)btn.textContent='🔊 صوت الطلبات مُفعّل';
+  }
 }
 function saveCart(){localStorage.setItem(CART_KEY,JSON.stringify(cart));updateCartCount();renderCart()}
 async function saveOrders(){
