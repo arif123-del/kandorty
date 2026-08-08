@@ -364,7 +364,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="setPasswordModal" class="modal hidden"><div class="modal-card" style="max-width:480px">
 <div class="modal-head"><h2>تعيين كلمة مرور</h2><button class="x" onclick="closeSetAdminPassword()">×</button></div>
-<p style="color:var(--muted);line-height:1.8">سجلي الدخول بحساب Google أولاً، ثم اكتبي كلمة مرور جديدة لهذا الحساب.</p>
+<p style="color:var(--muted);line-height:1.8">استخدمي Google مرة واحدة فقط لتأكيد الحساب، ثم عيّني كلمة مرور جديدة. بعد نجاح الاختبار ستدخلين بالبريد وكلمة المرور فقط.</p>
 <div class="form-grid">
 <input id="newAdminPassword" class="full" type="password" minlength="6" placeholder="كلمة المرور الجديدة">
 <input id="confirmAdminPassword" class="full" type="password" minlength="6" placeholder="تأكيد كلمة المرور">
@@ -625,70 +625,115 @@ function closeSetAdminPassword(){
 }
 async function setAdminPassword(){
   const user=auth.currentUser;
-  if(!user){alert('سجلي الدخول باستخدام Google أولاً.');return;}
+  if(!user){
+    alert('سجلي الدخول باستخدام Google مرة واحدة أولاً، ثم عيّني كلمة المرور.');
+    return;
+  }
+
   const email=(user.email||'').toLowerCase();
-  if(email!==ADMIN_EMAIL){alert('هذا الحساب ليس حساب الإدارة.');return;}
+  if(email!==ADMIN_EMAIL){
+    alert('هذا الحساب ليس حساب الإدارة.');
+    return;
+  }
 
   const p1=$('newAdminPassword').value;
   const p2=$('confirmAdminPassword').value;
   const status=$('setPasswordStatus');
   const btn=$('setAdminPasswordBtn');
 
-  if(p1.length<6){status.style.color='#b00020';status.textContent='كلمة المرور يجب أن تكون 6 أحرف على الأقل.';return;}
-  if(p1!==p2){status.style.color='#b00020';status.textContent='كلمتا المرور غير متطابقتين.';return;}
+  if(p1.length<6){
+    status.style.color='#b00020';
+    status.textContent='كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
+    return;
+  }
+  if(p1!==p2){
+    status.style.color='#b00020';
+    status.textContent='كلمتا المرور غير متطابقتين.';
+    return;
+  }
 
   btn.disabled=true;
   status.style.color='#777';
-  status.textContent='جارٍ تأكيد حساب Google ثم حفظ كلمة المرور...';
+  status.textContent='جارٍ تأكيد حساب Google ثم تسجيل كلمة المرور...';
 
   try{
-    // Force a fresh Google authentication so Firebase permits a sensitive password change.
+    // Fresh sign-in so the Firebase ID token is recent.
     const provider=new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({prompt:'select_account'});
     const reauth=await user.reauthenticateWithPopup(provider);
-    const reauthEmail=(reauth.user?.email||'').toLowerCase();
-    if(reauthEmail!==ADMIN_EMAIL) throw Object.assign(new Error('Not admin'),{code:'auth/not-admin'});
+    const verifiedEmail=(reauth.user?.email||'').toLowerCase();
 
-    await user.reload();
-    const freshUser=auth.currentUser;
-    const hasPassword=(freshUser.providerData||[]).some(p=>p.providerId==='password');
-
-    if(hasPassword){
-      await freshUser.updatePassword(p1);
-    }else{
-      const credential=firebase.auth.EmailAuthProvider.credential(ADMIN_EMAIL,p1);
-      await freshUser.linkWithCredential(credential);
+    if(verifiedEmail!==ADMIN_EMAIL){
+      throw new Error('ADMIN_EMAIL_MISMATCH');
     }
 
-    // Test the new password immediately instead of only showing a success message.
-    status.textContent='تم الحفظ. جارٍ اختبار كلمة المرور الجديدة...';
+    const idToken=await reauth.user.getIdToken(true);
+
+    // Official Firebase Auth REST endpoint for changing/setting password.
+    const response=await fetch(
+      'https://identitytoolkit.googleapis.com/v1/accounts:update?key='+encodeURIComponent(firebaseConfig.apiKey),
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          idToken,
+          password:p1,
+          returnSecureToken:true
+        })
+      }
+    );
+
+    const data=await response.json();
+    if(!response.ok){
+      throw new Error(data?.error?.message||'PASSWORD_UPDATE_FAILED');
+    }
+
+    status.textContent='تم حفظ كلمة المرور. جارٍ اختبار الدخول بالبريد...';
+
+    // Verify that Email+Password really works before showing success.
     await auth.signOut();
-    const testResult=await auth.signInWithEmailAndPassword(ADMIN_EMAIL,p1);
-    if((testResult.user?.email||'').toLowerCase()!==ADMIN_EMAIL){
+    const test=await auth.signInWithEmailAndPassword(ADMIN_EMAIL,p1);
+
+    if((test.user?.email||'').toLowerCase()!==ADMIN_EMAIL){
       await auth.signOut();
-      throw Object.assign(new Error('Password test failed'),{code:'auth/password-test-failed'});
+      throw new Error('EMAIL_LOGIN_TEST_FAILED');
     }
 
     status.style.color='#16733b';
-    status.textContent='تم تعيين واختبار كلمة المرور بنجاح ✓ يمكنك الآن الدخول بالبريد وكلمة المرور.';
+    status.textContent='نجح ✓ تم تفعيل الدخول بالبريد وكلمة المرور واختباره بنجاح.';
     $('adminEmail').value=ADMIN_EMAIL;
     $('adminPassword').value='';
-    setTimeout(()=>closeSetAdminPassword(),1800);
+
+    setTimeout(async ()=>{
+      closeSetAdminPassword();
+      await auth.signOut();
+      $('adminModal').classList.remove('hidden');
+      syncAdminView(null);
+      $('adminEmail').value=ADMIN_EMAIL;
+      alert('تم تفعيل دخول البريد بنجاح. اكتبي كلمة المرور الجديدة واضغطي دخول آمن.');
+    },1500);
+
   }catch(error){
-    console.error('Set password error:',error);
+    console.error('Set email password error:',error);
     status.style.color='#b00020';
-    if(error.code==='auth/popup-blocked'){
-      status.textContent='المتصفح منع نافذة Google. فعّلي Pop-ups ثم حاولي مرة أخرى.';
-    }else if(error.code==='auth/popup-closed-by-user'){
-      status.textContent='تم إغلاق نافذة Google قبل إكمال التحقق.';
-    }else if(error.code==='auth/requires-recent-login'){
-      status.textContent='يلزم تسجيل دخول حديث. سجلي الخروج ثم ادخلي بـ Google وحاولي مرة أخرى.';
-    }else if(error.code==='auth/not-admin'){
+    const msg=String(error?.message||error||'');
+
+    if(error?.code==='auth/popup-blocked'){
+      status.textContent='المتصفح منع نافذة Google. فعّلي Pop-ups ثم حاولي.';
+    }else if(error?.code==='auth/popup-closed-by-user'){
+      status.textContent='أغلقتِ نافذة Google قبل إكمال التأكيد.';
+    }else if(msg.includes('ADMIN_EMAIL_MISMATCH')){
       status.textContent='هذا الحساب ليس حساب الإدارة.';
-    }else if(error.code==='auth/password-test-failed'){
-      status.textContent='تم تغيير كلمة المرور لكن فشل اختبار الدخول. ادخلي بواسطة Google وأعيدي المحاولة.';
+    }else if(msg.includes('WEAK_PASSWORD')){
+      status.textContent='كلمة المرور ضعيفة. اختاري كلمة مرور أقوى.';
+    }else if(msg.includes('OPERATION_NOT_ALLOWED')){
+      status.textContent='Email/Password غير مفعّل في Firebase Authentication.';
+    }else if(msg.includes('INVALID_ID_TOKEN') || msg.includes('CREDENTIAL_TOO_OLD_LOGIN_AGAIN')){
+      status.textContent='سجلي الخروج ثم ادخلي بـ Google من جديد وحاولي.';
+    }else if(msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD')){
+      status.textContent='Firebase لم يقبل كلمة المرور بعد حفظها. حاولي بكلمة مرور جديدة مختلفة.';
     }else{
-      status.textContent=authErrorMessage(error);
+      status.textContent='تعذر تسجيل كلمة المرور: '+msg;
     }
   }finally{
     btn.disabled=false;
