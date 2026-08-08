@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kandorty Online | مخاوير إماراتية</title>
+<meta name="kandorty-build" content="spark-8-images-firestore-2026-08-09">
 <meta name="description" content="Kandorty متجر مخاوير نسائية ومخاوير لبنوتات في الإمارات">
 <style>
 :root{--red:#b40018;--black:#111;--white:#fff;--soft:#fff5f6;--line:#eadfe1;--muted:#71666a}
@@ -302,7 +303,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-<p style="font-size:12px;color:#71666a;margin:7px 0 10px">سيتم ضغط الصور وحفظها مباشرة في Firebase عند حفظ المنتج — بدون Netlify.</p>
+<p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
 <textarea id="imageUrls" rows="4" style="margin-top:8px" placeholder="رابط كل صورة في سطر مستقل"></textarea>
@@ -763,7 +764,8 @@ function syncAdminView(user){
 auth.onAuthStateChanged(syncAdminView);
 function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
-const TARGET_IMAGE_BYTES=68*1024;
+const TARGET_IMAGE_BYTES=62*1024;
+const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
 let previewObjectUrls=[];
 function getImageUrls(){
   const raw=($('imageUrls')?.value||'').split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
@@ -789,7 +791,7 @@ $('imageFiles').addEventListener('change',e=>{
   const room=Math.max(0,MAX_DIRECT_IMAGES-pendingImages.length-getImageUrls().length);
   pendingImageFiles=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type)).slice(0,room);
   previewImages();
-  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة. ستُضغط وتُحفظ عند الحفظ.`:'لم يتم اختيار صور صالحة.');
+  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة من أصل ${MAX_DIRECT_IMAGES}. ستُضغط تلقائياً عند الحفظ.`:'لم يتم اختيار صور صالحة.');
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
@@ -810,8 +812,11 @@ async function compressProductImage(file){
     if(blob.size<=TARGET_IMAGE_BYTES)break;
     maxSide=Math.max(480,Math.round(maxSide*.84));quality=Math.max(.46,quality-.06);
   }
-  if(!blob||blob.size>90*1024)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
+  if(!blob||blob.size>82*1024)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
   return blobToDataUrl(blob);
+}
+function utf8Bytes(value){
+  return new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)).length;
 }
 async function prepareProductImage(file,index,total){
   setUploadProgress(Math.round((index/total)*80),`يتم ضغط الصورة ${index+1}/${total}...`);
@@ -822,40 +827,121 @@ async function prepareProductImage(file,index,total){
 $('productForm').onsubmit=async e=>{
   e.preventDefault();
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
-  const submit=e.submitter||$('productForm').querySelector('[type=submit]');submit.disabled=true;
-  const id=$('editId').value||crypto.randomUUID(),old=products.find(p=>p.id===id);
+
+  const submit=e.submitter||$('productForm').querySelector('[type=submit]');
+  submit.disabled=true;
+
+  const id=$('editId').value||crypto.randomUUID();
+  const old=products.find(p=>p.id===id);
+
   try{
-    const allEntries=($('imageUrls').value||'').split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
+    const allEntries=($('imageUrls').value||'')
+      .split(/\r?\n|,/)
+      .map(x=>x.trim())
+      .filter(Boolean);
+
     const invalid=allEntries.filter(url=>!/^https?:\/\//i.test(url));
-    if(invalid.length)throw new Error('يرجى إدخال روابط صور صحيحة تبدأ بـ http:// أو https://');
-    if(pendingImages.length+allEntries.length+pendingImageFiles.length>MAX_DIRECT_IMAGES)throw new Error(`الحد الأقصى ${MAX_DIRECT_IMAGES} صور للمنتج.`);
+    if(invalid.length){
+      throw new Error('يرجى إدخال روابط صور صحيحة تبدأ بـ http:// أو https://');
+    }
+
+    const requestedCount=pendingImages.length+allEntries.length+pendingImageFiles.length;
+    if(requestedCount>MAX_DIRECT_IMAGES){
+      throw new Error(`الحد الأقصى ${MAX_DIRECT_IMAGES} صور للمنتج.`);
+    }
+
     const prepared=[];
-    for(let i=0;i<pendingImageFiles.length;i++)prepared.push(await prepareProductImage(pendingImageFiles[i],i,pendingImageFiles.length));
-    const images=[...new Set([...pendingImages,...allEntries,...prepared])].slice(0,MAX_DIRECT_IMAGES);
-    const embeddedImageBytes=images
-      .filter(x=>/^data:image\//i.test(x))
-      .reduce((sum,x)=>sum+new Blob([x]).size,0);
-    if(embeddedImageBytes>820*1024)throw new Error('حجم الصور معاً كبير. احذفي صورة واحدة أو اختاري صوراً أصغر.');
-    setUploadProgress(85,'يتم حفظ المنتج والصور في Firebase...');
-    const p={id,code:$('code').value.trim(),nameAr:$('nameAr').value.trim(),category:$('category').value,price:Number($('price').value),salePrice:Number($('salePrice').value)||0,colors:$('colors').value.trim(),description:$('description').value.trim(),isNew:$('isNew').checked,active:$('active').checked,images,imagePaths:[]};
-    if(old)products=products.map(x=>x.id===id?p:x);else products.unshift(p);
-    await save();
+    for(let i=0;i<pendingImageFiles.length;i++){
+      prepared.push(await prepareProductImage(pendingImageFiles[i],i,pendingImageFiles.length));
+    }
+
+    const images=[...new Set([...pendingImages,...allEntries,...prepared])]
+      .filter(Boolean)
+      .slice(0,MAX_DIRECT_IMAGES);
+
+    setUploadProgress(84,'يتم التحقق من حجم بيانات المنتج...');
+
+    const p={
+      id,
+      code:$('code').value.trim(),
+      nameAr:$('nameAr').value.trim(),
+      category:$('category').value,
+      price:Number($('price').value),
+      salePrice:Number($('salePrice').value)||0,
+      colors:$('colors').value.trim(),
+      description:$('description').value.trim(),
+      isNew:$('isNew').checked,
+      active:$('active').checked,
+      images,
+      imagePaths:[],
+      imageMode:'firestore-spark',
+      imageCount:images.length,
+      updatedAt:new Date().toISOString()
+    };
+
+    const estimatedBytes=utf8Bytes(p);
+    if(estimatedBytes>MAX_PRODUCT_DOCUMENT_BYTES){
+      throw new Error(
+        `حجم المنتج مع الصور كبير (${Math.ceil(estimatedBytes/1024)}KB). `+
+        'احذفي صورة واحدة أو اختاري صوراً أبسط، ثم حاولي مرة أخرى.'
+      );
+    }
+
+    setUploadProgress(90,`يتم حفظ المنتج و${images.length} صورة في Firestore...`);
+
+    // Save only the changed product document. This avoids rewriting all image-heavy products.
+    await db.collection('products').doc(id).set(p);
+
+    if(old) products=products.map(x=>x.id===id?p:x);
+    else products.unshift(p);
+
+    localStorage.setItem(DB_KEY,JSON.stringify(products));
+    render();
+    renderAdminList();
+
     resetForm();
-    setUploadProgress(100,'تم حفظ المنتج والصور بنجاح.');
-    alert('تم حفظ المنتج أونلاين');
+    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة بنجاح.`);
+    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة.`);
+
   }catch(err){
-    console.error('Product save error:',err);
-    setUploadProgress(0,'فشل الحفظ: '+(err.message||'خطأ غير معروف'));
-    alert(err.message||'تعذر حفظ المنتج');
-  }finally{submit.disabled=false;}
+    console.error('Spark product save error:',err);
+
+    let message=err?.message||'تعذر حفظ المنتج';
+    if(String(err?.code||'').includes('resource-exhausted') ||
+       String(message).toLowerCase().includes('maximum size')){
+      message='حجم بيانات المنتج كبير على Firestore. احذفي صورة واحدة أو اختاري صوراً أصغر.';
+    }
+
+    setUploadProgress(0,'فشل الحفظ: '+message);
+    alert(message);
+  }finally{
+    submit.disabled=false;
+  }
 }
 function resetForm(){
   $('productForm').reset();$('editId').value='';$('active').checked=true;pendingImages=[];pendingImageFiles=[];pendingImagePaths=[];clearPreviewObjectUrls();previewImages();setUploadProgress(0,'اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.');
 }
 function renderAdminList(){$('adminList').innerHTML=products.length?products.map(p=>`<div class="admin-item">${p.images?.[0]?`<img src="${p.images[0]}">`:'<div style="width:65px;height:75px;background:#eee"></div>'}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`).join(''):'<div class="empty">لا توجد منتجات</div>'}
 function editProduct(id){const p=products.find(x=>x.id===id);if(!p)return;showAdminTab('form',document.querySelector('.tab'));$('editId').value=p.id;$('code').value=p.code;$('nameAr').value=p.nameAr;$('category').value=p.category;$('price').value=p.price;$('salePrice').value=p.salePrice||'';$('colors').value=p.colors||'';$('description').value=p.description||'';$('isNew').checked=!!p.isNew;$('active').checked=p.active!==false;const existing=p.images||[];$('imageUrls').value=existing.filter(x=>/^https?:\/\//i.test(x)).join('\n');pendingImages=existing.filter(x=>/^data:image\//i.test(x));pendingImagePaths=[];pendingImageFiles=[];$('imageFiles').value='';previewImages()}
-function toggleProduct(id){products=products.map(p=>p.id===id?{...p,active:p.active===false}:p);save()}
-async function deleteProduct(id){if(!confirm('حذف هذا المنتج؟'))return;try{products=products.filter(x=>x.id!==id);await save()}catch(err){console.error(err);alert('تعذر حذف المنتج')}}
+async function toggleProduct(id){
+  const p=products.find(x=>x.id===id);if(!p)return;
+  const active=p.active===false;
+  try{
+    await db.collection('products').doc(id).update({active,updatedAt:new Date().toISOString()});
+    products=products.map(x=>x.id===id?{...x,active}:x);
+    localStorage.setItem(DB_KEY,JSON.stringify(products));
+    render();renderAdminList();
+  }catch(err){console.error(err);alert('تعذر تحديث المنتج');}
+}
+async function deleteProduct(id){
+  if(!confirm('حذف هذا المنتج؟'))return;
+  try{
+    await db.collection('products').doc(id).delete();
+    products=products.filter(x=>x.id!==id);
+    localStorage.setItem(DB_KEY,JSON.stringify(products));
+    render();renderAdminList();
+  }catch(err){console.error(err);alert('تعذر حذف المنتج');}
+}
 function exportBackup(){const blob=new Blob([JSON.stringify(products,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Kandorty-products-backup.json';a.click();URL.revokeObjectURL(a.href)}
 $('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d))throw 0;products=d;save();alert('تم الاستيراد')}catch{alert('ملف غير صالح')}};r.readAsText(f)}
 function changePin(){resetAdminPassword()}
