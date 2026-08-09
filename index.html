@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kandorty Online | مخاوير إماراتية</title>
-<meta name="kandorty-build" content="spark-8-images-firestore-2026-08-09">
+<meta name="kandorty-build" content="spark-8-images-online-tracking-2026-08-09">
 <meta name="description" content="Kandorty متجر مخاوير نسائية ومخاوير لبنوتات في الإمارات">
 <style>
 :root{--red:#b40018;--black:#111;--white:#fff;--soft:#fff5f6;--line:#eadfe1;--muted:#71666a}
@@ -394,7 +394,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="trackingModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2>تتبع الطلب</h2><button class="x" onclick="closeTracking()">×</button></div>
 <div class="form-grid">
-<input id="trackingNumber" class="full" placeholder="أدخلي رقم الطلب، مثال KD-12345678">
+<input id="trackingNumber" class="full" placeholder="أدخلي رقم الطلب، مثال KD-A1B2C3D4E5F6" onkeydown="if(event.key==='Enter'){event.preventDefault();trackOrder()}">
 <button class="btn primary full" onclick="trackOrder()">بحث</button>
 </div>
 <div id="trackingResult" style="margin-top:16px"></div>
@@ -1104,8 +1104,26 @@ async function saveOrders(){
   orders.forEach(order=>batch.set(db.collection('orders').doc(order.id),order));
   await batch.commit(); renderOrders();
 }
+function makeSecureOrderId(){
+  const bytes=new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return 'KD-'+Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+
 async function submitCustomerOrder(order){
-  await db.collection('orders').doc(order.id).set(order);
+  const batch=db.batch();
+  const orderRef=db.collection('orders').doc(order.id);
+  const trackingRef=db.collection('tracking').doc(order.id);
+
+  batch.set(orderRef,order);
+  batch.set(trackingRef,{
+    id:order.id,
+    status:'new',
+    createdAt:order.createdAt
+  });
+
+  await batch.commit();
+
   orders=[order,...orders.filter(o=>o.id!==order.id)];
   localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
   renderProfileOrders();
@@ -1141,7 +1159,7 @@ $('checkoutForm').onsubmit=async e=>{
   const rows=cartData(); if(!rows.length)return;
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
   const order={
-    id:'KD-'+Date.now().toString().slice(-8),
+    id:makeSecureOrderId(),
     createdAt:new Date().toISOString(),
     customer:{name:$('customerName').value.trim(),phone:$('customerPhone').value.trim(),city:$('customerCity').value,location:$('customerLocation').value.trim()},
     payment:$('paymentMethod').value,
@@ -1167,7 +1185,41 @@ function renderOrders(){
   <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
   </div>`).join(''):'<div class="empty">لا توجد طلبات بعد</div>';
 }
-function updateOrderStatus(id,status){orders=orders.map(o=>o.id===id?{...o,status}:o);saveOrders()}
+async function updateOrderStatus(id,status){
+  const allowed=['new','preparing','shipping','delivered','cancelled'];
+  if(!allowed.includes(status))return;
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+
+  const current=orders.find(o=>o.id===id);
+  if(!current)return;
+
+  try{
+    const updatedAt=new Date().toISOString();
+    const batch=db.batch();
+
+    batch.update(db.collection('orders').doc(id),{
+      status,
+      updatedAt
+    });
+
+    batch.set(db.collection('tracking').doc(id),{
+      id,
+      status,
+      createdAt:current.createdAt||''
+    },{merge:true});
+
+    await batch.commit();
+
+    orders=orders.map(o=>o.id===id?{...o,status,updatedAt}:o);
+    localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+    renderOrders();
+    renderProfileOrders();
+  }catch(err){
+    console.error('Order status update error:',err);
+    alert('تعذر تحديث حالة الطلب');
+    renderOrders();
+  }
+}
 
 
 const SETTINGS_KEY='kandorty_settings_v1';
@@ -1358,18 +1410,64 @@ function renderSocialLinks(){
 
 $('trackBtn').onclick=()=>{$('trackingModal').classList.remove('hidden');$('trackingResult').innerHTML=''}
 function closeTracking(){$('trackingModal').classList.add('hidden')}
-function trackOrder(){
-  const num=$('trackingNumber').value.trim();
-  const o=orders.find(x=>x.id.toLowerCase()===num.toLowerCase());
-  if(!o){$('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';return}
-  const order=['new','preparing','shipping','delivered'];
-  const idx=order.indexOf(o.status);
-  $('trackingResult').innerHTML=`<div class="track-box"><b>${o.id}</b><p>${esc(o.customer.name)} · ${esc(o.customer.city)}</p><div class="track-steps">
-  ${order.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
-  ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
-  </div></div>`;
+function renderTrackingStatus(data){
+  const flow=['new','preparing','shipping','delivered'];
+  const idx=flow.indexOf(data.status);
+  const created=data.createdAt?new Date(data.createdAt).toLocaleString('ar-AE'):'';
+
+  $('trackingResult').innerHTML=`
+    <div class="track-box">
+      <b>${esc(data.id||'')}</b>
+      ${created?`<p style="color:var(--muted);font-size:13px">${esc(created)}</p>`:''}
+      <div class="track-steps">
+        ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
+        ${data.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
+      </div>
+    </div>`;
 }
 
+async function trackOrder(){
+  const raw=$('trackingNumber').value.trim();
+  const num=raw.toUpperCase();
+
+  if(!num){
+    $('trackingResult').innerHTML='<div class="empty">أدخلي رقم الطلب أولاً</div>';
+    return;
+  }
+
+  $('trackingResult').innerHTML='<div class="empty">جارٍ البحث عن الطلب...</div>';
+
+  try{
+    const snap=await db.collection('tracking').doc(num).get();
+
+    if(snap.exists){
+      renderTrackingStatus({id:snap.id,...snap.data()});
+      return;
+    }
+
+    const localOrder=orders.find(x=>(x.id||'').toUpperCase()===num);
+    if(localOrder){
+      renderTrackingStatus(localOrder);
+      return;
+    }
+
+    $('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';
+  }catch(error){
+    console.error('Online tracking error:',error);
+
+    const localOrder=orders.find(x=>(x.id||'').toUpperCase()===num);
+    if(localOrder){
+      renderTrackingStatus(localOrder);
+      return;
+    }
+
+    if(error?.code==='permission-denied'){
+      $('trackingResult').innerHTML='<div class="empty">يلزم نشر قواعد التتبع الجديدة في Firebase أولاً.</div>';
+    }else{
+      $('trackingResult').innerHTML='<div class="empty">تعذر الاتصال بالتتبع الآن. حاولي مرة أخرى.</div>';
+    }
+  }
+}
 function buildWhatsAppMessage(){
   const rows=cartData();
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
