@@ -1131,7 +1131,11 @@ async function saveOrders(){
   await batch.commit(); renderOrders();
 }
 async function submitCustomerOrder(order){
-  // PRIMARY: save the order exactly as the stable version did.
+  // PRIMARY: save a compact order. Product images are NOT copied into orders.
+  const orderBytes=new TextEncoder().encode(JSON.stringify(order)).length;
+  if(orderBytes>700*1024){
+    throw Object.assign(new Error('Order data is unexpectedly too large.'),{code:'order/too-large'});
+  }
   await db.collection('orders').doc(order.id).set(order);
 
   orders=[order,...orders.filter(o=>o.id!==order.id)];
@@ -1188,7 +1192,13 @@ $('checkoutForm').onsubmit=async e=>{
     notes:$('orderNotes').value.trim(),
     status:'new',
     total,
-    items:rows.map(x=>({id:x.product.id,code:x.product.code,name:x.product.nameAr,price:Number(x.product.salePrice||x.product.price),qty:x.item.qty,image:x.product.images?.[0]||''}))
+    items:rows.map(x=>({
+      id:x.product.id,
+      code:x.product.code,
+      name:x.product.nameAr,
+      price:Number(x.product.salePrice||x.product.price),
+      qty:x.item.qty
+    }))
   };
   customerProfile={name:order.customer.name,phone:order.customer.phone,location:order.customer.location};
   saveCustomerProfile();
@@ -1205,7 +1215,9 @@ $('checkoutForm').onsubmit=async e=>{
     alert('✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: '+order.id+'\n\nاحتفظي بهذا الرقم لتتبع الطلب.');
   }catch(error){
     console.error('Order submit error:',error);
-    alert('❌ لم يتم تسجيل الطلب. تحققي من الإنترنت ثم حاولي مرة أخرى.');
+    const code=error?.code||'unknown';
+    const msg=error?.message||'';
+    alert('❌ لم يتم تسجيل الطلب.\n\nFirebase: '+code+'\n'+msg);
   }
 }
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
