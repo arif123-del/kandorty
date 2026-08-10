@@ -1041,6 +1041,31 @@ async function playNewOrderSound(force=false){
   }
 }
 
+let trackingBackfillDone=false;
+
+async function syncOldOrdersToTracking(orderList){
+  if(trackingBackfillDone||!auth.currentUser||!Array.isArray(orderList)||!orderList.length)return;
+  trackingBackfillDone=true;
+
+  try{
+    for(let start=0;start<orderList.length;start+=400){
+      const batch=db.batch();
+      orderList.slice(start,start+400).forEach(o=>{
+        if(!o||!o.id)return;
+        batch.set(db.collection('tracking').doc(o.id),{
+          id:o.id,
+          status:o.status||'new',
+          createdAt:o.createdAt||''
+        },{merge:true});
+      });
+      await batch.commit();
+    }
+  }catch(error){
+    trackingBackfillDone=false;
+    console.error('Tracking backfill error:',error);
+  }
+}
+
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
 
@@ -1056,6 +1081,7 @@ function startAdminOrdersListener(){
       localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
       renderOrders();
       renderProfileOrders();
+      syncOldOrdersToTracking(orders);
 
       let seen=getSeenOrderIds();
 
@@ -1105,7 +1131,15 @@ async function saveOrders(){
   await batch.commit(); renderOrders();
 }
 async function submitCustomerOrder(order){
-  await db.collection('orders').doc(order.id).set(order);
+  const batch=db.batch();
+  batch.set(db.collection('orders').doc(order.id),order);
+  batch.set(db.collection('tracking').doc(order.id),{
+    id:order.id,
+    status:order.status||'new',
+    createdAt:order.createdAt||''
+  });
+  await batch.commit();
+
   orders=[order,...orders.filter(o=>o.id!==order.id)];
   localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
   renderProfileOrders();
@@ -1167,7 +1201,30 @@ function renderOrders(){
   <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
   </div>`).join(''):'<div class="empty">لا توجد طلبات بعد</div>';
 }
-function updateOrderStatus(id,status){orders=orders.map(o=>o.id===id?{...o,status}:o);saveOrders()}
+async function updateOrderStatus(id,status){
+  const current=orders.find(o=>o.id===id);
+  if(!current||!auth.currentUser)return;
+
+  try{
+    const batch=db.batch();
+    batch.update(db.collection('orders').doc(id),{status});
+    batch.set(db.collection('tracking').doc(id),{
+      id,
+      status,
+      createdAt:current.createdAt||''
+    },{merge:true});
+    await batch.commit();
+
+    orders=orders.map(o=>o.id===id?{...o,status}:o);
+    localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+    renderOrders();
+    renderProfileOrders();
+  }catch(error){
+    console.error('Order status update error:',error);
+    alert('تعذر تحديث حالة الطلب');
+    renderOrders();
+  }
+}
 
 
 const SETTINGS_KEY='kandorty_settings_v1';
@@ -1358,18 +1415,49 @@ function renderSocialLinks(){
 
 $('trackBtn').onclick=()=>{$('trackingModal').classList.remove('hidden');$('trackingResult').innerHTML=''}
 function closeTracking(){$('trackingModal').classList.add('hidden')}
-function trackOrder(){
-  const num=$('trackingNumber').value.trim();
-  const o=orders.find(x=>x.id.toLowerCase()===num.toLowerCase());
-  if(!o){$('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';return}
-  const order=['new','preparing','shipping','delivered'];
-  const idx=order.indexOf(o.status);
-  $('trackingResult').innerHTML=`<div class="track-box"><b>${o.id}</b><p>${esc(o.customer.name)} · ${esc(o.customer.city)}</p><div class="track-steps">
-  ${order.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
+function renderTrackingResult(o){
+  const flow=['new','preparing','shipping','delivered'];
+  const idx=flow.indexOf(o.status);
+  $('trackingResult').innerHTML=`<div class="track-box"><b>${esc(o.id||'')}</b><div class="track-steps">
+  ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
   ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
   </div></div>`;
 }
 
+async function trackOrder(){
+  const num=$('trackingNumber').value.trim().toUpperCase();
+  if(!num){
+    $('trackingResult').innerHTML='<div class="empty">أدخلي رقم الطلب</div>';
+    return;
+  }
+
+  $('trackingResult').innerHTML='<div class="empty">جارٍ البحث...</div>';
+
+  try{
+    const snap=await db.collection('tracking').doc(num).get();
+    if(snap.exists){
+      renderTrackingResult({id:snap.id,...snap.data()});
+      return;
+    }
+
+    // Same-device fallback for an older local order.
+    const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
+    if(localOrder){
+      renderTrackingResult(localOrder);
+      return;
+    }
+
+    $('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';
+  }catch(error){
+    console.error('Tracking read error:',error);
+    const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
+    if(localOrder){
+      renderTrackingResult(localOrder);
+      return;
+    }
+    $('trackingResult').innerHTML='<div class="empty">تعذر التتبع الآن</div>';
+  }
+}
 function buildWhatsAppMessage(){
   const rows=cartData();
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
