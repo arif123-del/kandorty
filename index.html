@@ -1041,11 +1041,11 @@ async function playNewOrderSound(force=false){
   }
 }
 
-let trackingBackfillDone=false;
+let trackingBackfillStarted=false;
 
-async function syncOldOrdersToTracking(orderList){
-  if(trackingBackfillDone||!auth.currentUser||!Array.isArray(orderList)||!orderList.length)return;
-  trackingBackfillDone=true;
+async function syncOrdersToTracking(orderList){
+  if(trackingBackfillStarted||!auth.currentUser||!Array.isArray(orderList)||!orderList.length)return;
+  trackingBackfillStarted=true;
 
   try{
     for(let start=0;start<orderList.length;start+=400){
@@ -1061,8 +1061,8 @@ async function syncOldOrdersToTracking(orderList){
       await batch.commit();
     }
   }catch(error){
-    trackingBackfillDone=false;
-    console.error('Tracking backfill error:',error);
+    trackingBackfillStarted=false;
+    console.warn('Old orders tracking sync failed:',error);
   }
 }
 
@@ -1081,7 +1081,7 @@ function startAdminOrdersListener(){
       localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
       renderOrders();
       renderProfileOrders();
-      syncOldOrdersToTracking(orders);
+      syncOrdersToTracking(orders);
 
       let seen=getSeenOrderIds();
 
@@ -1131,18 +1131,24 @@ async function saveOrders(){
   await batch.commit(); renderOrders();
 }
 async function submitCustomerOrder(order){
-  const batch=db.batch();
-  batch.set(db.collection('orders').doc(order.id),order);
-  batch.set(db.collection('tracking').doc(order.id),{
-    id:order.id,
-    status:order.status||'new',
-    createdAt:order.createdAt||''
-  });
-  await batch.commit();
+  // PRIMARY: save the order exactly as the stable version did.
+  await db.collection('orders').doc(order.id).set(order);
 
   orders=[order,...orders.filter(o=>o.id!==order.id)];
   localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
   renderProfileOrders();
+
+  // SECONDARY: create a small privacy-safe tracking record.
+  // A tracking failure must NEVER cancel or hide the real order.
+  try{
+    await db.collection('tracking').doc(order.id).set({
+      id:order.id,
+      status:order.status||'new',
+      createdAt:order.createdAt||''
+    });
+  }catch(error){
+    console.warn('Tracking record creation failed, but order was saved:',error);
+  }
 }
 function addToCart(id){
   const p=products.find(x=>x.id===id); if(!p)return;
@@ -1184,8 +1190,23 @@ $('checkoutForm').onsubmit=async e=>{
     total,
     items:rows.map(x=>({id:x.product.id,code:x.product.code,name:x.product.nameAr,price:Number(x.product.salePrice||x.product.price),qty:x.item.qty,image:x.product.images?.[0]||''}))
   };
-  customerProfile={name:order.customer.name,phone:order.customer.phone,location:order.customer.location};saveCustomerProfile(); await submitCustomerOrder(order); cart=[]; saveCart(); e.target.reset(); closeCheckout();
-  alert('تم تسجيل الطلب بنجاح. رقم الطلب: '+order.id);
+  customerProfile={name:order.customer.name,phone:order.customer.phone,location:order.customer.location};
+  saveCustomerProfile();
+
+  try{
+    await submitCustomerOrder(order);
+
+    localStorage.setItem('kandorty_last_order_id',order.id);
+    cart=[];
+    saveCart();
+    e.target.reset();
+    closeCheckout();
+
+    alert('✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: '+order.id+'\n\nاحتفظي بهذا الرقم لتتبع الطلب.');
+  }catch(error){
+    console.error('Order submit error:',error);
+    alert('❌ لم يتم تسجيل الطلب. تحققي من الإنترنت ثم حاولي مرة أخرى.');
+  }
 }
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 function renderOrders(){
@@ -1206,19 +1227,24 @@ async function updateOrderStatus(id,status){
   if(!current||!auth.currentUser)return;
 
   try{
-    const batch=db.batch();
-    batch.update(db.collection('orders').doc(id),{status});
-    batch.set(db.collection('tracking').doc(id),{
-      id,
-      status,
-      createdAt:current.createdAt||''
-    },{merge:true});
-    await batch.commit();
+    // PRIMARY: update the real private order first.
+    await db.collection('orders').doc(id).update({status});
 
     orders=orders.map(o=>o.id===id?{...o,status}:o);
     localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
     renderOrders();
     renderProfileOrders();
+
+    // SECONDARY: sync public tracking; failure here does not undo the order update.
+    try{
+      await db.collection('tracking').doc(id).set({
+        id,
+        status,
+        createdAt:current.createdAt||''
+      },{merge:true});
+    }catch(trackError){
+      console.warn('Tracking status sync failed:',trackError);
+    }
   }catch(error){
     console.error('Order status update error:',error);
     alert('تعذر تحديث حالة الطلب');
@@ -1418,14 +1444,19 @@ function closeTracking(){$('trackingModal').classList.add('hidden')}
 function renderTrackingResult(o){
   const flow=['new','preparing','shipping','delivered'];
   const idx=flow.indexOf(o.status);
-  $('trackingResult').innerHTML=`<div class="track-box"><b>${esc(o.id||'')}</b><div class="track-steps">
-  ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
-  ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
-  </div></div>`;
+
+  $('trackingResult').innerHTML=`<div class="track-box">
+    <b>${esc(o.id||'')}</b>
+    <div class="track-steps">
+      ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
+      ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
+    </div>
+  </div>`;
 }
 
 async function trackOrder(){
   const num=$('trackingNumber').value.trim().toUpperCase();
+
   if(!num){
     $('trackingResult').innerHTML='<div class="empty">أدخلي رقم الطلب</div>';
     return;
@@ -1435,28 +1466,23 @@ async function trackOrder(){
 
   try{
     const snap=await db.collection('tracking').doc(num).get();
+
     if(snap.exists){
       renderTrackingResult({id:snap.id,...snap.data()});
       return;
     }
-
-    // Same-device fallback for an older local order.
-    const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
-    if(localOrder){
-      renderTrackingResult(localOrder);
-      return;
-    }
-
-    $('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';
   }catch(error){
-    console.error('Tracking read error:',error);
-    const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
-    if(localOrder){
-      renderTrackingResult(localOrder);
-      return;
-    }
-    $('trackingResult').innerHTML='<div class="empty">تعذر التتبع الآن</div>';
+    console.warn('Online tracking lookup failed:',error);
   }
+
+  // Keep old same-phone behavior as a fallback.
+  const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
+  if(localOrder){
+    renderTrackingResult(localOrder);
+    return;
+  }
+
+  $('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';
 }
 function buildWhatsAppMessage(){
   const rows=cartData();
