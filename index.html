@@ -218,7 +218,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" id="trackBtn">تتبع الطلب</button>
 <button class="btn ghost" id="cartBtn">السلة <span id="cartCount" class="header-count">0</span></button>
 <button class="btn ghost" id="langBtn">EN</button>
-<button class="btn ghost" id="adminBtn">الإدارة <span id="newOrderHeaderCount" class="header-count" style="display:none">0</span></button>
+<button class="btn ghost" id="adminBtn" style="display:none">الإدارة <span id="newOrderHeaderCount" class="header-count" style="display:none">0</span></button>
 </div></div></header>
 
 
@@ -265,7 +265,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="products" class="products"></div>
 </div></section>
 
-<section class="newsletter"><div class="container"><div class="newsletter-box"><div><h2 data-ar="كوني أول من يعرف" data-en="Be the first to know">كوني أول من يعرف</h2><p data-ar="تابعي جديد Kandorty والعروض المميزة عبر قنوات التواصل." data-en="Follow Kandorty for new arrivals and special offers.">تابعي جديد Kandorty والعروض المميزة عبر قنوات التواصل.</p></div><div class="newsletter-form"><input type="email" placeholder="Email"><button class="btn dark" type="button" data-ar="اشتراك" data-en="Subscribe">اشتراك</button></div></div></div></section>
+<section class="newsletter"><div class="container"><div class="newsletter-box"><div><h2 data-ar="كوني أول من يعرف" data-en="Be the first to know">كوني أول من يعرف</h2><p data-ar="تابعي جديد Kandorty والعروض المميزة عبر قنوات التواصل." data-en="Follow Kandorty for new arrivals and special offers.">تابعي جديد Kandorty والعروض المميزة عبر قنوات التواصل.</p></div><div class="newsletter-form"><input id="newsletterEmail" type="email" autocomplete="email" placeholder="Email" onkeydown="if(event.key==='Enter'){event.preventDefault();subscribeNewsletter()}"><button id="newsletterBtn" class="btn dark" type="button" onclick="subscribeNewsletter()" data-ar="اشتراك" data-en="Subscribe">اشتراك</button><div id="newsletterStatus" style="font-size:13px;line-height:1.6;min-height:20px"></div></div></div></div></section>
 </main>
 
 <footer><div class="container footer-grid">
@@ -756,12 +756,32 @@ async function resetAdminPassword(){
 }
 function syncAdminView(user){
   const loggedIn=!!user && (user.email||'').toLowerCase()===ADMIN_EMAIL;
+
+  // Public customers never see the admin button.
+  // It appears only after the real admin is authenticated.
+  if($('adminBtn')) $('adminBtn').style.display=loggedIn?'':'none';
+
   $('loginView').classList.toggle('hidden',loggedIn);
   $('adminView').classList.toggle('hidden',!loggedIn);
-  if(loggedIn){renderAdminList(); startAdminOrdersListener();}
-  else if(user){auth.signOut().catch(console.error);}
+
+  if(loggedIn){
+    renderAdminList();
+    startAdminOrdersListener();
+  }else if(user){
+    auth.signOut().catch(console.error);
+  }
 }
-auth.onAuthStateChanged(syncAdminView);
+
+auth.onAuthStateChanged(user=>{
+  syncAdminView(user);
+
+  // Secret admin entry: open login only when ?admin=1 is present.
+  const params=new URLSearchParams(location.search);
+  if(params.get('admin')==='1'){
+    $('adminModal').classList.remove('hidden');
+    syncAdminView(user);
+  }
+});
 function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=62*1024;
@@ -1578,6 +1598,64 @@ function renderProfileOrders(){
   const list=phone?orders.filter(o=>o.customer.phone===phone):[];
   $('profileOrders').innerHTML=list.length?list.map(o=>`<div class="order-card"><b>${o.id}</b><p>${statusText(o.status)}</p><div class="price">${money(o.total)}</div></div>`).join(''):'<div class="empty">لا توجد طلبات مرتبطة بهذا الرقم</div>';
 }
+function newsletterEmailKey(email){
+  // Stable non-reversible-enough identifier for Firestore document naming.
+  // This avoids storing the email itself in the document path.
+  let h1=0x811c9dc5;
+  let h2=0x01000193;
+  for(let i=0;i<email.length;i++){
+    h1^=email.charCodeAt(i);
+    h1=Math.imul(h1,0x01000193);
+    h2^=(email.charCodeAt(i)+i);
+    h2=Math.imul(h2,0x45d9f3b);
+  }
+  return 'sub_'+(h1>>>0).toString(16).padStart(8,'0')+(h2>>>0).toString(16).padStart(8,'0');
+}
+
+async function subscribeNewsletter(){
+  const input=$('newsletterEmail');
+  const btn=$('newsletterBtn');
+  const status=$('newsletterStatus');
+  if(!input||!btn||!status)return;
+
+  const email=input.value.trim().toLowerCase();
+  status.textContent='';
+  status.style.color='#ffe3e8';
+
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    status.style.color='#fff3a6';
+    status.textContent=lang==='ar'?'اكتبي بريدًا إلكترونيًا صحيحًا.':'Enter a valid email address.';
+    return;
+  }
+
+  btn.disabled=true;
+  const oldText=btn.textContent;
+  btn.textContent=lang==='ar'?'جارٍ الاشتراك...':'Subscribing...';
+
+  try{
+    const id=newsletterEmailKey(email);
+    await db.collection('newsletter_subscribers').doc(id).set({
+      email,
+      createdAt:new Date().toISOString(),
+      source:'website'
+    });
+
+    localStorage.setItem('kandorty_newsletter_email',email);
+    input.value='';
+    status.style.color='#fff';
+    status.textContent=lang==='ar'?'تم الاشتراك بنجاح ✓':'Subscribed successfully ✓';
+  }catch(error){
+    console.error('Newsletter subscription error:',error);
+    status.style.color='#fff3a6';
+    status.textContent=lang==='ar'
+      ?'تعذر الاشتراك الآن. حاولي مرة أخرى.'
+      :'Could not subscribe right now. Please try again.';
+  }finally{
+    btn.disabled=false;
+    btn.textContent=oldText;
+  }
+}
+
 function renderCustomers(){
   if(!$('customersList'))return;
   const map=new Map();
