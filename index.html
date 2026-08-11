@@ -455,28 +455,73 @@ const ADMIN_EMAIL='aliyajan200011@gmail.com';
 const DB_KEY='kandorty_products_v1';
 let lang='ar', currentCat='all', pendingImages=[], pendingImageFiles=[], pendingImagePaths=[], products=[];
 const $=id=>document.getElementById(id);
+function makeFastProductCache(list){
+  // Keep the homepage cache small: product data + only the first image.
+  // Full image galleries still come from Firestore moments later.
+  return (Array.isArray(list)?list:[]).map(p=>({
+    ...p,
+    images:Array.isArray(p.images)&&p.images[0]?[p.images[0]]:[]
+  }));
+}
+
+function readFastProductCache(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(DB_KEY)||'[]');
+    return Array.isArray(cached)?cached:[];
+  }catch(e){
+    return [];
+  }
+}
+
+function writeFastProductCache(list){
+  try{
+    localStorage.setItem(DB_KEY,JSON.stringify(makeFastProductCache(list)));
+  }catch(e){
+    console.warn('Product cache write skipped:',e);
+  }
+}
+
 function load(){
+  // FAST FIRST PAINT:
+  // Show the last known products immediately, without waiting for Firestore.
+  const cached=readFastProductCache();
+  if(cached.length){
+    products=cached;
+    render();
+    renderAdminList();
+    const status=$('onlineStatus');
+    if(status){status.textContent='جارٍ التحديث...';status.style.color='#8a6d00'}
+  }
+
+  // Then synchronize fresh/full product data from Firestore.
   db.collection('products').onSnapshot(
     snapshot=>{
       products=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
-      localStorage.setItem(DB_KEY,JSON.stringify(products));
+      writeFastProductCache(products);
+
       const status=$('onlineStatus');
       if(status){status.textContent='متصل';status.style.color='#16733b'}
+
       render();
       renderAdminList();
     },
     error=>{
       console.error('Firestore products read error:',error);
+
       const status=$('onlineStatus');
       if(status){status.textContent='غير متصل';status.style.color='#b40018'}
-      try{products=JSON.parse(localStorage.getItem(DB_KEY)||'[]')}catch(e){products=[]}
-      render();
-      renderAdminList();
+
+      // If there was no cache at startup, try one more time.
+      if(!products.length){
+        products=readFastProductCache();
+        render();
+        renderAdminList();
+      }
     }
   );
 }
 async function save(){
-  localStorage.setItem(DB_KEY,JSON.stringify(products));
+  writeFastProductCache(products);
   const snapshot=await db.collection('products').get();
   const batch=db.batch();
   const localIds=new Set(products.map(p=>p.id));
@@ -500,7 +545,7 @@ function render(){
  const q=$('search').value.trim().toLowerCase();
  const list=products.filter(p=>p.active!==false&&(currentCat==='all'||p.category===currentCat)&&(!q||(p.code+' '+p.nameAr).toLowerCase().includes(q)));
  $('products').innerHTML=list.length?list.map(p=>`<article class="card">
- ${p.images?.[0]?`<img src="${p.images[0]}" alt="">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
+ ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
  <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
  <div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>
  <div class="card-actions"><button class="btn ghost" onclick="openProduct('${p.id}')">${lang==='ar'?'التفاصيل':'Details'}</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
@@ -910,7 +955,7 @@ $('productForm').onsubmit=async e=>{
     if(old) products=products.map(x=>x.id===id?p:x);
     else products.unshift(p);
 
-    localStorage.setItem(DB_KEY,JSON.stringify(products));
+    writeFastProductCache(products);
     render();
     renderAdminList();
 
@@ -944,7 +989,7 @@ async function toggleProduct(id){
   try{
     await db.collection('products').doc(id).update({active,updatedAt:new Date().toISOString()});
     products=products.map(x=>x.id===id?{...x,active}:x);
-    localStorage.setItem(DB_KEY,JSON.stringify(products));
+    writeFastProductCache(products);
     render();renderAdminList();
   }catch(err){console.error(err);alert('تعذر تحديث المنتج');}
 }
@@ -953,7 +998,7 @@ async function deleteProduct(id){
   try{
     await db.collection('products').doc(id).delete();
     products=products.filter(x=>x.id!==id);
-    localStorage.setItem(DB_KEY,JSON.stringify(products));
+    writeFastProductCache(products);
     render();renderAdminList();
   }catch(err){console.error(err);alert('تعذر حذف المنتج');}
 }
@@ -1566,7 +1611,7 @@ function renderWishlist(){
   if(!$('wishlistItems'))return;
   const list=wishlist.map(id=>products.find(p=>p.id===id)).filter(Boolean);
   $('wishlistItems').innerHTML=list.length?list.map(p=>`<article class="card">
-  ${p.images?.[0]?`<img src="${p.images[0]}" alt="">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
+  ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
   <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
   <div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>
   <div class="card-actions"><button class="btn primary" onclick="addToCart('${p.id}')">أضيفي للسلة</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">حذف</button></div>
