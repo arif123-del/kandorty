@@ -39,6 +39,8 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
 .product-gallery-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 2px}
 .product-gallery-thumb{width:64px;height:80px;object-fit:cover;border-radius:9px;border:2px solid transparent;cursor:pointer;flex:0 0 auto;background:#f6f3f4}
 .product-gallery-thumb.active{border-color:var(--red)}
+.admin-order-search{display:flex;gap:8px;align-items:center;margin:12px 0 16px}.admin-order-search input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:15px}
+.products .card>img{cursor:pointer}
 .admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{border:1px solid var(--line);background:#fff;padding:10px 13px;border-radius:10px}.tab.active{background:#111;color:#fff}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid .full{grid-column:1/-1}
 .form-grid input,.form-grid select,.form-grid textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}
@@ -321,7 +323,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost full" type="button" onclick="resetForm()">إلغاء / تنظيف</button>
 </form></div>
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
-<div id="adminOrdersTab" class="hidden"><div id="ordersList" class="admin-list"></div></div>
+<div id="adminOrdersTab" class="hidden">
+<div class="admin-order-search">
+  <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
+  <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
+</div>
+<div id="ordersList" class="admin-list"></div>
+</div>
 <div id="adminCustomersTab" class="hidden"><div id="customersList" class="admin-list"></div></div>
 
 <div id="adminBannerTab" class="hidden">
@@ -546,10 +554,10 @@ function render(){
  const q=$('search').value.trim().toLowerCase();
  const list=products.filter(p=>p.active!==false&&(currentCat==='all'||p.category===currentCat)&&(!q||(p.code+' '+p.nameAr).toLowerCase().includes(q)));
  $('products').innerHTML=list.length?list.map(p=>`<article class="card">
- ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
+ ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
  <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
  <div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>
- <div class="card-actions"><button class="btn ghost" onclick="openProduct('${p.id}')">${lang==='ar'?'التفاصيل':'Details'}</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
+ <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let currentProductImages=[];
@@ -1292,7 +1300,13 @@ $('checkoutForm').onsubmit=async e=>{
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 function renderOrders(){
   if(!$('ordersList'))return;
-  $('ordersList').innerHTML=orders.length?orders.map(o=>`<div class="order-card">
+
+  const q=($('adminOrderSearch')?.value||'').trim().toUpperCase();
+  const visibleOrders=q
+    ? orders.filter(o=>String(o.id||'').toUpperCase().includes(q))
+    : orders;
+
+  $('ordersList').innerHTML=visibleOrders.length?visibleOrders.map(o=>`<div class="order-card">
   <div class="order-head"><div><b>${o.id}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small></div>
   <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
     ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
@@ -1301,7 +1315,9 @@ function renderOrders(){
   <p>${o.items.map(i=>`${esc(i.name)} × ${i.qty}`).join('<br>')}</p>
   <div class="price">${money(o.total)}</div>
   <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
-  </div>`).join(''):'<div class="empty">لا توجد طلبات بعد</div>';
+  </div>`).join(''):(q
+    ?'<div class="empty">لا يوجد طلب بهذا الكود</div>'
+    :'<div class="empty">لا توجد طلبات بعد</div>');
 }
 async function updateOrderStatus(id,status){
   const current=orders.find(o=>o.id===id);
