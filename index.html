@@ -820,7 +820,8 @@ function syncAdminView(user){
 
 auth.onAuthStateChanged(user=>{
   syncAdminView(user);
-  // Public storefront never opens the admin login automatically.
+  // Public storefront: admin login must never appear here.
+  if($('adminModal')) $('adminModal').classList.add('hidden');
 });
 function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
