@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
-<!-- Kandorty dedicated admin page -->
+<!-- Kandorty dedicated admin page — Fast Load V6.3 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kandorty Online | مخاوير إماراتية</title>
@@ -39,8 +39,6 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
 .product-gallery-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 2px}
 .product-gallery-thumb{width:64px;height:80px;object-fit:cover;border-radius:9px;border:2px solid transparent;cursor:pointer;flex:0 0 auto;background:#f6f3f4}
 .product-gallery-thumb.active{border-color:var(--red)}
-.admin-order-search{display:flex;gap:8px;align-items:center;margin:12px 0 16px}.admin-order-search input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:15px}
-.products .card>img{cursor:pointer}
 .admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{border:1px solid var(--line);background:#fff;padding:10px 13px;border-radius:10px}.tab.active{background:#111;color:#fff}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid .full{grid-column:1/-1}
 .form-grid input,.form-grid select,.form-grid textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}
@@ -59,6 +57,16 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
 @media(max-width:600px){
   .logo{width:145px!important;height:60px!important;max-width:44vw!important}
 }
+
+/* Kandorty V6.3 — editable homepage video (Spark-safe: URL stored in Firestore) */
+.home-video-section{padding:22px 0 36px;background:#fff}
+.home-video-card{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:#080808;box-shadow:0 18px 50px rgba(35,15,20,.10)}
+.home-video-card video{display:block;width:100%;max-height:540px;aspect-ratio:16/9;object-fit:contain;background:#000}
+.video-admin-box{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff}
+.video-admin-box input[type=text]{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;margin:8px 0}
+.video-admin-preview{width:100%;max-width:720px;max-height:420px;background:#000;border-radius:14px;margin-top:12px}
+.video-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:540px){.home-video-section{padding:14px 0 26px}.home-video-card{border-radius:16px}.home-video-card video{max-height:420px}}
 </style>
 
 <style>
@@ -244,6 +252,14 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div><div class="fashion-orbit"></div><div class="lookbook"><div class="fabric-line"></div></div><div class="mini-card one"><strong data-ar="وصل حديثاً" data-en="New arrival">وصل حديثاً</strong><span data-ar="تفاصيل راقية" data-en="Refined details">تفاصيل راقية</span></div><div class="mini-card two"><strong data-ar="اختيار مميز" data-en="Special pick">اختيار مميز</strong><span data-ar="للمناسبات والبيت" data-en="For occasions & home">للمناسبات والبيت</span></div></div>
 </div></section>
 
+<section id="homeVideoSection" class="home-video-section hidden" aria-label="Kandorty video">
+  <div class="container">
+    <div class="home-video-card">
+      <video id="homeVideo" controls playsinline preload="metadata"></video>
+    </div>
+  </div>
+</section>
+
 <div class="trust-strip"><div class="container trust-grid">
 <div class="trust-item"><span class="trust-icon">🚚</span><div><b data-ar="توصيل داخل الإمارات" data-en="UAE delivery">توصيل داخل الإمارات</b><small data-ar="خدمة موثوقة" data-en="Reliable service">خدمة موثوقة</small></div></div>
 <div class="trust-item"><span class="trust-icon">💳</span><div><b data-ar="دفع مرن" data-en="Flexible payment">دفع مرن</b><small data-ar="بطاقة أو عند الاستلام" data-en="Card or cash on delivery">بطاقة أو عند الاستلام</small></div></div>
@@ -294,7 +310,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
 <button id="orderSoundBtn" class="btn ghost" type="button" onclick="enableOrderSound()" style="margin:10px 0">🔊 تفعيل صوت الطلبات</button>
-<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
+<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -323,13 +339,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost full" type="button" onclick="resetForm()">إلغاء / تنظيف</button>
 </form></div>
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
-<div id="adminOrdersTab" class="hidden">
-<div class="admin-order-search">
-  <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
-  <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
-</div>
-<div id="ordersList" class="admin-list"></div>
-</div>
+<div id="adminOrdersTab" class="hidden"><div id="ordersList" class="admin-list"></div></div>
 <div id="adminCustomersTab" class="hidden"><div id="customersList" class="admin-list"></div></div>
 
 <div id="adminBannerTab" class="hidden">
@@ -342,6 +352,22 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div style="display:flex;gap:8px;flex-wrap:wrap">
 <button id="saveBannerBtn" class="btn primary" type="button" onclick="saveBannerImages()">حفظ صور البانر</button>
 <button class="btn ghost" type="button" onclick="clearBannerImages()">حذف كل صور البانر</button>
+</div>
+</div>
+</div>
+
+
+<div id="adminVideoTab" class="hidden">
+<div class="video-admin-box">
+<h3 style="margin-top:0">فيديو الصفحة الرئيسية</h3>
+<p style="color:var(--muted);line-height:1.7">ضعي رابط فيديو مباشر بصيغة MP4 أو WebM. يمكنك تغيير الرابط أو إخفاء الفيديو في أي وقت بدون تعديل الكود.</p>
+<input id="homeVideoUrl" type="text" inputmode="url" placeholder="https://example.com/video.mp4">
+<label style="display:flex;align-items:center;gap:8px;margin:10px 0"><input id="homeVideoEnabled" type="checkbox"> إظهار الفيديو في الصفحة الرئيسية</label>
+<video id="adminHomeVideoPreview" class="video-admin-preview hidden" controls playsinline preload="metadata"></video>
+<div id="homeVideoAdminStatus" style="margin:10px 0;color:var(--muted);font-size:13px"></div>
+<div class="video-admin-actions">
+<button id="saveHomeVideoBtn" class="btn primary" type="button" onclick="saveHomeVideoSettings()">حفظ / تغيير الفيديو</button>
+<button class="btn ghost" type="button" onclick="clearHomeVideoSettings()">حذف الفيديو من الرئيسية</button>
 </div>
 </div>
 </div>
@@ -554,10 +580,10 @@ function render(){
  const q=$('search').value.trim().toLowerCase();
  const list=products.filter(p=>p.active!==false&&(currentCat==='all'||p.category===currentCat)&&(!q||(p.code+' '+p.nameAr).toLowerCase().includes(q)));
  $('products').innerHTML=list.length?list.map(p=>`<article class="card">
- ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
+ ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
  <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
  <div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>
- <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
+ <div class="card-actions"><button class="btn ghost" onclick="openProduct('${p.id}')">${lang==='ar'?'التفاصيل':'Details'}</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button><button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button></div></div></article>`).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let currentProductImages=[];
@@ -839,7 +865,7 @@ auth.onAuthStateChanged(user=>{
     $('adminModal').classList.add('hidden');
   }
 });
-function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='settings')loadSettingsForm()}
+function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
@@ -1300,13 +1326,7 @@ $('checkoutForm').onsubmit=async e=>{
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 function renderOrders(){
   if(!$('ordersList'))return;
-
-  const q=($('adminOrderSearch')?.value||'').trim().toUpperCase();
-  const visibleOrders=q
-    ? orders.filter(o=>String(o.id||'').toUpperCase().includes(q))
-    : orders;
-
-  $('ordersList').innerHTML=visibleOrders.length?visibleOrders.map(o=>`<div class="order-card">
+  $('ordersList').innerHTML=orders.length?orders.map(o=>`<div class="order-card">
   <div class="order-head"><div><b>${o.id}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small></div>
   <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
     ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
@@ -1315,9 +1335,7 @@ function renderOrders(){
   <p>${o.items.map(i=>`${esc(i.name)} × ${i.qty}`).join('<br>')}</p>
   <div class="price">${money(o.total)}</div>
   <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
-  </div>`).join(''):(q
-    ?'<div class="empty">لا يوجد طلب بهذا الكود</div>'
-    :'<div class="empty">لا توجد طلبات بعد</div>');
+  </div>`).join(''):'<div class="empty">لا توجد طلبات بعد</div>';
 }
 async function updateOrderStatus(id,status){
   const current=orders.find(o=>o.id===id);
@@ -1351,22 +1369,24 @@ async function updateOrderStatus(id,status){
 
 
 const SETTINGS_KEY='kandorty_settings_v1';
-let settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[]};
+let settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false};
 
 function loadSettings(){
   db.collection('settings').doc('store').onSnapshot(
     doc=>{
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],...(doc.exists?doc.data():{})};
+      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,...(doc.exists?doc.data():{})};
       localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
       renderSocialLinks();
       renderHomeBanner();
+      renderHomeVideo();
     },
     error=>{
       console.error('Firestore settings read error:',error);
       try{settings=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}catch(e){settings={}}
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],...settings};
+      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,...settings};
       renderSocialLinks();
       renderHomeBanner();
+      renderHomeVideo();
     }
   );
 }
@@ -1375,6 +1395,7 @@ async function saveSettings(){
   await db.collection('settings').doc('store').set(settings);
   renderSocialLinks();
   renderHomeBanner();
+  renderHomeVideo();
 }
 function loadSettingsForm(){
   $('whatsappNumber').value=settings.whatsapp||'';
@@ -1390,6 +1411,106 @@ $('settingsForm').onsubmit=e=>{
   settings.email=$('emailAddress').value.trim();
   saveSettings();
   alert('تم حفظ الإعدادات');
+}
+
+
+function normalizeHomeVideoUrl(value){
+  return String(value||'').trim();
+}
+
+function renderHomeVideo(){
+  const section=$('homeVideoSection');
+  const video=$('homeVideo');
+  if(!section||!video)return;
+
+  const url=normalizeHomeVideoUrl(settings.homeVideoUrl);
+  const enabled=settings.homeVideoEnabled===true;
+  if(!url||!enabled){
+    section.classList.add('hidden');
+    try{video.pause()}catch(e){}
+    if(video.getAttribute('src')){
+      video.removeAttribute('src');
+      video.removeAttribute('data-current-src');
+      video.load();
+    }
+    return;
+  }
+
+  if(video.getAttribute('data-current-src')!==url){
+    video.src=url;
+    video.setAttribute('data-current-src',url);
+    video.load();
+  }
+  section.classList.remove('hidden');
+}
+
+function loadVideoAdmin(){
+  const input=$('homeVideoUrl');
+  const enabled=$('homeVideoEnabled');
+  if(!input||!enabled)return;
+  input.value=settings.homeVideoUrl||'';
+  enabled.checked=settings.homeVideoEnabled===true;
+  previewAdminHomeVideo();
+}
+
+function previewAdminHomeVideo(){
+  const input=$('homeVideoUrl');
+  const preview=$('adminHomeVideoPreview');
+  const status=$('homeVideoAdminStatus');
+  if(!input||!preview)return;
+  const url=normalizeHomeVideoUrl(input.value);
+  if(!url){
+    preview.classList.add('hidden');
+    try{preview.pause()}catch(e){}
+    preview.removeAttribute('src');
+    preview.load();
+    if(status)status.textContent='أضيفي رابط الفيديو ثم اضغطي حفظ.';
+    return;
+  }
+  if(preview.getAttribute('data-current-src')!==url){
+    preview.src=url;
+    preview.setAttribute('data-current-src',url);
+    preview.load();
+  }
+  preview.classList.remove('hidden');
+  if(status)status.textContent='معاينة الفيديو — بعد التأكد اضغطي حفظ / تغيير الفيديو.';
+}
+
+if($('homeVideoUrl'))$('homeVideoUrl').addEventListener('change',previewAdminHomeVideo);
+
+async function saveHomeVideoSettings(){
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  const url=normalizeHomeVideoUrl($('homeVideoUrl').value);
+  if(!url){alert('أضيفي رابط الفيديو أولاً');return;}
+  if(!/^(https?:\/\/|\.?\.?\/|[^:]+\.(mp4|webm)(\?|#|$))/i.test(url)){
+    if(!confirm('الرابط لا يبدو كرابط فيديو مباشر. هل تريدين حفظه رغم ذلك؟'))return;
+  }
+  const btn=$('saveHomeVideoBtn');
+  btn.disabled=true;
+  try{
+    settings.homeVideoUrl=url;
+    settings.homeVideoEnabled=$('homeVideoEnabled').checked;
+    await saveSettings();
+    loadVideoAdmin();
+    $('homeVideoAdminStatus').textContent='تم حفظ إعدادات الفيديو بنجاح.';
+    alert('تم حفظ فيديو الصفحة الرئيسية');
+  }catch(error){
+    console.error('Home video save error:',error);
+    $('homeVideoAdminStatus').textContent='فشل الحفظ: '+(error.message||'خطأ غير معروف');
+    alert('تعذر حفظ إعدادات الفيديو');
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function clearHomeVideoSettings(){
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  if(!confirm('حذف الفيديو من الصفحة الرئيسية؟'))return;
+  settings.homeVideoUrl='';
+  settings.homeVideoEnabled=false;
+  await saveSettings();
+  loadVideoAdmin();
+  alert('تم حذف الفيديو من الصفحة الرئيسية');
 }
 
 const MAX_BANNER_IMAGES=5;
