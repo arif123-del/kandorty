@@ -58,7 +58,7 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
   .logo{width:145px!important;height:60px!important;max-width:44vw!important}
 }
 
-/* Kandorty V6.6 — cleaner mobile video upload + local preview + compatible delivery */
+/* Kandorty V6.7 — phone-only homepage video upload; manual URL UI removed */
 .home-video-section{padding:22px 0 36px;background:#fff}
 .home-video-card{position:relative;max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:#080808;box-shadow:0 18px 50px rgba(35,15,20,.10)}
 .home-video-card video{display:block;width:100%;max-height:540px;aspect-ratio:16/9;object-fit:contain;background:#000}
@@ -406,10 +406,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="homeVideoUploadStatus" style="margin:10px 0;color:var(--muted);font-size:13px"></div>
 </div>
 
-<details style="margin:12px 0">
-<summary style="cursor:pointer;font-weight:700">أو استخدمي رابط فيديو مباشر</summary>
-<input id="homeVideoUrl" type="text" inputmode="url" placeholder="https://example.com/video.mp4">
-</details>
+<input id="homeVideoUrl" type="hidden" value="">
 
 <div class="video-text-card">
 <h4>الكتابة فوق الفيديو</h4>
@@ -475,7 +472,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div>
 <div id="homeVideoAdminStatus" style="margin:10px 0;color:var(--muted);font-size:13px"></div>
 <div class="video-admin-actions">
-<button id="saveHomeVideoBtn" class="btn primary" type="button" onclick="saveHomeVideoSettings()">حفظ إعدادات الفيديو</button>
+<button id="saveHomeVideoBtn" class="btn primary" type="button" onclick="saveHomeVideoSettings()">حفظ إعدادات الفيديو والكتابة</button>
 <button class="btn ghost" type="button" onclick="clearHomeVideoSettings()">إخفاء / حذف الفيديو من الرئيسية</button>
 </div>
 </div>
@@ -1879,7 +1876,7 @@ function previewAdminHomeVideo(){
     preview.removeAttribute('src');
     preview.removeAttribute('data-current-src');
     preview.load();
-    if(status)status.textContent='له تلیفون څخه ویډیو انتخاب کړه یا مستقیم لینک ورکړه.';
+    if(status)status.textContent='له تلیفون څخه ویډیو انتخاب کړه.';
     return;
   }
   if(preview.getAttribute('data-current-src')!==url){
