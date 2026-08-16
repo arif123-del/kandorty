@@ -59,7 +59,7 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
   .logo{width:145px!important;height:60px!important;max-width:44vw!important}
 }
 
-/* Kandorty V6.7 — phone-only homepage video upload; manual URL UI removed */
+/* Kandorty V6.8 — GitHub-hosted homepage video; GitHub fully removed */
 .home-video-section{padding:22px 0 36px;background:#fff}
 .home-video-card{position:relative;max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:#080808;box-shadow:0 18px 50px rgba(35,15,20,.10)}
 .home-video-card video{display:block;width:100%;max-height:540px;aspect-ratio:16/9;object-fit:contain;background:#000}
@@ -403,20 +403,20 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <p style="color:var(--muted);line-height:1.7">اختاري فيديو من هاتفك وارفعِيه مباشرة. بعد الرفع سيُحفظ رابط الفيديو تلقائياً ويظهر في الصفحة الرئيسية.</p>
 
 <div class="video-upload-card">
-<h4>رفع مباشر من الهاتف</h4>
-<p style="color:var(--muted);font-size:13px;line-height:1.7;margin-top:4px">اختاري الفيديو أولاً. ستظهر المعاينة مباشرة، ثم اضغطي رفع.</p>
-<input id="homeVideoFile" class="video-file-input" type="file" accept="video/*">
+<h4>فيديو الصفحة الرئيسية</h4>
+<p style="color:var(--muted);font-size:13px;line-height:1.8;margin-top:4px">
+ارفعي الفيديو إلى GitHub داخل مجلد الموقع باسم ثابت:
+<b>home-video.mp4</b>.
+عند استبدال الفيديو في GitHub، اضغطي زر تحديث الفيديو أدناه حتى يظهر الإصدار الجديد فوراً.
+</p>
 <div class="video-admin-actions">
-<button id="uploadHomeVideoBtn" class="btn primary" type="button" onclick="uploadHomeVideoFromPhone()">⬆ رفع الفيديو من الهاتف</button>
-<button class="btn ghost" type="button" onclick="configureCloudinaryVideoUpload()">⚙️ إعداد الرفع مرة واحدة</button>
-</div>
-<div id="homeVideoUploadProgressWrap" class="video-progress hidden" aria-hidden="true">
-<div id="homeVideoUploadProgress" class="video-progress-bar"></div>
+<button id="refreshHomeVideoBtn" class="btn primary" type="button" onclick="refreshGithubHomeVideo()">↻ تحديث الفيديو</button>
+<button class="btn ghost" type="button" onclick="previewAdminHomeVideo()">▶ معاينة الفيديو</button>
 </div>
 <div id="homeVideoUploadStatus" style="margin:10px 0;color:var(--muted);font-size:13px"></div>
 </div>
 
-<input id="homeVideoUrl" type="hidden" value="">
+<input id="homeVideoUrl" type="hidden" value="home-video.mp4">
 
 <div class="video-text-card">
 <h4>الكتابة فوق الفيديو</h4>
@@ -1483,12 +1483,12 @@ async function updateOrderStatus(id,status){
 
 
 const SETTINGS_KEY='kandorty_settings_v1';
-let settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false};
+let settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1'};
 
 function loadSettings(){
   db.collection('settings').doc('store').onSnapshot(
     doc=>{
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,...(doc.exists?doc.data():{})};
+      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1',...(doc.exists?doc.data():{})};
       localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
       renderSocialLinks();
       renderHomeBanner();
@@ -1497,7 +1497,7 @@ function loadSettings(){
     error=>{
       console.error('Firestore settings read error:',error);
       try{settings=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}catch(e){settings={}}
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,...settings};
+      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1',...settings};
       renderSocialLinks();
       renderHomeBanner();
       renderHomeVideo();
@@ -1528,209 +1528,6 @@ $('settingsForm').onsubmit=e=>{
 }
 
 
-
-const CLOUDINARY_VIDEO_CONFIG_KEY='kandorty_cloudinary_video_v2';
-const MAX_HOME_VIDEO_BYTES=50*1024*1024;
-let pendingHomeVideoObjectUrl='';
-
-function loadCloudinaryVideoConfig(){
-  let cfg={cloudName:'',uploadPreset:''};
-  try{cfg={...cfg,...JSON.parse(localStorage.getItem(CLOUDINARY_VIDEO_CONFIG_KEY)||'{}')}}catch(e){}
-  return {
-    cloudName:String(cfg.cloudName||'').trim(),
-    uploadPreset:String(cfg.uploadPreset||'').trim()
-  };
-}
-
-function configureCloudinaryVideoUpload(){
-  const current=loadCloudinaryVideoConfig();
-
-  const cloudName=window.prompt(
-    'Cloudinary Cloud Name\n\nدا یوازې یو ځل ولیکه. API Key یا API Secret مه لیکه.',
-    current.cloudName||''
-  );
-  if(cloudName===null)return null;
-
-  const uploadPreset=window.prompt(
-    'Unsigned Upload Preset\n\nباید Signing mode = Unsigned وي.',
-    current.uploadPreset||''
-  );
-  if(uploadPreset===null)return null;
-
-  const cfg={
-    cloudName:String(cloudName||'').trim(),
-    uploadPreset:String(uploadPreset||'').trim()
-  };
-
-  if(!cfg.cloudName||!cfg.uploadPreset){
-    alert('Cloud Name او Unsigned Upload Preset دواړه ضروري دي.');
-    return null;
-  }
-
-  localStorage.setItem(CLOUDINARY_VIDEO_CONFIG_KEY,JSON.stringify(cfg));
-  alert('د Upload تنظیم په دې تلیفون کې وساتل شو ✅');
-  return cfg;
-}
-
-function ensureCloudinaryVideoConfig(){
-  const cfg=loadCloudinaryVideoConfig();
-  if(cfg.cloudName&&cfg.uploadPreset)return cfg;
-  return configureCloudinaryVideoUpload();
-}
-
-function uploadCloudinaryVideo(file,cfg,onProgress){
-  return new Promise((resolve,reject)=>{
-    const form=new FormData();
-    form.append('file',file);
-    form.append('upload_preset',cfg.uploadPreset);
-
-    const xhr=new XMLHttpRequest();
-    xhr.open('POST','https://api.cloudinary.com/v1_1/'+encodeURIComponent(cfg.cloudName)+'/video/upload');
-    xhr.responseType='json';
-
-    xhr.upload.onprogress=e=>{
-      if(e.lengthComputable && typeof onProgress==='function'){
-        onProgress(Math.max(0,Math.min(100,Math.round((e.loaded/e.total)*100))));
-      }
-    };
-
-    xhr.onload=()=>{
-      const data=xhr.response||{};
-      if(xhr.status>=200&&xhr.status<300&&data.secure_url){
-        resolve(data);
-      }else{
-        const msg=data?.error?.message||xhr.getResponseHeader('X-Cld-Error')||('Upload failed ('+xhr.status+')');
-        reject(new Error(msg));
-      }
-    };
-    xhr.onerror=()=>reject(new Error('Network error during video upload'));
-    xhr.send(form);
-  });
-}
-
-function cloudinaryPublicIdPath(publicId){
-  return String(publicId||'')
-    .split('/')
-    .filter(Boolean)
-    .map(part=>encodeURIComponent(part))
-    .join('/');
-}
-
-function makeCloudinaryPlayableUrl(result,cfg){
-  const publicId=cloudinaryPublicIdPath(result?.public_id);
-  if(!publicId)return String(result?.secure_url||'').trim();
-
-  const version=Number(result?.version);
-  const versionPart=Number.isFinite(version)&&version>0?('v'+version+'/'):'';
-
-  // Let Cloudinary pick a video format/codec that the requesting browser can play.
-  return 'https://res.cloudinary.com/'+encodeURIComponent(cfg.cloudName)+
-    '/video/upload/f_auto,q_auto/'+versionPart+publicId;
-}
-
-function clearPendingHomeVideoObjectUrl(){
-  if(pendingHomeVideoObjectUrl){
-    try{URL.revokeObjectURL(pendingHomeVideoObjectUrl)}catch(e){}
-    pendingHomeVideoObjectUrl='';
-  }
-}
-
-function previewSelectedHomeVideoFile(){
-  const file=$('homeVideoFile')?.files?.[0];
-  const preview=$('adminHomeVideoPreview');
-  const wrap=$('adminHomeVideoPreviewWrap');
-  const status=$('homeVideoAdminStatus');
-  if(!file||!preview||!wrap)return;
-
-  if(file.type && !String(file.type).startsWith('video/')){
-    alert('ټاکل شوی فایل ویډیو نه ده.');
-    return;
-  }
-
-  clearPendingHomeVideoObjectUrl();
-  pendingHomeVideoObjectUrl=URL.createObjectURL(file);
-
-  try{preview.pause()}catch(e){}
-  preview.src=pendingHomeVideoObjectUrl;
-  preview.setAttribute('data-current-src',pendingHomeVideoObjectUrl);
-  preview.load();
-  wrap.classList.remove('hidden');
-  previewAdminVideoText();
-
-  if(status)status.textContent='ویډیو له تلیفون څخه انتخاب شوه — Play یې ووهه او وګوره، بیا Upload کړه.';
-  const uploadStatus=$('homeVideoUploadStatus');
-  if(uploadStatus)uploadStatus.textContent='فایل انتخاب شو: '+file.name;
-}
-
-if($('homeVideoFile'))$('homeVideoFile').addEventListener('change',previewSelectedHomeVideoFile);
-
-async function uploadHomeVideoFromPhone(){
-  if(!auth.currentUser){alert('لومړی Admin ته Login شه.');return;}
-
-  const file=$('homeVideoFile')?.files?.[0];
-  if(!file){alert('لومړی له تلیفون څخه ویډیو انتخاب کړه.');return;}
-  if(file.type && !String(file.type).startsWith('video/')){
-    alert('ټاکل شوی فایل ویډیو نه ده.');
-    return;
-  }
-  if(file.size>MAX_HOME_VIDEO_BYTES){
-    alert('ویډیو ډېره لویه ده. تر 50 MB کمه ویډیو انتخاب کړه.');
-    return;
-  }
-
-  const cfg=ensureCloudinaryVideoConfig();
-  if(!cfg)return;
-
-  const btn=$('uploadHomeVideoBtn');
-  const status=$('homeVideoUploadStatus');
-  const wrap=$('homeVideoUploadProgressWrap');
-  const bar=$('homeVideoUploadProgress');
-
-  btn.disabled=true;
-  if(wrap)wrap.classList.remove('hidden');
-  if(bar)bar.style.width='0%';
-  if(status)status.textContent='ویډیو Upload کېږي... 0%';
-
-  try{
-    const result=await uploadCloudinaryVideo(file,cfg,pct=>{
-      if(bar)bar.style.width=pct+'%';
-      if(status)status.textContent='ویډیو Upload کېږي... '+pct+'%';
-    });
-
-    const url=makeCloudinaryPlayableUrl(result,cfg);
-    if(!url)throw new Error('No video URL returned');
-
-    clearPendingHomeVideoObjectUrl();
-    $('homeVideoUrl').value=url;
-    $('homeVideoEnabled').checked=true;
-
-    settings.homeVideoUrl=url;
-    settings.homeVideoEnabled=true;
-    saveVideoTextDraftIntoSettings();
-    await saveSettings();
-
-    previewAdminHomeVideo();
-
-    if(bar)bar.style.width='100%';
-    if(status)status.textContent='ویډیو Upload او Save شوه ✅';
-    $('homeVideoAdminStatus').textContent='ویډیو Save شوه. Play یې ووهه؛ همدا نسخه په کورپاڼه کې هم کارول کېږي.';
-    alert('ویډیو په بریالیتوب Upload او فعاله شوه ✅');
-  }catch(error){
-    console.error('Direct home video upload error:',error);
-    const msg=String(error?.message||'نامعلومه تېروتنه');
-    if(status)status.textContent='Upload ناکام شو: '+msg;
-
-    if(/api key/i.test(msg)){
-      alert('Cloudinary تنظیم ناسم دی. ⚙️ إعداد الرفع مرة واحدة ووهه او یوازې Cloud Name + Unsigned Upload Preset ولیکه؛ API Key/Secret مه لیکه.');
-    }else if(/preset/i.test(msg)){
-      alert('Upload Preset ناسم دی یا Unsigned نه دی. Cloudinary کې Signing mode = Unsigned کړه.');
-    }else{
-      alert('ویډیو Upload نه شوه: '+msg);
-    }
-  }finally{
-    btn.disabled=false;
-  }
-}
 
 function normalizeHomeVideoUrl(value){
   return String(value||'').trim();
@@ -1817,38 +1614,38 @@ function previewAdminVideoText(){
   );
 }
 
+function getGithubHomeVideoUrl(){
+  const version=String(settings.homeVideoVersion||'1');
+  return 'home-video.mp4?v='+encodeURIComponent(version);
+}
+
 function renderHomeVideo(){
   const section=$('homeVideoSection');
   const video=$('homeVideo');
   if(!section||!video)return;
 
-  const url=normalizeHomeVideoUrl(settings.homeVideoUrl);
-  const enabled=settings.homeVideoEnabled===true;
-  if(!url||!enabled){
+  if(settings.homeVideoEnabled!==true){
     section.classList.add('hidden');
     try{video.pause()}catch(e){}
-    if(video.getAttribute('src')){
-      video.removeAttribute('src');
-      video.removeAttribute('data-current-src');
-      video.load();
-    }
     return;
   }
 
+  const url=getGithubHomeVideoUrl();
   if(video.getAttribute('data-current-src')!==url){
     video.src=url;
     video.setAttribute('data-current-src',url);
     video.load();
   }
+
   renderPublicHomeVideoText();
   section.classList.remove('hidden');
 }
 
 function loadVideoAdmin(){
-  const input=$('homeVideoUrl');
   const enabled=$('homeVideoEnabled');
-  if(!input||!enabled)return;
-  input.value=settings.homeVideoUrl||'';
+  if(!enabled)return;
+
+  if($('homeVideoUrl'))$('homeVideoUrl').value='home-video.mp4';
   enabled.checked=settings.homeVideoEnabled===true;
 
   if($('homeVideoTitleInput'))$('homeVideoTitleInput').value=settings.homeVideoTitle||'';
@@ -1866,39 +1663,22 @@ function loadVideoAdmin(){
 }
 
 function previewAdminHomeVideo(){
-  const input=$('homeVideoUrl');
   const preview=$('adminHomeVideoPreview');
   const wrap=$('adminHomeVideoPreviewWrap');
   const status=$('homeVideoAdminStatus');
-  if(!input||!preview||!wrap)return;
-  const url=normalizeHomeVideoUrl(input.value);
-  if(!url){
-    if(pendingHomeVideoObjectUrl){
-      wrap.classList.remove('hidden');
-      previewAdminVideoText();
-      if(status)status.textContent='ویډیو له تلیفون څخه انتخاب شوه — Play یې ووهه، بیا Upload کړه.';
-      return;
-    }
-    wrap.classList.add('hidden');
-    try{preview.pause()}catch(e){}
-    preview.removeAttribute('src');
-    preview.removeAttribute('data-current-src');
-    preview.load();
-    if(status)status.textContent='له تلیفون څخه ویډیو انتخاب کړه.';
-    return;
-  }
+  if(!preview||!wrap)return;
+
+  const url=getGithubHomeVideoUrl();
   if(preview.getAttribute('data-current-src')!==url){
-    clearPendingHomeVideoObjectUrl();
     preview.src=url;
     preview.setAttribute('data-current-src',url);
     preview.load();
   }
+
   wrap.classList.remove('hidden');
   previewAdminVideoText();
-  if(status)status.textContent='معاينة الفيديو والكتابة — عدّلي النص والحجم واللون والمكان ثم اضغطي حفظ.';
+  if(status)status.textContent='معاينة home-video.mp4 من GitHub. إذا استبدلتِ الفيديو اضغطي ↻ تحديث الفيديو.';
 }
-
-if($('homeVideoUrl'))$('homeVideoUrl').addEventListener('change',previewAdminHomeVideo);
 
 ['homeVideoTitleInput','homeVideoSubtitleInput','homeVideoTitleSize','homeVideoSubtitleSize',
  'homeVideoTitleColor','homeVideoSubtitleColor','homeVideoTextPosition','homeVideoTextAlign',
@@ -1912,34 +1692,61 @@ if($('homeVideoUrl'))$('homeVideoUrl').addEventListener('change',previewAdminHom
 
 async function saveHomeVideoSettings(){
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
-  const url=normalizeHomeVideoUrl($('homeVideoUrl').value);
-  if(!url){alert('أضيفي رابط الفيديو أولاً');return;}
-  if(!/^(https?:\/\/|\.?\.?\/|[^:]+\.(mp4|webm)(\?|#|$))/i.test(url)){
-    if(!confirm('الرابط لا يبدو كرابط فيديو مباشر. هل تريدين حفظه رغم ذلك؟'))return;
-  }
   const btn=$('saveHomeVideoBtn');
-  btn.disabled=true;
+  if(btn)btn.disabled=true;
+
   try{
-    settings.homeVideoUrl=url;
+    settings.homeVideoUrl='home-video.mp4';
     settings.homeVideoEnabled=$('homeVideoEnabled').checked;
+    if(!settings.homeVideoVersion)settings.homeVideoVersion='1';
     saveVideoTextDraftIntoSettings();
+
     await saveSettings();
-    loadVideoAdmin();
-    $('homeVideoAdminStatus').textContent='تم حفظ إعدادات الفيديو بنجاح.';
-    alert('تم حفظ فيديو الصفحة الرئيسية');
+    renderHomeVideo();
+    previewAdminVideoText();
+
+    if($('homeVideoAdminStatus'))$('homeVideoAdminStatus').textContent='تم حفظ إعدادات الفيديو والكتابة ✅';
+    alert('تم حفظ إعدادات الفيديو والكتابة');
   }catch(error){
-    console.error('Home video save error:',error);
-    $('homeVideoAdminStatus').textContent='فشل الحفظ: '+(error.message||'خطأ غير معروف');
+    console.error('Save home video settings error:',error);
     alert('تعذر حفظ إعدادات الفيديو');
   }finally{
-    btn.disabled=false;
+    if(btn)btn.disabled=false;
+  }
+}
+
+async function refreshGithubHomeVideo(){
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  const btn=$('refreshHomeVideoBtn');
+  if(btn)btn.disabled=true;
+
+  try{
+    settings.homeVideoUrl='home-video.mp4';
+    settings.homeVideoEnabled=true;
+    settings.homeVideoVersion=String(Date.now());
+    saveVideoTextDraftIntoSettings();
+
+    if($('homeVideoEnabled'))$('homeVideoEnabled').checked=true;
+    await saveSettings();
+
+    const status=$('homeVideoUploadStatus');
+    if(status)status.textContent='تم تحديث نسخة الفيديو من GitHub ✅';
+
+    renderHomeVideo();
+    previewAdminHomeVideo();
+    alert('تم تحديث الفيديو. إذا كان home-video.mp4 الجديد مرفوعاً على GitHub فسيظهر الآن.');
+  }catch(error){
+    console.error('Refresh GitHub home video error:',error);
+    alert('تعذر تحديث الفيديو');
+  }finally{
+    if(btn)btn.disabled=false;
   }
 }
 
 async function clearHomeVideoSettings(){
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
   if(!confirm('حذف الفيديو من الصفحة الرئيسية؟'))return;
-  settings.homeVideoUrl='';
+  settings.homeVideoUrl='home-video.mp4';
   settings.homeVideoEnabled=false;
   await saveSettings();
   loadVideoAdmin();
