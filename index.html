@@ -539,7 +539,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="profileName" placeholder="الاسم" required>
 <input id="profilePhone" placeholder="رقم الهاتف" required>
 <input id="profileLocation" class="full" placeholder="الموقع / العنوان" required>
-<button class="btn primary full" type="submit">حفظ البيانات</button>
+
+<div id="profileSavedNotice" class="full hidden" style="padding:10px 12px;border-radius:10px;background:#f6f7f6;color:#23723a;font-weight:700">
+✓ تم حفظ بياناتك
+</div>
+
+<button id="profileSaveBtn" class="btn primary full" type="submit">حفظ البيانات</button>
+<button id="profileEditBtn" class="btn ghost full hidden" type="button" onclick="enableProfileEdit()">تعديل البيانات</button>
 </form>
 <h3 style="margin-top:22px">طلباتي السابقة</h3>
 <div id="profileOrders" class="admin-list"></div>
@@ -2011,18 +2017,76 @@ function renderWishlist(){
   </div></article>`).join(''):'<div class="empty">لا توجد منتجات في المفضلة</div>';
 }
 
+function hasSavedCustomerProfile(){
+  return Boolean(
+    String(customerProfile.name||'').trim() &&
+    String(customerProfile.phone||'').trim() &&
+    String(customerProfile.location||'').trim()
+  );
+}
+
+function setProfileEditMode(editing){
+  const saved=hasSavedCustomerProfile();
+  const name=$('profileName');
+  const phone=$('profilePhone');
+  const location=$('profileLocation');
+  const saveBtn=$('profileSaveBtn');
+  const editBtn=$('profileEditBtn');
+  const notice=$('profileSavedNotice');
+
+  [name,phone,location].forEach(el=>{
+    if(!el)return;
+    el.readOnly=saved && !editing;
+    el.style.background=(saved && !editing)?'#f7f7f7':'#fff';
+  });
+
+  if(saveBtn){
+    if(saved && !editing){
+      saveBtn.classList.add('hidden');
+    }else{
+      saveBtn.classList.remove('hidden');
+      saveBtn.textContent=saved?'حفظ التعديل':'حفظ البيانات';
+    }
+  }
+
+  if(editBtn){
+    editBtn.classList.toggle('hidden',!saved || editing);
+  }
+
+  if(notice){
+    notice.classList.toggle('hidden',!saved || editing);
+  }
+}
+
+function enableProfileEdit(){
+  setProfileEditMode(true);
+  const first=$('profileName');
+  if(first)first.focus();
+}
+
 $('profileBtn').onclick=()=>{
   $('profileName').value=customerProfile.name||'';
   $('profilePhone').value=customerProfile.phone||'';
   $('profileLocation').value=customerProfile.location||'';
+  setProfileEditMode(false);
   renderProfileOrders();
   $('profileModal').classList.remove('hidden');
 }
+
 function closeProfile(){$('profileModal').classList.add('hidden')}
+
 $('profileForm').onsubmit=e=>{
   e.preventDefault();
-  customerProfile={name:$('profileName').value.trim(),phone:$('profilePhone').value.trim(),location:$('profileLocation').value.trim()};
+
+  customerProfile={
+    name:$('profileName').value.trim(),
+    phone:$('profilePhone').value.trim(),
+    location:$('profileLocation').value.trim()
+  };
+
   saveCustomerProfile();
+  setProfileEditMode(false);
+  renderProfileOrders();
   alert('تم حفظ بيانات الحساب');
 }
 function renderProfileOrders(){
