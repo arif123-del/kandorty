@@ -257,6 +257,22 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <style id="public-admin-lock">
 #adminBtn,#adminModal{display:none!important}
 </style>
+
+<style id="customer-order-edit-style">
+.customer-edit-note{padding:11px 13px;border-radius:12px;background:#fff7dc;border:1px solid #edd98c;color:#6f5900;font-size:13px;line-height:1.7;margin:10px 0}
+.customer-edit-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.customer-edit-row:last-child{border-bottom:0}
+.customer-edit-item-title{font-weight:800}.customer-edit-item-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.customer-edit-qty{display:flex;align-items:center;gap:7px}
+.customer-edit-qty button{width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer}
+.customer-edit-qty .remove-edit-item{width:auto;padding:0 9px;color:#a40018}
+.customer-edit-total{display:flex;justify-content:space-between;align-items:center;padding:14px 0;font-weight:800}
+.customer-edit-badge{display:inline-block;margin-top:7px;padding:5px 9px;border-radius:999px;background:#fff0c7;color:#725500;font-size:12px;font-weight:800}
+.customer-edit-ok{padding:10px 12px;border-radius:10px;background:#e9f8ee;color:#176b34;font-size:13px;margin-top:10px}
+.customer-edit-error{padding:10px 12px;border-radius:10px;background:#fff0f2;color:#a40018;font-size:13px;margin-top:10px}
+@media(max-width:520px){.customer-edit-row{grid-template-columns:1fr}.customer-edit-qty{justify-content:flex-start}}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -560,9 +576,33 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="modal-head"><h2>تتبع الطلب</h2><button class="x" onclick="closeTracking()">×</button></div>
 <div class="form-grid">
 <input id="trackingNumber" class="full" placeholder="أدخلي رقم الطلب، مثال KD-12345678">
+<input id="trackingPhone" class="full" inputmode="tel" placeholder="رقم الهاتف — مطلوب فقط لتعديل الطلب">
 <button class="btn primary full" onclick="trackOrder()">بحث</button>
 </div>
 <div id="trackingResult" style="margin-top:16px"></div>
+</div></div>
+
+<div id="customerOrderEditModal" class="modal hidden"><div class="modal-card">
+<div class="modal-head"><h2>تعديل الطلب</h2><button class="x" onclick="closeCustomerOrderEdit()">×</button></div>
+<div class="customer-edit-note">يمكن تعديل الطلب فقط عندما تكون حالته <b>طلب جديد</b>. بعد بدء التجهيز أو التوصيل يتوقف التعديل تلقائياً.</div>
+<form id="customerOrderEditForm" class="form-grid">
+<input id="editOrderName" placeholder="الاسم" required>
+<input id="editOrderPhone" inputmode="tel" placeholder="رقم الهاتف" required>
+<select id="editOrderCity" required>
+<option value="">اختاري الإمارة</option>
+<option>دبي</option><option>أبوظبي</option><option>الشارقة</option><option>عجمان</option>
+<option>أم القيوين</option><option>رأس الخيمة</option><option>الفجيرة</option>
+</select>
+<input id="editOrderLocation" placeholder="المنطقة / العنوان" required>
+<textarea id="editOrderNotes" class="full" rows="3" placeholder="ملاحظات الطلب"></textarea>
+<div class="full">
+<h3 style="margin:8px 0">المنتجات</h3>
+<div id="customerEditItems"></div>
+<div class="customer-edit-total"><span>الإجمالي الجديد</span><span id="customerEditTotal" class="price">0 د.إ</span></div>
+</div>
+<div id="customerEditStatus" class="full"></div>
+<button id="customerEditSaveBtn" class="btn primary full" type="submit">حفظ تعديل الطلب</button>
+</form>
 </div></div>
 
 <div id="cartModal" class="modal hidden"><div class="modal-card">
@@ -597,6 +637,14 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 
 <!-- Firebase and application scripts must load after all page elements. -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+emailjs.init({
+  publicKey: '4PnMsmJ90bIJXd-je',
+  blockHeadless: true,
+  limitRate: { id: 'kandorty-newsletter', throttle: 10000 }
+});
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -1288,6 +1336,61 @@ async function syncOrdersToTracking(orderList){
   }
 }
 
+
+function customerEditChangeSummary(beforeRaw,afterRaw){
+  const before=effectiveOrderView(beforeRaw||{});
+  const after=effectiveOrderView(afterRaw||{});
+  const changes=[];
+
+  const customerFields=[
+    ['name','الاسم'],
+    ['phone','الهاتف'],
+    ['city','الإمارة'],
+    ['location','العنوان']
+  ];
+  customerFields.forEach(([key,label])=>{
+    const a=String(before.customer?.[key]||'');
+    const b=String(after.customer?.[key]||'');
+    if(a!==b)changes.push(label);
+  });
+
+  if(String(before.notes||'')!==String(after.notes||''))changes.push('الملاحظات');
+
+  const beforeQty=new Map((before.items||[]).map(i=>[String(i.id),Number(i.qty)||0]));
+  const afterQty=new Map((after.items||[]).map(i=>[String(i.id),Number(i.qty)||0]));
+  const ids=new Set([...beforeQty.keys(),...afterQty.keys()]);
+  let qtyChanged=false;
+  ids.forEach(id=>{
+    if((beforeQty.get(id)||0)!==(afterQty.get(id)||0))qtyChanged=true;
+  });
+  if(qtyChanged)changes.push('المنتجات / الكمية');
+
+  if(Number(before.total||0)!==Number(after.total||0))changes.push('الإجمالي');
+
+  return changes.length?changes:['بيانات الطلب'];
+}
+
+function notifyAdminCustomerOrderEdit(beforeRaw,afterRaw){
+  try{
+    const order=effectiveOrderView(afterRaw||{});
+    const customer=order.customer||{};
+    const changes=customerEditChangeSummary(beforeRaw,afterRaw);
+
+    playNewOrderSound();
+
+    alert(
+      '🔔 تم تعديل طلب من العميل!\\n\\n' +
+      'رقم الطلب: ' + (order.id||'-') + '\\n' +
+      'العميل: ' + (customer.name||'-') + '\\n' +
+      'الهاتف: ' + (customer.phone||'-') + '\\n' +
+      'التعديل: ' + changes.join('، ') + '\\n' +
+      'المجموع الجديد: ' + money(order.total||0)
+    );
+  }catch(error){
+    console.warn('Customer edit notification failed:',error);
+  }
+}
+
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
 
@@ -1295,12 +1398,35 @@ function startAdminOrdersListener(){
 
   adminOrdersUnsubscribe=db.collection('orders').onSnapshot(
     snapshot=>{
+      // Keep the last in-memory version so we can detect a CUSTOMER edit
+      // separately from normal admin status changes.
+      const previousOrders=new Map(
+        (Array.isArray(orders)?orders:[]).map(o=>[String(o.id||''),o])
+      );
+
       const docs=snapshot.docs
         .map(doc=>({id:doc.id,...doc.data()}))
         .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
 
+      const customerEditedOrders=docs.filter(current=>{
+        const previous=previousOrders.get(String(current.id||''));
+        if(!previous)return false;
+
+        const oldStamp=String(previous.customerModifiedAt||'');
+        const newStamp=String(current.customerModifiedAt||'');
+
+        return Boolean(
+          adminOrdersInitialLoaded &&
+          newStamp &&
+          newStamp!==oldStamp &&
+          current.customerEdit &&
+          current.customerEdit.editProof===current.editToken
+        );
+      });
+
       orders=docs;
       localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+      ensureCustomerEditForOldOrders(orders).catch(console.warn);
       renderOrders();
       renderProfileOrders();
       syncOrdersToTracking(orders);
@@ -1335,6 +1461,14 @@ function startAdminOrdersListener(){
         );
       }
 
+      // A customer edit changes customerModifiedAt; admin status changes do not.
+      // Notify after the order list has already refreshed.
+      if(customerEditedOrders.length){
+        const edited=customerEditedOrders[0];
+        const before=previousOrders.get(String(edited.id||''))||{};
+        notifyAdminCustomerOrderEdit(before,edited);
+      }
+
       adminOrdersInitialLoaded=true;
     },
     error=>console.error('Firestore orders read error:',error)
@@ -1352,6 +1486,121 @@ async function saveOrders(){
   orders.forEach(order=>batch.set(db.collection('orders').doc(order.id),order));
   await batch.commit(); renderOrders();
 }
+
+function normalizeOrderPhone(value){
+  return String(value||'').replace(/\D/g,'');
+}
+
+function createOrderEditToken(){
+  const bytes=new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function sha256Hex(value){
+  const bytes=new TextEncoder().encode(String(value||''));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function makeOrderAccessKey(orderId,phone){
+  const normalized=normalizeOrderPhone(phone);
+  if(normalized.length<7)throw new Error('invalid-phone');
+  return sha256Hex(String(orderId||'').toUpperCase()+'|'+normalized);
+}
+
+function quantitiesFromOrderItems(items){
+  const q={};
+  (Array.isArray(items)?items:[]).forEach(i=>{
+    if(i&&i.id)q[String(i.id)]=Math.max(0,Math.min(99,Number(i.qty)||0));
+  });
+  return q;
+}
+
+function effectiveOrderView(order){
+  const o=order||{};
+  const edit=o.customerEdit;
+  if(!edit||typeof edit!=='object')return o;
+
+  const quantities=(edit.quantities&&typeof edit.quantities==='object')?edit.quantities:{};
+  const items=(Array.isArray(o.items)?o.items:[]).map(i=>{
+    const raw=Object.prototype.hasOwnProperty.call(quantities,String(i.id))
+      ? quantities[String(i.id)]
+      : i.qty;
+    const qty=Math.max(0,Math.min(99,Number(raw)||0));
+    return {...i,qty};
+  }).filter(i=>i.qty>0);
+
+  const total=items.reduce((s,i)=>s+(Number(i.price)||0)*(Number(i.qty)||0),0);
+  const customer={
+    ...(o.customer||{}),
+    ...((edit.customer&&typeof edit.customer==='object')?edit.customer:{})
+  };
+
+  return {
+    ...o,
+    customer,
+    notes:typeof edit.notes==='string'?edit.notes:(o.notes||''),
+    items,
+    total,
+    _customerEdited:true,
+    _customerEditedAt:edit.updatedAt||o.customerModifiedAt||''
+  };
+}
+
+async function createCustomerOrderEditRecords(order){
+  if(!order||!order.id||!order.editToken||!order.customer?.phone)return false;
+
+  const accessKey=await makeOrderAccessKey(order.id,order.customer.phone);
+  const quantities=quantitiesFromOrderItems(order.items);
+  const now=new Date().toISOString();
+
+  await db.collection('order_edits').doc(order.editToken).set({
+    orderId:order.id,
+    editToken:order.editToken,
+    status:order.status||'new',
+    createdAt:order.createdAt||now,
+    customer:{...(order.customer||{})},
+    payment:order.payment||'cod',
+    notes:order.notes||'',
+    items:Array.isArray(order.items)?order.items:[],
+    quantities,
+    updatedAt:now
+  });
+
+  await db.collection('order_access').doc(accessKey).set({
+    orderId:order.id,
+    editToken:order.editToken,
+    active:true,
+    createdAt:now
+  });
+
+  return true;
+}
+
+let customerEditBackfillRunning=false;
+async function ensureCustomerEditForOldOrders(orderList){
+  if(customerEditBackfillRunning||!auth.currentUser)return;
+  const legacy=(Array.isArray(orderList)?orderList:[]).filter(o=>o&&o.status==='new'&&!o.editToken&&o.customer?.phone);
+  if(!legacy.length)return;
+
+  customerEditBackfillRunning=true;
+  try{
+    for(const original of legacy.slice(0,30)){
+      try{
+        const editToken=createOrderEditToken();
+        await db.collection('orders').doc(original.id).update({editToken});
+        const upgraded={...original,editToken};
+        await createCustomerOrderEditRecords(upgraded);
+      }catch(error){
+        console.warn('Legacy order edit setup failed:',original?.id,error);
+      }
+    }
+  }finally{
+    customerEditBackfillRunning=false;
+  }
+}
+
 async function submitCustomerOrder(order){
   // PRIMARY: save a compact order. Product images are NOT copied into orders.
   const orderBytes=new TextEncoder().encode(JSON.stringify(order)).length;
@@ -1375,6 +1624,17 @@ async function submitCustomerOrder(order){
   }catch(error){
     console.warn('Tracking record creation failed, but order was saved:',error);
   }
+
+  // CUSTOMER EDIT ACCESS: private order stays private; an unguessable token +
+  // exact phone-derived access key unlocks the editable snapshot.
+  let editReady=false;
+  try{
+    editReady=await createCustomerOrderEditRecords(order);
+  }catch(error){
+    console.warn('Customer order edit setup failed, but order was saved:',error);
+  }
+
+  return {editReady};
 }
 function addToCart(id){
   const p=products.find(x=>x.id===id); if(!p)return;
@@ -1409,6 +1669,7 @@ $('checkoutForm').onsubmit=async e=>{
   const order={
     id:'KD-'+Date.now().toString().slice(-8),
     createdAt:new Date().toISOString(),
+    editToken:createOrderEditToken(),
     customer:{name:$('customerName').value.trim(),phone:$('customerPhone').value.trim(),city:$('customerCity').value,location:$('customerLocation').value.trim()},
     payment:$('paymentMethod').value,
     notes:$('orderNotes').value.trim(),
@@ -1426,7 +1687,7 @@ $('checkoutForm').onsubmit=async e=>{
   saveCustomerProfile();
 
   try{
-    await submitCustomerOrder(order);
+    const submitResult=await submitCustomerOrder(order);
 
     localStorage.setItem('kandorty_last_order_id',order.id);
     cart=[];
@@ -1434,7 +1695,11 @@ $('checkoutForm').onsubmit=async e=>{
     e.target.reset();
     closeCheckout();
 
-    alert('✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: '+order.id+'\n\nاحتفظي بهذا الرقم لتتبع الطلب.');
+    alert(
+      '✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: '+order.id+
+      '\n\nاحتفظي بهذا الرقم لتتبع الطلب.'+
+      (submitResult?.editReady?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'')
+    );
   }catch(error){
     console.error('Order submit error:',error);
     const code=error?.code||'unknown';
@@ -1451,16 +1716,22 @@ function renderOrders(){
     ? orders.filter(o=>String(o.id||'').toUpperCase().includes(q))
     : orders;
 
-  $('ordersList').innerHTML=visibleOrders.length?visibleOrders.map(o=>`<div class="order-card">
-  <div class="order-head"><div><b>${o.id}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small></div>
-  <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
-    ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
-  </select></div>
-  <p><b>${esc(o.customer.name)}</b> · ${esc(o.customer.phone)}<br>${esc(o.customer.city)} — ${esc(o.customer.location)}</p>
-  <p>${o.items.map(i=>`${esc(i.name)} × ${i.qty}`).join('<br>')}</p>
-  <div class="price">${money(o.total)}</div>
-  <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
-  </div>`).join(''):(q
+  $('ordersList').innerHTML=visibleOrders.length?visibleOrders.map(raw=>{
+    const o=effectiveOrderView(raw);
+    return `<div class="order-card">
+      <div class="order-head"><div><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small>
+      ${o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
+      </div>
+      <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
+        ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
+      </select></div>
+      <p><b>${esc(o.customer?.name||'')}</b> · ${esc(o.customer?.phone||'')}<br>${esc(o.customer?.city||'')} — ${esc(o.customer?.location||'')}</p>
+      <p>${(o.items||[]).map(i=>`${esc(i.name)} × ${i.qty}`).join('<br>')}</p>
+      ${o.notes?`<p><small>ملاحظات: ${esc(o.notes)}</small></p>`:''}
+      <div class="price">${money(o.total)}</div>
+      <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
+    </div>`;
+  }).join(''):(q
     ?'<div class="empty">لا يوجد طلب بهذا الكود</div>'
     :'<div class="empty">لا توجد طلبات بعد</div>');
 }
@@ -1910,11 +2181,22 @@ function renderSocialLinks(){
   $('socialLinks').innerHTML=parts.length?parts.join(' · '):'WhatsApp · Instagram · Snapchat · Email';
 }
 
-$('trackBtn').onclick=()=>{$('trackingModal').classList.remove('hidden');$('trackingResult').innerHTML=''}
+$('trackBtn').onclick=()=>{
+  $('trackingModal').classList.remove('hidden');
+  $('trackingResult').innerHTML='';
+  const last=localStorage.getItem('kandorty_last_order_id')||'';
+  if(last&&!$('trackingNumber').value)$('trackingNumber').value=last;
+  if(customerProfile?.phone&&!$('trackingPhone').value)$('trackingPhone').value=customerProfile.phone;
+}
 function closeTracking(){$('trackingModal').classList.add('hidden')}
-function renderTrackingResult(o){
+
+let activeEditableOrder=null;
+let activeOrderAccessKey='';
+
+function renderTrackingResult(o,editable=null,verificationMessage=''){
   const flow=['new','preparing','shipping','delivered'];
   const idx=flow.indexOf(o.status);
+  const canEdit=o.status==='new'&&editable;
 
   $('trackingResult').innerHTML=`<div class="track-box">
     <b>${esc(o.id||'')}</b>
@@ -1922,11 +2204,39 @@ function renderTrackingResult(o){
       ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
       ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
     </div>
+    ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button>`:''}
+    ${o.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
+    ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
+    ${o.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
   </div>`;
+}
+
+async function loadEditableOrder(orderId,phone){
+  const accessKey=await makeOrderAccessKey(orderId,phone);
+  const accessSnap=await db.collection('order_access').doc(accessKey).get();
+  if(!accessSnap.exists)return null;
+
+  const access=accessSnap.data()||{};
+  if(access.active!==true||String(access.orderId||'').toUpperCase()!==String(orderId||'').toUpperCase())return null;
+
+  const token=String(access.editToken||'');
+  if(!token)return null;
+
+  const editSnap=await db.collection('order_edits').doc(token).get();
+  if(!editSnap.exists)return null;
+
+  const edit={id:editSnap.id,...editSnap.data()};
+  if(String(edit.orderId||'').toUpperCase()!==String(orderId||'').toUpperCase())return null;
+
+  return {...edit,editToken:token,accessKey,verifiedPhone:normalizeOrderPhone(phone)};
 }
 
 async function trackOrder(){
   const num=$('trackingNumber').value.trim().toUpperCase();
+  const phone=$('trackingPhone')?.value.trim()||'';
+
+  activeEditableOrder=null;
+  activeOrderAccessKey='';
 
   if(!num){
     $('trackingResult').innerHTML='<div class="empty">أدخلي رقم الطلب</div>';
@@ -1935,26 +2245,232 @@ async function trackOrder(){
 
   $('trackingResult').innerHTML='<div class="empty">جارٍ البحث...</div>';
 
+  let trackingOrder=null;
+
   try{
     const snap=await db.collection('tracking').doc(num).get();
-
-    if(snap.exists){
-      renderTrackingResult({id:snap.id,...snap.data()});
-      return;
-    }
+    if(snap.exists)trackingOrder={id:snap.id,...snap.data()};
   }catch(error){
     console.warn('Online tracking lookup failed:',error);
   }
 
-  // Keep old same-phone behavior as a fallback.
-  const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
-  if(localOrder){
-    renderTrackingResult(localOrder);
+  if(!trackingOrder){
+    const localOrder=orders.find(x=>String(x.id||'').toUpperCase()===num);
+    if(localOrder)trackingOrder=localOrder;
+  }
+
+  if(!trackingOrder){
+    $('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';
     return;
   }
 
-  $('trackingResult').innerHTML='<div class="empty">لم يتم العثور على الطلب</div>';
+  renderTrackingResult(trackingOrder);
+
+  if(trackingOrder.status!=='new'||!phone)return;
+
+  try{
+    const editable=await loadEditableOrder(num,phone);
+    if(editable){
+      activeEditableOrder=editable;
+      activeOrderAccessKey=editable.accessKey;
+      renderTrackingResult(trackingOrder,editable);
+    }else{
+      renderTrackingResult(trackingOrder,null,'رقم الهاتف غير مطابق للطلب، أو أن الطلب قديم ولم يتم تفعيل التعديل له بعد.');
+    }
+  }catch(error){
+    console.warn('Editable order verification failed:',error);
+    renderTrackingResult(trackingOrder,null,'تعذر التحقق من بيانات التعديل الآن.');
+  }
 }
+
+function editableQty(order,item){
+  const q=order?.quantities||{};
+  if(Object.prototype.hasOwnProperty.call(q,String(item.id)))return Math.max(0,Math.min(99,Number(q[String(item.id)])||0));
+  return Math.max(0,Math.min(99,Number(item.qty)||0));
+}
+
+function customerEditComputedTotal(){
+  if(!activeEditableOrder)return 0;
+  return (activeEditableOrder.items||[]).reduce((sum,item)=>{
+    return sum+(Number(item.price)||0)*editableQty(activeEditableOrder,item);
+  },0);
+}
+
+function renderCustomerOrderEditItems(){
+  const box=$('customerEditItems');
+  if(!box||!activeEditableOrder)return;
+
+  box.innerHTML=(activeEditableOrder.items||[]).map(item=>{
+    const qty=editableQty(activeEditableOrder,item);
+    return `<div class="customer-edit-row">
+      <div>
+        <div class="customer-edit-item-title">${esc(item.name||item.code||'منتج')}</div>
+        <div class="customer-edit-item-meta">${esc(item.code||'')} · ${money(item.price||0)}</div>
+      </div>
+      <div class="customer-edit-qty">
+        <button type="button" onclick="changeCustomerEditQty('${item.id}',-1)">−</button>
+        <b>${qty}</b>
+        <button type="button" onclick="changeCustomerEditQty('${item.id}',1)">+</button>
+        <button type="button" class="remove-edit-item" onclick="removeCustomerEditItem('${item.id}')">حذف</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  $('customerEditTotal').textContent=money(customerEditComputedTotal());
+}
+
+function changeCustomerEditQty(itemId,delta){
+  if(!activeEditableOrder)return;
+  if(!activeEditableOrder.quantities)activeEditableOrder.quantities=quantitiesFromOrderItems(activeEditableOrder.items);
+  const current=Number(activeEditableOrder.quantities[String(itemId)]||0);
+  activeEditableOrder.quantities[String(itemId)]=Math.max(0,Math.min(99,current+delta));
+  renderCustomerOrderEditItems();
+}
+
+function removeCustomerEditItem(itemId){
+  if(!activeEditableOrder)return;
+  if(!activeEditableOrder.quantities)activeEditableOrder.quantities=quantitiesFromOrderItems(activeEditableOrder.items);
+  activeEditableOrder.quantities[String(itemId)]=0;
+  renderCustomerOrderEditItems();
+}
+
+function openCustomerOrderEdit(){
+  if(!activeEditableOrder){
+    alert('ابحثي عن الطلب برقم الطلب ورقم الهاتف أولاً.');
+    return;
+  }
+
+  $('editOrderName').value=activeEditableOrder.customer?.name||'';
+  $('editOrderPhone').value=activeEditableOrder.customer?.phone||'';
+  $('editOrderCity').value=activeEditableOrder.customer?.city||'';
+  $('editOrderLocation').value=activeEditableOrder.customer?.location||'';
+  $('editOrderNotes').value=activeEditableOrder.notes||'';
+  $('customerEditStatus').innerHTML='';
+  renderCustomerOrderEditItems();
+  $('customerOrderEditModal').classList.remove('hidden');
+}
+
+function closeCustomerOrderEdit(){$('customerOrderEditModal').classList.add('hidden')}
+
+$('customerOrderEditForm').onsubmit=async e=>{
+  e.preventDefault();
+  if(!activeEditableOrder)return;
+
+  const btn=$('customerEditSaveBtn');
+  const status=$('customerEditStatus');
+  status.innerHTML='';
+
+  const customer={
+    name:$('editOrderName').value.trim(),
+    phone:$('editOrderPhone').value.trim(),
+    city:$('editOrderCity').value,
+    location:$('editOrderLocation').value.trim()
+  };
+  const notes=$('editOrderNotes').value.trim();
+
+  if(!customer.name||normalizeOrderPhone(customer.phone).length<7||!customer.city||!customer.location){
+    status.innerHTML='<div class="customer-edit-error">أكملي الاسم والهاتف والإمارة والعنوان.</div>';
+    return;
+  }
+
+  const quantities={...(activeEditableOrder.quantities||quantitiesFromOrderItems(activeEditableOrder.items))};
+  const remaining=(activeEditableOrder.items||[]).filter(i=>Number(quantities[String(i.id)]||0)>0);
+  if(!remaining.length){
+    status.innerHTML='<div class="customer-edit-error">يجب أن يبقى منتج واحد على الأقل في الطلب.</div>';
+    return;
+  }
+
+  btn.disabled=true;
+  btn.textContent='جارٍ حفظ التعديل...';
+
+  try{
+    const latestTrack=await db.collection('tracking').doc(activeEditableOrder.orderId).get();
+    if(!latestTrack.exists||latestTrack.data()?.status!=='new'){
+      throw Object.assign(new Error('order-locked'),{code:'order/locked'});
+    }
+
+    const now=new Date().toISOString();
+    const token=activeEditableOrder.editToken;
+
+    await db.collection('orders').doc(activeEditableOrder.orderId).update({
+      customerEdit:{
+        customer,
+        notes,
+        quantities,
+        editProof:token,
+        updatedAt:now
+      },
+      customerModifiedAt:now
+    });
+
+    await db.collection('order_edits').doc(token).update({
+      customer,
+      notes,
+      quantities,
+      updatedAt:now
+    });
+
+    const newAccessKey=await makeOrderAccessKey(activeEditableOrder.orderId,customer.phone);
+    if(newAccessKey!==activeOrderAccessKey){
+      await db.collection('order_access').doc(newAccessKey).set({
+        orderId:activeEditableOrder.orderId,
+        editToken:token,
+        active:true,
+        createdAt:now
+      });
+
+      try{
+        await db.collection('order_access').doc(activeOrderAccessKey).update({
+          active:false,
+          revokeProof:token,
+          revokedAt:now
+        });
+      }catch(revokeError){
+        console.warn('Old phone access revoke failed:',revokeError);
+      }
+
+      activeOrderAccessKey=newAccessKey;
+    }
+
+    activeEditableOrder={
+      ...activeEditableOrder,
+      customer,
+      notes,
+      quantities,
+      updatedAt:now,
+      accessKey:activeOrderAccessKey,
+      verifiedPhone:normalizeOrderPhone(customer.phone)
+    };
+
+    orders=orders.map(o=>o.id===activeEditableOrder.orderId?{
+      ...o,
+      customerEdit:{customer,notes,quantities,editProof:token,updatedAt:now},
+      customerModifiedAt:now
+    }:o);
+    localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+
+    customerProfile={...customerProfile,name:customer.name,phone:customer.phone,location:customer.location};
+    saveCustomerProfile();
+    renderProfileOrders();
+
+    if($('trackingPhone'))$('trackingPhone').value=customer.phone;
+
+    status.innerHTML='<div class="customer-edit-ok">تم تعديل طلبك بنجاح ✓</div>';
+    setTimeout(()=>{
+      closeCustomerOrderEdit();
+      renderTrackingResult({id:activeEditableOrder.orderId,status:'new'},activeEditableOrder);
+    },650);
+  }catch(error){
+    console.error('Customer order edit error:',error);
+    status.innerHTML=error?.code==='order/locked'
+      ?'<div class="customer-edit-error">بدأ تجهيز الطلب، لذلك لم يعد التعديل متاحاً.</div>'
+      :'<div class="customer-edit-error">تعذر حفظ التعديل. تأكدي من تحديث Firestore Rules ثم حاولي مرة أخرى.</div>';
+  }finally{
+    btn.disabled=false;
+    btn.textContent='حفظ تعديل الطلب';
+  }
+}
+
 function buildWhatsAppMessage(){
   const rows=cartData();
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
@@ -2091,9 +2607,9 @@ $('profileForm').onsubmit=e=>{
 }
 function renderProfileOrders(){
   if(!$('profileOrders'))return;
-  const phone=customerProfile.phone||'';
-  const list=phone?orders.filter(o=>o.customer.phone===phone):[];
-  $('profileOrders').innerHTML=list.length?list.map(o=>`<div class="order-card"><b>${o.id}</b><p>${statusText(o.status)}</p><div class="price">${money(o.total)}</div></div>`).join(''):'<div class="empty">لا توجد طلبات مرتبطة بهذا الرقم</div>';
+  const phone=normalizeOrderPhone(customerProfile.phone||'');
+  const list=phone?orders.map(effectiveOrderView).filter(o=>normalizeOrderPhone(o.customer?.phone||'')===phone):[];
+  $('profileOrders').innerHTML=list.length?list.map(o=>`<div class="order-card"><b>${o.id}</b><p>${statusText(o.status)}</p>${o._customerEdited?'<span class="customer-edit-badge">✎ تم التعديل</span>':''}<div class="price">${money(o.total)}</div></div>`).join(''):'<div class="empty">لا توجد طلبات مرتبطة بهذا الرقم</div>';
 }
 function newsletterEmailKey(email){
   // Stable non-reversible-enough identifier for Firestore document naming.
@@ -2137,10 +2653,27 @@ async function subscribeNewsletter(){
       source:'website'
     });
 
+    let confirmationSent=false;
+    try{
+      await emailjs.send('Kandorty','template_538pleu',{ email });
+      confirmationSent=true;
+    }catch(mailError){
+      console.error('Newsletter confirmation email error:',mailError);
+    }
+
     localStorage.setItem('kandorty_newsletter_email',email);
     input.value='';
-    status.style.color='#fff';
-    status.textContent=lang==='ar'?'تم الاشتراك بنجاح ✓':'Subscribed successfully ✓';
+    if(confirmationSent){
+      status.style.color='#fff';
+      status.textContent=lang==='ar'
+        ?'تم الاشتراك بنجاح ✓ تم إرسال رسالة التأكيد إلى بريدك.'
+        :'Subscribed successfully ✓ Confirmation email sent.';
+    }else{
+      status.style.color='#fff3a6';
+      status.textContent=lang==='ar'
+        ?'تم حفظ الاشتراك ✓ لكن تعذر إرسال رسالة التأكيد الآن.'
+        :'Subscription saved ✓ but the confirmation email could not be sent right now.';
+    }
   }catch(error){
     console.error('Newsletter subscription error:',error);
     status.style.color='#fff3a6';
@@ -2156,8 +2689,9 @@ async function subscribeNewsletter(){
 function renderCustomers(){
   if(!$('customersList'))return;
   const map=new Map();
-  orders.forEach(o=>{
-    const k=o.customer.phone;
+  orders.map(effectiveOrderView).forEach(o=>{
+    const k=o.customer?.phone||'';
+    if(!k)return;
     if(!map.has(k))map.set(k,{...o.customer,orders:0,total:0});
     const c=map.get(k);c.orders+=1;c.total+=Number(o.total||0);
   });
