@@ -637,14 +637,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 
 <!-- Firebase and application scripts must load after all page elements. -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script>
-emailjs.init({
-  publicKey: '4PnMsmJ90bIJXd-je',
-  blockHeadless: true,
-  limitRate: { id: 'kandorty-newsletter', throttle: 10000 }
-});
-</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -2625,6 +2617,24 @@ function newsletterEmailKey(email){
   return 'sub_'+(h1>>>0).toString(16).padStart(8,'0')+(h2>>>0).toString(16).padStart(8,'0');
 }
 
+async function sendNewsletterConfirmation(email){
+  const response=await fetch('https://api.emailjs.com/api/v1.0/email/send',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      service_id:'default_service',
+      template_id:'template_538pleu',
+      user_id:'4PnMsmJ90bIJXd-je',
+      template_params:{email}
+    })
+  });
+  const responseText=await response.text();
+  if(!response.ok){
+    throw new Error('EmailJS '+response.status+': '+responseText);
+  }
+  return responseText;
+}
+
 async function subscribeNewsletter(){
   const input=$('newsletterEmail');
   const btn=$('newsletterBtn');
@@ -2655,7 +2665,7 @@ async function subscribeNewsletter(){
 
     let confirmationSent=false;
     try{
-      await emailjs.send('Kandorty','template_538pleu',{ email });
+      await sendNewsletterConfirmation(email);
       confirmationSent=true;
     }catch(mailError){
       console.error('Newsletter confirmation email error:',mailError);
