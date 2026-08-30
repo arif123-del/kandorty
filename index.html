@@ -33,11 +33,12 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.contai
 footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.footer-logo{width:165px;background:#fff;padding:8px;border-radius:10px;object-fit:contain}
 .modal{position:fixed;inset:0;background:#0008;z-index:100;display:grid;place-items:center;padding:12px}.modal-card{background:#fff;width:min(720px,100%);max-height:94vh;overflow:auto;border-radius:20px;padding:22px}
 .modal-head{display:flex;justify-content:space-between;align-items:center}.x{font-size:26px;background:none;border:0;cursor:pointer}
-.product-gallery-mainwrap{margin:14px 0}
-.product-gallery-mainimg{display:block!important;width:100%!important;height:auto!important;max-height:none!important;aspect-ratio:auto!important;object-fit:fill!important;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
+.product-gallery-mainwrap{margin:14px 0;width:100%;overflow:hidden}
+.product-gallery-mainimg{display:block!important;width:100%!important;height:auto!important;aspect-ratio:3/4!important;object-fit:cover!important;object-position:center!important;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
 .product-gallery-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 2px}
 .product-gallery-thumb{width:64px;height:80px;object-fit:cover;border-radius:9px;border:2px solid transparent;cursor:pointer;flex:0 0 auto;background:#f6f3f4}
 .product-gallery-thumb.active{border-color:var(--red)}
+@media(max-width:600px){.product-gallery-mainwrap{width:100%!important}.product-gallery-mainimg{width:100%!important;aspect-ratio:3/4!important;object-fit:cover!important}}
 .admin-order-search{display:flex;gap:8px;align-items:center;margin:12px 0 16px}.admin-order-search input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:15px}
 .products .card>img{cursor:pointer}
 .admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{border:1px solid var(--line);background:#fff;padding:10px 13px;border-radius:10px}.tab.active{background:#111;color:#fff}
@@ -843,26 +844,9 @@ function renderProductGallery(){
   }
   $('modalGallery').style.display='block';
   const mainImg=$('modalMainImage');
-
-  // Force the image box to use the REAL image ratio.
-  // This removes the empty side spaces without cropping any part of the image.
-  mainImg.onload=()=>{
-    const w=mainImg.clientWidth;
-    if(w && mainImg.naturalWidth && mainImg.naturalHeight){
-      const h=Math.round(w*(mainImg.naturalHeight/mainImg.naturalWidth));
-      mainImg.style.setProperty('width','100%','important');
-      mainImg.style.setProperty('height',h+'px','important');
-      mainImg.style.setProperty('max-height','none','important');
-      mainImg.style.setProperty('aspect-ratio','auto','important');
-      mainImg.style.setProperty('object-fit','fill','important');
-    }
-  };
+  mainImg.onload=null;
+  mainImg.removeAttribute('style');
   mainImg.src=currentProductImages[currentProductImageIndex];
-
-  // Cached images may already be loaded before onload is attached.
-  if(mainImg.complete && mainImg.naturalWidth){
-    requestAnimationFrame(()=>mainImg.onload());
-  }
   $('modalThumbs').innerHTML=currentProductImages.map((img,index)=>`
     <img src="${img}" class="product-gallery-thumb ${index===currentProductImageIndex?'active':''}" data-image-index="${index}" alt="">
   `).join('');
