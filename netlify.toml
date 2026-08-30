@@ -1,8 +1,0 @@
-[build]
-  publish = "."
-  functions = "netlify/functions"
-
-[[redirects]]
-  from = "/api/upload-image"
-  to = "/.netlify/functions/upload-image"
-  status = 200
