@@ -318,12 +318,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   </div>
 </section>
 
-<div class="trust-strip"><div class="container trust-grid">
-<div class="trust-item"><span class="trust-icon">💳</span><div><b data-ar="دفع مرن" data-en="Flexible payment">دفع مرن</b><small data-ar="بطاقة أو عند الاستلام" data-en="Card or cash on delivery">بطاقة أو عند الاستلام</small></div></div>
-<div class="trust-item"><span class="trust-icon">✨</span><div><b data-ar="جودة مختارة" data-en="Selected quality">جودة مختارة</b><small data-ar="خامات وتفاصيل مميزة" data-en="Fine fabrics and details">خامات وتفاصيل مميزة</small></div></div>
-<div class="trust-item"><span class="trust-icon">💬</span><div><b data-ar="دعم سريع" data-en="Quick support">دعم سريع</b><small data-ar="تواصلي معنا بسهولة" data-en="Contact us easily">تواصلي معنا بسهولة</small></div></div>
-</div></div>
-
 <main id="shop">
 <section id="categories" class="home-section"><div class="container">
 <div class="home-heading"><span class="overline" data-ar="تسوقي بطريقتك" data-en="SHOP YOUR WAY">تسوقي بطريقتك</span><h2 data-ar="اكتشفي الأقسام" data-en="Discover categories">اكتشفي الأقسام</h2><p data-ar="اختاري القسم المناسب لك للوصول بسرعة إلى القطع التي تحبينها." data-en="Choose your favorite category and find the pieces you love faster.">اختاري القسم المناسب لك للوصول بسرعة إلى القطع التي تحبينها.</p></div>
@@ -335,7 +329,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="cat" data-cat="silk" data-symbol="◇" data-ar="حرير" data-en="Silk"><strong data-ar="حرير" data-en="Silk">حرير</strong><span data-ar="لمسة فاخرة" data-en="A luxurious touch">لمسة فاخرة</span></button>
 </div></div></section>
 
-<section class="home-section soft"><div class="container"><div class="collection-banner"><div class="collection-copy"><span class="eyebrow" data-ar="مجموعة الموسم" data-en="Season collection">مجموعة الموسم</span><h2 data-ar="تفاصيل تصنع الفرق" data-en="Details that make a difference">تفاصيل تصنع الفرق</h2><p data-ar="ألوان منتقاة، قصّات مريحة ولمسات أنثوية تمنح كل إطلالة حضوراً خاصاً." data-en="Curated colors, comfortable cuts and feminine touches that make every look feel special.">ألوان منتقاة، قصّات مريحة ولمسات أنثوية تمنح كل إطلالة حضوراً خاصاً.</p><div><button class="btn primary" onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})" data-ar="شاهدي المنتجات" data-en="View products">شاهدي المنتجات</button></div></div><div class="collection-art"></div></div></div></section>
+
 
 <section class="shop-v2"><div class="container">
 <div class="shop-top"><div><span class="overline" style="color:var(--red);font-weight:800" data-ar="اختيارات Kandorty" data-en="Kandorty picks">اختيارات Kandorty</span><h2 data-ar="تسوقي المخاوير" data-en="Shop Mukhawar">تسوقي المخاوير</h2><p data-ar="ابحثي بالاسم أو كود المنتج، ثم أضيفي اختيارك إلى السلة." data-en="Search by name or product code, then add your choice to the cart.">ابحثي بالاسم أو كود المنتج، ثم أضيفي اختيارك إلى السلة.</p></div><div class="toolbar toolbar-v2"><input id="search" placeholder="ابحثي بالاسم أو الكود"><button class="btn ghost" id="clearBtn" data-ar="مسح" data-en="Clear">مسح</button></div></div>
@@ -367,7 +361,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
 <button id="orderSoundBtn" class="btn ghost" type="button" onclick="enableOrderSound()" style="margin:10px 0">🔊 تفعيل صوت الطلبات</button>
-<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('customers',this)">العملاء</button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
+<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button id="customersTabBtn" class="tab" onclick="showAdminTab('customers',this)">العملاء <span id="customersTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -403,7 +397,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div>
 <div id="ordersList" class="admin-list"></div>
 </div>
-<div id="adminCustomersTab" class="hidden"><div id="customersList" class="admin-list"></div></div>
+<div id="adminCustomersTab" class="hidden">
+  <div class="notice" style="margin-bottom:14px;font-size:16px">
+    إجمالي العملاء: <b id="customerTotalCount" style="font-size:22px;color:var(--red)">0</b>
+    <div id="customersSummary" style="margin-top:6px;font-size:13px;color:var(--muted)">حسابات الهاتف: 0 · المشترون: 0</div>
+  </div>
+  <div id="customersList" class="admin-list"></div>
+</div>
 
 <div id="adminBannerTab" class="hidden">
 <div class="banner-admin-box">
@@ -653,6 +653,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+
+// Keep Firebase login saved on this device/browser after closing and reopening it.
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(error=>{
+  console.warn('Firebase LOCAL auth persistence setup failed:', error);
+});
 const ADMIN_EMAIL='aliyajan200011@gmail.com';
 </script>
 <script>
@@ -742,12 +747,45 @@ async function save(){
 function t(el){return lang==='ar'?el.dataset.ar:el.dataset.en}
 function switchLang(){lang=lang==='ar'?'en':'ar';document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';$('langBtn').textContent=lang==='ar'?'EN':'ع';document.querySelectorAll('[data-ar]').forEach(el=>el.textContent=t(el));$('search').placeholder=lang==='ar'?'ابحثي بالاسم أو الكود':'Search by name or code';render()}
 $('langBtn').onclick=switchLang;
-document.querySelectorAll('.cat').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cat').forEach(x=>x.classList.remove('active'));b.classList.add('active');currentCat=b.dataset.cat;render()})
+function normalizeCategoryValue(value){
+  const v=String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const aliases={
+    women:['women','woman','womens',"women's",'مخاوير نسائية','مخاوير نسائيه','نسائية','نسائيه'],
+    girls:['girls','girl',"girls'",'مخاوير لبنوتات','مخاوير بنوتات','لبنوتات','بنوتات'],
+    cotton:['cotton','قطن'],
+    silk:['silk','حرير']
+  };
+  for(const key of Object.keys(aliases)){
+    if(aliases[key].includes(v))return key;
+  }
+  return v;
+}
+
+document.querySelectorAll('.cat').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.cat').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  currentCat=normalizeCategoryValue(b.dataset.cat);
+  render();
+
+  // Show the matching products immediately after choosing a category.
+  const productsEl=$('products');
+  if(productsEl){
+    setTimeout(()=>productsEl.scrollIntoView({behavior:'smooth',block:'start'}),20);
+  }
+})
 $('search').oninput=render;$('clearBtn').onclick=()=>{$('search').value='';render()}
 function money(v){return (Number(v)||0).toFixed(2)+' '+(lang==='ar'?'د.إ':'AED')}
 function render(){
  const q=$('search').value.trim().toLowerCase();
- const list=products.filter(p=>p.active!==false&&(currentCat==='all'||p.category===currentCat)&&(!q||(p.code+' '+p.nameAr).toLowerCase().includes(q)));
+ const list=products.filter(p=>{
+   if(p.active===false)return false;
+   const productCategory=normalizeCategoryValue(
+     p.category || p.categoryKey || p.categoryAr || p.section || ''
+   );
+   const categoryMatches=currentCat==='all' || productCategory===normalizeCategoryValue(currentCat);
+   const searchMatches=!q || ((p.code||'')+' '+(p.nameAr||'')).toLowerCase().includes(q);
+   return categoryMatches && searchMatches;
+ });
  $('products').innerHTML=list.length?list.map(p=>`<article class="card">
  ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
  <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
@@ -1044,14 +1082,21 @@ auth.onAuthStateChanged(user=>{
   const isAdminUser=!!user && (user.email||'').toLowerCase()===ADMIN_EMAIL;
 
   if(isAdminUser){
-    // Critical fix: start realtime order listener after Admin login.
+    // Realtime admin data.
     startAdminOrdersListener();
+    startAdminCustomersListener();
     unlockOrderSound(false).catch(()=>{});
   }else{
     if(adminOrdersUnsubscribe){
       adminOrdersUnsubscribe();
       adminOrdersUnsubscribe=null;
     }
+    if(adminCustomersUnsubscribe){
+      adminCustomersUnsubscribe();
+      adminCustomersUnsubscribe=null;
+    }
+    registeredCustomers=[];
+    renderCustomers();
     adminOrdersInitialLoaded=false;
     sessionAlertedOrderIds.clear();
   }
@@ -1244,6 +1289,8 @@ const CART_KEY='kandorty_cart_v1', ORDERS_KEY='kandorty_orders_v1';
 const SEEN_ORDERS_KEY='kandorty_seen_order_ids_v1';
 const SOUND_ENABLED_KEY='kandorty_order_sound_enabled_v1';
 let cart=[], orders=[];
+let registeredCustomers=[];
+let adminCustomersUnsubscribe=null;
 let adminOrdersUnsubscribe=null;
 let adminOrdersInitialLoaded=false;
 let unreadNewOrders=0;
@@ -1512,6 +1559,7 @@ function startAdminOrdersListener(){
       ensureCustomerEditForOldOrders(orders).catch(console.warn);
       renderOrders();
       renderProfileOrders();
+      renderCustomers();
       syncOrdersToTracking(orders);
 
       let seen=getSeenOrderIds();
@@ -1657,19 +1705,60 @@ async function createCustomerOrderEditRecords(order){
 let customerEditBackfillRunning=false;
 async function ensureCustomerEditForOldOrders(orderList){
   if(customerEditBackfillRunning||!auth.currentUser)return;
-  const legacy=(Array.isArray(orderList)?orderList:[]).filter(o=>o&&o.status==='new'&&!o.editToken&&o.customer?.phone);
-  if(!legacy.length)return;
+
+  // Repair ALL NEW orders that have a phone number.
+  // Older versions sometimes created editToken on the order but failed
+  // before creating order_edits / order_access. Those orders used to be
+  // skipped forever. This repair checks and recreates the missing records.
+  const candidates=(Array.isArray(orderList)?orderList:[])
+    .filter(o=>o&&o.status==='new'&&o.customer?.phone);
+
+  if(!candidates.length)return;
 
   customerEditBackfillRunning=true;
   try{
-    for(const original of legacy.slice(0,30)){
+    for(const original of candidates.slice(0,50)){
       try{
-        const editToken=createOrderEditToken();
-        await db.collection('orders').doc(original.id).update({editToken});
+        let editToken=String(original.editToken||'');
+
+        // Add a valid token if this older order does not have one.
+        if(editToken.length<32||editToken.length>200){
+          editToken=createOrderEditToken();
+          await db.collection('orders').doc(original.id).update({editToken});
+        }
+
         const upgraded={...original,editToken};
-        await createCustomerOrderEditRecords(upgraded);
+        const accessKey=await makeOrderAccessKey(
+          upgraded.id,
+          upgraded.customer.phone
+        );
+
+        const [editSnap,accessSnap]=await Promise.all([
+          db.collection('order_edits').doc(editToken).get(),
+          db.collection('order_access').doc(accessKey).get()
+        ]);
+
+        const accessData=accessSnap.exists?(accessSnap.data()||{}):{};
+        const accessReady=
+          accessSnap.exists &&
+          accessData.active===true &&
+          String(accessData.orderId||'').toUpperCase()===
+            String(upgraded.id||'').toUpperCase() &&
+          String(accessData.editToken||'')===editToken;
+
+        const editData=editSnap.exists?(editSnap.data()||{}):{};
+        const editReady=
+          editSnap.exists &&
+          String(editData.orderId||'').toUpperCase()===
+            String(upgraded.id||'').toUpperCase() &&
+          String(editData.editToken||'')===editToken;
+
+        if(!editReady||!accessReady){
+          await createCustomerOrderEditRecords(upgraded);
+          console.info('Order edit access repaired:',upgraded.id);
+        }
       }catch(error){
-        console.warn('Legacy order edit setup failed:',original?.id,error);
+        console.warn('Order edit access repair failed:',original?.id,error);
       }
     }
   }finally{
@@ -2745,17 +2834,101 @@ async function subscribeNewsletter(){
   }
 }
 
+
+function startAdminCustomersListener(){
+  if(adminCustomersUnsubscribe)return;
+
+  adminCustomersUnsubscribe=db.collection('customers').onSnapshot(snap=>{
+    registeredCustomers=snap.docs.map(doc=>({id:doc.id,...doc.data()}));
+    renderCustomers();
+  },error=>{
+    console.warn('Customer accounts listener failed:',error);
+    registeredCustomers=[];
+    renderCustomers();
+  });
+}
+
 function renderCustomers(){
   if(!$('customersList'))return;
+
   const map=new Map();
-  orders.map(effectiveOrderView).forEach(o=>{
-    const k=o.customer?.phone||'';
-    if(!k)return;
-    if(!map.has(k))map.set(k,{...o.customer,orders:0,total:0});
-    const c=map.get(k);c.orders+=1;c.total+=Number(o.total||0);
+
+  // 1) Registered phone-login accounts from Firestore /customers.
+  registeredCustomers.forEach(c=>{
+    const phone=String(c.phone||'').trim();
+    const normalized=normalizeOrderPhone(phone);
+    if(!normalized)return;
+
+    map.set(normalized,{
+      name:String(c.name||''),
+      phone,
+      city:'',
+      location:String(c.location||''),
+      orders:0,
+      total:0,
+      registered:true
+    });
   });
-  const list=[...map.values()];
-  $('customersList').innerHTML=list.length?list.map(c=>`<div class="admin-item"><div class="grow"><b>${esc(c.name)}</b><br><small>${esc(c.phone)} · ${esc(c.city||'')} · ${esc(c.location||'')}</small><br><small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}</small></div></div>`).join(''):'<div class="empty">لا يوجد عملاء بعد</div>';
+
+  // 2) Merge customers found in orders.
+  orders.map(effectiveOrderView).forEach(o=>{
+    const phone=String(o.customer?.phone||'').trim();
+    const normalized=normalizeOrderPhone(phone);
+    if(!normalized)return;
+
+    if(!map.has(normalized)){
+      map.set(normalized,{
+        ...o.customer,
+        phone,
+        orders:0,
+        total:0,
+        registered:false
+      });
+    }
+
+    const c=map.get(normalized);
+
+    // Prefer the freshest useful order details when a registered profile is sparse.
+    if(!c.name && o.customer?.name)c.name=o.customer.name;
+    if(!c.city && o.customer?.city)c.city=o.customer.city;
+    if(!c.location && o.customer?.location)c.location=o.customer.location;
+
+    c.orders+=1;
+    c.total+=Number(o.total||0);
+  });
+
+  const list=[...map.values()]
+    .sort((a,b)=>Number(b.registered)-Number(a.registered) || b.orders-a.orders);
+
+  const totalCustomers=list.length;
+  const registeredCount=list.filter(c=>c.registered).length;
+  const buyersCount=list.filter(c=>c.orders>0).length;
+
+  if($('customerTotalCount'))$('customerTotalCount').textContent=String(totalCustomers);
+
+  const badge=$('customersTabCount');
+  if(badge){
+    badge.textContent=String(totalCustomers);
+    badge.style.display=totalCustomers>0?'inline-flex':'none';
+  }
+
+  const summary=$('customersSummary');
+  if(summary){
+    summary.innerHTML=`حسابات الهاتف: <b>${registeredCount}</b> · المشترون: <b>${buyersCount}</b>`;
+  }
+
+  $('customersList').innerHTML=list.length
+    ?list.map(c=>`<div class="admin-item">
+      <div class="grow">
+        <b>${esc(c.name||'عميل')}</b>
+        ${c.registered?'<span class="customer-edit-badge" style="margin-inline-start:8px">حساب هاتف</span>':''}
+        <br>
+        <small>${esc(c.phone)}${c.city?' · '+esc(c.city):''}${c.location?' · '+esc(c.location):''}</small>
+        <br>
+        <small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}</small>
+      </div>
+    </div>`).join('')
+    :'<div class="empty">لا يوجد عملاء بعد</div>';
 }
 
 loadCustomerFeatures();
