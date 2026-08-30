@@ -650,13 +650,15 @@ const firebaseConfig = {
   appId: "1:306390258306:web:0aeaea30f5145f4bceda9b",
   measurementId: "G-1DZHV8N91R"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+// IMPORTANT:
+// Admin uses its own named Firebase app. This keeps the admin email session
+// separate from the customer's phone-login session on kandorty.online.
+const adminFirebaseApp = firebase.initializeApp(firebaseConfig, 'kandortyAdmin');
+const db = adminFirebaseApp.firestore();
+const auth = adminFirebaseApp.auth();
 
-// Keep Firebase login saved on this device/browser after closing and reopening it.
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(error=>{
-  console.warn('Firebase LOCAL auth persistence setup failed:', error);
+  console.warn('Firebase LOCAL admin persistence setup failed:', error);
 });
 const ADMIN_EMAIL='aliyajan200011@gmail.com';
 </script>
