@@ -683,10 +683,21 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Keep Firebase login saved on this device/browser after closing and reopening it.
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(error=>{
-  console.warn('Firebase LOCAL auth persistence setup failed:', error);
+// Keep the customer login saved in this browser/device.
+const authPersistenceReady = auth
+  .setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .catch(error=>{
+    console.warn('Firebase LOCAL auth persistence setup failed:', error);
+  });
+
+// Do not show the phone-login screen until Firebase has had time to restore
+// the previously saved session from this browser.
+let authInitialStateResolved=false;
+let resolveAuthInitialState;
+const authInitialStatePromise=new Promise(resolve=>{
+  resolveAuthInitialState=resolve;
 });
+
 const ADMIN_EMAIL='aliyajan200011@gmail.com';
 </script>
 <script>
@@ -1088,15 +1099,21 @@ function syncAdminView(user){
   }
 }
 
-auth.onAuthStateChanged(user=>{
+auth.onAuthStateChanged(async user=>{
   syncAdminView(user);
   // Public storefront: admin login must never appear here.
   if($('adminModal')) $('adminModal').classList.add('hidden');
 
-  // Phone account state is handled separately from the admin session.
-  handleCustomerAuthState(user).catch(error=>{
+  try{
+    await handleCustomerAuthState(user);
+  }catch(error){
     console.warn('Customer auth state sync failed:',error);
-  });
+  }finally{
+    if(!authInitialStateResolved){
+      authInitialStateResolved=true;
+      resolveAuthInitialState();
+    }
+  }
 });
 function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
@@ -2776,6 +2793,7 @@ async function sendCustomerPhoneCode(){
 
   try{
     if(!customerRecaptchaVerifier)await setupCustomerRecaptcha();
+    await authPersistenceReady;
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     customerPhoneConfirmation=await auth.signInWithPhoneNumber(phone,customerRecaptchaVerifier);
     $('customerOtpStep').classList.remove('hidden');
@@ -2972,7 +2990,21 @@ function openCustomerProfileModal(){
   $('profileModal').classList.remove('hidden');
 }
 
-$('profileBtn').onclick=()=>{
+$('profileBtn').onclick=async()=>{
+  // On a fresh page load Firebase may need a moment to restore the saved
+  // phone session. Wait for that first state before deciding the user is logged out.
+  if(!authInitialStateResolved){
+    const label=$('profileBtn')?.querySelector('span:last-child');
+    if(label)label.textContent='جارٍ التحقق...';
+
+    await Promise.race([
+      authInitialStatePromise,
+      new Promise(resolve=>setTimeout(resolve,4000))
+    ]);
+
+    updateCustomerAccountButton();
+  }
+
   if(!customerAuthUser?.phoneNumber){
     openCustomerAccountChoice();
     return;
