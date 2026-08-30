@@ -329,6 +329,18 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 .stock-admin-note{grid-column:1/-1;font-size:12px;color:#777;margin-top:-6px}
 </style>
 
+
+<style id="kandorty-public-video-lock">
+#homeVideo{
+  pointer-events:none!important;
+  user-select:none!important;
+  -webkit-user-select:none!important;
+}
+#homeVideo::-webkit-media-controls{
+  display:none!important;
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -363,7 +375,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <section id="homeVideoSection" class="home-video-section hidden" aria-label="Kandorty video">
   <div class="container">
     <div class="home-video-card">
-      <video id="homeVideo" controls playsinline preload="metadata"></video>
+      <video id="homeVideo" autoplay muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
       <div id="homeVideoOverlay" class="home-video-overlay" data-position="center" data-align="center">
         <div class="home-video-text-box">
           <div id="homeVideoTitle" class="home-video-title"></div>
