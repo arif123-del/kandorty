@@ -318,12 +318,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   </div>
 </section>
 
-<div class="trust-strip"><div class="container trust-grid">
-<div class="trust-item"><span class="trust-icon">💳</span><div><b data-ar="دفع مرن" data-en="Flexible payment">دفع مرن</b><small data-ar="بطاقة أو عند الاستلام" data-en="Card or cash on delivery">بطاقة أو عند الاستلام</small></div></div>
-<div class="trust-item"><span class="trust-icon">✨</span><div><b data-ar="جودة مختارة" data-en="Selected quality">جودة مختارة</b><small data-ar="خامات وتفاصيل مميزة" data-en="Fine fabrics and details">خامات وتفاصيل مميزة</small></div></div>
-<div class="trust-item"><span class="trust-icon">💬</span><div><b data-ar="دعم سريع" data-en="Quick support">دعم سريع</b><small data-ar="تواصلي معنا بسهولة" data-en="Contact us easily">تواصلي معنا بسهولة</small></div></div>
-</div></div>
-
 <main id="shop">
 <section id="categories" class="home-section"><div class="container">
 <div class="home-heading"><span class="overline" data-ar="تسوقي بطريقتك" data-en="SHOP YOUR WAY">تسوقي بطريقتك</span><h2 data-ar="اكتشفي الأقسام" data-en="Discover categories">اكتشفي الأقسام</h2><p data-ar="اختاري القسم المناسب لك للوصول بسرعة إلى القطع التي تحبينها." data-en="Choose your favorite category and find the pieces you love faster.">اختاري القسم المناسب لك للوصول بسرعة إلى القطع التي تحبينها.</p></div>
@@ -335,7 +329,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="cat" data-cat="silk" data-symbol="◇" data-ar="حرير" data-en="Silk"><strong data-ar="حرير" data-en="Silk">حرير</strong><span data-ar="لمسة فاخرة" data-en="A luxurious touch">لمسة فاخرة</span></button>
 </div></div></section>
 
-<section class="home-section soft"><div class="container"><div class="collection-banner"><div class="collection-copy"><span class="eyebrow" data-ar="مجموعة الموسم" data-en="Season collection">مجموعة الموسم</span><h2 data-ar="تفاصيل تصنع الفرق" data-en="Details that make a difference">تفاصيل تصنع الفرق</h2><p data-ar="ألوان منتقاة، قصّات مريحة ولمسات أنثوية تمنح كل إطلالة حضوراً خاصاً." data-en="Curated colors, comfortable cuts and feminine touches that make every look feel special.">ألوان منتقاة، قصّات مريحة ولمسات أنثوية تمنح كل إطلالة حضوراً خاصاً.</p><div><button class="btn primary" onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})" data-ar="شاهدي المنتجات" data-en="View products">شاهدي المنتجات</button></div></div><div class="collection-art"></div></div></div></section>
+
 
 <section class="shop-v2"><div class="container">
 <div class="shop-top"><div><span class="overline" style="color:var(--red);font-weight:800" data-ar="اختيارات Kandorty" data-en="Kandorty picks">اختيارات Kandorty</span><h2 data-ar="تسوقي المخاوير" data-en="Shop Mukhawar">تسوقي المخاوير</h2><p data-ar="ابحثي بالاسم أو كود المنتج، ثم أضيفي اختيارك إلى السلة." data-en="Search by name or product code, then add your choice to the cart.">ابحثي بالاسم أو كود المنتج، ثم أضيفي اختيارك إلى السلة.</p></div><div class="toolbar toolbar-v2"><input id="search" placeholder="ابحثي بالاسم أو الكود"><button class="btn ghost" id="clearBtn" data-ar="مسح" data-en="Clear">مسح</button></div></div>
@@ -688,6 +682,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+
+// Keep Firebase login saved on this device/browser after closing and reopening it.
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(error=>{
+  console.warn('Firebase LOCAL auth persistence setup failed:', error);
+});
 const ADMIN_EMAIL='aliyajan200011@gmail.com';
 </script>
 <script>
@@ -777,12 +776,45 @@ async function save(){
 function t(el){return lang==='ar'?el.dataset.ar:el.dataset.en}
 function switchLang(){lang=lang==='ar'?'en':'ar';document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';$('langBtn').textContent=lang==='ar'?'EN':'ع';document.querySelectorAll('[data-ar]').forEach(el=>el.textContent=t(el));$('search').placeholder=lang==='ar'?'ابحثي بالاسم أو الكود':'Search by name or code';render()}
 $('langBtn').onclick=switchLang;
-document.querySelectorAll('.cat').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cat').forEach(x=>x.classList.remove('active'));b.classList.add('active');currentCat=b.dataset.cat;render()})
+function normalizeCategoryValue(value){
+  const v=String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const aliases={
+    women:['women','woman','womens',"women's",'مخاوير نسائية','مخاوير نسائيه','نسائية','نسائيه'],
+    girls:['girls','girl',"girls'",'مخاوير لبنوتات','مخاوير بنوتات','لبنوتات','بنوتات'],
+    cotton:['cotton','قطن'],
+    silk:['silk','حرير']
+  };
+  for(const key of Object.keys(aliases)){
+    if(aliases[key].includes(v))return key;
+  }
+  return v;
+}
+
+document.querySelectorAll('.cat').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.cat').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  currentCat=normalizeCategoryValue(b.dataset.cat);
+  render();
+
+  // Show the matching products immediately after choosing a category.
+  const productsEl=$('products');
+  if(productsEl){
+    setTimeout(()=>productsEl.scrollIntoView({behavior:'smooth',block:'start'}),20);
+  }
+})
 $('search').oninput=render;$('clearBtn').onclick=()=>{$('search').value='';render()}
 function money(v){return (Number(v)||0).toFixed(2)+' '+(lang==='ar'?'د.إ':'AED')}
 function render(){
  const q=$('search').value.trim().toLowerCase();
- const list=products.filter(p=>p.active!==false&&(currentCat==='all'||p.category===currentCat)&&(!q||(p.code+' '+p.nameAr).toLowerCase().includes(q)));
+ const list=products.filter(p=>{
+   if(p.active===false)return false;
+   const productCategory=normalizeCategoryValue(
+     p.category || p.categoryKey || p.categoryAr || p.section || ''
+   );
+   const categoryMatches=currentCat==='all' || productCategory===normalizeCategoryValue(currentCat);
+   const searchMatches=!q || ((p.code||'')+' '+(p.nameAr||'')).toLowerCase().includes(q);
+   return categoryMatches && searchMatches;
+ });
  $('products').innerHTML=list.length?list.map(p=>`<article class="card">
  ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
  <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
@@ -1615,19 +1647,60 @@ async function createCustomerOrderEditRecords(order){
 let customerEditBackfillRunning=false;
 async function ensureCustomerEditForOldOrders(orderList){
   if(customerEditBackfillRunning||!auth.currentUser)return;
-  const legacy=(Array.isArray(orderList)?orderList:[]).filter(o=>o&&o.status==='new'&&!o.editToken&&o.customer?.phone);
-  if(!legacy.length)return;
+
+  // Repair ALL NEW orders that have a phone number.
+  // Older versions sometimes created editToken on the order but failed
+  // before creating order_edits / order_access. Those orders used to be
+  // skipped forever. This repair checks and recreates the missing records.
+  const candidates=(Array.isArray(orderList)?orderList:[])
+    .filter(o=>o&&o.status==='new'&&o.customer?.phone);
+
+  if(!candidates.length)return;
 
   customerEditBackfillRunning=true;
   try{
-    for(const original of legacy.slice(0,30)){
+    for(const original of candidates.slice(0,50)){
       try{
-        const editToken=createOrderEditToken();
-        await db.collection('orders').doc(original.id).update({editToken});
+        let editToken=String(original.editToken||'');
+
+        // Add a valid token if this older order does not have one.
+        if(editToken.length<32||editToken.length>200){
+          editToken=createOrderEditToken();
+          await db.collection('orders').doc(original.id).update({editToken});
+        }
+
         const upgraded={...original,editToken};
-        await createCustomerOrderEditRecords(upgraded);
+        const accessKey=await makeOrderAccessKey(
+          upgraded.id,
+          upgraded.customer.phone
+        );
+
+        const [editSnap,accessSnap]=await Promise.all([
+          db.collection('order_edits').doc(editToken).get(),
+          db.collection('order_access').doc(accessKey).get()
+        ]);
+
+        const accessData=accessSnap.exists?(accessSnap.data()||{}):{};
+        const accessReady=
+          accessSnap.exists &&
+          accessData.active===true &&
+          String(accessData.orderId||'').toUpperCase()===
+            String(upgraded.id||'').toUpperCase() &&
+          String(accessData.editToken||'')===editToken;
+
+        const editData=editSnap.exists?(editSnap.data()||{}):{};
+        const editReady=
+          editSnap.exists &&
+          String(editData.orderId||'').toUpperCase()===
+            String(upgraded.id||'').toUpperCase() &&
+          String(editData.editToken||'')===editToken;
+
+        if(!editReady||!accessReady){
+          await createCustomerOrderEditRecords(upgraded);
+          console.info('Order edit access repaired:',upgraded.id);
+        }
       }catch(error){
-        console.warn('Legacy order edit setup failed:',original?.id,error);
+        console.warn('Order edit access repair failed:',original?.id,error);
       }
     }
   }finally{
@@ -2703,6 +2776,7 @@ async function sendCustomerPhoneCode(){
 
   try{
     if(!customerRecaptchaVerifier)await setupCustomerRecaptcha();
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     customerPhoneConfirmation=await auth.signInWithPhoneNumber(phone,customerRecaptchaVerifier);
     $('customerOtpStep').classList.remove('hidden');
     $('customerOtpCode').focus();
@@ -3067,5 +3141,4 @@ loadSettings();
 loadCommerce();
 load();
 </script>
-  <script src="phone-login-fix.js"></script>
 </body></html>
