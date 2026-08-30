@@ -34,7 +34,7 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
 .modal{position:fixed;inset:0;background:#0008;z-index:100;display:grid;place-items:center;padding:12px}.modal-card{background:#fff;width:min(720px,100%);max-height:94vh;overflow:auto;border-radius:20px;padding:22px}
 .modal-head{display:flex;justify-content:space-between;align-items:center}.x{font-size:26px;background:none;border:0;cursor:pointer}
 .product-gallery-mainwrap{margin:14px 0}
-.product-gallery-mainimg{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;object-fit:initial;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
+.product-gallery-mainimg{display:block!important;width:100%!important;height:auto!important;max-height:none!important;aspect-ratio:auto!important;object-fit:fill!important;background:#f6f3f4;border:1px solid var(--line);border-radius:14px}
 .product-gallery-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 2px}
 .product-gallery-thumb{width:64px;height:80px;object-fit:cover;border-radius:9px;border:2px solid transparent;cursor:pointer;flex:0 0 auto;background:#f6f3f4}
 .product-gallery-thumb.active{border-color:var(--red)}
@@ -842,7 +842,27 @@ function renderProductGallery(){
     return;
   }
   $('modalGallery').style.display='block';
-  $('modalMainImage').src=currentProductImages[currentProductImageIndex];
+  const mainImg=$('modalMainImage');
+
+  // Force the image box to use the REAL image ratio.
+  // This removes the empty side spaces without cropping any part of the image.
+  mainImg.onload=()=>{
+    const w=mainImg.clientWidth;
+    if(w && mainImg.naturalWidth && mainImg.naturalHeight){
+      const h=Math.round(w*(mainImg.naturalHeight/mainImg.naturalWidth));
+      mainImg.style.setProperty('width','100%','important');
+      mainImg.style.setProperty('height',h+'px','important');
+      mainImg.style.setProperty('max-height','none','important');
+      mainImg.style.setProperty('aspect-ratio','auto','important');
+      mainImg.style.setProperty('object-fit','fill','important');
+    }
+  };
+  mainImg.src=currentProductImages[currentProductImageIndex];
+
+  // Cached images may already be loaded before onload is attached.
+  if(mainImg.complete && mainImg.naturalWidth){
+    requestAnimationFrame(()=>mainImg.onload());
+  }
   $('modalThumbs').innerHTML=currentProductImages.map((img,index)=>`
     <img src="${img}" class="product-gallery-thumb ${index===currentProductImageIndex?'active':''}" data-image-index="${index}" alt="">
   `).join('');
