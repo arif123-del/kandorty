@@ -1,0 +1,47 @@
+name: Build Kandorty Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'KandortyAndroid*.zip'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract Android project
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name 'KandortyAndroid*.zip' | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Kandorty Android ZIP file not found"
+            exit 1
+          fi
+          unzip -o "$ZIP_FILE"
+
+      - name: Build Debug APK
+        working-directory: KandortyAndroid
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kandorty-Android-APK
+          path: KandortyAndroid/app/build/outputs/apk/debug/app-debug.apk
