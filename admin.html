@@ -352,6 +352,107 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-video-full-width-fix">
+/* Homepage video: edge-to-edge, no card/frame, no rounded corners.
+   The slot stays white/transparent until the first frame is ready. */
+.hero-v2.hero-video-fullwidth{
+  padding-top:0 !important;
+}
+.hero-v2.hero-video-fullwidth > .container.hero-v2-grid{
+  width:100% !important;
+  max-width:none !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:0 !important;
+}
+.hero-v2.hero-video-fullwidth .hero-copy.hero-media-slot{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+#homeVideoSection.hero-embedded{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:transparent !important;
+}
+#homeVideoSection.hero-embedded .container{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+#homeVideoSection.hero-embedded .home-video-card{
+  position:relative !important;
+  width:100% !important;
+  max-width:none !important;
+  min-height:0 !important;
+  aspect-ratio:16 / 9 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+  overflow:hidden !important;
+}
+#homeVideoSection.hero-embedded .home-video-card video,
+#homeVideo{
+  position:absolute !important;
+  inset:0 !important;
+  display:block;
+  width:100% !important;
+  height:100% !important;
+  min-height:0 !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}
+#homeVideoSection.hero-embedded.video-loading .home-video-card,
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-card{
+  background:#fff !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+#homeVideoSection.hero-embedded.video-loading .home-video-overlay,
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-overlay{
+  visibility:hidden !important;
+  display:none !important;
+}
+#homeVideoSection.hero-embedded .hero-video-hint{
+  display:none !important;
+}
+/* Keep the lower fashion area separated from the full-width video. */
+.hero-v2.hero-video-fullwidth .fashion-stage{
+  width:min(1180px, calc(100% - 32px));
+  margin:0 auto;
+}
+@media(max-width:540px){
+  #homeVideoSection.hero-embedded .home-video-card{
+    border-radius:0 !important;
+    min-height:0 !important;
+    aspect-ratio:16 / 9 !important;
+  }
+  #homeVideoSection.hero-embedded .home-video-card video{
+    min-height:0 !important;
+    max-height:none !important;
+  }
+  .hero-v2.hero-video-fullwidth .fashion-stage{
+    width:100%;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -3282,6 +3383,8 @@ function mountHeroMediaSlot(){
   const heroCopy=document.querySelector('.hero-copy');
   const section=$('homeVideoSection');
   if(!heroCopy||!section)return;
+  const hero=document.querySelector('.hero-v2');
+  if(hero)hero.classList.add('hero-video-fullwidth');
   if(section.parentElement!==heroCopy){
     heroCopy.classList.add('hero-media-slot');
     heroCopy.innerHTML='';
