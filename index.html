@@ -352,6 +352,111 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-video-full-width-fix">
+/* Homepage video: edge-to-edge, no card/frame, no rounded corners.
+   The slot stays white/transparent until the first frame is ready. */
+.hero-v2.hero-video-fullwidth{
+  padding:0 !important;
+  background:#fff !important;
+}
+.hero-v2.hero-video-fullwidth:after{
+  display:none !important;
+}
+.hero-v2.hero-video-fullwidth > .container.hero-v2-grid{
+  width:100% !important;
+  max-width:none !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:0 !important;
+}
+.hero-v2.hero-video-fullwidth .hero-copy.hero-media-slot{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+#homeVideoSection.hero-embedded{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:transparent !important;
+}
+#homeVideoSection.hero-embedded .container{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+#homeVideoSection.hero-embedded .home-video-card{
+  position:relative !important;
+  width:100% !important;
+  max-width:none !important;
+  min-height:0 !important;
+  aspect-ratio:16 / 9 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+  overflow:hidden !important;
+}
+#homeVideoSection.hero-embedded .home-video-card video,
+#homeVideo{
+  position:absolute !important;
+  inset:0 !important;
+  display:block;
+  width:100% !important;
+  height:100% !important;
+  min-height:0 !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}
+#homeVideoSection.hero-embedded.video-loading .home-video-card,
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-card{
+  background:#fff !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+#homeVideoSection.hero-embedded.video-loading .home-video-overlay,
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-overlay{
+  visibility:hidden !important;
+  display:none !important;
+}
+#homeVideoSection.hero-embedded .hero-video-hint{
+  display:none !important;
+}
+/* Keep the lower fashion area separated from the full-width video. */
+.hero-v2.hero-video-fullwidth .fashion-stage{
+  width:min(1180px, calc(100% - 32px));
+  margin:0 auto;
+}
+@media(max-width:540px){
+  #homeVideoSection.hero-embedded .home-video-card{
+    border-radius:0 !important;
+    min-height:0 !important;
+    aspect-ratio:16 / 9 !important;
+  }
+  #homeVideoSection.hero-embedded .home-video-card video{
+    min-height:0 !important;
+    max-height:none !important;
+  }
+  .hero-v2.hero-video-fullwidth .fashion-stage{
+    width:100%;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -366,28 +471,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div></div></header>
 
 
-<section class="hero-v2"><div class="container hero-v2-grid">
-<div class="hero-copy">
-<span class="eyebrow" data-ar="✦ أناقة إماراتية معاصرة" data-en="✦ Contemporary Emirati elegance">✦ أناقة إماراتية معاصرة</span>
-<h1 data-ar="مخاوير تليق بكل <span>لحظة جميلة</span>" data-en="Mukhawar for every <span>beautiful moment</span>">مخاوير تليق بكل <span>لحظة جميلة</span></h1>
-<p class="lead" data-ar="تشكيلة منتقاة من المخاوير النسائية ومخاوير البنوتات، بتفاصيل راقية وخامات مريحة للبيت، الأعراس والمناسبات." data-en="A curated collection of women's and girls' Mukhawar, crafted with refined details and comfortable fabrics for home, weddings and occasions.">تشكيلة منتقاة من المخاوير النسائية ومخاوير البنوتات، بتفاصيل راقية وخامات مريحة للبيت، الأعراس والمناسبات.</p>
-<div class="hero-cta"><button class="btn primary" onclick="document.getElementById('shop').scrollIntoView({behavior:'smooth'})" data-ar="تسوقي المجموعة" data-en="Shop the collection">تسوقي المجموعة</button><button class="btn ghost" onclick="document.getElementById('categories').scrollIntoView({behavior:'smooth'})" data-ar="استكشفي الأقسام" data-en="Explore categories">استكشفي الأقسام</button></div>
-<div class="hero-meta"><div><b>100%</b><span data-ar="اختيارات أنيقة" data-en="Elegant choices">اختيارات أنيقة</span></div><div><b>AED</b><span data-ar="أسعار واضحة" data-en="Clear pricing">أسعار واضحة</span></div></div>
-</div>
-<div class="fashion-stage" id="fashionStage" aria-label="Kandorty fashion showcase">
-<div id="homeBannerSlider" class="home-banner-slider hidden">
-<img id="homeBannerImage" class="home-banner-main" alt="Kandorty">
-<button class="home-banner-arrow home-banner-prev" type="button" onclick="changeHomeBanner(-1)" aria-label="Previous image">‹</button>
-<button class="home-banner-arrow home-banner-next" type="button" onclick="changeHomeBanner(1)" aria-label="Next image">›</button>
-<div id="homeBannerDots" class="home-banner-dots"></div>
-</div><div class="fashion-orbit"></div><div class="lookbook"><div class="fabric-line"></div></div><div class="mini-card one"><strong data-ar="وصل حديثاً" data-en="New arrival">وصل حديثاً</strong><span data-ar="تفاصيل راقية" data-en="Refined details">تفاصيل راقية</span></div><div class="mini-card two"><strong data-ar="اختيار مميز" data-en="Special pick">اختيار مميز</strong><span data-ar="للمناسبات والبيت" data-en="For occasions & home">للمناسبات والبيت</span></div></div>
-</div></section>
-
-<section id="homeVideoSection" class="home-video-section hidden" aria-label="Kandorty video">
+<section class="hero-v2 hero-video-fullwidth"><div class="container hero-v2-grid">
+<div class="hero-copy hero-media-slot">
+<section id="homeVideoSection" class="home-video-section hero-embedded video-loading" aria-label="Kandorty video">
   <div class="container">
     <div class="home-video-card">
       <video id="homeVideo" autoplay muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
-      <div id="homeVideoOverlay" class="home-video-overlay" data-position="center" data-align="center">
+      <div id="homeVideoOverlay" class="home-video-overlay" data-position="center" data-align="center" style="display:none">
         <div class="home-video-text-box">
           <div id="homeVideoTitle" class="home-video-title"></div>
           <div id="homeVideoSubtitle" class="home-video-subtitle"></div>
@@ -396,6 +486,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
     </div>
   </div>
 </section>
+</div>
+</div></section>
 
 <main id="shop">
 <section id="categories" class="home-section"><div class="container">
@@ -3517,6 +3609,8 @@ function mountHeroMediaSlot(){
   const heroCopy=document.querySelector('.hero-copy');
   const section=$('homeVideoSection');
   if(!heroCopy||!section)return;
+  const hero=document.querySelector('.hero-v2');
+  if(hero)hero.classList.add('hero-video-fullwidth');
   if(section.parentElement!==heroCopy){
     heroCopy.classList.add('hero-media-slot');
     heroCopy.innerHTML='';
