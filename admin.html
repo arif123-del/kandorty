@@ -308,6 +308,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #homeVideoSection.hero-embedded.empty-video-slot .home-video-card{background:transparent !important;border-color:transparent !important;box-shadow:none !important}
 #homeVideoSection.hero-embedded.empty-video-slot .home-video-card::before{display:none !important}
 #homeVideoSection.hero-embedded.empty-video-slot .home-video-overlay{display:none !important}
+/* Never show a black video box while the homepage video is loading.
+   Keep the slot transparent/white until the first real video frame is ready. */
+#homeVideoSection.hero-embedded .home-video-card{background:transparent !important;}
+#homeVideoSection.hero-embedded.video-loading .home-video-card{background:transparent !important;border-color:transparent !important;box-shadow:none !important;}
+#homeVideoSection.hero-embedded.video-loading .home-video-overlay{visibility:hidden !important;}
+#homeVideo{background:transparent !important;opacity:0;visibility:hidden;transition:opacity .18s ease;}
+#homeVideo.video-ready{opacity:1;visibility:visible;}
 
 @keyframes kandortyGlow{from{transform:translateX(-25%)}to{transform:translateX(25%)}}
 .hero-video-hint{position:absolute;inset:auto 14px 14px 14px;z-index:3;padding:10px 12px;border-radius:12px;font-size:12px;background:rgba(255,255,255,.13);color:#fff;backdrop-filter:blur(4px)}
@@ -3304,10 +3311,34 @@ function renderHomeVideo(){
     renderPublicHomeVideoText();
     video.style.display='block';
     video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
+
+    const revealVideo=()=>{
+      section.classList.remove('video-loading');
+      video.classList.add('video-ready');
+      const overlay=$('homeVideoOverlay');
+      if(overlay)overlay.style.display='';
+    };
+    const keepSlotBlank=()=>{
+      section.classList.add('video-loading');
+      video.classList.remove('video-ready');
+      const overlay=$('homeVideoOverlay');
+      if(overlay)overlay.style.display='none';
+    };
+
     if(video.getAttribute('data-current-src')!==url){
+      keepSlotBlank();
       video.src=url;
       video.setAttribute('data-current-src',url);
+      video.addEventListener('loadeddata',revealVideo,{once:true});
+      video.addEventListener('canplay',revealVideo,{once:true});
+      video.addEventListener('error',keepSlotBlank,{once:true});
       video.load();
+    }else if(video.readyState>=2){
+      revealVideo();
+    }else{
+      keepSlotBlank();
+      video.addEventListener('loadeddata',revealVideo,{once:true});
+      video.addEventListener('canplay',revealVideo,{once:true});
     }
     try{video.play().catch(()=>{});}catch(e){}
   }else{
@@ -3316,7 +3347,8 @@ function renderHomeVideo(){
     video.setAttribute('data-current-src','');
     try{video.load()}catch(e){}
     video.style.display='none';
-    section.classList.remove('placeholder-active');
+    video.classList.remove('video-ready');
+    section.classList.remove('placeholder-active','video-loading');
     section.classList.add('empty-video-slot');
     const overlay=$('homeVideoOverlay');
     if(overlay)overlay.style.display='none';
