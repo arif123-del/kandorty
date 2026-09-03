@@ -457,6 +457,114 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-sep03-compact-products-one-row-nav">
+/* 1) Keep product image size unchanged; only make the area below the image more compact. */
+@media (max-width:760px){
+  #products .card-body{
+    padding:7px 8px 8px !important;
+  }
+  #products .card-body .code{
+    font-size:10px !important;
+    line-height:1.15 !important;
+    margin:0 !important;
+  }
+  #products .card-body .name{
+    min-height:0 !important;
+    margin:3px 0 4px !important;
+    font-size:14px !important;
+    line-height:1.25 !important;
+  }
+  #products .card-body .price{
+    font-size:17px !important;
+    line-height:1.2 !important;
+    margin:0 !important;
+  }
+  #products .card-body .old{
+    font-size:11px !important;
+    margin-inline-start:4px !important;
+  }
+  #products .card-body .stock-note,
+  #products .card-body .stock{
+    margin-top:3px !important;
+    font-size:10px !important;
+    line-height:1.2 !important;
+  }
+  #products .card-body .card-actions{
+    margin-top:6px !important;
+    gap:5px !important;
+  }
+  #products .card-body .card-actions .btn{
+    padding:7px 4px !important;
+    min-height:34px !important;
+    font-size:11px !important;
+    line-height:1.15 !important;
+    border-radius:10px !important;
+  }
+
+  /* 2) Account, wishlist, tracking, cart and language: one shared row/container. */
+  .top .actions{
+    display:grid !important;
+    grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+    width:100% !important;
+    gap:0 !important;
+    overflow:visible !important;
+    padding:0 !important;
+    margin:0 !important;
+    border:1px solid var(--line) !important;
+    border-radius:16px !important;
+    background:#fff !important;
+    direction:rtl !important;
+  }
+  .top .actions .btn{
+    min-width:0 !important;
+    width:100% !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    padding:9px 2px !important;
+    margin:0 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:2px !important;
+    white-space:nowrap !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    font-size:clamp(9px,2.45vw,12px) !important;
+    line-height:1.1 !important;
+  }
+  .top .actions .btn + .btn{
+    border-inline-start:1px solid var(--line) !important;
+  }
+  .top .actions .btn > span{
+    overflow:visible !important;
+    text-overflow:clip !important;
+    white-space:nowrap !important;
+    min-width:0 !important;
+  }
+  .top .actions .btn .nav-icon{
+    font-size:clamp(11px,3vw,15px) !important;
+    line-height:1 !important;
+    flex:0 0 auto !important;
+  }
+  #trackBtn{
+    letter-spacing:-.15px !important;
+  }
+  #trackBtn span:not(.nav-icon){
+    overflow:visible !important;
+    text-overflow:clip !important;
+    white-space:nowrap !important;
+  }
+  .top .actions .header-count{
+    min-width:16px !important;
+    height:16px !important;
+    padding:0 3px !important;
+    font-size:9px !important;
+    flex:0 0 auto !important;
+  }
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
