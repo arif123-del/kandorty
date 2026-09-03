@@ -305,6 +305,10 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #homeVideoSection.hero-embedded .home-video-card video{min-height:320px;max-height:520px;width:100%;object-fit:cover}
 #homeVideoSection.hero-embedded.placeholder-active .home-video-card{background:radial-gradient(circle at 18% 18%, rgba(201,21,50,.34), transparent 28%),linear-gradient(135deg,#180f12,#3b0a16 55%, #8f0017 100%)}
 #homeVideoSection.hero-embedded.placeholder-active .home-video-card::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.04),rgba(255,255,255,0) 35%,rgba(255,255,255,.08) 60%,rgba(255,255,255,0) 100%);animation:kandortyGlow 4.8s linear infinite}
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-card{background:transparent !important;border-color:transparent !important;box-shadow:none !important}
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-card::before{display:none !important}
+#homeVideoSection.hero-embedded.empty-video-slot .home-video-overlay{display:none !important}
+
 @keyframes kandortyGlow{from{transform:translateX(-25%)}to{transform:translateX(25%)}}
 .hero-video-hint{position:absolute;inset:auto 14px 14px 14px;z-index:3;padding:10px 12px;border-radius:12px;font-size:12px;background:rgba(255,255,255,.13);color:#fff;backdrop-filter:blur(4px)}
 .hero-video-hint.hidden{display:none !important;}
@@ -529,7 +533,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="homeVideoUploadStatus" style="margin:10px 0;color:var(--muted);font-size:13px"></div>
 </div>
 
-<input id="homeVideoUrl" type="hidden" value="home-video.mp4">
+<input id="homeVideoUrl" type="hidden" value="">
 
 <div class="video-text-card">
 <h4>الكتابة فوق الفيديو</h4>
@@ -2250,11 +2254,12 @@ function previewAdminVideoText(){
 
 function getGithubHomeVideoUrl(){
   const raw=String(settings.homeVideoUrl||'').trim();
-  if(raw && raw!=='home-video.mp4'){
-    return raw;
+  if(!raw)return '';
+  if(raw==='home-video.mp4'){
+    const version=String(settings.homeVideoVersion||'1');
+    return 'home-video.mp4?v='+encodeURIComponent(version);
   }
-  const version=String(settings.homeVideoVersion||'1');
-  return 'home-video.mp4?v='+encodeURIComponent(version);
+  return raw;
 }
 
 function renderHomeVideo(){
@@ -2283,7 +2288,7 @@ function loadVideoAdmin(){
   const enabled=$('homeVideoEnabled');
   if(!enabled)return;
 
-  if($('homeVideoUrl'))$('homeVideoUrl').value=settings.homeVideoUrl||'home-video.mp4';
+  if($('homeVideoUrl'))$('homeVideoUrl').value=settings.homeVideoUrl||'';
   enabled.checked=settings.homeVideoEnabled===true;
 
   if($('homeVideoTitleInput'))$('homeVideoTitleInput').value=settings.homeVideoTitle||'';
@@ -2307,6 +2312,15 @@ function previewAdminHomeVideo(){
   if(!preview||!wrap)return;
 
   const url=getGithubHomeVideoUrl();
+  if(!url){
+    try{preview.pause()}catch(e){}
+    preview.removeAttribute('src');
+    preview.setAttribute('data-current-src','');
+    try{preview.load()}catch(e){}
+    wrap.classList.add('hidden');
+    if(status)status.textContent='لا يوجد فيديو مرفوع حالياً.';
+    return;
+  }
   if(preview.getAttribute('data-current-src')!==url){
     preview.src=url;
     preview.setAttribute('data-current-src',url);
@@ -2338,8 +2352,8 @@ async function saveHomeVideoSettings(){
   if(btn)btn.disabled=true;
 
   try{
-    if(!settings.homeVideoUrl)settings.homeVideoUrl='home-video.mp4';
-    settings.homeVideoEnabled=$('homeVideoEnabled').checked;
+    const configuredVideoUrl=String(settings.homeVideoUrl||'').trim();
+    settings.homeVideoEnabled=$('homeVideoEnabled').checked && !!configuredVideoUrl;
     if(!settings.homeVideoVersion)settings.homeVideoVersion='1';
     saveVideoTextDraftIntoSettings();
 
@@ -2516,7 +2530,10 @@ async function clearHomeVideoSettings(){
     }
   }
 
-  settings.homeVideoUrl='home-video.mp4';
+  settings.homeVideoUrl='';
+  settings.homeVideoCloudinaryOriginalUrl='';
+  settings.homeVideoCloudinaryPublicId='';
+  settings.homeVideoSource='';
   settings.homeVideoStoragePath='';
   settings.homeVideoEnabled=false;
   await saveSettings();
@@ -3276,17 +3293,22 @@ function renderHomeVideo(){
   const video=$('homeVideo');
   if(!section||!video)return;
   mountHeroMediaSlot();
-  renderPublicHomeVideoText();
   const hint=$('heroVideoHint');
-  const enabled=settings.homeVideoEnabled===true;
   const url=getGithubHomeVideoUrl();
+  const hasVideo=settings.homeVideoEnabled===true && !!url;
   section.classList.remove('hidden');
-  if(enabled){
-    section.classList.remove('placeholder-active');
+
+  if(hasVideo){
+    section.classList.remove('placeholder-active','empty-video-slot');
     if(hint){hint.classList.add('hidden');hint.textContent='';}
+    renderPublicHomeVideoText();
     video.style.display='block';
     video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
-    if(video.getAttribute('data-current-src')!==url){video.src=url;video.setAttribute('data-current-src',url);video.load();}
+    if(video.getAttribute('data-current-src')!==url){
+      video.src=url;
+      video.setAttribute('data-current-src',url);
+      video.load();
+    }
     try{video.play().catch(()=>{});}catch(e){}
   }else{
     try{video.pause()}catch(e){}
@@ -3294,14 +3316,11 @@ function renderHomeVideo(){
     video.setAttribute('data-current-src','');
     try{video.load()}catch(e){}
     video.style.display='none';
-    section.classList.add('placeholder-active');
+    section.classList.remove('placeholder-active');
+    section.classList.add('empty-video-slot');
     const overlay=$('homeVideoOverlay');
-    const title=$('homeVideoTitle');
-    const subtitle=$('homeVideoSubtitle');
-    if(!(settings.homeVideoTitle||'').trim() && title)title.textContent='Kandorty';
-    if(!(settings.homeVideoSubtitle||'').trim() && subtitle)subtitle.textContent='أضيفي فيديو متحرك من لوحة الإدارة، وغيري النص والحجم واللون والمكان في أي وقت.';
-    if(overlay)overlay.style.display='flex';
-    if(hint){hint.textContent='يمكنك تشغيل هذا القسم من لوحة الإدارة > فيديو الرئيسية';hint.classList.remove('hidden');}
+    if(overlay)overlay.style.display='none';
+    if(hint){hint.classList.add('hidden');hint.textContent='';}
   }
 }
 async function shareSite(){
