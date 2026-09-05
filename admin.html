@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<!-- Kandorty SAFE CATEGORY RESTORE 2026-09-04 -->
+<!-- Kandorty FLEXIBLE 1-15 CATEGORIES 2026-09-05 -->
 <!-- Kandorty public storefront — Fast Load V6.3: admin login is not exposed here -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -509,6 +509,30 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 @media(max-width:700px){.category-admin-grid{grid-template-columns:1fr}}
 </style>
 
+<style id="kandorty-flexible-category-css">
+/* Flexible categories: 1 to 15 */
+#categoryCardsGrid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr)) !important;
+}
+#categoryCardsGrid .cat:first-child{grid-column:auto !important}
+#categoryCardsGrid[data-count="1"]{grid-template-columns:minmax(0,520px) !important;justify-content:center}
+#categoryCardsGrid[data-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+.category-admin-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}
+.category-admin-help{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+.category-admin-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.category-admin-card-head h4{margin:0}
+.category-admin-visible{display:flex !important;align-items:center;gap:7px;font-size:12px !important;font-weight:700;margin:0 !important}
+.category-admin-card .category-order-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.category-admin-card .category-order-actions .btn{padding:7px 10px;font-size:12px}
+.category-admin-card .danger-lite{border-color:#e6a5ae;color:#a40019;background:#fff}
+.category-admin-preview.no-image{background:linear-gradient(145deg,#f6eef0,#fff);min-height:150px}
+@media(max-width:900px){#categoryCardsGrid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+@media(max-width:540px){
+  #categoryCardsGrid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px}
+  #categoryCardsGrid[data-count="1"]{grid-template-columns:1fr !important}
+  .category-admin-toolbar .btn{width:100%}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -557,13 +581,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <main id="shop">
 <section id="categories" class="home-section"><div class="container">
 <div class="home-heading"><span class="overline" data-ar="تسوقي بطريقتك" data-en="SHOP YOUR WAY">تسوقي بطريقتك</span><h2 data-ar="اكتشفي الأقسام" data-en="Discover categories">اكتشفي الأقسام</h2><p data-ar="اختاري القسم المناسب لك للوصول بسرعة إلى القطع التي تحبينها." data-en="Choose your favorite category and find the pieces you love faster.">اختاري القسم المناسب لك للوصول بسرعة إلى القطع التي تحبينها.</p></div>
-<div class="cats cats-v2">
-<button class="cat active" data-cat="all" data-symbol="✦" data-ar="الكل" data-en="All"><strong data-ar="كل المجموعة" data-en="All collection">كل المجموعة</strong><span data-ar="شاهدي جميع التصاميم" data-en="View every design">شاهدي جميع التصاميم</span></button>
-<button class="cat category-image-card" data-cat="women" data-ar="مخاوير نسائية" data-en="Women's Mukhawar"><strong data-ar="مخاوير نسائية" data-en="Women's Mukhawar">مخاوير نسائية</strong><span data-ar="أناقة لكل مناسبة" data-en="Elegance for every occasion">أناقة لكل مناسبة</span></button>
-<button class="cat category-image-card" data-cat="girls" data-ar="مخاوير لبنوتات" data-en="Girls' Mukhawar"><strong data-ar="مخاوير لبنوتات" data-en="Girls' Mukhawar">مخاوير لبنوتات</strong><span data-ar="تصاميم لطيفة ومريحة" data-en="Sweet and comfortable designs">تصاميم لطيفة ومريحة</span></button>
-<button class="cat category-image-card" data-cat="cotton" data-ar="قطن" data-en="Cotton"><strong data-ar="قطن" data-en="Cotton">قطن</strong><span data-ar="نعومة وراحة يومية" data-en="Everyday softness">نعومة وراحة يومية</span></button>
-<button class="cat category-image-card" data-cat="silk" data-ar="حرير" data-en="Silk"><strong data-ar="حرير" data-en="Silk">حرير</strong><span data-ar="لمسة فاخرة" data-en="A luxurious touch">لمسة فاخرة</span></button>
-</div></div></section>
+<div class="cats-v2" id="categoryCardsGrid" data-count="0"></div>
+</div></section>
 
 
 
@@ -609,7 +628,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input type="hidden" id="editId">
 <input id="code" placeholder="كود المنتج KD-1001" required>
 <input id="nameAr" placeholder="اسم المنتج بالعربية" required>
-<select id="category"><option value="women">مخاوير نسائية</option><option value="girls">مخاوير لبنوتات</option><option value="cotton">قطن</option><option value="silk">حرير</option></select>
+<select id="category"></select>
 <input id="price" type="number" min="0" step="0.01" placeholder="السعر AED" required>
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة"><div class="stock-admin-note">إذا وصل العدد إلى 0 سيظهر تلقائياً أن المنتج نفد من المخزون.</div>
@@ -665,52 +684,15 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="adminCategoriesTab" class="hidden">
   <div class="category-admin-box">
-    <h3 style="margin-top:0">صور وكتابة أقسام الرئيسية</h3>
-    <p style="color:var(--muted);line-height:1.7">لكل واحدة من الخانات الأربع يمكنك اختيار صورة من الهاتف وكتابة العنوان والنص الصغير. بعد الحفظ تتغير الصفحة الرئيسية مباشرة، ولا تحتاجين إلى GitHub لتغييرها مرة أخرى.</p>
-    <div class="category-admin-grid">
-      <div class="category-admin-card" data-category-editor="women">
-        <h4>مخاوير نسائية</h4>
-        <img id="catPreview_women" class="category-admin-preview" alt="">
-        <label>الصورة</label><input id="catFile_women" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectCategoryImage('women',this)">
-        <label>العنوان بالعربية</label><input id="catTitleAr_women" type="text">
-        <label>النص الصغير بالعربية</label><input id="catSubtitleAr_women" type="text">
-        <label>العنوان بالإنجليزية</label><input id="catTitleEn_women" type="text">
-        <label>النص الصغير بالإنجليزية</label><input id="catSubtitleEn_women" type="text">
-        <div class="category-admin-actions"><button class="btn ghost" type="button" onclick="resetCategoryImage('women')">إرجاع الصورة الافتراضية</button></div>
-      </div>
-      <div class="category-admin-card" data-category-editor="girls">
-        <h4>مخاوير لبنوتات</h4>
-        <img id="catPreview_girls" class="category-admin-preview" alt="">
-        <label>الصورة</label><input id="catFile_girls" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectCategoryImage('girls',this)">
-        <label>العنوان بالعربية</label><input id="catTitleAr_girls" type="text">
-        <label>النص الصغير بالعربية</label><input id="catSubtitleAr_girls" type="text">
-        <label>العنوان بالإنجليزية</label><input id="catTitleEn_girls" type="text">
-        <label>النص الصغير بالإنجليزية</label><input id="catSubtitleEn_girls" type="text">
-        <div class="category-admin-actions"><button class="btn ghost" type="button" onclick="resetCategoryImage('girls')">إرجاع الصورة الافتراضية</button></div>
-      </div>
-      <div class="category-admin-card" data-category-editor="cotton">
-        <h4>قطن</h4>
-        <img id="catPreview_cotton" class="category-admin-preview" alt="">
-        <label>الصورة</label><input id="catFile_cotton" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectCategoryImage('cotton',this)">
-        <label>العنوان بالعربية</label><input id="catTitleAr_cotton" type="text">
-        <label>النص الصغير بالعربية</label><input id="catSubtitleAr_cotton" type="text">
-        <label>العنوان بالإنجليزية</label><input id="catTitleEn_cotton" type="text">
-        <label>النص الصغير بالإنجليزية</label><input id="catSubtitleEn_cotton" type="text">
-        <div class="category-admin-actions"><button class="btn ghost" type="button" onclick="resetCategoryImage('cotton')">إرجاع الصورة الافتراضية</button></div>
-      </div>
-      <div class="category-admin-card" data-category-editor="silk">
-        <h4>حرير</h4>
-        <img id="catPreview_silk" class="category-admin-preview" alt="">
-        <label>الصورة</label><input id="catFile_silk" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectCategoryImage('silk',this)">
-        <label>العنوان بالعربية</label><input id="catTitleAr_silk" type="text">
-        <label>النص الصغير بالعربية</label><input id="catSubtitleAr_silk" type="text">
-        <label>العنوان بالإنجليزية</label><input id="catTitleEn_silk" type="text">
-        <label>النص الصغير بالإنجليزية</label><input id="catSubtitleEn_silk" type="text">
-        <div class="category-admin-actions"><button class="btn ghost" type="button" onclick="resetCategoryImage('silk')">إرجاع الصورة الافتراضية</button></div>
-      </div>
+    <h3 style="margin-top:0">إدارة أقسام الرئيسية</h3>
+    <p style="color:var(--muted);line-height:1.7">يمكنك عرض قسم واحد أو أكثر، وإضافة أقسام جديدة حتى 15 قسماً. لكل قسم صورة وعنوان ونص صغير، ويمكنك تغييرها من الهاتف في أي وقت.</p>
+    <div class="category-admin-toolbar">
+      <div><b id="categoryCountLabel">0 / 15</b><div class="category-admin-help">الأقسام الظاهرة فقط تظهر للزبائن. يمكن إخفاء قسم بدون حذف بياناته.</div></div>
+      <button id="addCategoryBtn" class="btn primary" type="button" onclick="addCategoryEditor()">+ إضافة قسم</button>
     </div>
+    <div id="categoryAdminGrid" class="category-admin-grid"></div>
     <div id="categoryAdminStatus"></div>
-    <button id="saveCategoryCardsBtn" class="btn primary" type="button" onclick="saveCategoryCards()" style="margin-top:12px;width:100%">حفظ الصور والكتابة</button>
+    <button id="saveCategoryCardsBtn" class="btn primary" type="button" onclick="saveCategoryCards()" style="margin-top:12px;width:100%">حفظ الأقسام</button>
   </div>
 </div>
 
@@ -1077,7 +1059,8 @@ function normalizeCategoryValue(value){
 }
 function getProductCategoryKey(p){
   const direct=normalizeCategoryValue(p?.category || p?.categoryKey || p?.categoryAr || p?.section || '');
-  if(['women','girls','cotton','silk'].includes(direct))return direct;
+  // Saved category IDs are stable, so a direct category value always wins.
+  if(direct && direct!=='all')return direct;
   const haystack=[p?.nameAr,p?.nameEn,p?.descriptionAr,p?.descriptionEn,p?.detailsAr,p?.detailsEn]
     .filter(Boolean).join(' ').toLowerCase();
   if(/لبنوتات|بنوتات|بنات|girls?/.test(haystack))return 'girls';
@@ -1087,18 +1070,6 @@ function getProductCategoryKey(p){
   return direct;
 }
 
-document.querySelectorAll('.cat').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.cat').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');
-  currentCat=normalizeCategoryValue(b.dataset.cat);
-  render();
-
-  // Show the matching products immediately after choosing a category.
-  const productsEl=$('products');
-  if(productsEl){
-    setTimeout(()=>productsEl.scrollIntoView({behavior:'smooth',block:'start'}),20);
-  }
-})
 const searchEl=$('search');if(searchEl)searchEl.oninput=render;const clearBtn=$('clearBtn');if(clearBtn)clearBtn.onclick=()=>{searchEl.value='';render()}
 function money(v){return (Number(v)||0).toFixed(2)+' '+(lang==='ar'?'د.إ':'AED')}
 function hasManagedStock(p){return p && p.stock!=='' && p.stock!==null && p.stock!==undefined && Number.isFinite(Number(p.stock));}
@@ -1488,25 +1459,34 @@ $('imageFiles').addEventListener('change',e=>{
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
-  return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('تعذر قراءة الصورة'));reader.onload=()=>{const img=new Image();img.onerror=()=>reject(new Error('ملف الصورة غير صالح'));img.onload=()=>resolve(img);img.src=reader.result};reader.readAsDataURL(file)});
+  return new Promise((resolve,reject)=>{
+    let url='';
+    try{url=URL.createObjectURL(file)}catch(e){reject(new Error('تعذر فتح الصورة'));return}
+    const img=new Image();
+    img.decoding='async';
+    img.onerror=()=>{try{URL.revokeObjectURL(url)}catch(_){ } reject(new Error('ملف الصورة غير صالح'));};
+    img.onload=()=>{try{URL.revokeObjectURL(url)}catch(_){ } resolve(img);};
+    img.src=url;
+  });
 }
 function canvasToBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('تعذر تجهيز الصورة')),type,quality));}
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('تعذر تجهيز الصورة'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(blob)});}
 async function compressProductImage(file){
   if(file.size>15*1024*1024)throw new Error('حجم الصورة كبير جداً. اختاري صورة أقل من 15MB.');
   const img=await loadImageFile(file);
-  let maxSide=1100,quality=.78,blob;
+  let maxSide=1100,quality=.78,blob,lastCanvas=null,lastQuality=.78;
   for(let attempt=0;attempt<9;attempt++){
     const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
     const canvas=document.createElement('canvas');
     canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
     const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lastCanvas=canvas;lastQuality=quality;
     blob=await canvasToBlob(canvas,'image/jpeg',quality);
     if(blob.size<=TARGET_IMAGE_BYTES)break;
     maxSide=Math.max(480,Math.round(maxSide*.84));quality=Math.max(.46,quality-.06);
   }
-  if(!blob||blob.size>82*1024)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
-  return blobToDataUrl(blob);
+  if(!blob||blob.size>82*1024||!lastCanvas)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
+  return lastCanvas.toDataURL('image/jpeg',lastQuality);
 }
 function utf8Bytes(value){
   return new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)).length;
@@ -3607,52 +3587,112 @@ mountHeroMediaSlot();
 mountShareButton();
 loadCustomerFeatures();
 
-// ===== Kandorty editable category image cards =====
-const KANDORTY_CATEGORY_KEYS=['women','girls','cotton','silk'];
-const DEFAULT_CATEGORY_CARDS={"women":{"image":"","titleAr":"مخاوير نسائية","subtitleAr":"أناقة لكل مناسبة","titleEn":"Women's Mukhawar","subtitleEn":"Elegance for every occasion"},"girls":{"image":"","titleAr":"مخاوير لبنوتات","subtitleAr":"تصاميم لطيفة ومريحة","titleEn":"Girls' Mukhawar","subtitleEn":"Sweet and comfortable designs"},"cotton":{"image":"","titleAr":"قطن","subtitleAr":"نعومة وراحة يومية","titleEn":"Cotton","subtitleEn":"Everyday softness"},"silk":{"image":"","titleAr":"حرير","subtitleAr":"لمسة فاخرة","titleEn":"Silk","subtitleEn":"A luxurious touch"}};
-let categoryCards=JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CARDS));
+// ===== Kandorty flexible editable category cards (1–15) =====
+const MAX_KANDORTY_CATEGORIES=15;
+const DEFAULT_CATEGORY_CARDS=[
+  {id:'women',image:'',titleAr:'مخاوير نسائية',subtitleAr:'أناقة لكل مناسبة',titleEn:"Women's Mukhawar",subtitleEn:'Elegance for every occasion',visible:true},
+  {id:'girls',image:'',titleAr:'مخاوير لبنوتات',subtitleAr:'تصاميم لطيفة ومريحة',titleEn:"Girls' Mukhawar",subtitleEn:'Sweet and comfortable designs',visible:true},
+  {id:'cotton',image:'',titleAr:'قطن',subtitleAr:'نعومة وراحة يومية',titleEn:'Cotton',subtitleEn:'Everyday softness',visible:true},
+  {id:'silk',image:'',titleAr:'حرير',subtitleAr:'لمسة فاخرة',titleEn:'Silk',subtitleEn:'A luxurious touch',visible:true}
+];
+let categoryCards=DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
 let pendingCategoryFiles={};
 
-function normalizedCategoryCards(raw){
-  const source=(raw&&raw.cards&&typeof raw.cards==='object')?raw.cards:raw||{};
-  const out={};
-  KANDORTY_CATEGORY_KEYS.forEach(key=>{
-    const d=DEFAULT_CATEGORY_CARDS[key];
-    const v=(source&&source[key]&&typeof source[key]==='object')?source[key]:{};
-    out[key]={
-      image:String(v.image||d.image||''),
-      titleAr:String(v.titleAr||d.titleAr||''),
-      subtitleAr:String(v.subtitleAr||d.subtitleAr||''),
-      titleEn:String(v.titleEn||d.titleEn||v.titleAr||d.titleEn||''),
-      subtitleEn:String(v.subtitleEn||d.subtitleEn||v.subtitleAr||d.subtitleEn||'')
-    };
-  });
-  return out;
+function makeCategoryId(){
+  return 'cat_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
 }
-
+function cleanCategoryId(value){
+  const s=String(value||'').trim().toLowerCase().replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
+  return s||makeCategoryId();
+}
+function normalizedCategoryCards(raw){
+  let list=[];
+  const source=raw&&Object.prototype.hasOwnProperty.call(raw,'cards')?raw.cards:raw;
+  if(Array.isArray(source)){
+    list=source;
+  }else if(source&&typeof source==='object'){
+    // Migrate the old four-card object format automatically.
+    const preferred=['women','girls','cotton','silk'];
+    const keys=[...preferred.filter(k=>source[k]),...Object.keys(source).filter(k=>!preferred.includes(k))];
+    list=keys.map(k=>({id:k,...(source[k]||{})}));
+  }
+  if(!list.length)list=DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+  const used=new Set();
+  const out=[];
+  for(const item of list){
+    if(out.length>=MAX_KANDORTY_CATEGORIES)break;
+    const v=item&&typeof item==='object'?item:{};
+    let id=cleanCategoryId(v.id||v.key||'');
+    if(used.has(id))id=makeCategoryId();
+    used.add(id);
+    const fallback=DEFAULT_CATEGORY_CARDS.find(x=>x.id===id)||{};
+    out.push({
+      id,
+      image:String(v.image||fallback.image||''),
+      titleAr:String(v.titleAr||fallback.titleAr||'قسم جديد'),
+      subtitleAr:String(v.subtitleAr||fallback.subtitleAr||''),
+      titleEn:String(v.titleEn||fallback.titleEn||v.titleAr||fallback.titleAr||'New category'),
+      subtitleEn:String(v.subtitleEn||fallback.subtitleEn||v.subtitleAr||fallback.subtitleAr||''),
+      visible:v.visible!==false && v.active!==false
+    });
+  }
+  return out.length?out:DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+}
 function categoryBgValue(url){
   const clean=String(url||'').replace(/"/g,'%22');
   return clean
     ? `linear-gradient(to top,rgba(20,8,12,.72),rgba(20,8,12,.08)),url("${clean}")`
     : 'linear-gradient(145deg,#eadfe1,#f7eff0)';
 }
-
-function applyCategoryCards(){
-  KANDORTY_CATEGORY_KEYS.forEach(key=>{
-    const card=categoryCards[key]||DEFAULT_CATEGORY_CARDS[key];
-    const btn=document.querySelector(`.cat[data-cat="${key}"]`);
-    if(!btn)return;
-    btn.classList.add('category-image-card');
-    btn.style.backgroundImage=categoryBgValue(card.image);
-    btn.dataset.ar=card.titleAr;
-    btn.dataset.en=card.titleEn;
-    const strong=btn.querySelector('strong');
-    const small=btn.querySelector('span');
-    if(strong){strong.dataset.ar=card.titleAr;strong.dataset.en=card.titleEn;strong.textContent=(typeof lang!=='undefined'&&lang==='en')?card.titleEn:card.titleAr;}
-    if(small){small.dataset.ar=card.subtitleAr;small.dataset.en=card.subtitleEn;small.textContent=(typeof lang!=='undefined'&&lang==='en')?card.subtitleEn:card.subtitleAr;}
-  });
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
-
+function refreshCategorySelect(){
+  const select=document.getElementById('category');
+  if(!select)return;
+  const current=select.value;
+  const list=categoryCards.length?categoryCards:DEFAULT_CATEGORY_CARDS;
+  select.innerHTML=list.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.titleAr)}${c.visible===false?' — مخفي':''}</option>`).join('');
+  if(list.some(c=>c.id===current))select.value=current;
+  else if(list[0])select.value=list[0].id;
+}
+function chooseCategoryFilter(button,id){
+  document.querySelectorAll('#categoryCardsGrid .cat').forEach(x=>x.classList.remove('active'));
+  if(button)button.classList.add('active');
+  currentCat=normalizeCategoryValue(id);
+  render();
+  const productsEl=document.getElementById('products');
+  if(productsEl)setTimeout(()=>productsEl.scrollIntoView({behavior:'smooth',block:'start'}),20);
+}
+function applyCategoryCards(){
+  const grid=document.getElementById('categoryCardsGrid');
+  const visible=categoryCards.filter(c=>c.visible!==false).slice(0,MAX_KANDORTY_CATEGORIES);
+  if(currentCat!=='all'&&!visible.some(c=>normalizeCategoryValue(c.id)===normalizeCategoryValue(currentCat)))currentCat='all';
+  if(grid){
+    grid.dataset.count=String(visible.length);
+    grid.innerHTML='';
+    visible.forEach(card=>{
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='cat category-image-card';
+      btn.dataset.cat=card.id;
+      btn.dataset.ar=card.titleAr;
+      btn.dataset.en=card.titleEn;
+      btn.style.backgroundImage=categoryBgValue(card.image);
+      const strong=document.createElement('strong');
+      strong.dataset.ar=card.titleAr;strong.dataset.en=card.titleEn;
+      strong.textContent=(typeof lang!=='undefined'&&lang==='en')?card.titleEn:card.titleAr;
+      const small=document.createElement('span');
+      small.dataset.ar=card.subtitleAr;small.dataset.en=card.subtitleEn;
+      small.textContent=(typeof lang!=='undefined'&&lang==='en')?card.subtitleEn:card.subtitleAr;
+      btn.append(strong,small);
+      if(normalizeCategoryValue(currentCat)===normalizeCategoryValue(card.id))btn.classList.add('active');
+      btn.onclick=()=>chooseCategoryFilter(btn,card.id);
+      grid.appendChild(btn);
+    });
+  }
+  refreshCategorySelect();
+}
 function loadCategoryCards(){
   try{
     db.collection('settings').doc('categories').onSnapshot(doc=>{
@@ -3663,16 +3703,53 @@ function loadCategoryCards(){
     },err=>{console.warn('Category settings:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();});
   }catch(err){console.warn('Category settings unavailable:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();}
 }
-
-function fillCategoryAdmin(){
-  KANDORTY_CATEGORY_KEYS.forEach(key=>{
-    const c=categoryCards[key]||DEFAULT_CATEGORY_CARDS[key];
-    const preview=document.getElementById('catPreview_'+key);if(preview)preview.src=c.image||'';
-    const pairs=[['catTitleAr_',c.titleAr],['catSubtitleAr_',c.subtitleAr],['catTitleEn_',c.titleEn],['catSubtitleEn_',c.subtitleEn]];
-    pairs.forEach(([prefix,val])=>{const el=document.getElementById(prefix+key);if(el)el.value=val||'';});
+function captureCategoryEditorValues(){
+  categoryCards.forEach(card=>{
+    const read=id=>String((document.getElementById(id)||{value:''}).value||'').trim();
+    const visible=document.getElementById('catVisible_'+card.id);
+    if(document.getElementById('catTitleAr_'+card.id))card.titleAr=read('catTitleAr_'+card.id);
+    if(document.getElementById('catSubtitleAr_'+card.id))card.subtitleAr=read('catSubtitleAr_'+card.id);
+    if(document.getElementById('catTitleEn_'+card.id))card.titleEn=read('catTitleEn_'+card.id);
+    if(document.getElementById('catSubtitleEn_'+card.id))card.subtitleEn=read('catSubtitleEn_'+card.id);
+    if(visible)card.visible=!!visible.checked;
   });
 }
-
+function categoryPreviewSource(card){
+  const pending=pendingCategoryFiles[card.id];
+  if(pending){
+    try{return URL.createObjectURL(pending)}catch(_){ }
+  }
+  return card.image||'';
+}
+function fillCategoryAdmin(){
+  const grid=document.getElementById('categoryAdminGrid');
+  if(!grid)return;
+  const count=document.getElementById('categoryCountLabel');if(count)count.textContent=`${categoryCards.length} / ${MAX_KANDORTY_CATEGORIES}`;
+  const add=document.getElementById('addCategoryBtn');if(add)add.disabled=categoryCards.length>=MAX_KANDORTY_CATEGORIES;
+  grid.innerHTML=categoryCards.map((c,i)=>`<div class="category-admin-card" data-category-editor="${escapeHtml(c.id)}">
+    <div class="category-admin-card-head"><h4>القسم ${i+1}</h4><label class="category-admin-visible"><input id="catVisible_${escapeHtml(c.id)}" type="checkbox" ${c.visible!==false?'checked':''}> ظاهر</label></div>
+    <img id="catPreview_${escapeHtml(c.id)}" class="category-admin-preview${c.image||pendingCategoryFiles[c.id]?'':' no-image'}" alt="">
+    <label>الصورة</label><input id="catFile_${escapeHtml(c.id)}" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectCategoryImage('${escapeHtml(c.id)}',this)">
+    <label>العنوان بالعربية</label><input id="catTitleAr_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.titleAr)}">
+    <label>النص الصغير بالعربية</label><input id="catSubtitleAr_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.subtitleAr)}">
+    <label>العنوان بالإنجليزية</label><input id="catTitleEn_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.titleEn)}">
+    <label>النص الصغير بالإنجليزية</label><input id="catSubtitleEn_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.subtitleEn)}">
+    <div class="category-order-actions">
+      <button class="btn ghost" type="button" onclick="moveCategoryEditor('${escapeHtml(c.id)}',-1)" ${i===0?'disabled':''}>↑ للأعلى</button>
+      <button class="btn ghost" type="button" onclick="moveCategoryEditor('${escapeHtml(c.id)}',1)" ${i===categoryCards.length-1?'disabled':''}>↓ للأسفل</button>
+      <button class="btn ghost" type="button" onclick="resetCategoryImage('${escapeHtml(c.id)}')">إزالة الصورة</button>
+      <button class="btn ghost danger-lite" type="button" onclick="removeCategoryEditor('${escapeHtml(c.id)}')" ${categoryCards.length<=1?'disabled':''}>حذف القسم</button>
+    </div>
+  </div>`).join('');
+  categoryCards.forEach(card=>{
+    const preview=document.getElementById('catPreview_'+card.id);
+    if(preview){
+      const src=categoryPreviewSource(card);
+      if(src){preview.src=src;preview.classList.remove('no-image');}
+      else{preview.removeAttribute('src');preview.classList.add('no-image');}
+    }
+  });
+}
 async function loadCategoryAdmin(){
   fillCategoryAdmin();
   try{
@@ -3681,7 +3758,31 @@ async function loadCategoryAdmin(){
     fillCategoryAdmin();applyCategoryCards();
   }catch(err){console.warn(err);}
 }
-
+function addCategoryEditor(){
+  captureCategoryEditorValues();
+  if(categoryCards.length>=MAX_KANDORTY_CATEGORIES){alert('الحد الأقصى هو 15 قسماً');return;}
+  const n=categoryCards.length+1;
+  categoryCards.push({id:makeCategoryId(),image:'',titleAr:`قسم ${n}`,subtitleAr:'',titleEn:`Category ${n}`,subtitleEn:'',visible:true});
+  fillCategoryAdmin();
+  setTimeout(()=>document.querySelector('#categoryAdminGrid .category-admin-card:last-child')?.scrollIntoView({behavior:'smooth',block:'center'}),30);
+}
+function removeCategoryEditor(key){
+  captureCategoryEditorValues();
+  if(categoryCards.length<=1){alert('يجب أن يبقى قسم واحد على الأقل');return;}
+  const card=categoryCards.find(c=>c.id===key);
+  if(!card)return;
+  if(!confirm(`حذف القسم «${card.titleAr||'بدون اسم'}»؟`))return;
+  categoryCards=categoryCards.filter(c=>c.id!==key);
+  delete pendingCategoryFiles[key];
+  fillCategoryAdmin();
+}
+function moveCategoryEditor(key,delta){
+  captureCategoryEditorValues();
+  const i=categoryCards.findIndex(c=>c.id===key);if(i<0)return;
+  const j=i+delta;if(j<0||j>=categoryCards.length)return;
+  [categoryCards[i],categoryCards[j]]=[categoryCards[j],categoryCards[i]];
+  fillCategoryAdmin();
+}
 function selectCategoryImage(key,input){
   const file=input&&input.files&&input.files[0];
   if(!file)return;
@@ -3689,46 +3790,74 @@ function selectCategoryImage(key,input){
   if(file.size>15*1024*1024){alert('الصورة أكبر من 15MB. اختاري صورة أصغر.');input.value='';return;}
   pendingCategoryFiles[key]=file;
   const preview=document.getElementById('catPreview_'+key);
-  if(preview){const reader=new FileReader();reader.onload=()=>preview.src=String(reader.result||'');reader.readAsDataURL(file);}
+  if(preview){
+    try{
+      const previewUrl=URL.createObjectURL(file);
+      preview.onload=()=>{try{URL.revokeObjectURL(previewUrl)}catch(_){ }};
+      preview.onerror=()=>{try{URL.revokeObjectURL(previewUrl)}catch(_){ }};
+      preview.src=previewUrl;preview.classList.remove('no-image');
+    }catch(_){preview.removeAttribute('src');preview.classList.add('no-image');}
+  }
 }
-
 function resetCategoryImage(key){
-  if(!DEFAULT_CATEGORY_CARDS[key])return;
-  delete pendingCategoryFiles[key];
-  categoryCards[key]={...(categoryCards[key]||DEFAULT_CATEGORY_CARDS[key]),image:DEFAULT_CATEGORY_CARDS[key].image};
+  captureCategoryEditorValues();
+  const card=categoryCards.find(c=>c.id===key);if(!card)return;
+  delete pendingCategoryFiles[key];card.image='';
   const input=document.getElementById('catFile_'+key);if(input)input.value='';
-  const preview=document.getElementById('catPreview_'+key);if(preview)preview.src=DEFAULT_CATEGORY_CARDS[key].image;
+  const preview=document.getElementById('catPreview_'+key);if(preview){preview.removeAttribute('src');preview.classList.add('no-image');}
 }
-
+async function compressCategoryImage(file){
+  if(file.size>15*1024*1024)throw new Error('حجم صورة القسم كبير جداً.');
+  const img=await loadImageFile(file);
+  let maxSide=720,quality=.68,blob,lastCanvas=null,lastQuality=.68;
+  const target=30*1024;
+  for(let attempt=0;attempt<10;attempt++){
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lastCanvas=canvas;lastQuality=quality;
+    blob=await canvasToBlob(canvas,'image/jpeg',quality);
+    if(blob.size<=target)break;
+    maxSide=Math.max(360,Math.round(maxSide*.84));quality=Math.max(.40,quality-.06);
+  }
+  if(!blob||!lastCanvas||blob.size>48*1024)throw new Error('تعذر ضغط صورة القسم بما يكفي. اختاري صورة أبسط أو أصغر.');
+  return lastCanvas.toDataURL('image/jpeg',lastQuality);
+}
+async function recompressExistingCategoryImage(dataUrl){
+  if(!String(dataUrl||'').startsWith('data:image/')||String(dataUrl).length<52000)return dataUrl||'';
+  try{
+    const blob=await (await fetch(dataUrl)).blob();
+    return await compressCategoryImage(blob);
+  }catch(_){return dataUrl||'';}
+}
 async function saveCategoryCards(){
   if(typeof auth!=='undefined'&&!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  captureCategoryEditorValues();
   const btn=document.getElementById('saveCategoryCardsBtn');
   const status=document.getElementById('categoryAdminStatus');
+  if(categoryCards.length<1||categoryCards.length>MAX_KANDORTY_CATEGORIES){alert('اختاري من 1 إلى 15 قسماً');return;}
+  if(!categoryCards.some(c=>c.visible!==false)){alert('فعّلي قسماً واحداً على الأقل ليظهر في المتجر');return;}
+  if(categoryCards.some(c=>!String(c.titleAr||'').trim())){alert('اكتبي عنواناً عربياً لكل قسم');return;}
   if(btn)btn.disabled=true;
   try{
-    const next=normalizedCategoryCards(categoryCards);
-    for(let i=0;i<KANDORTY_CATEGORY_KEYS.length;i++){
-      const key=KANDORTY_CATEGORY_KEYS[i];
-      if(status)status.textContent=`يتم تجهيز القسم ${i+1}/4...`;
-      if(pendingCategoryFiles[key]){
-        // Reuse the site's proven mobile image compressor; it stores a compact data URL in Firestore.
-        next[key].image=await compressProductImage(pendingCategoryFiles[key]);
-      }
-      const read=id=>String((document.getElementById(id)||{value:''}).value||'').trim();
-      next[key].titleAr=read('catTitleAr_'+key)||DEFAULT_CATEGORY_CARDS[key].titleAr;
-      next[key].subtitleAr=read('catSubtitleAr_'+key)||DEFAULT_CATEGORY_CARDS[key].subtitleAr;
-      next[key].titleEn=read('catTitleEn_'+key)||next[key].titleAr;
-      next[key].subtitleEn=read('catSubtitleEn_'+key)||next[key].subtitleAr;
+    const next=normalizedCategoryCards({cards:categoryCards});
+    for(let i=0;i<next.length;i++){
+      const card=next[i];
+      if(status)status.textContent=`يتم تجهيز القسم ${i+1}/${next.length}...`;
+      if(pendingCategoryFiles[card.id])card.image=await compressCategoryImage(pendingCategoryFiles[card.id]);
+      else card.image=await recompressExistingCategoryImage(card.image);
+      card.titleEn=String(card.titleEn||card.titleAr||'').trim();
+      card.subtitleEn=String(card.subtitleEn||card.subtitleAr||'').trim();
     }
-    const payload={cards:next,updatedAt:new Date().toISOString()};
+    const payload={version:2,cards:next,updatedAt:new Date().toISOString()};
     const approxBytes=new Blob([JSON.stringify(payload)]).size;
-    if(approxBytes>850*1024)throw new Error('حجم صور الأقسام كبير. اختاري صوراً أصغر.');
+    if(approxBytes>900*1024)throw new Error('حجم صور الأقسام ما زال كبيراً. اختاري صوراً أصغر لبعض الأقسام.');
     await db.collection('settings').doc('categories').set(payload);
     categoryCards=normalizedCategoryCards(payload);
     pendingCategoryFiles={};
-    KANDORTY_CATEGORY_KEYS.forEach(key=>{const input=document.getElementById('catFile_'+key);if(input)input.value='';});
     fillCategoryAdmin();applyCategoryCards();
-    if(status)status.textContent='تم حفظ صور وكتابة الأقسام بنجاح ✅';
+    if(status)status.textContent=`تم حفظ ${categoryCards.length} قسم بنجاح ✅`;
     alert('تم حفظ الأقسام');
   }catch(err){
     console.error('Category cards save error:',err);
@@ -3737,7 +3866,7 @@ async function saveCategoryCards(){
   }finally{if(btn)btn.disabled=false;}
 }
 applyCategoryCards();
-// ===== end editable category image cards =====
+// ===== end flexible editable category cards =====
 
 loadSettings();
 loadCategoryCards();
