@@ -5,6 +5,10 @@
 <!-- Kandorty public storefront — Fast Load V6.3: admin login is not exposed here -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
+<link rel="dns-prefetch" href="//res.cloudinary.com">
 <title>Kandorty Online | مخاوير إماراتية</title>
 <meta name="kandorty-build" content="spark-8-images-firestore-2026-08-09">
 <meta name="description" content="Kandorty متجر مخاوير نسائية ومخاوير لبنوتات في الإمارات">
@@ -2414,22 +2418,36 @@ const CLOUDINARY_UPLOAD_PRESET='kandorty_video';
 
 let settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1'};
 
+function getDefaultStoreSettings(){
+  return {whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1'};
+}
+function renderCachedStoreSettingsNow(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null');
+    if(cached&&typeof cached==='object'){
+      settings={...getDefaultStoreSettings(),...cached};
+      renderSocialLinks();
+      renderHomeBanner();
+      renderHomeVideo();
+    }
+  }catch(e){console.warn('Settings cache read skipped:',e)}
+}
 function loadSettings(){
+  // FAST FIRST PAINT: returning visitors should not wait for Firestore before
+  // the homepage video/settings can start rendering.
+  renderCachedStoreSettingsNow();
+
   db.collection('settings').doc('store').onSnapshot(
     doc=>{
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1',...(doc.exists?doc.data():{})};
-      localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
+      settings={...getDefaultStoreSettings(),...(doc.exists?doc.data():{})};
+      try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}
       renderSocialLinks();
       renderHomeBanner();
       renderHomeVideo();
     },
     error=>{
       console.error('Firestore settings read error:',error);
-      try{settings=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}catch(e){settings={}}
-      settings={whatsapp:'',instagram:'',snapchat:'',email:'',bannerImages:[],homeVideoUrl:'',homeVideoEnabled:false,homeVideoTitle:'',homeVideoSubtitle:'',homeVideoTitleSize:42,homeVideoSubtitleSize:20,homeVideoTitleColor:'#ffffff',homeVideoSubtitleColor:'#ffffff',homeVideoTextPosition:'center',homeVideoTextAlign:'center',homeVideoTextBackground:false,homeVideoVersion:'1',...settings};
-      renderSocialLinks();
-      renderHomeBanner();
-      renderHomeVideo();
+      renderCachedStoreSettingsNow();
     }
   );
 }
@@ -3925,7 +3943,18 @@ const DEFAULT_CATEGORY_CARDS=[
   {id:'cotton',image:'',titleAr:'قطن',subtitleAr:'نعومة وراحة يومية',titleEn:'Cotton',subtitleEn:'Everyday softness',visible:true},
   {id:'silk',image:'',titleAr:'حرير',subtitleAr:'لمسة فاخرة',titleEn:'Silk',subtitleEn:'A luxurious touch',visible:true}
 ];
-let categoryCards=DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+const CATEGORY_CACHE_KEY='kandorty_categories_v2';
+function readCategoryCardsCache(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(CATEGORY_CACHE_KEY)||'null');
+    if(raw)return normalizedCategoryCards(raw);
+  }catch(e){console.warn('Category cache read skipped:',e)}
+  return DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+}
+function writeCategoryCardsCache(value){
+  try{localStorage.setItem(CATEGORY_CACHE_KEY,JSON.stringify({version:2,cards:value}));}catch(e){}
+}
+let categoryCards=readCategoryCardsCache();
 let pendingCategoryFiles={};
 
 function makeCategoryId(){
@@ -4024,14 +4053,25 @@ function applyCategoryCards(){
   refreshCategorySelect();
 }
 function loadCategoryCards(){
+  // categoryCards was already filled from local cache/defaults, so render it
+  // immediately and let Firestore refresh it in the background.
+  applyCategoryCards();
   try{
     db.collection('settings').doc('categories').onSnapshot(doc=>{
       categoryCards=normalizedCategoryCards(doc.exists?doc.data():{});
+      writeCategoryCardsCache(categoryCards);
       applyCategoryCards();
       const tab=document.getElementById('adminCategoriesTab');
       if(tab&&!tab.classList.contains('hidden'))fillCategoryAdmin();
-    },err=>{console.warn('Category settings:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();});
-  }catch(err){console.warn('Category settings unavailable:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();}
+    },err=>{
+      console.warn('Category settings:',err);
+      // Keep the cached/default cards visible instead of blanking the section.
+      applyCategoryCards();
+    });
+  }catch(err){
+    console.warn('Category settings unavailable:',err);
+    applyCategoryCards();
+  }
 }
 function captureCategoryEditorValues(){
   categoryCards.forEach(card=>{
@@ -4185,6 +4225,7 @@ async function saveCategoryCards(){
     if(approxBytes>900*1024)throw new Error('حجم صور الأقسام ما زال كبيراً. اختاري صوراً أصغر لبعض الأقسام.');
     await db.collection('settings').doc('categories').set(payload);
     categoryCards=normalizedCategoryCards(payload);
+    writeCategoryCardsCache(categoryCards);
     pendingCategoryFiles={};
     fillCategoryAdmin();applyCategoryCards();
     if(status)status.textContent=`تم حفظ ${categoryCards.length} قسم بنجاح ✅`;
