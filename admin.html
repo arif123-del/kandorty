@@ -3595,7 +3595,18 @@ const DEFAULT_CATEGORY_CARDS=[
   {id:'cotton',image:'',titleAr:'قطن',subtitleAr:'نعومة وراحة يومية',titleEn:'Cotton',subtitleEn:'Everyday softness',visible:true},
   {id:'silk',image:'',titleAr:'حرير',subtitleAr:'لمسة فاخرة',titleEn:'Silk',subtitleEn:'A luxurious touch',visible:true}
 ];
-let categoryCards=DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+const CATEGORY_CACHE_KEY='kandorty_categories_v2';
+function readCategoryCardsCache(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(CATEGORY_CACHE_KEY)||'null');
+    if(raw)return normalizedCategoryCards(raw);
+  }catch(e){console.warn('Category cache read skipped:',e)}
+  return DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+}
+function writeCategoryCardsCache(value){
+  try{localStorage.setItem(CATEGORY_CACHE_KEY,JSON.stringify({version:2,cards:value}));}catch(e){}
+}
+let categoryCards=readCategoryCardsCache();
 let pendingCategoryFiles={};
 
 function makeCategoryId(){
@@ -3694,14 +3705,16 @@ function applyCategoryCards(){
   refreshCategorySelect();
 }
 function loadCategoryCards(){
+  applyCategoryCards();
   try{
     db.collection('settings').doc('categories').onSnapshot(doc=>{
       categoryCards=normalizedCategoryCards(doc.exists?doc.data():{});
+      writeCategoryCardsCache(categoryCards);
       applyCategoryCards();
       const tab=document.getElementById('adminCategoriesTab');
       if(tab&&!tab.classList.contains('hidden'))fillCategoryAdmin();
-    },err=>{console.warn('Category settings:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();});
-  }catch(err){console.warn('Category settings unavailable:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();}
+    },err=>{console.warn('Category settings:',err);applyCategoryCards();});
+  }catch(err){console.warn('Category settings unavailable:',err);applyCategoryCards();}
 }
 function captureCategoryEditorValues(){
   categoryCards.forEach(card=>{
@@ -3855,6 +3868,7 @@ async function saveCategoryCards(){
     if(approxBytes>900*1024)throw new Error('حجم صور الأقسام ما زال كبيراً. اختاري صوراً أصغر لبعض الأقسام.');
     await db.collection('settings').doc('categories').set(payload);
     categoryCards=normalizedCategoryCards(payload);
+    writeCategoryCardsCache(categoryCards);
     pendingCategoryFiles={};
     fillCategoryAdmin();applyCategoryCards();
     if(status)status.textContent=`تم حفظ ${categoryCards.length} قسم بنجاح ✅`;
