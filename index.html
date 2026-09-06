@@ -1141,12 +1141,17 @@ const DB_KEY='kandorty_products_v1';
 let lang='ar', currentCat='all', pendingImages=[], pendingImageFiles=[], pendingImagePaths=[], products=[];
 const $=id=>document.getElementById(id);
 function makeFastProductCache(list){
-  // Keep the homepage cache small: product data + only the first image.
-  // Full image galleries still come from Firestore moments later.
-  return (Array.isArray(list)?list:[]).map(p=>({
-    ...p,
-    images:Array.isArray(p.images)&&p.images[0]?[p.images[0]]:[]
-  }));
+  // Keep all lightweight URL images in cache. For large data: images, keep only
+  // the first one so localStorage does not overflow. The full gallery is fetched
+  // directly from Firestore when the product is opened.
+  return (Array.isArray(list)?list:[]).map(p=>{
+    const imgs=Array.isArray(p.images)?p.images.filter(Boolean):[];
+    const allAreUrls=imgs.length && imgs.every(x=>/^https?:\/\//i.test(String(x)));
+    return {
+      ...p,
+      images: allAreUrls ? imgs : (imgs[0]?[imgs[0]]:[])
+    };
+  });
 }
 
 function readFastProductCache(){
@@ -1331,7 +1336,9 @@ function renderProductGallery(){
 
   if(selectedNote){
     selectedNote.textContent=currentProductImages.length>1
-      ? (lang==='ar'?'اللون المختار: '+(currentProductImageIndex+1)+' من '+currentProductImages.length:'Selected color: '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
+      ? (lang==='ar'
+          ? 'اختاري الصورة/اللون المطلوب — '+(currentProductImageIndex+1)+' من '+currentProductImages.length
+          : 'Choose the image/color — '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
       : (lang==='ar'?'تم اختيار هذا اللون.':'This color is selected.');
   }
   if(addBtn){
@@ -1346,11 +1353,12 @@ function renderProductGallery(){
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
+
   currentProductId=id;
-  $('modalName').textContent=p.nameAr;
-  $('modalCode').textContent=p.code;
+  $('modalName').textContent=p.nameAr||'';
+  $('modalCode').textContent=p.code||'';
   $('modalPrice').textContent=money(p.salePrice||p.price);
-  currentProductImages=(p.images||[]).filter(Boolean);
+  currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
   renderProductGallery();
@@ -1361,6 +1369,43 @@ function openProduct(id){
     if(isSoldOut(p))addBtn.textContent=lang==='ar'?'نفد المنتج':'Sold out';
   }
 
+  // The fast-start cache may contain only the first large embedded image.
+  // Always fetch the exact product document from the Firestore server so every
+  // uploaded product image/color becomes available in the gallery.
+  const selectedNote=$('modalSelectedVariant');
+  if(currentProductImages.length<=1 && selectedNote && !isSoldOut(p)){
+    selectedNote.textContent=lang==='ar'
+      ? 'جارٍ تحميل باقي الصور والألوان...'
+      : 'Loading the remaining images/colors...';
+  }
+
+  db.collection('products').doc(id).get({source:'server'})
+    .then(doc=>{
+      if(!doc.exists || currentProductId!==id)return;
+      const fresh={id:doc.id,...doc.data()};
+      const freshImages=Array.isArray(fresh.images)?fresh.images.filter(Boolean):[];
+
+      products=products.map(x=>x.id===id?fresh:x);
+      writeFastProductCache(products);
+
+      $('modalName').textContent=fresh.nameAr||'';
+      $('modalCode').textContent=fresh.code||'';
+      $('modalPrice').textContent=money(fresh.salePrice||fresh.price);
+      currentProductImages=freshImages;
+      currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,freshImages.length-1));
+      renderProductGallery();
+
+      const freshAddBtn=$('modalAddSelectedBtn');
+      if(freshAddBtn){
+        freshAddBtn.disabled=isSoldOut(fresh);
+        if(isSoldOut(fresh))freshAddBtn.textContent=lang==='ar'?'نفد المنتج':'Sold out';
+      }
+    })
+    .catch(err=>{
+      console.warn('Full product gallery server fetch failed:',err);
+      // Keep showing whatever was already available from cache/snapshot.
+      renderProductGallery();
+    });
 }
 function addSelectedProductToCart(){
   if(!currentProductId)return;
