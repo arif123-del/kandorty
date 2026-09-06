@@ -654,6 +654,38 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   .category-admin-toolbar .btn{width:100%}
 }
 </style>
+
+<style id="kandorty-variant-cart-visible-fix">
+/* Keep the selected-color add button visible while browsing product photos on phones. */
+@media (max-width: 700px){
+  #productModal .modal-card{
+    padding-bottom:88px !important;
+  }
+  #modalAddSelectedBtn{
+    position:fixed !important;
+    left:14px !important;
+    right:14px !important;
+    bottom:calc(12px + env(safe-area-inset-bottom)) !important;
+    width:auto !important;
+    max-width:680px !important;
+    margin:0 auto !important;
+    z-index:180 !important;
+    min-height:52px !important;
+    border-radius:14px !important;
+    box-shadow:0 8px 24px rgba(0,0,0,.22) !important;
+    font-size:16px !important;
+    font-weight:800 !important;
+  }
+  #modalSelectedVariant{
+    text-align:center !important;
+    background:#fff8fa !important;
+    border:1px solid #eadde1 !important;
+    border-radius:10px !important;
+    padding:8px 10px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1233,9 +1265,12 @@ function renderProductCard(p){
   const priceHtml=`<div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
   const stockHtml=stockLabel(p)?`<div class="stock-note">${stockLabel(p)}</div>`:'';
+  const variantCount=Array.isArray(p.images)?p.images.filter(Boolean).length:0;
   const addBtn=sold
     ? `<button class="btn primary" disabled>${lang==='ar'?'نفد المنتج':'Sold out'}</button>`
-    : `<button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`;
+    : (variantCount>1
+      ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
+      : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
     <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
@@ -1300,7 +1335,11 @@ function renderProductGallery(){
       : (lang==='ar'?'تم اختيار هذا اللون.':'This color is selected.');
   }
   if(addBtn){
-    addBtn.textContent=lang==='ar'?'أضيفي هذا اللون للسلة':'Add this color to cart';
+    addBtn.textContent=currentProductImages.length>1
+      ? (lang==='ar'
+          ? 'أضيفي اللون '+(currentProductImageIndex+1)+' للسلة'
+          : 'Add color '+(currentProductImageIndex+1)+' to cart')
+      : (lang==='ar'?'أضيفي للسلة':'Add to cart');
   }
 }
 
@@ -1313,6 +1352,7 @@ function openProduct(id){
   $('modalPrice').textContent=money(p.salePrice||p.price);
   currentProductImages=(p.images||[]).filter(Boolean);
   currentProductImageIndex=0;
+  $('productModal').classList.remove('hidden');
   renderProductGallery();
 
   const addBtn=$('modalAddSelectedBtn');
@@ -1321,7 +1361,6 @@ function openProduct(id){
     if(isSoldOut(p))addBtn.textContent=lang==='ar'?'نفد المنتج':'Sold out';
   }
 
-  $('productModal').classList.remove('hidden');
 }
 function addSelectedProductToCart(){
   if(!currentProductId)return;
