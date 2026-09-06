@@ -720,6 +720,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="modalThumbs" class="product-gallery-thumbs"></div>
 </div>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
+<button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
@@ -1263,17 +1265,24 @@ function render(){
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let currentProductImages=[];
 let currentProductImageIndex=0;
+let currentProductId='';
 
 function renderProductGallery(){
+  const selectedNote=$('modalSelectedVariant');
+  const addBtn=$('modalAddSelectedBtn');
+
   if(!currentProductImages.length){
     $('modalGallery').style.display='none';
+    if(selectedNote)selectedNote.textContent=lang==='ar'?'لا توجد ألوان/صور لهذا المنتج.':'No color/image is available for this product.';
     return;
   }
+
   $('modalGallery').style.display='block';
   const mainImg=$('modalMainImage');
   mainImg.onload=null;
   mainImg.removeAttribute('style');
   mainImg.src=currentProductImages[currentProductImageIndex];
+
   $('modalThumbs').innerHTML=currentProductImages.map((img,index)=>`
     <img src="${img}" class="product-gallery-thumb ${index===currentProductImageIndex?'active':''}" data-image-index="${index}" alt="">
   `).join('');
@@ -1284,18 +1293,39 @@ function renderProductGallery(){
       renderProductGallery();
     });
   });
+
+  if(selectedNote){
+    selectedNote.textContent=currentProductImages.length>1
+      ? (lang==='ar'?'اللون المختار: '+(currentProductImageIndex+1)+' من '+currentProductImages.length:'Selected color: '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
+      : (lang==='ar'?'تم اختيار هذا اللون.':'This color is selected.');
+  }
+  if(addBtn){
+    addBtn.textContent=lang==='ar'?'أضيفي هذا اللون للسلة':'Add this color to cart';
+  }
 }
 
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
+  currentProductId=id;
   $('modalName').textContent=p.nameAr;
   $('modalCode').textContent=p.code;
   $('modalPrice').textContent=money(p.salePrice||p.price);
   currentProductImages=(p.images||[]).filter(Boolean);
   currentProductImageIndex=0;
   renderProductGallery();
+
+  const addBtn=$('modalAddSelectedBtn');
+  if(addBtn){
+    addBtn.disabled=isSoldOut(p);
+    if(isSoldOut(p))addBtn.textContent=lang==='ar'?'نفد المنتج':'Sold out';
+  }
+
   $('productModal').classList.remove('hidden');
+}
+function addSelectedProductToCart(){
+  if(!currentProductId)return;
+  addToCart(currentProductId,currentProductImageIndex);
 }
 function closeProduct(){$('productModal').classList.add('hidden')}
 
@@ -2043,10 +2073,15 @@ async function makeOrderAccessKey(orderId,phone){
   return sha256Hex(String(orderId||'').toUpperCase()+'|'+normalized);
 }
 
+function orderItemKey(item){
+  if(!item)return '';
+  return String(item.variantKey||item.lineKey||item.id||'');
+}
 function quantitiesFromOrderItems(items){
   const q={};
   (Array.isArray(items)?items:[]).forEach(i=>{
-    if(i&&i.id)q[String(i.id)]=Math.max(0,Math.min(99,Number(i.qty)||0));
+    const key=orderItemKey(i);
+    if(key)q[key]=Math.max(0,Math.min(99,Number(i.qty)||0));
   });
   return q;
 }
@@ -2058,8 +2093,9 @@ function effectiveOrderView(order){
 
   const quantities=(edit.quantities&&typeof edit.quantities==='object')?edit.quantities:{};
   const items=(Array.isArray(o.items)?o.items:[]).map(i=>{
-    const raw=Object.prototype.hasOwnProperty.call(quantities,String(i.id))
-      ? quantities[String(i.id)]
+    const key=orderItemKey(i);
+    const raw=Object.prototype.hasOwnProperty.call(quantities,key)
+      ? quantities[key]
       : i.qty;
     const qty=Math.max(0,Math.min(99,Number(raw)||0));
     return {...i,qty};
@@ -2235,50 +2271,107 @@ async function submitCustomerOrder(order){
   }
   return {editReady};
 }
-function addToCart(id){
+function cartVariantIndex(item){
+  const n=Math.floor(Number(item?.imageIndex)||0);
+  return Number.isFinite(n)&&n>=0?n:0;
+}
+function cartVariantKey(item){
+  if(item?.variantKey)return String(item.variantKey);
+  return String(item?.id||'')+'__img'+cartVariantIndex(item);
+}
+function productQtyInCart(productId){
+  return cart.reduce((sum,item)=>String(item?.id)===String(productId)?sum+(Number(item.qty)||0):sum,0);
+}
+function addToCart(id,imageIndex=0){
   const p=products.find(x=>x.id===id); if(!p)return;
   if(isSoldOut(p)){
     alert(lang==='ar'?'هذا المنتج نفد من المخزون.':'This product is sold out.');
     return;
   }
-  const item=cart.find(x=>x.id===id);
+
+  const imgs=Array.isArray(p.images)?p.images.filter(Boolean):[];
+  let idx=Math.floor(Number(imageIndex)||0);
+  if(idx<0||idx>=imgs.length)idx=0;
+  const imageUrl=imgs[idx]||'';
+  const variantKey=String(id)+'__img'+idx;
+  const item=cart.find(x=>cartVariantKey(x)===variantKey);
+
   const stock=getProductStock(p);
-  const nextQty=(item?item.qty:0)+1;
-  if(stock!==null && nextQty>stock){
+  const nextProductQty=productQtyInCart(id)+1;
+  if(stock!==null && nextProductQty>stock){
     alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
     return;
   }
-  if(item)item.qty=nextQty; else cart.push({id,qty:1});
-  saveCart(); $('cartModal').classList.remove('hidden');
+
+  if(item){
+    item.qty=(Number(item.qty)||0)+1;
+    item.imageIndex=idx;
+    item.imageUrl=imageUrl;
+    item.variantKey=variantKey;
+  }else{
+    cart.push({id,qty:1,imageIndex:idx,imageUrl,variantKey});
+  }
+
+  saveCart();
+  if(!$('productModal').classList.contains('hidden'))closeProduct();
+  $('cartModal').classList.remove('hidden');
 }
-function updateCartCount(){const n=cart.reduce((s,x)=>s+x.qty,0); if($('cartCount'))$('cartCount').textContent=n}
-function cartData(){return cart.map(i=>({item:i,product:products.find(p=>p.id===i.id)})).filter(x=>x.product)}
+function updateCartCount(){const n=cart.reduce((s,x)=>s+(Number(x.qty)||0),0); if($('cartCount'))$('cartCount').textContent=n}
+function cartData(){
+  return cart.map((i,cartIndex)=>({
+    item:i,
+    cartIndex,
+    product:products.find(p=>String(p.id)===String(i.id))
+  })).filter(x=>x.product);
+}
 function renderCart(){
   if(!$('cartItems'))return;
   const rows=cartData();
-  $('cartItems').innerHTML=rows.length?rows.map(({item,product:p})=>`<div class="cart-row">
-  ${p.images?.[0]?`<img src="${p.images[0]}">`:'<div style="width:64px;height:78px;background:#eee;border-radius:9px"></div>'}
-  <div><b>${esc(p.nameAr)}</b><div class="code">${esc(p.code)}</div><div class="price">${money(p.salePrice||p.price)}</div></div>
-  <div class="qty"><button onclick="changeQty('${p.id}',-1)">−</button><span>${item.qty}</span><button onclick="changeQty('${p.id}',1)">+</button><button onclick="removeCart('${p.id}')">×</button></div>
-  </div>`).join(''):'<div class="empty">السلة فارغة</div>';
-  const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
+  $('cartItems').innerHTML=rows.length?rows.map(({item,product:p,cartIndex})=>{
+    const idx=cartVariantIndex(item);
+    const chosenImage=item.imageUrl||p.images?.[idx]||p.images?.[0]||'';
+    const variantText=(Array.isArray(p.images)&&p.images.filter(Boolean).length>1)
+      ? `<div style="font-size:12px;color:#777;margin-top:3px">${lang==='ar'?'اللون المختار: ':'Selected color: '}${idx+1}</div>`
+      : '';
+    return `<div class="cart-row">
+      ${chosenImage?`<img src="${chosenImage}">`:'<div style="width:64px;height:78px;background:#eee;border-radius:9px"></div>'}
+      <div><b>${esc(p.nameAr)}</b><div class="code">${esc(p.code)}</div>${variantText}<div class="price">${money(p.salePrice||p.price)}</div></div>
+      <div class="qty"><button onclick="changeCartQty(${cartIndex},-1)">−</button><span>${item.qty}</span><button onclick="changeCartQty(${cartIndex},1)">+</button><button onclick="removeCartItem(${cartIndex})">×</button></div>
+    </div>`;
+  }).join(''):'<div class="empty">السلة فارغة</div>';
+  const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0)),0);
   $('cartTotal').textContent=money(total);
   $('checkoutOpenBtn').disabled=!rows.length;
 }
-function changeQty(id,d){
-  const i=cart.find(x=>x.id===id);if(!i)return;
-  const p=products.find(x=>x.id===id);
+function changeCartQty(cartIndex,d){
+  const i=cart[Number(cartIndex)];if(!i)return;
+  const p=products.find(x=>String(x.id)===String(i.id));
   const stock=getProductStock(p);
-  let next=i.qty+d;
-  if(stock!==null && next>stock){
-    next=stock;
+  let next=(Number(i.qty)||0)+d;
+
+  if(d>0 && stock!==null && productQtyInCart(i.id)+d>stock){
     alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
+    return;
   }
+
   i.qty=next;
-  if(i.qty<=0)cart=cart.filter(x=>x.id!==id);
+  if(i.qty<=0)cart.splice(Number(cartIndex),1);
   saveCart();
 }
-function removeCart(id){cart=cart.filter(x=>x.id!==id);saveCart()}
+function removeCartItem(cartIndex){
+  const idx=Number(cartIndex);
+  if(Number.isInteger(idx)&&idx>=0&&idx<cart.length)cart.splice(idx,1);
+  saveCart();
+}
+// Legacy helpers kept for older buttons/cached markup.
+function changeQty(id,d){
+  const idx=cart.findIndex(x=>String(x.id)===String(id));
+  if(idx>=0)changeCartQty(idx,d);
+}
+function removeCart(id){
+  cart=cart.filter(x=>String(x.id)!==String(id));
+  saveCart();
+}
 function closeCart(){$('cartModal').classList.add('hidden')}
 function closeCheckout(){$('checkoutModal').classList.add('hidden')}
 $('cartBtn').onclick=()=>{renderCart();$('cartModal').classList.remove('hidden')}
@@ -2317,7 +2410,10 @@ $('checkoutForm').onsubmit=async e=>{
       code:x.product.code,
       name:x.product.nameAr,
       price:Number(x.product.salePrice||x.product.price),
-      qty:x.item.qty
+      qty:x.item.qty,
+      variantKey:cartVariantKey(x.item),
+      imageIndex:cartVariantIndex(x.item),
+      imageUrl:x.item.imageUrl||x.product.images?.[cartVariantIndex(x.item)]||x.product.images?.[0]||''
     }))
   };
   customerProfile={name:order.customer.name,phone:order.customer.phone,location:order.customer.location};
@@ -3099,7 +3195,8 @@ async function trackOrder(){
 
 function editableQty(order,item){
   const q=order?.quantities||{};
-  if(Object.prototype.hasOwnProperty.call(q,String(item.id)))return Math.max(0,Math.min(99,Number(q[String(item.id)])||0));
+  const key=orderItemKey(item);
+  if(Object.prototype.hasOwnProperty.call(q,key))return Math.max(0,Math.min(99,Number(q[key])||0));
   return Math.max(0,Math.min(99,Number(item.qty)||0));
 }
 
@@ -3116,16 +3213,21 @@ function renderCustomerOrderEditItems(){
 
   box.innerHTML=(activeEditableOrder.items||[]).map(item=>{
     const qty=editableQty(activeEditableOrder,item);
+    const key=orderItemKey(item);
+    const variantText=item.imageIndex!==undefined
+      ? `<div class="customer-edit-item-meta">${lang==='ar'?'اللون المختار: ':'Selected color: '}${Number(item.imageIndex)+1}</div>`
+      : '';
     return `<div class="customer-edit-row">
       <div>
         <div class="customer-edit-item-title">${esc(item.name||item.code||'منتج')}</div>
         <div class="customer-edit-item-meta">${esc(item.code||'')} · ${money(item.price||0)}</div>
+        ${variantText}
       </div>
       <div class="customer-edit-qty">
-        <button type="button" onclick="changeCustomerEditQty('${item.id}',-1)">−</button>
+        <button type="button" onclick="changeCustomerEditQty('${key}',-1)">−</button>
         <b>${qty}</b>
-        <button type="button" onclick="changeCustomerEditQty('${item.id}',1)">+</button>
-        <button type="button" class="remove-edit-item" onclick="removeCustomerEditItem('${item.id}')">حذف</button>
+        <button type="button" onclick="changeCustomerEditQty('${key}',1)">+</button>
+        <button type="button" class="remove-edit-item" onclick="removeCustomerEditItem('${key}')">حذف</button>
       </div>
     </div>`;
   }).join('');
