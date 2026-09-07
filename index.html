@@ -2599,31 +2599,70 @@ async function saveOrderWithStock(order){
     if(!id || !qty)return;
     qtyById[id]=(qtyById[id]||0)+qty;
   });
+
   const orderRef=db.collection('orders').doc(order.id);
+  const entries=Object.entries(qtyById);
+
   await db.runTransaction(async tx=>{
-    for(const [id,need] of Object.entries(qtyById)){
+    // Firestore requires ALL transaction reads to happen before ANY write.
+    const stockRows=[];
+
+    // 1) Read every product first.
+    for(const [id,need] of entries){
       const ref=db.collection('products').doc(id);
       const snap=await tx.get(ref);
-      if(!snap.exists)continue;
-      const data=snap.data()||{};
-      if(!hasManagedStock(data))continue;
-      const current=Math.max(0,Math.floor(Number(data.stock)||0));
-      if(current<need){
-        const productName=data.nameAr||data.code||'المنتج';
-        throw Object.assign(new Error('الكمية المطلوبة غير متوفرة للمنتج: '+productName),{code:'stock/insufficient'});
-      }
-      tx.update(ref,{stock:current-need,updatedAt:new Date().toISOString()});
+      stockRows.push({id,need,ref,snap});
     }
+
+    // 2) Validate stock after all reads are complete.
+    const updates=[];
+    for(const row of stockRows){
+      if(!row.snap.exists)continue;
+      const data=row.snap.data()||{};
+      if(!hasManagedStock(data))continue;
+
+      const current=Math.max(0,Math.floor(Number(data.stock)||0));
+      if(current<row.need){
+        const productName=data.nameAr||data.code||'المنتج';
+        throw Object.assign(
+          new Error('الكمية المطلوبة غير متوفرة للمنتج: '+productName),
+          {code:'stock/insufficient'}
+        );
+      }
+
+      updates.push({
+        ref:row.ref,
+        stock:current-row.need
+      });
+    }
+
+    // 3) Only now perform writes.
+    const updatedAt=new Date().toISOString();
+    for(const update of updates){
+      tx.update(update.ref,{
+        stock:update.stock,
+        updatedAt
+      });
+    }
+
     tx.set(orderRef,order);
   });
-  for(const [id,need] of Object.entries(qtyById)){
+
+  // Update local UI only after the Firestore transaction succeeds.
+  const localUpdatedAt=new Date().toISOString();
+  for(const [id,need] of entries){
     products=products.map(p=>{
       if(String(p.id)!==String(id))return p;
       const current=getProductStock(p);
       if(current===null)return p;
-      return {...p,stock:Math.max(0,current-need),updatedAt:new Date().toISOString()};
+      return {
+        ...p,
+        stock:Math.max(0,current-need),
+        updatedAt:localUpdatedAt
+      };
     });
   }
+
   writeFastProductCache(products);
   render();
   renderAdminList();
