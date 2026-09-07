@@ -686,6 +686,146 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-swipe-gallery-fix">
+/* Product gallery: swipe left/right, no small thumbnails */
+.product-gallery-mainwrap{
+  position:relative !important;
+  touch-action:pan-y !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+}
+.product-gallery-mainimg{
+  cursor:zoom-in !important;
+}
+#modalThumbs{
+  display:none !important;
+}
+.product-gallery-swipe-hint{
+  margin-top:8px;
+  text-align:center;
+  font-size:12px;
+  color:#8a7d81;
+}
+.product-gallery-stage{
+  position:relative;
+}
+.product-gallery-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:38px;
+  height:38px;
+  border:0;
+  border-radius:999px;
+  background:rgba(255,255,255,.86);
+  color:#111;
+  font-size:22px;
+  font-weight:700;
+  display:grid;
+  place-items:center;
+  box-shadow:0 4px 16px rgba(0,0,0,.14);
+  z-index:3;
+}
+.product-gallery-nav.prev{right:10px}
+.product-gallery-nav.next{left:10px}
+.product-gallery-nav:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:600px){
+  .product-gallery-nav{
+    width:34px;
+    height:34px;
+    font-size:20px;
+  }
+}
+
+/* Fullscreen image viewer */
+#imageViewerModal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.92);
+  z-index:250;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:14px;
+}
+#imageViewerModal.hidden{display:none !important}
+.image-viewer-card{
+  position:relative;
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  touch-action:pan-y;
+}
+#imageViewerImg{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  border-radius:12px;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.image-viewer-close{
+  position:absolute;
+  top:max(12px, env(safe-area-inset-top));
+  left:12px;
+  width:42px;
+  height:42px;
+  border:0;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  color:#111;
+  font-size:26px;
+  font-weight:700;
+  z-index:3;
+}
+.image-viewer-count{
+  position:absolute;
+  top:max(14px, env(safe-area-inset-top));
+  right:14px;
+  color:#fff;
+  background:rgba(0,0,0,.38);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:13px;
+  z-index:3;
+}
+.image-viewer-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:44px;
+  height:44px;
+  border:0;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  color:#111;
+  font-size:26px;
+  font-weight:700;
+  display:grid;
+  place-items:center;
+  z-index:3;
+}
+.image-viewer-nav.prev{right:12px}
+.image-viewer-nav.next{left:12px}
+.image-viewer-hint{
+  position:absolute;
+  bottom:max(16px, env(safe-area-inset-bottom));
+  left:50%;
+  transform:translateX(-50%);
+  color:#fff;
+  background:rgba(0,0,0,.36);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  z-index:3;
+  white-space:nowrap;
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -748,8 +888,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="productModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
 <div id="modalGallery" class="product-gallery-mainwrap">
-<img id="modalMainImage" class="product-gallery-mainimg" alt="">
-<div id="modalThumbs" class="product-gallery-thumbs"></div>
+  <div class="product-gallery-stage">
+    <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
+    <img id="modalMainImage" class="product-gallery-mainimg" alt="" onclick="openFullscreenProductImage()">
+    <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
+  </div>
+  <div id="modalThumbs" class="product-gallery-thumbs"></div>
+  <div class="product-gallery-swipe-hint">اسحبي الصورة يمينًا أو يسارًا — اضغطي لعرضها بملء الشاشة</div>
 </div>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
@@ -1307,46 +1452,118 @@ let currentProductImages=[];
 let currentProductImageIndex=0;
 let currentProductId='';
 
+let gallerySwipeBound=false;
+let imageViewerSwipeBound=false;
+
+function bindHorizontalSwipe(el,onLeft,onRight){
+  if(!el || el.dataset.swipeBound==='1')return;
+  let startX=0,startY=0,moved=false;
+  const threshold=28;
+  el.addEventListener('touchstart',e=>{
+    const t=e.changedTouches?.[0];
+    if(!t)return;
+    startX=t.clientX;
+    startY=t.clientY;
+    moved=false;
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    const t=e.changedTouches?.[0];
+    if(!t)return;
+    const dx=t.clientX-startX;
+    const dy=t.clientY-startY;
+    if(Math.abs(dx)>12 && Math.abs(dx)>Math.abs(dy))moved=true;
+  },{passive:true});
+  el.addEventListener('touchend',e=>{
+    const t=e.changedTouches?.[0];
+    if(!t)return;
+    const dx=t.clientX-startX;
+    const dy=t.clientY-startY;
+    if(Math.abs(dx)>=threshold && Math.abs(dx)>Math.abs(dy)){
+      if(dx<0)onLeft?.();
+      else onRight?.();
+    }
+  },{passive:true});
+  el.dataset.swipeBound='1';
+}
+
+function stepProductImage(step,fromViewer){
+  if(!currentProductImages.length)return;
+  const count=currentProductImages.length;
+  currentProductImageIndex=(currentProductImageIndex+step+count)%count;
+  renderProductGallery();
+  if(fromViewer || !$('imageViewerModal').classList.contains('hidden')){
+    updateFullscreenProductImage();
+  }
+}
+
+function updateFullscreenProductImage(){
+  const viewer=$('imageViewerModal');
+  const img=$('imageViewerImg');
+  const countEl=$('imageViewerCount');
+  if(!viewer || !img || !currentProductImages.length)return;
+  img.src=currentProductImages[currentProductImageIndex];
+  if(countEl){
+    countEl.textContent=(currentProductImageIndex+1)+' / '+currentProductImages.length;
+  }
+}
+
+function openFullscreenProductImage(){
+  if(!currentProductImages.length)return;
+  $('imageViewerModal').classList.remove('hidden');
+  updateFullscreenProductImage();
+}
+
+function closeFullscreenViewer(event){
+  if(event){
+    const target=event.target;
+    if(target && target.id!=='imageViewerModal' && !target.classList.contains('image-viewer-close'))return;
+  }
+  $('imageViewerModal').classList.add('hidden');
+}
+
 function renderProductGallery(){
   const selectedNote=$('modalSelectedVariant');
   const addBtn=$('modalAddSelectedBtn');
+  const gallery=$('modalGallery');
+  const mainImg=$('modalMainImage');
+  const prevBtn=$('galleryPrevBtn');
+  const nextBtn=$('galleryNextBtn');
 
   if(!currentProductImages.length){
-    $('modalGallery').style.display='none';
+    gallery.style.display='none';
     if(selectedNote)selectedNote.textContent=lang==='ar'?'لا توجد ألوان/صور لهذا المنتج.':'No color/image is available for this product.';
     return;
   }
 
-  $('modalGallery').style.display='block';
-  const mainImg=$('modalMainImage');
+  gallery.style.display='block';
   mainImg.onload=null;
   mainImg.removeAttribute('style');
   mainImg.src=currentProductImages[currentProductImageIndex];
+  $('modalThumbs').innerHTML='';
 
-  $('modalThumbs').innerHTML=currentProductImages.map((img,index)=>`
-    <img src="${img}" class="product-gallery-thumb ${index===currentProductImageIndex?'active':''}" data-image-index="${index}" alt="">
-  `).join('');
+  if(prevBtn)prevBtn.disabled=currentProductImages.length<=1;
+  if(nextBtn)nextBtn.disabled=currentProductImages.length<=1;
 
-  $('modalThumbs').querySelectorAll('.product-gallery-thumb').forEach(el=>{
-    el.addEventListener('click',()=>{
-      currentProductImageIndex=Number(el.dataset.imageIndex);
-      renderProductGallery();
-    });
-  });
+  bindHorizontalSwipe(mainImg,()=>stepProductImage(1),()=>stepProductImage(-1));
+  bindHorizontalSwipe($('imageViewerImg'),()=>stepProductImage(1,true),()=>stepProductImage(-1,true));
 
   if(selectedNote){
     selectedNote.textContent=currentProductImages.length>1
       ? (lang==='ar'
-          ? 'اختاري الصورة/اللون المطلوب — '+(currentProductImageIndex+1)+' من '+currentProductImages.length
-          : 'Choose the image/color — '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
-      : (lang==='ar'?'تم اختيار هذا اللون.':'This color is selected.');
+          ? 'اسحبي الصورة يمينًا أو يسارًا — الصورة '+(currentProductImageIndex+1)+' من '+currentProductImages.length
+          : 'Swipe left or right — image '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
+      : (lang==='ar'?'اضغطي الصورة لعرضها بملء الشاشة.':'Tap the image to view full screen.');
   }
   if(addBtn){
     addBtn.textContent=currentProductImages.length>1
       ? (lang==='ar'
-          ? 'أضيفي اللون '+(currentProductImageIndex+1)+' للسلة'
-          : 'Add color '+(currentProductImageIndex+1)+' to cart')
+          ? 'أضيفي الصورة '+(currentProductImageIndex+1)+' للسلة'
+          : 'Add image '+(currentProductImageIndex+1)+' to cart')
       : (lang==='ar'?'أضيفي للسلة':'Add to cart');
+  }
+
+  if(!$('imageViewerModal').classList.contains('hidden')){
+    updateFullscreenProductImage();
   }
 }
 
@@ -1411,7 +1628,7 @@ function addSelectedProductToCart(){
   if(!currentProductId)return;
   addToCart(currentProductId,currentProductImageIndex);
 }
-function closeProduct(){$('productModal').classList.add('hidden')}
+function closeProduct(){$('productModal').classList.add('hidden'); $('imageViewerModal').classList.add('hidden');}
 
 $('adminBtn').onclick=()=>{$('adminModal').classList.remove('hidden'); syncAdminView(auth.currentUser)};function closeAdmin(){$('adminModal').classList.add('hidden')}
 function authErrorMessage(error){
@@ -4430,4 +4647,16 @@ loadCategoryCards();
 loadCommerce();
 load();
 </script>
+
+<div id="imageViewerModal" class="hidden" onclick="closeFullscreenViewer(event)">
+  <div class="image-viewer-card">
+    <button class="image-viewer-close" type="button" onclick="closeFullscreenViewer(event)">×</button>
+    <div id="imageViewerCount" class="image-viewer-count"></div>
+    <button class="image-viewer-nav prev" type="button" onclick="stepProductImage(-1,true);event.stopPropagation();" aria-label="Previous image">›</button>
+    <img id="imageViewerImg" alt="">
+    <button class="image-viewer-nav next" type="button" onclick="stepProductImage(1,true);event.stopPropagation();" aria-label="Next image">‹</button>
+    <div class="image-viewer-hint">اسحبي الصورة يمينًا أو يسارًا</div>
+  </div>
+</div>
+
 </body></html>
