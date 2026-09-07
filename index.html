@@ -1270,7 +1270,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="checkoutModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2>إتمام الطلب</h2><button class="x" onclick="closeCheckout()">×</button></div>
-<form id="checkoutForm" class="form-grid">
+<form id="checkoutForm" class="form-grid" novalidate>
 <input id="customerName" placeholder="الاسم" required>
 <input id="customerPhone" placeholder="رقم الهاتف" required>
 <select id="customerCity" required>
@@ -1284,7 +1284,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <option value="card">الدفع بالبطاقة</option>
 </select>
 <textarea id="orderNotes" class="full" rows="3" placeholder="ملاحظات الطلب (اختياري)"></textarea>
-<button class="btn primary full" type="submit">تأكيد الطلب</button><button class="btn ghost full" type="button" id="whatsappOrderBtn">إرسال الطلب عبر WhatsApp</button>
+<div id="checkoutStatus" class="full" style="min-height:22px;font-size:13px;font-weight:700"></div>
+<button id="confirmOrderBtn" class="btn primary full" type="button">تأكيد الطلب</button>
+<button class="btn ghost full" type="button" id="whatsappOrderBtn">إرسال الطلب عبر WhatsApp</button>
 </form>
 </div></div>
 
@@ -2754,6 +2756,7 @@ function closeCheckout(){$('checkoutModal').classList.add('hidden')}
 $('cartBtn').onclick=()=>{renderCart();$('cartModal').classList.remove('hidden')}
 $('checkoutOpenBtn').onclick=()=>{
   if(!cart.length)return;
+  checkoutMessage('');
   $('customerName').value=customerProfile.name||'';
   $('customerPhone').value=(customerAuthUser?.phoneNumber||customerProfile.phone||'');
   $('customerPhone').readOnly=!!customerAuthUser?.phoneNumber;
@@ -2762,9 +2765,50 @@ $('checkoutOpenBtn').onclick=()=>{
   closeCart();
   $('checkoutModal').classList.remove('hidden');
 }
-$('checkoutForm').onsubmit=async e=>{
-  e.preventDefault();
-  const rows=cartData(); if(!rows.length)return;
+let checkoutSubmitting=false;
+
+function checkoutMessage(message,isError=false){
+  const el=$('checkoutStatus');
+  if(!el)return;
+  el.textContent=message||'';
+  el.style.color=isError?'#b40018':'#16733b';
+}
+
+function validateCheckoutFields(){
+  const fields=[
+    {el:$('customerName'),msg:'يرجى كتابة الاسم.'},
+    {el:$('customerPhone'),msg:'يرجى كتابة رقم الهاتف.'},
+    {el:$('customerCity'),msg:'يرجى اختيار الإمارة.'},
+    {el:$('customerLocation'),msg:'يرجى كتابة المنطقة / العنوان.'}
+  ];
+  for(const item of fields){
+    if(!String(item.el?.value||'').trim()){
+      checkoutMessage(item.msg,true);
+      try{item.el?.focus();item.el?.scrollIntoView({behavior:'smooth',block:'center'});}catch(_){}
+      return false;
+    }
+  }
+  return true;
+}
+
+async function submitCheckoutOrder(){
+  if(checkoutSubmitting)return;
+  checkoutMessage('');
+
+  const rows=cartData();
+  if(!rows.length){
+    checkoutMessage('السلة فارغة. أضيفي منتجاً أولاً.',true);
+    return;
+  }
+  if(!validateCheckoutFields())return;
+
+  const confirmBtn=$('confirmOrderBtn');
+  checkoutSubmitting=true;
+  if(confirmBtn){
+    confirmBtn.disabled=true;
+    confirmBtn.textContent='جارٍ تأكيد الطلب...';
+  }
+
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
   const verifiedPhone=customerAuthUser?.phoneNumber||'';
   const order={
@@ -2793,6 +2837,7 @@ $('checkoutForm').onsubmit=async e=>{
       imageUrl:x.item.imageUrl||x.product.images?.[cartVariantIndex(x.item)]||x.product.images?.[0]||''
     }))
   };
+
   customerProfile={name:order.customer.name,phone:order.customer.phone,location:order.customer.location};
   saveCustomerProfile();
   if(customerAuthUser?.phoneNumber){
@@ -2800,7 +2845,9 @@ $('checkoutForm').onsubmit=async e=>{
   }
 
   try{
+    checkoutMessage('جارٍ تسجيل الطلب...');
     const submitResult=await submitCustomerOrder(order);
+
     if(customerAuthUser?.uid){
       customerCloudOrders=[
         order,
@@ -2811,7 +2858,7 @@ $('checkoutForm').onsubmit=async e=>{
     localStorage.setItem('kandorty_last_order_id',order.id);
     cart=[];
     saveCart();
-    e.target.reset();
+    $('checkoutForm').reset();
     closeCheckout();
 
     alert(
@@ -2823,9 +2870,23 @@ $('checkoutForm').onsubmit=async e=>{
     console.error('Order submit error:',error);
     const code=error?.code||'unknown';
     const msg=error?.message||'';
+    checkoutMessage('تعذر تسجيل الطلب. حاولي مرة أخرى.',true);
     alert('❌ لم يتم تسجيل الطلب.\n\nFirebase: '+code+'\n'+msg);
+  }finally{
+    checkoutSubmitting=false;
+    if(confirmBtn){
+      confirmBtn.disabled=false;
+      confirmBtn.textContent='تأكيد الطلب';
+    }
   }
 }
+
+$('checkoutForm').onsubmit=e=>{
+  e.preventDefault();
+  submitCheckoutOrder();
+};
+$('confirmOrderBtn').onclick=submitCheckoutOrder;
+
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 function renderOrders(){
   if(!$('ordersList'))return;
