@@ -938,6 +938,26 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-order-customer-details">
+.order-customer-details{
+  display:grid;
+  gap:6px;
+  margin:10px 0 12px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+}
+.order-customer-details div{
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.order-customer-details b{
+  color:#111;
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2531,7 +2551,7 @@ function quantitiesFromOrderItems(items){
 }
 
 function effectiveOrderView(order){
-  const o=order||{};
+  const o=normalizeOrderShape(order||{});
   const edit=o.customerEdit;
   if(!edit||typeof edit!=='object')return o;
 
@@ -2926,6 +2946,10 @@ async function submitCheckoutOrder(){
       city:$('customerCity').value,
       location:$('customerLocation').value.trim()
     },
+    customerName:$('customerName').value.trim(),
+    customerPhone:verifiedPhone||$('customerPhone').value.trim(),
+    customerCity:$('customerCity').value,
+    customerLocation:$('customerLocation').value.trim(),
     payment:$('paymentMethod').value,
     notes:$('orderNotes').value.trim(),
     status:'new',
@@ -2992,6 +3016,52 @@ $('checkoutForm').onsubmit=e=>{
 $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
 
+
+function normalizeOrderShape(raw){
+  const o=raw||{};
+  const nested=(o.customer&&typeof o.customer==='object')?o.customer:{};
+  const customer={
+    name:nested.name||o.customerName||o.name||'',
+    phone:nested.phone||o.customerPhone||o.phone||'',
+    city:nested.city||o.customerCity||o.city||'',
+    location:nested.location||o.customerLocation||o.location||o.address||''
+  };
+
+  let items=[];
+  if(Array.isArray(o.items))items=o.items;
+  else if(Array.isArray(o.products))items=o.products;
+  else if(Array.isArray(o.orderItems))items=o.orderItems;
+
+  items=items.map((item,index)=>({
+    ...item,
+    id:item?.id||item?.productId||item?.code||('item-'+index),
+    code:item?.code||item?.productCode||'',
+    name:item?.name||item?.nameAr||item?.productName||item?.title||item?.code||'منتج',
+    qty:Math.max(1,Math.floor(Number(item?.qty??item?.quantity??item?.count??1)||1)),
+    price:Number(item?.price??item?.unitPrice??0)||0,
+    imageUrl:item?.imageUrl||item?.image||item?.photo||''
+  }));
+
+  const computedTotal=items.reduce((sum,item)=>sum+(Number(item.price)||0)*(Number(item.qty)||0),0);
+  return {
+    ...o,
+    customer,
+    items,
+    total:Number(o.total)||computedTotal||0
+  };
+}
+
+function renderOrderCustomerHtml(order){
+  const o=normalizeOrderShape(order);
+  const c=o.customer||{};
+  return `<div class="order-customer-details">
+    <div><b>اسم العميل:</b> ${esc(c.name||'-')}</div>
+    <div><b>رقم الهاتف:</b> ${esc(c.phone||'-')}</div>
+    <div><b>الإمارة:</b> ${esc(c.city||'-')}</div>
+    <div><b>العنوان:</b> ${esc(c.location||'-')}</div>
+  </div>`;
+}
+
 function orderItemImage(item){
   if(item?.imageUrl)return String(item.imageUrl);
   const p=(Array.isArray(products)?products:[]).find(x=>String(x.id||'')===String(item?.id||''));
@@ -3000,7 +3070,8 @@ function orderItemImage(item){
   return String(imgs[idx]||imgs[0]||'');
 }
 function renderOrderItemsHtml(order){
-  const items=Array.isArray(order?.items)?order.items:[];
+  const normalized=normalizeOrderShape(order);
+  const items=Array.isArray(normalized.items)?normalized.items:[];
   if(!items.length)return '<div class="customer-edit-note">لا توجد تفاصيل منتجات محفوظة لهذا الطلب القديم.</div>';
   return `<div class="order-products">${items.map(item=>{
     const image=orderItemImage(item);
@@ -3022,7 +3093,8 @@ function renderOrderItemsHtml(order){
 
 
 function orderItemsText(order){
-  const items=Array.isArray(order?.items)?order.items:[];
+  const normalized=normalizeOrderShape(order);
+  const items=Array.isArray(normalized.items)?normalized.items:[];
   if(!items.length)return 'لا توجد تفاصيل منتجات محفوظة';
   return items.map(item=>{
     const name=item?.name||item?.nameAr||item?.code||'منتج';
@@ -3687,23 +3759,24 @@ let activeEditableOrder=null;
 let activeOrderAccessKey='';
 
 function renderTrackingResult(o,editable=null,verificationMessage=''){
+  const shown=normalizeOrderShape(o);
   const flow=['new','preparing','shipping','delivered'];
-  const idx=flow.indexOf(o.status);
-  const canEdit=o.status==='new'&&editable;
-
+  const idx=flow.indexOf(shown.status);
+  const canEdit=shown.status==='new'&&editable;
   $('trackingResult').innerHTML=`<div class="track-box">
-    <b>${esc(o.id||'')}</b>
+    <b>${esc(shown.id||'')}</b>
     <div class="track-steps">
       ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
-      ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
+      ${shown.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
     </div>
+    ${shown.customer?.phone?renderOrderCustomerHtml(shown):''}
     <div class="order-products-title">المنتجات المطلوبة</div>
-    ${renderOrderItemsHtml(o)}
-    <div class="price" style="margin-top:8px">${money(o.total||0)}</div>
+    ${renderOrderItemsHtml(shown)}
+    <div class="price" style="margin-top:8px">${money(shown.total||0)}</div>
     ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button>`:''}
-    ${o.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
+    ${shown.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
-    ${o.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
+    ${shown.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
   </div>`;
 }
 
@@ -3769,7 +3842,19 @@ async function trackOrder(){
     if(editable){
       activeEditableOrder=editable;
       activeOrderAccessKey=editable.accessKey;
-      renderTrackingResult(trackingOrder,editable);
+      const fullOrder=normalizeOrderShape({
+        ...trackingOrder,
+        ...editable,
+        id:num,
+        status:trackingOrder.status||editable.status||'new',
+        customer:editable.customer||{},
+        items:Array.isArray(editable.items)?editable.items:[],
+        total:Number(editable.total)||0
+      });
+      if(!fullOrder.total){
+        fullOrder.total=fullOrder.items.reduce((sum,item)=>sum+(Number(item.price)||0)*(Number(item.qty)||0),0);
+      }
+      renderTrackingResult(fullOrder,editable);
     }else{
       renderTrackingResult(trackingOrder,null,'رقم الهاتف غير مطابق للطلب، أو أن الطلب قديم ولم يتم تفعيل التعديل له بعد.');
     }
