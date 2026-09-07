@@ -718,6 +718,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 .product-gallery-mainimg{
   cursor:zoom-in !important;
+  transition:opacity .16s ease, transform .16s ease !important;
+  will-change:opacity,transform;
+  -webkit-user-drag:none;
 }
 #modalThumbs{
   display:none !important;
@@ -781,12 +784,17 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   touch-action:pan-y;
 }
 #imageViewerImg{
-  max-width:100%;
-  max-height:100%;
+  max-width:100vw;
+  max-height:100vh;
+  width:auto;
+  height:auto;
   object-fit:contain;
-  border-radius:12px;
+  border-radius:0;
   user-select:none;
   -webkit-user-select:none;
+  -webkit-user-drag:none;
+  transition:opacity .14s ease, transform .14s ease;
+  will-change:opacity,transform;
 }
 .image-viewer-close{
   position:absolute;
@@ -803,6 +811,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   z-index:3;
 }
 .image-viewer-count{
+  display:none !important;
   position:absolute;
   top:max(14px, env(safe-area-inset-top));
   right:14px;
@@ -844,6 +853,22 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   font-size:12px;
   z-index:3;
   white-space:nowrap;
+}
+
+@media (max-width:700px){
+  #imageViewerModal{padding:0 !important;background:#000 !important}
+  .image-viewer-card{width:100vw !important;height:100vh !important}
+  .image-viewer-nav{display:none !important}
+  .image-viewer-hint{
+    bottom:max(12px, env(safe-area-inset-bottom)) !important;
+    font-size:11px !important;
+    opacity:.78 !important;
+  }
+  .image-viewer-close{
+    width:40px !important;
+    height:40px !important;
+    background:rgba(255,255,255,.88) !important;
+  }
 }
 </style>
 
@@ -911,7 +936,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
-    <img id="modalMainImage" class="product-gallery-mainimg" alt="" onclick="openFullscreenProductImage()">
+    <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
@@ -1303,7 +1328,7 @@ const authInitialStatePromise=new Promise(resolve=>{
 const ADMIN_EMAIL='aliyajan200011@gmail.com';
 </script>
 <script>
-const DB_KEY='kandorty_products_v1';
+const DB_KEY='kandorty_products_v2';
 let lang='ar', currentCat='all', pendingImages=[], pendingImageFiles=[], pendingImagePaths=[], products=[];
 const $=id=>document.getElementById(id);
 function makeFastProductCache(list){
@@ -1360,6 +1385,7 @@ function load(){
 
       render();
       renderAdminList();
+      preloadNearbyProductGalleries();
     },
     error=>{
       console.error('Firestore products read error:',error);
@@ -1431,7 +1457,7 @@ function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')retu
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
-    ? `<img src="${p.images[0]}" alt="" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
+    ? `<img src="${p.images[0]}" alt="" loading="eager" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
   const priceHtml=`<div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
@@ -1475,6 +1501,39 @@ let currentProductId='';
 
 let gallerySwipeBound=false;
 let imageViewerSwipeBound=false;
+const productImagePreloadCache=new Set();
+
+function preloadProductImages(urls){
+  (Array.isArray(urls)?urls:[]).filter(Boolean).forEach(url=>{
+    const key=String(url);
+    if(productImagePreloadCache.has(key))return;
+    productImagePreloadCache.add(key);
+    const img=new Image();
+    img.decoding='async';
+    img.src=key;
+  });
+}
+
+function preloadNearbyProductGalleries(){
+  const candidates=(Array.isArray(products)?products:[]).filter(p=>p && p.active!==false).slice(0,10);
+  const run=()=>candidates.forEach(p=>preloadProductImages((p.images||[]).slice(0,4)));
+  if('requestIdleCallback' in window) requestIdleCallback(run,{timeout:1200});
+  else setTimeout(run,250);
+}
+
+function animateImageSwap(img,newSrc,direction=0){
+  if(!img || !newSrc)return;
+  const outX=direction===0?0:(direction>0?-12:12);
+  img.style.opacity='0.55';
+  img.style.transform=`translateX(${outX}px)`;
+  requestAnimationFrame(()=>{
+    img.src=newSrc;
+    requestAnimationFrame(()=>{
+      img.style.opacity='1';
+      img.style.transform='translateX(0)';
+    });
+  });
+}
 
 function bindHorizontalSwipe(el,onLeft,onRight){
   if(!el || el.dataset.swipeBound==='1')return;
@@ -1511,21 +1570,18 @@ function stepProductImage(step,fromViewer){
   if(!currentProductImages.length)return;
   const count=currentProductImages.length;
   currentProductImageIndex=(currentProductImageIndex+step+count)%count;
-  renderProductGallery();
+  renderProductGallery(step);
   if(fromViewer || !$('imageViewerModal').classList.contains('hidden')){
-    updateFullscreenProductImage();
+    updateFullscreenProductImage(step);
   }
 }
 
-function updateFullscreenProductImage(){
+function updateFullscreenProductImage(direction=0){
   const viewer=$('imageViewerModal');
   const img=$('imageViewerImg');
-  const countEl=$('imageViewerCount');
   if(!viewer || !img || !currentProductImages.length)return;
-  img.src=currentProductImages[currentProductImageIndex];
-  if(countEl){
-    countEl.textContent=(currentProductImageIndex+1)+' / '+currentProductImages.length;
-  }
+  preloadProductImages(currentProductImages);
+  animateImageSwap(img,currentProductImages[currentProductImageIndex],direction);
 }
 
 function openFullscreenProductImage(){
@@ -1542,7 +1598,7 @@ function closeFullscreenViewer(event){
   $('imageViewerModal').classList.add('hidden');
 }
 
-function renderProductGallery(){
+function renderProductGallery(direction=0){
   const selectedNote=$('modalSelectedVariant');
   const addBtn=$('modalAddSelectedBtn');
   const gallery=$('modalGallery');
@@ -1559,7 +1615,8 @@ function renderProductGallery(){
   gallery.style.display='block';
   mainImg.onload=null;
   mainImg.removeAttribute('style');
-  mainImg.src=currentProductImages[currentProductImageIndex];
+  preloadProductImages(currentProductImages);
+  animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   $('modalThumbs').innerHTML='';
 
   if(prevBtn)prevBtn.disabled=currentProductImages.length<=1;
@@ -1571,20 +1628,16 @@ function renderProductGallery(){
   if(selectedNote){
     selectedNote.textContent=currentProductImages.length>1
       ? (lang==='ar'
-          ? 'اسحبي الصورة يمينًا أو يسارًا — الصورة '+(currentProductImageIndex+1)+' من '+currentProductImages.length
-          : 'Swipe left or right — image '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
+          ? 'اسحبي الصورة يمينًا أو يسارًا — اضغطي لعرضها بملء الشاشة'
+          : 'Swipe left or right — tap to view full screen')
       : (lang==='ar'?'اضغطي الصورة لعرضها بملء الشاشة.':'Tap the image to view full screen.');
   }
   if(addBtn){
-    addBtn.textContent=currentProductImages.length>1
-      ? (lang==='ar'
-          ? 'أضيفي الصورة '+(currentProductImageIndex+1)+' للسلة'
-          : 'Add image '+(currentProductImageIndex+1)+' to cart')
-      : (lang==='ar'?'أضيفي للسلة':'Add to cart');
+    addBtn.textContent=lang==='ar'?'أضيفي للسلة':'Add to cart';
   }
 
   if(!$('imageViewerModal').classList.contains('hidden')){
-    updateFullscreenProductImage();
+    updateFullscreenProductImage(direction);
   }
 }
 
@@ -1597,6 +1650,7 @@ function openProduct(id){
   $('modalCode').textContent=p.code||'';
   $('modalPrice').textContent=money(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
+  preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
   renderProductGallery();
@@ -1613,8 +1667,8 @@ function openProduct(id){
   const selectedNote=$('modalSelectedVariant');
   if(currentProductImages.length<=1 && selectedNote && !isSoldOut(p)){
     selectedNote.textContent=lang==='ar'
-      ? 'جارٍ تحميل باقي الصور والألوان...'
-      : 'Loading the remaining images/colors...';
+      ? 'اضغطي الصورة لعرضها بملء الشاشة.'
+      : 'Tap the image to view full screen.';
   }
 
   db.collection('products').doc(id).get({source:'server'})
@@ -1630,6 +1684,7 @@ function openProduct(id){
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').textContent=money(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
+      preloadProductImages(currentProductImages);
       currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,freshImages.length-1));
       renderProductGallery();
 
@@ -4675,7 +4730,7 @@ load();
     <button class="image-viewer-close" type="button" onclick="closeFullscreenViewer(event)">×</button>
     <div id="imageViewerCount" class="image-viewer-count"></div>
     <button class="image-viewer-nav prev" type="button" onclick="stepProductImage(-1,true);event.stopPropagation();" aria-label="Previous image">›</button>
-    <img id="imageViewerImg" alt="">
+    <img id="imageViewerImg" alt="" loading="eager" decoding="async" fetchpriority="high">
     <button class="image-viewer-nav next" type="button" onclick="stepProductImage(1,true);event.stopPropagation();" aria-label="Next image">‹</button>
     <div class="image-viewer-hint">اسحبي الصورة يمينًا أو يسارًا</div>
   </div>
