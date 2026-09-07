@@ -872,6 +872,72 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-order-products-visible">
+.order-products{
+  display:grid;
+  gap:9px;
+  margin:12px 0;
+}
+.order-product-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fffafa;
+}
+.order-product-image{
+  width:62px;
+  height:76px;
+  flex:0 0 62px;
+  object-fit:cover;
+  border-radius:9px;
+  background:#f3eff0;
+  border:1px solid var(--line);
+}
+.order-product-noimage{
+  width:62px;
+  height:76px;
+  flex:0 0 62px;
+  border-radius:9px;
+  background:#f3eff0;
+  display:grid;
+  place-items:center;
+  color:#999;
+  font-size:11px;
+}
+.order-product-info{
+  min-width:0;
+  flex:1;
+}
+.order-product-name{
+  font-weight:800;
+  line-height:1.5;
+}
+.order-product-code{
+  margin-top:3px;
+  font-size:12px;
+  color:var(--muted);
+}
+.order-product-qty{
+  flex:0 0 auto;
+  min-width:54px;
+  text-align:center;
+  padding:7px 9px;
+  border-radius:999px;
+  background:#111;
+  color:#fff;
+  font-weight:800;
+  font-size:13px;
+}
+.order-products-title{
+  font-weight:800;
+  margin:12px 0 7px;
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2926,6 +2992,35 @@ $('checkoutForm').onsubmit=e=>{
 };
 $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
+
+function orderItemImage(item){
+  if(item?.imageUrl)return String(item.imageUrl);
+  const p=(Array.isArray(products)?products:[]).find(x=>String(x.id||'')===String(item?.id||''));
+  const imgs=Array.isArray(p?.images)?p.images.filter(Boolean):[];
+  const idx=Math.max(0,Number(item?.imageIndex)||0);
+  return String(imgs[idx]||imgs[0]||'');
+}
+function renderOrderItemsHtml(order){
+  const items=Array.isArray(order?.items)?order.items:[];
+  if(!items.length)return '<div class="customer-edit-note">لا توجد تفاصيل منتجات محفوظة لهذا الطلب القديم.</div>';
+  return `<div class="order-products">${items.map(item=>{
+    const image=orderItemImage(item);
+    const name=item?.name||item?.nameAr||item?.code||'منتج';
+    const code=item?.code||'';
+    const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
+    return `<div class="order-product-row">
+      ${image
+        ? `<img class="order-product-image" src="${esc(image)}" alt="">`
+        : `<div class="order-product-noimage">بدون صورة</div>`}
+      <div class="order-product-info">
+        <div class="order-product-name">${esc(name)}</div>
+        ${code?`<div class="order-product-code">كود المنتج: ${esc(code)}</div>`:''}
+      </div>
+      <div class="order-product-qty">العدد: ${qty}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 function renderOrders(){
   if(!$('ordersList'))return;
@@ -2945,7 +3040,8 @@ function renderOrders(){
         ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
       </select></div>
       <p><b>${esc(o.customer?.name||'')}</b> · ${esc(o.customer?.phone||'')}<br>${esc(o.customer?.city||'')} — ${esc(o.customer?.location||'')}</p>
-      <p>${(o.items||[]).map(i=>`${esc(i.name)} × ${i.qty}`).join('<br>')}</p>
+      <div class="order-products-title">المنتجات المطلوبة</div>
+      ${renderOrderItemsHtml(o)}
       ${o.notes?`<p><small>ملاحظات: ${esc(o.notes)}</small></p>`:''}
       <div class="price">${money(o.total)}</div>
       <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
@@ -3591,6 +3687,9 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
       ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
       ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
     </div>
+    <div class="order-products-title">المنتجات المطلوبة</div>
+    ${renderOrderItemsHtml(o)}
+    <div class="price" style="margin-top:8px">${money(o.total||0)}</div>
     ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button>`:''}
     ${o.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
@@ -4303,7 +4402,14 @@ function renderProfileOrders(){
   }
 
   $('profileOrders').innerHTML=list.length
-    ?list.map(o=>`<div class="order-card"><b>${o.id}</b><p>${statusText(o.status)}</p>${o._customerEdited?'<span class="customer-edit-badge">✎ تم التعديل</span>':''}<div class="price">${money(o.total)}</div></div>`).join('')
+    ?list.map(o=>`<div class="order-card">
+      <b>${esc(o.id||'')}</b>
+      <p>${statusText(o.status)}</p>
+      ${o._customerEdited?'<span class="customer-edit-badge">✎ تم التعديل</span>':''}
+      <div class="order-products-title">المنتجات المطلوبة</div>
+      ${renderOrderItemsHtml(o)}
+      <div class="price">${money(o.total||0)}</div>
+    </div>`).join('')
     :'<div class="empty">لا توجد طلبات مرتبطة بهذا الحساب بعد</div>';
 }
 function newsletterEmailKey(email){
