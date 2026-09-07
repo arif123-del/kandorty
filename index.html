@@ -2392,7 +2392,8 @@ function notifyAdminCustomerOrderEdit(beforeRaw,afterRaw){
       'رقم الطلب: ' + (order.id||'-') + '\\n' +
       'العميل: ' + (customer.name||'-') + '\\n' +
       'الهاتف: ' + (customer.phone||'-') + '\\n' +
-      'التعديل: ' + changes.join('، ') + '\\n' +
+      'التعديل: ' + changes.join('، ') + '\\n\\n' +
+      'المنتجات الحالية:\\n' + orderItemsText(order) + '\\n\\n' +
       'المجموع الجديد: ' + money(order.total||0)
     );
   }catch(error){
@@ -2457,16 +2458,14 @@ function startAdminOrdersListener(){
 
         const order=unseen[0];
         const customer=order.customer||{};
-        const firstItem=(order.items||[])[0]||{};
-        const productName=firstItem.name||firstItem.code||'منتج';
 
         alert(
           '🔔 طلب جديد!\n\n' +
+          'رقم الطلب: ' + (order.id||'-') + '\n' +
           'العميل: ' + (customer.name||'-') + '\n' +
-          'الهاتف: ' + (customer.phone||'-') + '\n' +
-          'المنتج: ' + productName + '\n' +
-          'المجموع: ' + money(order.total||0) + '\n' +
-          'رقم الطلب: ' + (order.id||'-')
+          'الهاتف: ' + (customer.phone||'-') + '\n\n' +
+          'المنتجات المطلوبة:\n' + orderItemsText(order) + '\n\n' +
+          'المجموع: ' + money(order.total||0)
         );
       }
 
@@ -3019,6 +3018,17 @@ function renderOrderItemsHtml(order){
       <div class="order-product-qty">العدد: ${qty}</div>
     </div>`;
   }).join('')}</div>`;
+}
+
+
+function orderItemsText(order){
+  const items=Array.isArray(order?.items)?order.items:[];
+  if(!items.length)return 'لا توجد تفاصيل منتجات محفوظة';
+  return items.map(item=>{
+    const name=item?.name||item?.nameAr||item?.code||'منتج';
+    const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
+    return '• '+name+' × '+qty;
+  }).join('\n');
 }
 
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
