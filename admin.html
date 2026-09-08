@@ -539,6 +539,106 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-order-large-view">
+/* Larger, easier-to-read customer order cards */
+.order-card{
+  padding:20px !important;
+  border-radius:18px !important;
+  font-size:17px !important;
+  line-height:1.7 !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.06) !important;
+  margin-bottom:16px !important;
+}
+.order-head{
+  gap:14px !important;
+  margin-bottom:14px !important;
+}
+.order-head b{
+  font-size:20px !important;
+}
+.order-head small{
+  font-size:14px !important;
+}
+.status-select{
+  padding:11px 12px !important;
+  font-size:15px !important;
+  min-height:44px !important;
+}
+.order-customer-details{
+  gap:9px !important;
+  padding:15px 16px !important;
+  margin:14px 0 16px !important;
+  border-radius:14px !important;
+  font-size:16px !important;
+}
+.order-customer-details div{
+  line-height:1.8 !important;
+}
+.order-customer-details b{
+  font-size:16px !important;
+}
+.order-products-title{
+  font-size:18px !important;
+  margin:16px 0 10px !important;
+}
+.order-products{
+  gap:12px !important;
+  margin:14px 0 !important;
+}
+.order-product-row{
+  gap:13px !important;
+  padding:12px !important;
+  border-radius:14px !important;
+}
+.order-product-image,
+.order-product-noimage{
+  width:82px !important;
+  height:100px !important;
+  flex-basis:82px !important;
+  border-radius:11px !important;
+}
+.order-product-name{
+  font-size:17px !important;
+  line-height:1.6 !important;
+}
+.order-product-code{
+  font-size:14px !important;
+  margin-top:5px !important;
+}
+.order-product-qty{
+  min-width:70px !important;
+  padding:9px 11px !important;
+  font-size:15px !important;
+}
+.order-card .price{
+  font-size:22px !important;
+  margin-top:10px !important;
+}
+.order-card > small{
+  font-size:14px !important;
+}
+@media(max-width:600px){
+  .order-card{
+    padding:17px !important;
+    font-size:16px !important;
+  }
+  .order-head{
+    align-items:flex-start !important;
+  }
+  .order-product-image,
+  .order-product-noimage{
+    width:76px !important;
+    height:94px !important;
+    flex-basis:76px !important;
+  }
+  .order-product-qty{
+    min-width:64px !important;
+    font-size:14px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
