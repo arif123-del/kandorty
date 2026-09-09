@@ -959,102 +959,66 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </style>
 
 
-<style id="kandorty-order-large-view">
-/* Larger, easier-to-read customer order cards */
-.order-card{
-  padding:20px !important;
-  border-radius:18px !important;
-  font-size:17px !important;
-  line-height:1.7 !important;
-  box-shadow:0 8px 24px rgba(0,0,0,.06) !important;
-  margin-bottom:16px !important;
+<style id="kandorty-product-view-final">
+/* Clean product view */
+.product-gallery-swipe-hint{
+  display:none !important;
 }
-.order-head{
-  gap:14px !important;
-  margin-bottom:14px !important;
+#modalSelectedVariant{
+  display:none !important;
 }
-.order-head b{
-  font-size:20px !important;
-}
-.order-head small{
-  font-size:14px !important;
-}
-.status-select{
-  padding:11px 12px !important;
-  font-size:15px !important;
-  min-height:44px !important;
-}
-.order-customer-details{
-  gap:9px !important;
-  padding:15px 16px !important;
-  margin:14px 0 16px !important;
-  border-radius:14px !important;
-  font-size:16px !important;
-}
-.order-customer-details div{
-  line-height:1.8 !important;
-}
-.order-customer-details b{
-  font-size:16px !important;
-}
-.order-products-title{
-  font-size:18px !important;
-  margin:16px 0 10px !important;
-}
-.order-products{
-  gap:12px !important;
-  margin:14px 0 !important;
-}
-.order-product-row{
-  gap:13px !important;
-  padding:12px !important;
-  border-radius:14px !important;
-}
-.order-product-image,
-.order-product-noimage{
-  width:82px !important;
-  height:100px !important;
-  flex-basis:82px !important;
-  border-radius:11px !important;
-}
-.order-product-name{
-  font-size:17px !important;
-  line-height:1.6 !important;
-}
-.order-product-code{
-  font-size:14px !important;
-  margin-top:5px !important;
-}
-.order-product-qty{
-  min-width:70px !important;
-  padding:9px 11px !important;
-  font-size:15px !important;
-}
-.order-card .price{
-  font-size:22px !important;
-  margin-top:10px !important;
-}
-.order-card > small{
-  font-size:14px !important;
+
+/* Make the product image taller/larger downward */
+.product-gallery-mainimg{
+  aspect-ratio:2/3 !important;
+  width:100% !important;
+  height:auto !important;
+  object-fit:cover !important;
 }
 @media(max-width:600px){
-  .order-card{
-    padding:17px !important;
-    font-size:16px !important;
+  #productModal .modal-card{
+    padding:12px !important;
   }
-  .order-head{
-    align-items:flex-start !important;
+  .product-gallery-mainwrap{
+    margin:6px 0 10px !important;
   }
-  .order-product-image,
-  .order-product-noimage{
-    width:76px !important;
-    height:94px !important;
-    flex-basis:76px !important;
+  .product-gallery-mainimg{
+    aspect-ratio:2/3 !important;
+    border-radius:16px !important;
   }
-  .order-product-qty{
-    min-width:64px !important;
-    font-size:14px !important;
-  }
+}
+
+/* UAE dirham logo used instead of د.إ in visible price blocks */
+.aed-price{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  direction:ltr;
+  white-space:nowrap;
+}
+.aed-logo{
+  position:relative;
+  display:inline-block;
+  width:.82em;
+  height:.86em;
+  border:2px solid currentColor;
+  border-left:0;
+  border-radius:0 .48em .48em 0;
+  vertical-align:-.06em;
+}
+.aed-logo::before,
+.aed-logo::after{
+  content:"";
+  position:absolute;
+  left:-.23em;
+  right:-.20em;
+  height:2px;
+  background:currentColor;
+}
+.aed-logo::before{top:34%}
+.aed-logo::after{top:58%}
+.price .aed-logo{
+  color:#111;
 }
 </style>
 
@@ -1126,7 +1090,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
-  <div class="product-gallery-swipe-hint">اسحبي الصورة يمينًا أو يسارًا — اضغطي لعرضها بملء الشاشة</div>
+  <div class="product-gallery-swipe-hint"></div>
 </div>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
@@ -1637,6 +1601,11 @@ function getProductCategoryKey(p){
 
 const searchEl=$('search');if(searchEl)searchEl.oninput=render;const clearBtn=$('clearBtn');if(clearBtn)clearBtn.onclick=()=>{searchEl.value='';render()}
 function money(v){return (Number(v)||0).toFixed(2)+' '+(lang==='ar'?'د.إ':'AED')}
+function moneyHtml(v){
+  const amount=(Number(v)||0).toFixed(2);
+  if(lang!=='ar')return amount+' AED';
+  return '<span class="aed-price"><span class="aed-logo" aria-label="درهم إماراتي"></span><span>'+amount+'</span></span>';
+}
 function hasManagedStock(p){return p && p.stock!=='' && p.stock!==null && p.stock!==undefined && Number.isFinite(Number(p.stock));}
 function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Number(p.stock))):null;}
 function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
@@ -1647,7 +1616,7 @@ function renderProductCard(p){
   const imageHtml=p.images?.[0]
     ? `<img src="${p.images[0]}" alt="" loading="eager" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
-  const priceHtml=`<div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>`;
+  const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
   const stockHtml=stockLabel(p)?`<div class="stock-note">${stockLabel(p)}</div>`:'';
   const variantCount=Array.isArray(p.images)?p.images.filter(Boolean).length:0;
@@ -1836,7 +1805,7 @@ function openProduct(id){
   currentProductId=id;
   $('modalName').textContent=p.nameAr||'';
   $('modalCode').textContent=p.code||'';
-  $('modalPrice').textContent=money(p.salePrice||p.price);
+  $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
@@ -1870,7 +1839,7 @@ function openProduct(id){
 
       $('modalName').textContent=fresh.nameAr||'';
       $('modalCode').textContent=fresh.code||'';
-      $('modalPrice').textContent=money(fresh.salePrice||fresh.price);
+      $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
       preloadProductImages(currentProductImages);
       currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,freshImages.length-1));
@@ -2938,12 +2907,12 @@ function renderCart(){
       : '';
     return `<div class="cart-row">
       ${chosenImage?`<img src="${chosenImage}">`:'<div style="width:64px;height:78px;background:#eee;border-radius:9px"></div>'}
-      <div><b>${esc(p.nameAr)}</b><div class="code">${esc(p.code)}</div>${variantText}<div class="price">${money(p.salePrice||p.price)}</div></div>
+      <div><b>${esc(p.nameAr)}</b><div class="code">${esc(p.code)}</div>${variantText}<div class="price">${moneyHtml(p.salePrice||p.price)}</div></div>
       <div class="qty"><button onclick="changeCartQty(${cartIndex},-1)">−</button><span>${item.qty}</span><button onclick="changeCartQty(${cartIndex},1)">+</button><button onclick="removeCartItem(${cartIndex})">×</button></div>
     </div>`;
   }).join(''):'<div class="empty">السلة فارغة</div>';
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0)),0);
-  $('cartTotal').textContent=money(total);
+  $('cartTotal').innerHTML=moneyHtml(total);
   $('checkoutOpenBtn').disabled=!rows.length;
 }
 function changeCartQty(cartIndex,d){
@@ -3872,7 +3841,7 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
     ${shown.customer?.phone?renderOrderCustomerHtml(shown):''}
     <div class="order-products-title">المنتجات المطلوبة</div>
     ${renderOrderItemsHtml(shown)}
-    <div class="price" style="margin-top:8px">${money(shown.total||0)}</div>
+    <div class="price" style="margin-top:8px">${moneyHtml(shown.total||0)}</div>
     ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button>`:''}
     ${shown.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
@@ -4003,7 +3972,7 @@ function renderCustomerOrderEditItems(){
     </div>`;
   }).join('');
 
-  $('customerEditTotal').textContent=money(customerEditComputedTotal());
+  $('customerEditTotal').innerHTML=moneyHtml(customerEditComputedTotal());
 }
 
 function changeCustomerEditQty(itemId,delta){
@@ -4219,7 +4188,7 @@ function renderWishlist(){
   $('wishlistItems').innerHTML=list.length?list.map(p=>`<article class="card">
   ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
   <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
-  <div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>
+  <div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>
   <div class="card-actions"><button class="btn primary" onclick="addToCart('${p.id}')">أضيفي للسلة</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">حذف</button></div>
   </div></article>`).join(''):'<div class="empty">لا توجد منتجات في المفضلة</div>';
 }
@@ -4603,7 +4572,7 @@ function renderProfileOrders(){
       ${o._customerEdited?'<span class="customer-edit-badge">✎ تم التعديل</span>':''}
       <div class="order-products-title">المنتجات المطلوبة</div>
       ${renderOrderItemsHtml(o)}
-      <div class="price">${money(o.total||0)}</div>
+      <div class="price">${moneyHtml(o.total||0)}</div>
     </div>`).join('')
     :'<div class="empty">لا توجد طلبات مرتبطة بهذا الحساب بعد</div>';
 }
