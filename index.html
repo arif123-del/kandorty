@@ -1022,6 +1022,25 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-dirham-text-fix">
+.aed-logo{display:none !important}
+.aed-price{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  direction:ltr !important;
+  white-space:nowrap !important;
+}
+.currency-text{
+  font-family:Arial,Tahoma,sans-serif !important;
+  font-size:.72em !important;
+  font-weight:800 !important;
+  color:inherit !important;
+  direction:rtl !important;
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1604,7 +1623,7 @@ function money(v){return (Number(v)||0).toFixed(2)+' '+(lang==='ar'?'د.إ':'AED
 function moneyHtml(v){
   const amount=(Number(v)||0).toFixed(2);
   if(lang!=='ar')return amount+' AED';
-  return '<span class="aed-price"><span class="aed-logo" aria-label="درهم إماراتي"></span><span>'+amount+'</span></span>';
+  return '<span class="aed-price"><span>'+amount+'</span><span class="currency-text">د.إ</span></span>';
 }
 function hasManagedStock(p){return p && p.stock!=='' && p.stock!==null && p.stock!==undefined && Number.isFinite(Number(p.stock));}
 function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Number(p.stock))):null;}
