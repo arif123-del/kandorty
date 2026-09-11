@@ -1203,6 +1203,32 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-details-under-image">
+#modalProductDetails.product-details-box{
+  display:block;
+  margin:8px 0 10px !important;
+  padding:12px 14px !important;
+  border:1px solid var(--line) !important;
+  border-radius:12px !important;
+  background:#fff8fa !important;
+  color:#2b2426 !important;
+  font-size:15px !important;
+  line-height:1.8 !important;
+  text-align:right !important;
+}
+#modalProductDetails.product-details-box:empty{
+  display:none !important;
+}
+@media(max-width:700px){
+  #modalProductDetails.product-details-box{
+    margin:8px 0 10px !important;
+    padding:11px 12px !important;
+    font-size:14px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1273,9 +1299,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
   <div class="product-gallery-swipe-hint"></div>
 </div>
+<div id="modalProductDetails" class="product-details-box"></div>
 <p id="modalCode"></p>
 <div id="modalPrice" class="price"></div>
-<div id="modalProductDetails" class="product-details-box"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي للسلة</button>
 </div></div>
