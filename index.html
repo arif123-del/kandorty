@@ -1132,6 +1132,128 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-cart-final-css">
+/* Final mobile cart layout */
+#cartModal .modal-card{
+  overflow-x:hidden;
+}
+.cart-row-final{
+  display:grid !important;
+  grid-template-columns:82px minmax(0,1fr) auto !important;
+  align-items:center !important;
+  gap:10px !important;
+  padding:12px 0 !important;
+  border-bottom:1px solid var(--line) !important;
+}
+.cart-product-image{
+  width:82px !important;
+  height:104px !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  border-radius:12px !important;
+  background:#f3eef0 !important;
+  display:block !important;
+}
+.cart-image-placeholder{
+  border:1px solid var(--line);
+}
+.cart-product-info{
+  min-width:0;
+  text-align:right;
+}
+.cart-product-name{
+  display:block;
+  font-size:15px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.cart-unit-price{
+  margin-top:5px !important;
+  font-size:17px !important;
+}
+.cart-qty-controls{
+  display:grid !important;
+  grid-template-columns:34px 32px 34px !important;
+  gap:5px !important;
+  align-items:center !important;
+  justify-items:center !important;
+}
+.cart-qty-controls button{
+  width:34px !important;
+  height:34px !important;
+  min-width:34px !important;
+  padding:0 !important;
+  border-radius:9px !important;
+  border:1px solid var(--line) !important;
+  background:#fff !important;
+  color:#222 !important;
+  font-size:20px !important;
+  line-height:1 !important;
+}
+.cart-qty-number{
+  min-width:30px;
+  text-align:center;
+  font-weight:800;
+  font-size:15px;
+}
+.cart-remove-btn{
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  height:30px !important;
+  min-width:0 !important;
+  color:#a40019 !important;
+  background:#fff7f8 !important;
+  border-color:#ecd5d9 !important;
+  font-size:18px !important;
+}
+#cartModal .cart-total{
+  position:sticky;
+  bottom:0;
+  z-index:5;
+  background:#fff;
+}
+#cartTotal{
+  white-space:nowrap;
+}
+
+@media(max-width:520px){
+  #cartModal{
+    padding:8px !important;
+  }
+  #cartModal .modal-card{
+    width:100% !important;
+    max-height:96vh !important;
+    padding:14px 12px !important;
+    border-radius:18px !important;
+  }
+  .cart-row-final{
+    grid-template-columns:76px minmax(0,1fr) 38px !important;
+    gap:8px !important;
+  }
+  .cart-product-image{
+    width:76px !important;
+    height:98px !important;
+  }
+  .cart-qty-controls{
+    grid-template-columns:36px !important;
+    gap:4px !important;
+  }
+  .cart-qty-controls button{
+    width:36px !important;
+    height:32px !important;
+    min-width:36px !important;
+  }
+  .cart-qty-number{
+    min-width:36px !important;
+  }
+  .cart-remove-btn{
+    grid-column:auto !important;
+    width:36px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -3034,13 +3156,21 @@ function renderCart(){
   $('cartItems').innerHTML=rows.length?rows.map(({item,product:p,cartIndex})=>{
     const idx=cartVariantIndex(item);
     const chosenImage=item.imageUrl||p.images?.[idx]||p.images?.[0]||'';
-    const variantText=(Array.isArray(p.images)&&p.images.filter(Boolean).length>1)
-      ? `<div style="font-size:12px;color:#777;margin-top:3px">${lang==='ar'?'اللون المختار: ':'Selected color: '}${idx+1}</div>`
-      : '';
-    return `<div class="cart-row">
-      ${chosenImage?`<img src="${chosenImage}">`:'<div style="width:64px;height:78px;background:#eee;border-radius:9px"></div>'}
-      <div><b>${esc(p.nameAr)}</b><div class="code">${esc(p.code)}</div>${variantText}<div class="price">${moneyHtml(p.salePrice||p.price)}</div></div>
-      <div class="qty"><button onclick="changeCartQty(${cartIndex},-1)">−</button><span>${item.qty}</span><button onclick="changeCartQty(${cartIndex},1)">+</button><button onclick="removeCartItem(${cartIndex})">×</button></div>
+    const variantText='';
+    return `<div class="cart-row cart-row-final">
+      ${chosenImage?`<img class="cart-product-image" src="${chosenImage}" alt="${esc(p.nameAr||'')}">`:'<div class="cart-product-image cart-image-placeholder"></div>'}
+      <div class="cart-product-info">
+        <b class="cart-product-name">${esc(p.nameAr)}</b>
+        <div class="code">${esc(p.code)}</div>
+        ${variantText}
+        <div class="price cart-unit-price">${moneyHtml(p.salePrice||p.price)}</div>
+      </div>
+      <div class="qty cart-qty-controls">
+        <button type="button" aria-label="تقليل الكمية" onclick="changeCartQty(${cartIndex},-1)">−</button>
+        <span class="cart-qty-number">${item.qty}</span>
+        <button type="button" aria-label="زيادة الكمية" onclick="changeCartQty(${cartIndex},1)">+</button>
+        <button type="button" class="cart-remove-btn" aria-label="حذف المنتج" onclick="removeCartItem(${cartIndex})">×</button>
+      </div>
     </div>`;
   }).join(''):'<div class="empty">السلة فارغة</div>';
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0)),0);
@@ -3081,6 +3211,18 @@ function closeCheckout(){$('checkoutModal').classList.add('hidden')}
 $('cartBtn').onclick=()=>{renderCart();$('cartModal').classList.remove('hidden')}
 $('checkoutOpenBtn').onclick=()=>{
   if(!cart.length)return;
+
+  // Re-check local stock before moving to checkout.
+  for(const row of cartData()){
+    const stock=getProductStock(row.product);
+    const requested=productQtyInCart(row.product.id);
+    if(stock!==null && requested>stock){
+      alert((lang==='ar'?'الكمية المتاحة فقط للمنتج '+(row.product.nameAr||row.product.code||'')+': ':'Only available quantity: ')+stock);
+      renderCart();
+      return;
+    }
+  }
+
   checkoutMessage('');
   $('customerName').value=customerProfile.name||'';
   $('customerPhone').value=(customerAuthUser?.phoneNumber||customerProfile.phone||'');
@@ -3173,6 +3315,29 @@ async function submitCheckoutOrder(){
     saveCustomerProfileToCloud().catch(error=>console.warn('Cloud profile save skipped:',error));
   }
 
+  // Card payment: create a Stripe-hosted Checkout Session first.
+  if(order.payment==='card'){
+    try{
+      checkoutMessage('جارٍ الانتقال إلى صفحة الدفع الآمنة...');
+      localStorage.setItem(STRIPE_PENDING_ORDER_KEY,JSON.stringify(order));
+      const stripeSession=await beginStripeCheckout(order);
+      window.location.assign(stripeSession.url);
+      return;
+    }catch(error){
+      console.error('Stripe Checkout start failed:',error);
+      localStorage.removeItem(STRIPE_PENDING_ORDER_KEY);
+      checkoutMessage('تعذر فتح الدفع بالبطاقة. حاولي مرة أخرى.',true);
+      alert('تعذر فتح Stripe Checkout.\n\n'+(error?.message||''));
+    }finally{
+      checkoutSubmitting=false;
+      if(confirmBtn){
+        confirmBtn.disabled=false;
+        confirmBtn.textContent='تأكيد الطلب';
+      }
+    }
+    return;
+  }
+
   try{
     checkoutMessage('جارٍ تسجيل الطلب...');
     const submitResult=await submitCustomerOrder(order);
@@ -3217,6 +3382,178 @@ $('checkoutForm').onsubmit=e=>{
 $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
 
+
+
+// ===== Kandorty Stripe Checkout =====
+// After Netlify deploy, replace the placeholder below with your Netlify site URL,
+// for example: https://kandorty-payments.netlify.app
+const KANDORTY_STRIPE_BACKEND =
+  localStorage.getItem('kandorty_stripe_backend') ||
+  'https://frolicking-faun-df2c09.netlify.app';
+
+const STRIPE_PENDING_ORDER_KEY='kandorty_stripe_pending_order_v1';
+
+function stripeBackendReady(){
+  return /^https:\/\/[a-z0-9-]+\.netlify\.app$/i.test(KANDORTY_STRIPE_BACKEND)
+    && !KANDORTY_STRIPE_BACKEND.includes('REPLACE-WITH');
+}
+
+function stripeFunctionUrl(name){
+  return KANDORTY_STRIPE_BACKEND.replace(/\/+$/,'')+'/.netlify/functions/'+name;
+}
+
+function canonicalCartItemsForStripe(order){
+  return (Array.isArray(order?.items)?order.items:[]).map(item=>({
+    id:String(item.id||''),
+    qty:Math.max(1,Math.floor(Number(item.qty)||1)),
+    imageIndex:Math.max(0,Math.floor(Number(item.imageIndex)||0))
+  }));
+}
+
+function canonicalPaidItems(items){
+  return (Array.isArray(items)?items:[]).map(item=>({
+    id:String(item.id||''),
+    qty:Math.max(1,Math.floor(Number(item.qty)||1)),
+    imageIndex:Math.max(0,Math.floor(Number(item.imageIndex)||0))
+  })).sort((a,b)=>a.id.localeCompare(b.id)||a.imageIndex-b.imageIndex||a.qty-b.qty);
+}
+
+function sameStripeItems(a,b){
+  return JSON.stringify(canonicalPaidItems(a))===JSON.stringify(canonicalPaidItems(b));
+}
+
+async function beginStripeCheckout(order){
+  if(!stripeBackendReady()){
+    throw new Error('Stripe backend URL has not been configured yet.');
+  }
+
+  const response=await fetch(stripeFunctionUrl('create-checkout-session'),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      orderId:order.id,
+      items:canonicalCartItemsForStripe(order)
+    })
+  });
+
+  let data={};
+  try{ data=await response.json(); }catch(_){}
+  if(!response.ok || !data.url){
+    throw new Error(data.error||'Unable to create Stripe Checkout.');
+  }
+  return data;
+}
+
+async function verifyStripeCheckoutSession(sessionId){
+  if(!stripeBackendReady())throw new Error('Stripe backend URL has not been configured yet.');
+  const response=await fetch(
+    stripeFunctionUrl('verify-checkout-session')+'?session_id='+encodeURIComponent(sessionId),
+    {method:'GET'}
+  );
+  let data={};
+  try{ data=await response.json(); }catch(_){}
+  if(!response.ok)throw new Error(data.error||'Unable to verify Stripe payment.');
+  return data;
+}
+
+async function finalizePaidStripeOrder(order,sessionId){
+  const paidOrder={
+    ...order,
+    payment:'card',
+    paymentStatus:'paid',
+    stripeSessionId:sessionId,
+    paidAt:new Date().toISOString(),
+    status:'new'
+  };
+
+  try{
+    await submitCustomerOrder(paidOrder);
+  }catch(error){
+    // If payment succeeded but stock changed before we returned from Stripe,
+    // keep the paid order visible for manual admin review instead of losing it.
+    if(error?.code==='stock/insufficient'){
+      const reviewOrder={
+        ...paidOrder,
+        status:'paid_stock_review',
+        stockReviewRequired:true
+      };
+      await db.collection('orders').doc(reviewOrder.id).set(reviewOrder);
+      try{
+        await db.collection('tracking').doc(reviewOrder.id).set({
+          id:reviewOrder.id,
+          status:reviewOrder.status,
+          createdAt:reviewOrder.createdAt||''
+        });
+      }catch(_){}
+      orders=[reviewOrder,...orders.filter(o=>o.id!==reviewOrder.id)];
+      localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+      renderProfileOrders();
+      return {review:true,order:reviewOrder};
+    }
+    throw error;
+  }
+  return {review:false,order:paidOrder};
+}
+
+async function handleStripeReturn(){
+  const params=new URLSearchParams(location.search);
+  const stripeState=params.get('stripe');
+  if(!stripeState)return;
+
+  if(stripeState==='cancel'){
+    localStorage.removeItem(STRIPE_PENDING_ORDER_KEY);
+    history.replaceState({},'',location.pathname+location.hash);
+    setTimeout(()=>alert('تم إلغاء الدفع. السلة ما زالت محفوظة ويمكنك المحاولة مرة أخرى.'),100);
+    return;
+  }
+
+  if(stripeState!=='success')return;
+  const sessionId=params.get('session_id')||'';
+
+  try{
+    if(!sessionId)throw new Error('Missing Stripe session ID.');
+    const pendingRaw=localStorage.getItem(STRIPE_PENDING_ORDER_KEY);
+    if(!pendingRaw)throw new Error('Pending order was not found on this device.');
+    const pending=JSON.parse(pendingRaw);
+
+    const verified=await verifyStripeCheckoutSession(sessionId);
+    if(verified.payment_status!=='paid'){
+      throw new Error('Stripe has not marked this payment as paid.');
+    }
+    if(String(verified.orderId||'')!==String(pending.id||'')){
+      throw new Error('Order reference does not match.');
+    }
+    if(!sameStripeItems(verified.items,canonicalCartItemsForStripe(pending))){
+      throw new Error('Paid cart does not match the pending order.');
+    }
+
+    const result=await finalizePaidStripeOrder(pending,sessionId);
+
+    customerProfile={
+      name:pending.customer?.name||'',
+      phone:pending.customer?.phone||'',
+      location:pending.customer?.location||''
+    };
+    saveCustomerProfile();
+
+    localStorage.setItem('kandorty_last_order_id',pending.id);
+    localStorage.removeItem(STRIPE_PENDING_ORDER_KEY);
+    cart=[];
+    saveCart();
+    history.replaceState({},'',location.pathname+location.hash);
+
+    if(result.review){
+      alert('✅ تم استلام الدفع والطلب.\nرقم الطلب: '+pending.id+
+            '\n\nملاحظة: تغيّرت كمية المخزون أثناء الدفع، لذلك سيحتاج الطلب إلى مراجعة من الإدارة.');
+    }else{
+      alert('✅ تم الدفع وتسجيل الطلب بنجاح.\n\nرقم الطلب: '+pending.id);
+    }
+  }catch(error){
+    console.error('Stripe return finalization failed:',error);
+    alert('تمت العودة من Stripe، لكن تعذر تأكيد الطلب تلقائياً.\n\nلا تعيدي الدفع الآن. احتفظي برسالة الدفع وتواصلي مع المتجر.\n\n'+(error?.message||''));
+  }
+}
+// ===== end Kandorty Stripe Checkout =====
 
 function normalizeOrderShape(raw){
   const o=raw||{};
@@ -5225,6 +5562,7 @@ loadSettings();
 loadCategoryCards();
 loadCommerce();
 load();
+window.addEventListener('load',()=>setTimeout(handleStripeReturn,500));
 </script>
 
 <div id="imageViewerModal" class="hidden" onclick="closeFullscreenViewer(event)">
