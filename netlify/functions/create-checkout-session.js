@@ -104,7 +104,7 @@ exports.handler = async function(event) {
     const siteUrl = String(process.env.KANDORTY_SITE_URL || 'https://kandorty.online').replace(/\/+$/, '');
 
     params.set('mode', 'payment');
-    params.set('ui_mode', 'hosted');
+    params.set('ui_mode', 'hosted_page');
     params.set('success_url', `${siteUrl}/?stripe=success&session_id={CHECKOUT_SESSION_ID}`);
     params.set('cancel_url', `${siteUrl}/?stripe=cancel`);
     params.set('client_reference_id', orderId);
