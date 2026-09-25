@@ -718,6 +718,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 .product-gallery-mainimg{
   cursor:zoom-in !important;
+  transition:opacity .16s ease, transform .16s ease !important;
+  will-change:opacity,transform;
+  -webkit-user-drag:none;
 }
 #modalThumbs{
   display:none !important;
@@ -781,12 +784,17 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   touch-action:pan-y;
 }
 #imageViewerImg{
-  max-width:100%;
-  max-height:100%;
+  max-width:100vw;
+  max-height:100vh;
+  width:auto;
+  height:auto;
   object-fit:contain;
-  border-radius:12px;
+  border-radius:0;
   user-select:none;
   -webkit-user-select:none;
+  -webkit-user-drag:none;
+  transition:opacity .14s ease, transform .14s ease;
+  will-change:opacity,transform;
 }
 .image-viewer-close{
   position:absolute;
@@ -803,6 +811,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   z-index:3;
 }
 .image-viewer-count{
+  display:none !important;
   position:absolute;
   top:max(14px, env(safe-area-inset-top));
   right:14px;
@@ -844,6 +853,404 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   font-size:12px;
   z-index:3;
   white-space:nowrap;
+}
+
+@media (max-width:700px){
+  #imageViewerModal{padding:0 !important;background:#000 !important}
+  .image-viewer-card{width:100vw !important;height:100vh !important}
+  .image-viewer-nav{display:none !important}
+  .image-viewer-hint{
+    bottom:max(12px, env(safe-area-inset-bottom)) !important;
+    font-size:11px !important;
+    opacity:.78 !important;
+  }
+  .image-viewer-close{
+    width:40px !important;
+    height:40px !important;
+    background:rgba(255,255,255,.88) !important;
+  }
+}
+</style>
+
+
+<style id="kandorty-order-products-visible">
+.order-products{
+  display:grid;
+  gap:9px;
+  margin:12px 0;
+}
+.order-product-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fffafa;
+}
+.order-product-image{
+  width:62px;
+  height:76px;
+  flex:0 0 62px;
+  object-fit:cover;
+  border-radius:9px;
+  background:#f3eff0;
+  border:1px solid var(--line);
+}
+.order-product-noimage{
+  width:62px;
+  height:76px;
+  flex:0 0 62px;
+  border-radius:9px;
+  background:#f3eff0;
+  display:grid;
+  place-items:center;
+  color:#999;
+  font-size:11px;
+}
+.order-product-info{
+  min-width:0;
+  flex:1;
+}
+.order-product-name{
+  font-weight:800;
+  line-height:1.5;
+}
+.order-product-code{
+  margin-top:3px;
+  font-size:12px;
+  color:var(--muted);
+}
+.order-product-qty{
+  flex:0 0 auto;
+  min-width:54px;
+  text-align:center;
+  padding:7px 9px;
+  border-radius:999px;
+  background:#111;
+  color:#fff;
+  font-weight:800;
+  font-size:13px;
+}
+.order-products-title{
+  font-weight:800;
+  margin:12px 0 7px;
+}
+</style>
+
+
+<style id="kandorty-order-customer-details">
+.order-customer-details{
+  display:grid;
+  gap:6px;
+  margin:10px 0 12px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+}
+.order-customer-details div{
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.order-customer-details b{
+  color:#111;
+}
+</style>
+
+
+<style id="kandorty-product-view-final">
+/* Clean product view */
+.product-gallery-swipe-hint{
+  display:none !important;
+}
+#modalSelectedVariant{
+  display:none !important;
+}
+
+/* Make the product image taller/larger downward */
+.product-gallery-mainimg{
+  aspect-ratio:2/3 !important;
+  width:100% !important;
+  height:auto !important;
+  object-fit:cover !important;
+}
+@media(max-width:600px){
+  #productModal .modal-card{
+    padding:12px !important;
+  }
+  .product-gallery-mainwrap{
+    margin:6px 0 10px !important;
+  }
+  .product-gallery-mainimg{
+    aspect-ratio:2/3 !important;
+    border-radius:16px !important;
+  }
+}
+
+/* UAE dirham logo used instead of د.إ in visible price blocks */
+.aed-price{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  direction:ltr;
+  white-space:nowrap;
+}
+.aed-logo{
+  position:relative;
+  display:inline-block;
+  width:.82em;
+  height:.86em;
+  border:2px solid currentColor;
+  border-left:0;
+  border-radius:0 .48em .48em 0;
+  vertical-align:-.06em;
+}
+.aed-logo::before,
+.aed-logo::after{
+  content:"";
+  position:absolute;
+  left:-.23em;
+  right:-.20em;
+  height:2px;
+  background:currentColor;
+}
+.aed-logo::before{top:34%}
+.aed-logo::after{top:58%}
+.price .aed-logo{
+  color:#111;
+}
+</style>
+
+
+<style id="kandorty-dirham-text-fix">
+.aed-logo{display:none !important}
+.aed-price{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  direction:ltr !important;
+  white-space:nowrap !important;
+}
+.currency-text{
+  font-family:Arial,Tahoma,sans-serif !important;
+  font-size:.72em !important;
+  font-weight:800 !important;
+  color:inherit !important;
+  direction:rtl !important;
+}
+</style>
+
+
+<style id="kandorty-product-click-safe-fix">
+.product-details-box{
+  margin:8px 0 10px;
+  padding:11px 13px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff8fa;
+  color:#2b2426;
+  font-size:14px;
+  line-height:1.8;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  text-align:right;
+}
+.product-details-box:empty{display:none !important}
+
+@media(max-width:700px){
+  #productModal{
+    padding:8px !important;
+  }
+  #productModal .modal-card{
+    width:100% !important;
+    max-width:700px !important;
+    max-height:96vh !important;
+    min-height:0 !important;
+    height:auto !important;
+    overflow-y:auto !important;
+    border-radius:18px !important;
+    padding:14px 12px 88px !important;
+  }
+
+  /* Lower the × slightly */
+  #productModal .modal-head{
+    position:relative !important;
+    top:auto !important;
+    padding-top:12px !important;
+  }
+  #productModal .modal-head .x{
+    margin-top:7px !important;
+  }
+
+  /* Large image with almost no side gaps, but without forcing a 100vh modal */
+  .product-gallery-mainwrap{
+    margin:6px -4px 8px !important;
+    width:calc(100% + 8px) !important;
+  }
+  .product-gallery-stage{
+    width:100% !important;
+    overflow:hidden !important;
+    border-radius:16px !important;
+  }
+  .product-gallery-mainimg{
+    width:100% !important;
+    height:auto !important;
+    aspect-ratio:2/3 !important;
+    object-fit:cover !important;
+    object-position:center !important;
+    border-radius:16px !important;
+    border:none !important;
+  }
+
+  /* Keep details and price visible above the cart button */
+  #modalProductDetails{
+    margin-top:8px !important;
+  }
+  #modalCode{
+    margin:4px 0 !important;
+  }
+  #modalPrice{
+    position:static !important;
+    margin:2px 0 8px !important;
+    padding:0 !important;
+    font-size:21px !important;
+  }
+
+  /* Use sticky instead of fixed so it doesn't cover price/details */
+  #modalAddSelectedBtn{
+    position:sticky !important;
+    left:auto !important;
+    right:auto !important;
+    bottom:0 !important;
+    width:100% !important;
+    max-width:none !important;
+    margin:8px 0 0 !important;
+    z-index:20 !important;
+    min-height:54px !important;
+  }
+}
+</style>
+
+
+<style id="kandorty-cart-final-css">
+/* Final mobile cart layout */
+#cartModal .modal-card{
+  overflow-x:hidden;
+}
+.cart-row-final{
+  display:grid !important;
+  grid-template-columns:82px minmax(0,1fr) auto !important;
+  align-items:center !important;
+  gap:10px !important;
+  padding:12px 0 !important;
+  border-bottom:1px solid var(--line) !important;
+}
+.cart-product-image{
+  width:82px !important;
+  height:104px !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  border-radius:12px !important;
+  background:#f3eef0 !important;
+  display:block !important;
+}
+.cart-image-placeholder{
+  border:1px solid var(--line);
+}
+.cart-product-info{
+  min-width:0;
+  text-align:right;
+}
+.cart-product-name{
+  display:block;
+  font-size:15px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.cart-unit-price{
+  margin-top:5px !important;
+  font-size:17px !important;
+}
+.cart-qty-controls{
+  display:grid !important;
+  grid-template-columns:34px 32px 34px !important;
+  gap:5px !important;
+  align-items:center !important;
+  justify-items:center !important;
+}
+.cart-qty-controls button{
+  width:34px !important;
+  height:34px !important;
+  min-width:34px !important;
+  padding:0 !important;
+  border-radius:9px !important;
+  border:1px solid var(--line) !important;
+  background:#fff !important;
+  color:#222 !important;
+  font-size:20px !important;
+  line-height:1 !important;
+}
+.cart-qty-number{
+  min-width:30px;
+  text-align:center;
+  font-weight:800;
+  font-size:15px;
+}
+.cart-remove-btn{
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  height:30px !important;
+  min-width:0 !important;
+  color:#a40019 !important;
+  background:#fff7f8 !important;
+  border-color:#ecd5d9 !important;
+  font-size:18px !important;
+}
+#cartModal .cart-total{
+  position:sticky;
+  bottom:0;
+  z-index:5;
+  background:#fff;
+}
+#cartTotal{
+  white-space:nowrap;
+}
+
+@media(max-width:520px){
+  #cartModal{
+    padding:8px !important;
+  }
+  #cartModal .modal-card{
+    width:100% !important;
+    max-height:96vh !important;
+    padding:14px 12px !important;
+    border-radius:18px !important;
+  }
+  .cart-row-final{
+    grid-template-columns:76px minmax(0,1fr) 38px !important;
+    gap:8px !important;
+  }
+  .cart-product-image{
+    width:76px !important;
+    height:98px !important;
+  }
+  .cart-qty-controls{
+    grid-template-columns:36px !important;
+    gap:4px !important;
+  }
+  .cart-qty-controls button{
+    width:36px !important;
+    height:32px !important;
+    min-width:36px !important;
+  }
+  .cart-qty-number{
+    min-width:36px !important;
+  }
+  .cart-remove-btn{
+    grid-column:auto !important;
+    width:36px !important;
+  }
 }
 </style>
 
@@ -911,13 +1318,15 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
-    <img id="modalMainImage" class="product-gallery-mainimg" alt="" onclick="openFullscreenProductImage()">
+    <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
-  <div class="product-gallery-swipe-hint">اسحبي الصورة يمينًا أو يسارًا — اضغطي لعرضها بملء الشاشة</div>
+  <div class="product-gallery-swipe-hint"></div>
 </div>
-<p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<div id="modalProductDetails" class="product-details-box"></div>
+<p id="modalCode"></p>
+<div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
@@ -1245,7 +1654,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="checkoutModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2>إتمام الطلب</h2><button class="x" onclick="closeCheckout()">×</button></div>
-<form id="checkoutForm" class="form-grid">
+<form id="checkoutForm" class="form-grid" novalidate>
 <input id="customerName" placeholder="الاسم" required>
 <input id="customerPhone" placeholder="رقم الهاتف" required>
 <select id="customerCity" required>
@@ -1259,7 +1668,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <option value="card">الدفع بالبطاقة</option>
 </select>
 <textarea id="orderNotes" class="full" rows="3" placeholder="ملاحظات الطلب (اختياري)"></textarea>
-<button class="btn primary full" type="submit">تأكيد الطلب</button><button class="btn ghost full" type="button" id="whatsappOrderBtn">إرسال الطلب عبر WhatsApp</button>
+<div id="checkoutStatus" class="full" style="min-height:22px;font-size:13px;font-weight:700"></div>
+<button id="confirmOrderBtn" class="btn primary full" type="button">تأكيد الطلب</button>
+<button class="btn ghost full" type="button" id="whatsappOrderBtn">إرسال الطلب عبر WhatsApp</button>
 </form>
 </div></div>
 
@@ -1303,7 +1714,7 @@ const authInitialStatePromise=new Promise(resolve=>{
 const ADMIN_EMAIL='aliyajan200011@gmail.com';
 </script>
 <script>
-const DB_KEY='kandorty_products_v1';
+const DB_KEY='kandorty_products_v2';
 let lang='ar', currentCat='all', pendingImages=[], pendingImageFiles=[], pendingImagePaths=[], products=[];
 const $=id=>document.getElementById(id);
 function makeFastProductCache(list){
@@ -1360,6 +1771,7 @@ function load(){
 
       render();
       renderAdminList();
+      preloadNearbyProductGalleries();
     },
     error=>{
       console.error('Firestore products read error:',error);
@@ -1423,6 +1835,11 @@ function getProductCategoryKey(p){
 
 const searchEl=$('search');if(searchEl)searchEl.oninput=render;const clearBtn=$('clearBtn');if(clearBtn)clearBtn.onclick=()=>{searchEl.value='';render()}
 function money(v){return (Number(v)||0).toFixed(2)+' '+(lang==='ar'?'د.إ':'AED')}
+function moneyHtml(v){
+  const amount=(Number(v)||0).toFixed(2);
+  if(lang!=='ar')return amount+' AED';
+  return '<span class="aed-price"><span>'+amount+'</span><span class="currency-text">د.إ</span></span>';
+}
 function hasManagedStock(p){return p && p.stock!=='' && p.stock!==null && p.stock!==undefined && Number.isFinite(Number(p.stock));}
 function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Number(p.stock))):null;}
 function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
@@ -1431,9 +1848,9 @@ function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')retu
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
-    ? `<img src="${p.images[0]}" alt="" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
+    ? `<img src="${p.images[0]}" alt="" loading="eager" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
-  const priceHtml=`<div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>`;
+  const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
   const stockHtml=stockLabel(p)?`<div class="stock-note">${stockLabel(p)}</div>`:'';
   const variantCount=Array.isArray(p.images)?p.images.filter(Boolean).length:0;
@@ -1475,6 +1892,39 @@ let currentProductId='';
 
 let gallerySwipeBound=false;
 let imageViewerSwipeBound=false;
+const productImagePreloadCache=new Set();
+
+function preloadProductImages(urls){
+  (Array.isArray(urls)?urls:[]).filter(Boolean).forEach(url=>{
+    const key=String(url);
+    if(productImagePreloadCache.has(key))return;
+    productImagePreloadCache.add(key);
+    const img=new Image();
+    img.decoding='async';
+    img.src=key;
+  });
+}
+
+function preloadNearbyProductGalleries(){
+  const candidates=(Array.isArray(products)?products:[]).filter(p=>p && p.active!==false).slice(0,10);
+  const run=()=>candidates.forEach(p=>preloadProductImages((p.images||[]).slice(0,4)));
+  if('requestIdleCallback' in window) requestIdleCallback(run,{timeout:1200});
+  else setTimeout(run,250);
+}
+
+function animateImageSwap(img,newSrc,direction=0){
+  if(!img || !newSrc)return;
+  const outX=direction===0?0:(direction>0?-12:12);
+  img.style.opacity='0.55';
+  img.style.transform=`translateX(${outX}px)`;
+  requestAnimationFrame(()=>{
+    img.src=newSrc;
+    requestAnimationFrame(()=>{
+      img.style.opacity='1';
+      img.style.transform='translateX(0)';
+    });
+  });
+}
 
 function bindHorizontalSwipe(el,onLeft,onRight){
   if(!el || el.dataset.swipeBound==='1')return;
@@ -1511,21 +1961,18 @@ function stepProductImage(step,fromViewer){
   if(!currentProductImages.length)return;
   const count=currentProductImages.length;
   currentProductImageIndex=(currentProductImageIndex+step+count)%count;
-  renderProductGallery();
+  renderProductGallery(step);
   if(fromViewer || !$('imageViewerModal').classList.contains('hidden')){
-    updateFullscreenProductImage();
+    updateFullscreenProductImage(step);
   }
 }
 
-function updateFullscreenProductImage(){
+function updateFullscreenProductImage(direction=0){
   const viewer=$('imageViewerModal');
   const img=$('imageViewerImg');
-  const countEl=$('imageViewerCount');
   if(!viewer || !img || !currentProductImages.length)return;
-  img.src=currentProductImages[currentProductImageIndex];
-  if(countEl){
-    countEl.textContent=(currentProductImageIndex+1)+' / '+currentProductImages.length;
-  }
+  preloadProductImages(currentProductImages);
+  animateImageSwap(img,currentProductImages[currentProductImageIndex],direction);
 }
 
 function openFullscreenProductImage(){
@@ -1542,7 +1989,7 @@ function closeFullscreenViewer(event){
   $('imageViewerModal').classList.add('hidden');
 }
 
-function renderProductGallery(){
+function renderProductGallery(direction=0){
   const selectedNote=$('modalSelectedVariant');
   const addBtn=$('modalAddSelectedBtn');
   const gallery=$('modalGallery');
@@ -1559,7 +2006,8 @@ function renderProductGallery(){
   gallery.style.display='block';
   mainImg.onload=null;
   mainImg.removeAttribute('style');
-  mainImg.src=currentProductImages[currentProductImageIndex];
+  preloadProductImages(currentProductImages);
+  animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   $('modalThumbs').innerHTML='';
 
   if(prevBtn)prevBtn.disabled=currentProductImages.length<=1;
@@ -1571,21 +2019,35 @@ function renderProductGallery(){
   if(selectedNote){
     selectedNote.textContent=currentProductImages.length>1
       ? (lang==='ar'
-          ? 'اسحبي الصورة يمينًا أو يسارًا — الصورة '+(currentProductImageIndex+1)+' من '+currentProductImages.length
-          : 'Swipe left or right — image '+(currentProductImageIndex+1)+' of '+currentProductImages.length)
+          ? 'اسحبي الصورة يمينًا أو يسارًا — اضغطي لعرضها بملء الشاشة'
+          : 'Swipe left or right — tap to view full screen')
       : (lang==='ar'?'اضغطي الصورة لعرضها بملء الشاشة.':'Tap the image to view full screen.');
   }
   if(addBtn){
-    addBtn.textContent=currentProductImages.length>1
-      ? (lang==='ar'
-          ? 'أضيفي الصورة '+(currentProductImageIndex+1)+' للسلة'
-          : 'Add image '+(currentProductImageIndex+1)+' to cart')
-      : (lang==='ar'?'أضيفي للسلة':'Add to cart');
+    addBtn.textContent=lang==='ar'?'أضيفي للسلة':'Add to cart';
   }
 
   if(!$('imageViewerModal').classList.contains('hidden')){
-    updateFullscreenProductImage();
+    updateFullscreenProductImage(direction);
   }
+}
+
+
+function getProductDetailsText(p){
+  if(!p)return '';
+  const values=[p.description,p.descriptionAr,p.details,p.detailsAr];
+  for(const value of values){
+    const t=String(value||'').trim();
+    if(t)return t;
+  }
+  return '';
+}
+function renderModalProductDetails(p){
+  const box=$('modalProductDetails');
+  if(!box)return;
+  const details=getProductDetailsText(p);
+  box.textContent=details;
+  box.style.display=details?'block':'none';
 }
 
 function openProduct(id){
@@ -1595,8 +2057,10 @@ function openProduct(id){
   currentProductId=id;
   $('modalName').textContent=p.nameAr||'';
   $('modalCode').textContent=p.code||'';
-  $('modalPrice').textContent=money(p.salePrice||p.price);
+  $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
+  renderModalProductDetails(p);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
+  preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
   renderProductGallery();
@@ -1613,8 +2077,8 @@ function openProduct(id){
   const selectedNote=$('modalSelectedVariant');
   if(currentProductImages.length<=1 && selectedNote && !isSoldOut(p)){
     selectedNote.textContent=lang==='ar'
-      ? 'جارٍ تحميل باقي الصور والألوان...'
-      : 'Loading the remaining images/colors...';
+      ? 'اضغطي الصورة لعرضها بملء الشاشة.'
+      : 'Tap the image to view full screen.';
   }
 
   db.collection('products').doc(id).get({source:'server'})
@@ -1628,8 +2092,10 @@ function openProduct(id){
 
       $('modalName').textContent=fresh.nameAr||'';
       $('modalCode').textContent=fresh.code||'';
-      $('modalPrice').textContent=money(fresh.salePrice||fresh.price);
+      $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
+      renderModalProductDetails(fresh);
       currentProductImages=freshImages;
+      preloadProductImages(currentProductImages);
       currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,freshImages.length-1));
       renderProductGallery();
 
@@ -2269,7 +2735,8 @@ function notifyAdminCustomerOrderEdit(beforeRaw,afterRaw){
       'رقم الطلب: ' + (order.id||'-') + '\\n' +
       'العميل: ' + (customer.name||'-') + '\\n' +
       'الهاتف: ' + (customer.phone||'-') + '\\n' +
-      'التعديل: ' + changes.join('، ') + '\\n' +
+      'التعديل: ' + changes.join('، ') + '\\n\\n' +
+      'المنتجات الحالية:\\n' + orderItemsText(order) + '\\n\\n' +
       'المجموع الجديد: ' + money(order.total||0)
     );
   }catch(error){
@@ -2334,16 +2801,14 @@ function startAdminOrdersListener(){
 
         const order=unseen[0];
         const customer=order.customer||{};
-        const firstItem=(order.items||[])[0]||{};
-        const productName=firstItem.name||firstItem.code||'منتج';
 
         alert(
           '🔔 طلب جديد!\n\n' +
+          'رقم الطلب: ' + (order.id||'-') + '\n' +
           'العميل: ' + (customer.name||'-') + '\n' +
-          'الهاتف: ' + (customer.phone||'-') + '\n' +
-          'المنتج: ' + productName + '\n' +
-          'المجموع: ' + money(order.total||0) + '\n' +
-          'رقم الطلب: ' + (order.id||'-')
+          'الهاتف: ' + (customer.phone||'-') + '\n\n' +
+          'المنتجات المطلوبة:\n' + orderItemsText(order) + '\n\n' +
+          'المجموع: ' + money(order.total||0)
         );
       }
 
@@ -2409,7 +2874,7 @@ function quantitiesFromOrderItems(items){
 }
 
 function effectiveOrderView(order){
-  const o=order||{};
+  const o=normalizeOrderShape(order||{});
   const edit=o.customerEdit;
   if(!edit||typeof edit!=='object')return o;
 
@@ -2542,31 +3007,70 @@ async function saveOrderWithStock(order){
     if(!id || !qty)return;
     qtyById[id]=(qtyById[id]||0)+qty;
   });
+
   const orderRef=db.collection('orders').doc(order.id);
+  const entries=Object.entries(qtyById);
+
   await db.runTransaction(async tx=>{
-    for(const [id,need] of Object.entries(qtyById)){
+    // Firestore requires ALL transaction reads to happen before ANY write.
+    const stockRows=[];
+
+    // 1) Read every product first.
+    for(const [id,need] of entries){
       const ref=db.collection('products').doc(id);
       const snap=await tx.get(ref);
-      if(!snap.exists)continue;
-      const data=snap.data()||{};
-      if(!hasManagedStock(data))continue;
-      const current=Math.max(0,Math.floor(Number(data.stock)||0));
-      if(current<need){
-        const productName=data.nameAr||data.code||'المنتج';
-        throw Object.assign(new Error('الكمية المطلوبة غير متوفرة للمنتج: '+productName),{code:'stock/insufficient'});
-      }
-      tx.update(ref,{stock:current-need,updatedAt:new Date().toISOString()});
+      stockRows.push({id,need,ref,snap});
     }
+
+    // 2) Validate stock after all reads are complete.
+    const updates=[];
+    for(const row of stockRows){
+      if(!row.snap.exists)continue;
+      const data=row.snap.data()||{};
+      if(!hasManagedStock(data))continue;
+
+      const current=Math.max(0,Math.floor(Number(data.stock)||0));
+      if(current<row.need){
+        const productName=data.nameAr||data.code||'المنتج';
+        throw Object.assign(
+          new Error('الكمية المطلوبة غير متوفرة للمنتج: '+productName),
+          {code:'stock/insufficient'}
+        );
+      }
+
+      updates.push({
+        ref:row.ref,
+        stock:current-row.need
+      });
+    }
+
+    // 3) Only now perform writes.
+    const updatedAt=new Date().toISOString();
+    for(const update of updates){
+      tx.update(update.ref,{
+        stock:update.stock,
+        updatedAt
+      });
+    }
+
     tx.set(orderRef,order);
   });
-  for(const [id,need] of Object.entries(qtyById)){
+
+  // Update local UI only after the Firestore transaction succeeds.
+  const localUpdatedAt=new Date().toISOString();
+  for(const [id,need] of entries){
     products=products.map(p=>{
       if(String(p.id)!==String(id))return p;
       const current=getProductStock(p);
       if(current===null)return p;
-      return {...p,stock:Math.max(0,current-need),updatedAt:new Date().toISOString()};
+      return {
+        ...p,
+        stock:Math.max(0,current-need),
+        updatedAt:localUpdatedAt
+      };
     });
   }
+
   writeFastProductCache(products);
   render();
   renderAdminList();
@@ -2652,17 +3156,25 @@ function renderCart(){
   $('cartItems').innerHTML=rows.length?rows.map(({item,product:p,cartIndex})=>{
     const idx=cartVariantIndex(item);
     const chosenImage=item.imageUrl||p.images?.[idx]||p.images?.[0]||'';
-    const variantText=(Array.isArray(p.images)&&p.images.filter(Boolean).length>1)
-      ? `<div style="font-size:12px;color:#777;margin-top:3px">${lang==='ar'?'اللون المختار: ':'Selected color: '}${idx+1}</div>`
-      : '';
-    return `<div class="cart-row">
-      ${chosenImage?`<img src="${chosenImage}">`:'<div style="width:64px;height:78px;background:#eee;border-radius:9px"></div>'}
-      <div><b>${esc(p.nameAr)}</b><div class="code">${esc(p.code)}</div>${variantText}<div class="price">${money(p.salePrice||p.price)}</div></div>
-      <div class="qty"><button onclick="changeCartQty(${cartIndex},-1)">−</button><span>${item.qty}</span><button onclick="changeCartQty(${cartIndex},1)">+</button><button onclick="removeCartItem(${cartIndex})">×</button></div>
+    const variantText='';
+    return `<div class="cart-row cart-row-final">
+      ${chosenImage?`<img class="cart-product-image" src="${chosenImage}" alt="${esc(p.nameAr||'')}">`:'<div class="cart-product-image cart-image-placeholder"></div>'}
+      <div class="cart-product-info">
+        <b class="cart-product-name">${esc(p.nameAr)}</b>
+        <div class="code">${esc(p.code)}</div>
+        ${variantText}
+        <div class="price cart-unit-price">${moneyHtml(p.salePrice||p.price)}</div>
+      </div>
+      <div class="qty cart-qty-controls">
+        <button type="button" aria-label="تقليل الكمية" onclick="changeCartQty(${cartIndex},-1)">−</button>
+        <span class="cart-qty-number">${item.qty}</span>
+        <button type="button" aria-label="زيادة الكمية" onclick="changeCartQty(${cartIndex},1)">+</button>
+        <button type="button" class="cart-remove-btn" aria-label="حذف المنتج" onclick="removeCartItem(${cartIndex})">×</button>
+      </div>
     </div>`;
   }).join(''):'<div class="empty">السلة فارغة</div>';
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0)),0);
-  $('cartTotal').textContent=money(total);
+  $('cartTotal').innerHTML=moneyHtml(total);
   $('checkoutOpenBtn').disabled=!rows.length;
 }
 function changeCartQty(cartIndex,d){
@@ -2699,6 +3211,19 @@ function closeCheckout(){$('checkoutModal').classList.add('hidden')}
 $('cartBtn').onclick=()=>{renderCart();$('cartModal').classList.remove('hidden')}
 $('checkoutOpenBtn').onclick=()=>{
   if(!cart.length)return;
+
+  // Re-check local stock before moving to checkout.
+  for(const row of cartData()){
+    const stock=getProductStock(row.product);
+    const requested=productQtyInCart(row.product.id);
+    if(stock!==null && requested>stock){
+      alert((lang==='ar'?'الكمية المتاحة فقط للمنتج '+(row.product.nameAr||row.product.code||'')+': ':'Only available quantity: ')+stock);
+      renderCart();
+      return;
+    }
+  }
+
+  checkoutMessage('');
   $('customerName').value=customerProfile.name||'';
   $('customerPhone').value=(customerAuthUser?.phoneNumber||customerProfile.phone||'');
   $('customerPhone').readOnly=!!customerAuthUser?.phoneNumber;
@@ -2707,9 +3232,50 @@ $('checkoutOpenBtn').onclick=()=>{
   closeCart();
   $('checkoutModal').classList.remove('hidden');
 }
-$('checkoutForm').onsubmit=async e=>{
-  e.preventDefault();
-  const rows=cartData(); if(!rows.length)return;
+let checkoutSubmitting=false;
+
+function checkoutMessage(message,isError=false){
+  const el=$('checkoutStatus');
+  if(!el)return;
+  el.textContent=message||'';
+  el.style.color=isError?'#b40018':'#16733b';
+}
+
+function validateCheckoutFields(){
+  const fields=[
+    {el:$('customerName'),msg:'يرجى كتابة الاسم.'},
+    {el:$('customerPhone'),msg:'يرجى كتابة رقم الهاتف.'},
+    {el:$('customerCity'),msg:'يرجى اختيار الإمارة.'},
+    {el:$('customerLocation'),msg:'يرجى كتابة المنطقة / العنوان.'}
+  ];
+  for(const item of fields){
+    if(!String(item.el?.value||'').trim()){
+      checkoutMessage(item.msg,true);
+      try{item.el?.focus();item.el?.scrollIntoView({behavior:'smooth',block:'center'});}catch(_){}
+      return false;
+    }
+  }
+  return true;
+}
+
+async function submitCheckoutOrder(){
+  if(checkoutSubmitting)return;
+  checkoutMessage('');
+
+  const rows=cartData();
+  if(!rows.length){
+    checkoutMessage('السلة فارغة. أضيفي منتجاً أولاً.',true);
+    return;
+  }
+  if(!validateCheckoutFields())return;
+
+  const confirmBtn=$('confirmOrderBtn');
+  checkoutSubmitting=true;
+  if(confirmBtn){
+    confirmBtn.disabled=true;
+    confirmBtn.textContent='جارٍ تأكيد الطلب...';
+  }
+
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
   const verifiedPhone=customerAuthUser?.phoneNumber||'';
   const order={
@@ -2723,7 +3289,11 @@ $('checkoutForm').onsubmit=async e=>{
       city:$('customerCity').value,
       location:$('customerLocation').value.trim()
     },
-    payment:$('paymentMethod').value,
+    customerName:$('customerName').value.trim(),
+    customerPhone:verifiedPhone||$('customerPhone').value.trim(),
+    customerCity:$('customerCity').value,
+    customerLocation:$('customerLocation').value.trim(),
+    payment:String($('paymentMethod').value||'').trim().toLowerCase(),
     notes:$('orderNotes').value.trim(),
     status:'new',
     total,
@@ -2738,14 +3308,40 @@ $('checkoutForm').onsubmit=async e=>{
       imageUrl:x.item.imageUrl||x.product.images?.[cartVariantIndex(x.item)]||x.product.images?.[0]||''
     }))
   };
+
   customerProfile={name:order.customer.name,phone:order.customer.phone,location:order.customer.location};
   saveCustomerProfile();
   if(customerAuthUser?.phoneNumber){
     saveCustomerProfileToCloud().catch(error=>console.warn('Cloud profile save skipped:',error));
   }
 
+  // Card payment: create a Stripe-hosted Checkout Session first.
+  if(order.payment==='card'){
+    try{
+      checkoutMessage('جارٍ الانتقال إلى صفحة الدفع الآمنة...');
+      localStorage.setItem(STRIPE_PENDING_ORDER_KEY,JSON.stringify(order));
+      const stripeSession=await beginStripeCheckout(order);
+      window.location.assign(stripeSession.url);
+      return;
+    }catch(error){
+      console.error('Stripe Checkout start failed:',error);
+      localStorage.removeItem(STRIPE_PENDING_ORDER_KEY);
+      checkoutMessage('تعذر فتح الدفع بالبطاقة. حاولي مرة أخرى.',true);
+      alert('تعذر فتح Stripe Checkout.\n\n'+(error?.message||''));
+    }finally{
+      checkoutSubmitting=false;
+      if(confirmBtn){
+        confirmBtn.disabled=false;
+        confirmBtn.textContent='تأكيد الطلب';
+      }
+    }
+    return;
+  }
+
   try{
+    checkoutMessage('جارٍ تسجيل الطلب...');
     const submitResult=await submitCustomerOrder(order);
+
     if(customerAuthUser?.uid){
       customerCloudOrders=[
         order,
@@ -2756,7 +3352,7 @@ $('checkoutForm').onsubmit=async e=>{
     localStorage.setItem('kandorty_last_order_id',order.id);
     cart=[];
     saveCart();
-    e.target.reset();
+    $('checkoutForm').reset();
     closeCheckout();
 
     alert(
@@ -2768,9 +3364,278 @@ $('checkoutForm').onsubmit=async e=>{
     console.error('Order submit error:',error);
     const code=error?.code||'unknown';
     const msg=error?.message||'';
+    checkoutMessage('تعذر تسجيل الطلب. حاولي مرة أخرى.',true);
     alert('❌ لم يتم تسجيل الطلب.\n\nFirebase: '+code+'\n'+msg);
+  }finally{
+    checkoutSubmitting=false;
+    if(confirmBtn){
+      confirmBtn.disabled=false;
+      confirmBtn.textContent='تأكيد الطلب';
+    }
   }
 }
+
+$('checkoutForm').onsubmit=e=>{
+  e.preventDefault();
+  submitCheckoutOrder();
+};
+$('confirmOrderBtn').onclick=submitCheckoutOrder;
+
+
+
+
+// ===== Kandorty Stripe Checkout =====
+// Build: Cloudflare Stripe v2 - 2026-09-25
+// Kandorty Stripe backend is hosted on Cloudflare Workers.
+const KANDORTY_STRIPE_BACKEND = 'https://kandorty-stripe.aliyajan200011.workers.dev';
+
+const STRIPE_PENDING_ORDER_KEY='kandorty_stripe_pending_order_v1';
+
+function stripeBackendReady(){
+  return /^https:\/\/[a-z0-9.-]+\.workers\.dev$/i.test(KANDORTY_STRIPE_BACKEND);
+}
+
+function stripeFunctionUrl(name){
+  return KANDORTY_STRIPE_BACKEND.replace(/\/+$/,'')+'/'+name;
+}
+
+function canonicalCartItemsForStripe(order){
+  return (Array.isArray(order?.items)?order.items:[]).map(item=>({
+    id:String(item.id||''),
+    qty:Math.max(1,Math.floor(Number(item.qty)||1)),
+    imageIndex:Math.max(0,Math.floor(Number(item.imageIndex)||0))
+  }));
+}
+
+function canonicalPaidItems(items){
+  return (Array.isArray(items)?items:[]).map(item=>({
+    id:String(item.id||''),
+    qty:Math.max(1,Math.floor(Number(item.qty)||1)),
+    imageIndex:Math.max(0,Math.floor(Number(item.imageIndex)||0))
+  })).sort((a,b)=>a.id.localeCompare(b.id)||a.imageIndex-b.imageIndex||a.qty-b.qty);
+}
+
+function sameStripeItems(a,b){
+  return JSON.stringify(canonicalPaidItems(a))===JSON.stringify(canonicalPaidItems(b));
+}
+
+async function beginStripeCheckout(order){
+  if(!stripeBackendReady()){
+    throw new Error('Stripe backend URL has not been configured yet.');
+  }
+
+  const response=await fetch(stripeFunctionUrl('create-checkout-session'),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      orderId:order.id,
+      items:canonicalCartItemsForStripe(order)
+    })
+  });
+
+  let data={};
+  try{ data=await response.json(); }catch(_){}
+  if(!response.ok || !data.url){
+    throw new Error(data.error||'Unable to create Stripe Checkout.');
+  }
+  return data;
+}
+
+async function verifyStripeCheckoutSession(sessionId){
+  if(!stripeBackendReady())throw new Error('Stripe backend URL has not been configured yet.');
+  const response=await fetch(stripeFunctionUrl('verify-checkout-session'),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({session_id:sessionId})
+  });
+  let data={};
+  try{ data=await response.json(); }catch(_){}
+  if(!response.ok)throw new Error(data.error||'Unable to verify Stripe payment.');
+  return data;
+}
+
+async function finalizePaidStripeOrder(order,sessionId){
+  const paidOrder={
+    ...order,
+    payment:'card',
+    paymentStatus:'paid',
+    stripeSessionId:sessionId,
+    paidAt:new Date().toISOString(),
+    status:'new'
+  };
+
+  try{
+    await submitCustomerOrder(paidOrder);
+  }catch(error){
+    // If payment succeeded but stock changed before we returned from Stripe,
+    // keep the paid order visible for manual admin review instead of losing it.
+    if(error?.code==='stock/insufficient'){
+      const reviewOrder={
+        ...paidOrder,
+        status:'paid_stock_review',
+        stockReviewRequired:true
+      };
+      await db.collection('orders').doc(reviewOrder.id).set(reviewOrder);
+      try{
+        await db.collection('tracking').doc(reviewOrder.id).set({
+          id:reviewOrder.id,
+          status:reviewOrder.status,
+          createdAt:reviewOrder.createdAt||''
+        });
+      }catch(_){}
+      orders=[reviewOrder,...orders.filter(o=>o.id!==reviewOrder.id)];
+      localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+      renderProfileOrders();
+      return {review:true,order:reviewOrder};
+    }
+    throw error;
+  }
+  return {review:false,order:paidOrder};
+}
+
+async function handleStripeReturn(){
+  const params=new URLSearchParams(location.search);
+  const stripeState=params.get('stripe');
+  if(!stripeState)return;
+
+  if(stripeState==='cancel'){
+    localStorage.removeItem(STRIPE_PENDING_ORDER_KEY);
+    history.replaceState({},'',location.pathname+location.hash);
+    setTimeout(()=>alert('تم إلغاء الدفع. السلة ما زالت محفوظة ويمكنك المحاولة مرة أخرى.'),100);
+    return;
+  }
+
+  if(stripeState!=='success')return;
+  const sessionId=params.get('session_id')||'';
+
+  try{
+    if(!sessionId)throw new Error('Missing Stripe session ID.');
+    const pendingRaw=localStorage.getItem(STRIPE_PENDING_ORDER_KEY);
+    if(!pendingRaw)throw new Error('Pending order was not found on this device.');
+    const pending=JSON.parse(pendingRaw);
+
+    const verified=await verifyStripeCheckoutSession(sessionId);
+    if(verified.payment_status!=='paid'){
+      throw new Error('Stripe has not marked this payment as paid.');
+    }
+    if(String(verified.orderId||'')!==String(pending.id||'')){
+      throw new Error('Order reference does not match.');
+    }
+
+    const result=await finalizePaidStripeOrder(pending,sessionId);
+
+    customerProfile={
+      name:pending.customer?.name||'',
+      phone:pending.customer?.phone||'',
+      location:pending.customer?.location||''
+    };
+    saveCustomerProfile();
+
+    localStorage.setItem('kandorty_last_order_id',pending.id);
+    localStorage.removeItem(STRIPE_PENDING_ORDER_KEY);
+    cart=[];
+    saveCart();
+    history.replaceState({},'',location.pathname+location.hash);
+
+    if(result.review){
+      alert('✅ تم استلام الدفع والطلب.\nرقم الطلب: '+pending.id+
+            '\n\nملاحظة: تغيّرت كمية المخزون أثناء الدفع، لذلك سيحتاج الطلب إلى مراجعة من الإدارة.');
+    }else{
+      alert('✅ تم الدفع وتسجيل الطلب بنجاح.\n\nرقم الطلب: '+pending.id);
+    }
+  }catch(error){
+    console.error('Stripe return finalization failed:',error);
+    alert('تمت العودة من Stripe، لكن تعذر تأكيد الطلب تلقائياً.\n\nلا تعيدي الدفع الآن. احتفظي برسالة الدفع وتواصلي مع المتجر.\n\n'+(error?.message||''));
+  }
+}
+// ===== end Kandorty Stripe Checkout =====
+
+function normalizeOrderShape(raw){
+  const o=raw||{};
+  const nested=(o.customer&&typeof o.customer==='object')?o.customer:{};
+  const customer={
+    name:nested.name||o.customerName||o.name||'',
+    phone:nested.phone||o.customerPhone||o.phone||'',
+    city:nested.city||o.customerCity||o.city||'',
+    location:nested.location||o.customerLocation||o.location||o.address||''
+  };
+
+  let items=[];
+  if(Array.isArray(o.items))items=o.items;
+  else if(Array.isArray(o.products))items=o.products;
+  else if(Array.isArray(o.orderItems))items=o.orderItems;
+
+  items=items.map((item,index)=>({
+    ...item,
+    id:item?.id||item?.productId||item?.code||('item-'+index),
+    code:item?.code||item?.productCode||'',
+    name:item?.name||item?.nameAr||item?.productName||item?.title||item?.code||'منتج',
+    qty:Math.max(1,Math.floor(Number(item?.qty??item?.quantity??item?.count??1)||1)),
+    price:Number(item?.price??item?.unitPrice??0)||0,
+    imageUrl:item?.imageUrl||item?.image||item?.photo||''
+  }));
+
+  const computedTotal=items.reduce((sum,item)=>sum+(Number(item.price)||0)*(Number(item.qty)||0),0);
+  return {
+    ...o,
+    customer,
+    items,
+    total:Number(o.total)||computedTotal||0
+  };
+}
+
+function renderOrderCustomerHtml(order){
+  const o=normalizeOrderShape(order);
+  const c=o.customer||{};
+  return `<div class="order-customer-details">
+    <div><b>اسم العميل:</b> ${esc(c.name||'-')}</div>
+    <div><b>رقم الهاتف:</b> ${esc(c.phone||'-')}</div>
+    <div><b>الإمارة:</b> ${esc(c.city||'-')}</div>
+    <div><b>العنوان:</b> ${esc(c.location||'-')}</div>
+  </div>`;
+}
+
+function orderItemImage(item){
+  if(item?.imageUrl)return String(item.imageUrl);
+  const p=(Array.isArray(products)?products:[]).find(x=>String(x.id||'')===String(item?.id||''));
+  const imgs=Array.isArray(p?.images)?p.images.filter(Boolean):[];
+  const idx=Math.max(0,Number(item?.imageIndex)||0);
+  return String(imgs[idx]||imgs[0]||'');
+}
+function renderOrderItemsHtml(order){
+  const normalized=normalizeOrderShape(order);
+  const items=Array.isArray(normalized.items)?normalized.items:[];
+  if(!items.length)return '<div class="customer-edit-note">لا توجد تفاصيل منتجات محفوظة لهذا الطلب القديم.</div>';
+  return `<div class="order-products">${items.map(item=>{
+    const image=orderItemImage(item);
+    const name=item?.name||item?.nameAr||item?.code||'منتج';
+    const code=item?.code||'';
+    const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
+    return `<div class="order-product-row">
+      ${image
+        ? `<img class="order-product-image" src="${esc(image)}" alt="">`
+        : `<div class="order-product-noimage">بدون صورة</div>`}
+      <div class="order-product-info">
+        <div class="order-product-name">${esc(name)}</div>
+        ${code?`<div class="order-product-code">كود المنتج: ${esc(code)}</div>`:''}
+      </div>
+      <div class="order-product-qty">العدد: ${qty}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+
+function orderItemsText(order){
+  const normalized=normalizeOrderShape(order);
+  const items=Array.isArray(normalized.items)?normalized.items:[];
+  if(!items.length)return 'لا توجد تفاصيل منتجات محفوظة';
+  return items.map(item=>{
+    const name=item?.name||item?.nameAr||item?.code||'منتج';
+    const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
+    return '• '+name+' × '+qty;
+  }).join('\n');
+}
+
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 function renderOrders(){
   if(!$('ordersList'))return;
@@ -2790,7 +3655,8 @@ function renderOrders(){
         ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
       </select></div>
       <p><b>${esc(o.customer?.name||'')}</b> · ${esc(o.customer?.phone||'')}<br>${esc(o.customer?.city||'')} — ${esc(o.customer?.location||'')}</p>
-      <p>${(o.items||[]).map(i=>`${esc(i.name)} × ${i.qty}`).join('<br>')}</p>
+      <div class="order-products-title">المنتجات المطلوبة</div>
+      ${renderOrderItemsHtml(o)}
       ${o.notes?`<p><small>ملاحظات: ${esc(o.notes)}</small></p>`:''}
       <div class="price">${money(o.total)}</div>
       <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
@@ -3426,20 +4292,24 @@ let activeEditableOrder=null;
 let activeOrderAccessKey='';
 
 function renderTrackingResult(o,editable=null,verificationMessage=''){
+  const shown=normalizeOrderShape(o);
   const flow=['new','preparing','shipping','delivered'];
-  const idx=flow.indexOf(o.status);
-  const canEdit=o.status==='new'&&editable;
-
+  const idx=flow.indexOf(shown.status);
+  const canEdit=shown.status==='new'&&editable;
   $('trackingResult').innerHTML=`<div class="track-box">
-    <b>${esc(o.id||'')}</b>
+    <b>${esc(shown.id||'')}</b>
     <div class="track-steps">
       ${flow.map((s,i)=>`<div class="track-step ${i<idx?'done':i===idx?'active':''}">${statusText(s)}</div>`).join('')}
-      ${o.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
+      ${shown.status==='cancelled'?'<div class="track-step active">ملغي</div>':''}
     </div>
+    ${shown.customer?.phone?renderOrderCustomerHtml(shown):''}
+    <div class="order-products-title">المنتجات المطلوبة</div>
+    ${renderOrderItemsHtml(shown)}
+    <div class="price" style="margin-top:8px">${moneyHtml(shown.total||0)}</div>
     ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button>`:''}
-    ${o.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
+    ${shown.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
-    ${o.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
+    ${shown.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
   </div>`;
 }
 
@@ -3505,7 +4375,19 @@ async function trackOrder(){
     if(editable){
       activeEditableOrder=editable;
       activeOrderAccessKey=editable.accessKey;
-      renderTrackingResult(trackingOrder,editable);
+      const fullOrder=normalizeOrderShape({
+        ...trackingOrder,
+        ...editable,
+        id:num,
+        status:trackingOrder.status||editable.status||'new',
+        customer:editable.customer||{},
+        items:Array.isArray(editable.items)?editable.items:[],
+        total:Number(editable.total)||0
+      });
+      if(!fullOrder.total){
+        fullOrder.total=fullOrder.items.reduce((sum,item)=>sum+(Number(item.price)||0)*(Number(item.qty)||0),0);
+      }
+      renderTrackingResult(fullOrder,editable);
     }else{
       renderTrackingResult(trackingOrder,null,'رقم الهاتف غير مطابق للطلب، أو أن الطلب قديم ولم يتم تفعيل التعديل له بعد.');
     }
@@ -3554,7 +4436,7 @@ function renderCustomerOrderEditItems(){
     </div>`;
   }).join('');
 
-  $('customerEditTotal').textContent=money(customerEditComputedTotal());
+  $('customerEditTotal').innerHTML=moneyHtml(customerEditComputedTotal());
 }
 
 function changeCustomerEditQty(itemId,delta){
@@ -3770,7 +4652,7 @@ function renderWishlist(){
   $('wishlistItems').innerHTML=list.length?list.map(p=>`<article class="card">
   ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
   <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
-  <div class="price">${money(p.salePrice||p.price)}${p.salePrice?`<span class="old">${money(p.price)}</span>`:''}</div>
+  <div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>
   <div class="card-actions"><button class="btn primary" onclick="addToCart('${p.id}')">أضيفي للسلة</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">حذف</button></div>
   </div></article>`).join(''):'<div class="empty">لا توجد منتجات في المفضلة</div>';
 }
@@ -4148,7 +5030,14 @@ function renderProfileOrders(){
   }
 
   $('profileOrders').innerHTML=list.length
-    ?list.map(o=>`<div class="order-card"><b>${o.id}</b><p>${statusText(o.status)}</p>${o._customerEdited?'<span class="customer-edit-badge">✎ تم التعديل</span>':''}<div class="price">${money(o.total)}</div></div>`).join('')
+    ?list.map(o=>`<div class="order-card">
+      <b>${esc(o.id||'')}</b>
+      <p>${statusText(o.status)}</p>
+      ${o._customerEdited?'<span class="customer-edit-badge">✎ تم التعديل</span>':''}
+      <div class="order-products-title">المنتجات المطلوبة</div>
+      ${renderOrderItemsHtml(o)}
+      <div class="price">${moneyHtml(o.total||0)}</div>
+    </div>`).join('')
     :'<div class="empty">لا توجد طلبات مرتبطة بهذا الحساب بعد</div>';
 }
 function newsletterEmailKey(email){
@@ -4668,6 +5557,7 @@ loadSettings();
 loadCategoryCards();
 loadCommerce();
 load();
+window.addEventListener('load',()=>setTimeout(handleStripeReturn,500));
 </script>
 
 <div id="imageViewerModal" class="hidden" onclick="closeFullscreenViewer(event)">
@@ -4675,7 +5565,7 @@ load();
     <button class="image-viewer-close" type="button" onclick="closeFullscreenViewer(event)">×</button>
     <div id="imageViewerCount" class="image-viewer-count"></div>
     <button class="image-viewer-nav prev" type="button" onclick="stepProductImage(-1,true);event.stopPropagation();" aria-label="Previous image">›</button>
-    <img id="imageViewerImg" alt="">
+    <img id="imageViewerImg" alt="" loading="eager" decoding="async" fetchpriority="high">
     <button class="image-viewer-nav next" type="button" onclick="stepProductImage(1,true);event.stopPropagation();" aria-label="Next image">‹</button>
     <div class="image-viewer-hint">اسحبي الصورة يمينًا أو يسارًا</div>
   </div>
