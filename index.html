@@ -1041,6 +1041,30 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-video-slightly-wider-final">
+/* Homepage video: slightly wider on phones, centered, without changing the rest of the site */
+@media (max-width: 760px){
+  #homeVideoSection.hero-embedded{
+    width:108vw !important;
+    max-width:108vw !important;
+    margin-left:-4vw !important;
+    margin-right:-4vw !important;
+  }
+  #homeVideoSection.hero-embedded .container,
+  #homeVideoSection.hero-embedded .home-video-card{
+    width:100% !important;
+    max-width:none !important;
+  }
+  #homeVideoSection.hero-embedded .home-video-card video,
+  #homeVideo{
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
