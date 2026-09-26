@@ -1771,10 +1771,10 @@ function switchLang(){
 }
 $('langBtn').onclick=switchLang;
 
-let kandortyLanguageTimer=0;
-const kandortyLanguageObserver=new MutationObserver(()=>{
-  clearTimeout(kandortyLanguageTimer);
-  kandortyLanguageTimer=setTimeout(()=>translatePublicNode(document.body),80);
+const kandortyLanguageObserver=new MutationObserver(ms=>{
+  for(const m of ms){
+    for(const node of m.addedNodes)translatePublicNode(node);
+  }
 });
 kandortyLanguageObserver.observe(document.body,{childList:true,subtree:true});
 document.addEventListener('DOMContentLoaded',()=>applyPublicLanguage());
@@ -1820,7 +1820,7 @@ function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')retu
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
-    ? `<img src="${p.images[0]}" alt="" loading="lazy" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
+    ? `<img src="${p.images[0]}" alt="" loading="eager" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
   const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
@@ -4089,42 +4089,12 @@ async function clearBannerImages(){
   alert('تم حذف صور البانر');
 }
 
-function normalizeSocialUrl(kind,value){
-  let v=String(value||'').trim();
-  if(!v)return '';
-  if(kind==='whatsapp'){
-    if(/^https?:\/\/(?:wa\.me|(?:api\.)?whatsapp\.com)\//i.test(v))return v;
-    if(/^(?:www\.)?(?:wa\.me|(?:api\.)?whatsapp\.com)\//i.test(v))return 'https://'+v;
-    const digits=v.replace(/[^\d]/g,'');
-    return digits?'https://wa.me/'+digits:'';
-  }
-  if(kind==='instagram'){
-    if(/^https?:\/\/(?:www\.)?instagram\.com\//i.test(v))return v;
-    v=v.replace(/^@+/,'')
-       .replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\//i,'')
-       .replace(/^\/+|\/+$/g,'');
-    return v?'https://www.instagram.com/'+v:'';
-  }
-  if(kind==='snapchat'){
-    if(/^https?:\/\/(?:www\.)?snapchat\.com\/add\//i.test(v))return v;
-    v=v.replace(/^@+/,'')
-       .replace(/^(?:https?:\/\/)?(?:www\.)?snapchat\.com\/add\//i,'')
-       .replace(/^add\//i,'')
-       .replace(/^\/+|\/+$/g,'');
-    return v?'https://www.snapchat.com/add/'+v:'';
-  }
-  return v;
-}
-
 function renderSocialLinks(){
   if(!$('socialLinks'))return;
   const parts=[];
-  const wa=normalizeSocialUrl('whatsapp',settings.whatsapp);
-  const ig=normalizeSocialUrl('instagram',settings.instagram);
-  const sc=normalizeSocialUrl('snapchat',settings.snapchat);
-  if(wa)parts.push(`<a style="color:#fff" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`);
-  if(ig)parts.push(`<a style="color:#fff" href="${esc(ig)}" target="_blank" rel="noopener noreferrer">Instagram</a>`);
-  if(sc)parts.push(`<a style="color:#fff" href="${esc(sc)}" target="_blank" rel="noopener noreferrer">Snapchat</a>`);
+  if(settings.whatsapp)parts.push(`<a style="color:#fff" href="https://wa.me/${settings.whatsapp.replace(/\D/g,'')}" target="_blank">WhatsApp</a>`);
+  if(settings.instagram)parts.push(`<a style="color:#fff" href="${esc(settings.instagram)}" target="_blank">Instagram</a>`);
+  if(settings.snapchat)parts.push(`<a style="color:#fff" href="${esc(settings.snapchat)}" target="_blank">Snapchat</a>`);
   if(settings.email)parts.push(`<a style="color:#fff" href="mailto:${esc(settings.email)}">Email</a>`);
   $('socialLinks').innerHTML=parts.length?parts.join(' · '):'WhatsApp · Instagram · Snapchat · Email';
 }
@@ -5415,14 +5385,10 @@ setTimeout(()=>{applyPublicLanguage();render();},0);
     <button class="image-viewer-close" type="button" onclick="closeFullscreenViewer(event)">×</button>
     <div id="imageViewerCount" class="image-viewer-count"></div>
     <button class="image-viewer-nav prev" type="button" onclick="stepProductImage(-1,true);event.stopPropagation();" aria-label="Previous image">›</button>
-    <img id="imageViewerImg" alt="" loading="lazy" decoding="async">
+    <img id="imageViewerImg" alt="" loading="eager" decoding="async" fetchpriority="high">
     <button class="image-viewer-nav next" type="button" onclick="stepProductImage(1,true);event.stopPropagation();" aria-label="Next image">‹</button>
     <div class="image-viewer-hint">اسحبي الصورة يمينًا أو يسارًا</div>
   </div>
 </div>
 
-<script id="kandorty-social-links-fast">
-/* Social URLs are normalized once in renderSocialLinks().
-   No page-wide rescans, timers, or MutationObserver are needed. */
-</script>
 </body></html>
