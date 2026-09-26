@@ -3196,7 +3196,7 @@ async function submitCheckoutOrder(){
 
   const rows=cartData();
   if(!rows.length){
-    checkoutMessage('السلة فارغة. أضيفي منتجاً أولاً.',true);
+    checkoutMessage(lang==='ar'?'السلة فارغة. أضيفي منتجاً أولاً.':'Your cart is empty. Add a product first.',true);
     return;
   }
   if(!validateCheckoutFields())return;
@@ -3205,7 +3205,7 @@ async function submitCheckoutOrder(){
   checkoutSubmitting=true;
   if(confirmBtn){
     confirmBtn.disabled=true;
-    confirmBtn.textContent='جارٍ تأكيد الطلب...';
+    confirmBtn.textContent=lang==='ar'?'جارٍ تأكيد الطلب...':'Confirming order...';
   }
 
   const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
@@ -3248,14 +3248,31 @@ async function submitCheckoutOrder(){
   }
 
   try{
-    checkoutMessage('جارٍ تسجيل الطلب...');
+    if(order.payment==='card'){
+      checkoutMessage(lang==='ar'?'جارٍ فتح صفحة الدفع الآمن...':'Opening secure payment page...');
+      localStorage.setItem('kandorty_pending_stripe_order_v1',JSON.stringify(order));
+
+      const stripeResponse=await fetch('https://kandorty-stripe.aliyajan200011.workers.dev/create-checkout-session',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          orderId:order.id,
+          items:order.items.map(item=>({id:item.id,qty:item.qty,imageIndex:item.imageIndex||0}))
+        })
+      });
+      const stripeData=await stripeResponse.json().catch(()=>({}));
+      if(!stripeResponse.ok||!stripeData.url){
+        throw new Error(stripeData.error||'تعذر فتح Stripe Checkout.');
+      }
+      window.location.assign(stripeData.url);
+      return;
+    }
+
+    checkoutMessage(lang==='ar'?'جارٍ تسجيل الطلب...':'Saving order...');
     const submitResult=await submitCustomerOrder(order);
 
     if(customerAuthUser?.uid){
-      customerCloudOrders=[
-        order,
-        ...customerCloudOrders.filter(o=>o.id!==order.id)
-      ];
+      customerCloudOrders=[order,...customerCloudOrders.filter(o=>o.id!==order.id)];
     }
 
     localStorage.setItem('kandorty_last_order_id',order.id);
@@ -3265,21 +3282,20 @@ async function submitCheckoutOrder(){
     closeCheckout();
 
     alert(
-      '✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: '+order.id+
-      '\n\nاحتفظي بهذا الرقم لتتبع الطلب.'+
-      (submitResult?.editReady?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'')
+      (lang==='ar'?'✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: ':'✅ Order registered successfully.\n\nOrder number: ')+order.id+
+      (lang==='ar'?'\n\nاحتفظي بهذا الرقم لتتبع الطلب.':'\n\nKeep this number to track your order.')+
+      (submitResult?.editReady?(lang==='ar'?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'\nYou can edit the order from Track order while its status is New order.'):'')
     );
   }catch(error){
     console.error('Order submit error:',error);
-    const code=error?.code||'unknown';
     const msg=error?.message||'';
-    checkoutMessage('تعذر تسجيل الطلب. حاولي مرة أخرى.',true);
-    alert('❌ لم يتم تسجيل الطلب.\n\nFirebase: '+code+'\n'+msg);
+    checkoutMessage(lang==='ar'?'تعذر تسجيل الطلب. حاولي مرة أخرى.':'Could not submit the order. Please try again.',true);
+    alert((lang==='ar'?'❌ لم يتم تسجيل الطلب.\n\n':'❌ Order was not registered.\n\n')+msg);
   }finally{
     checkoutSubmitting=false;
     if(confirmBtn){
       confirmBtn.disabled=false;
-      confirmBtn.textContent='تأكيد الطلب';
+      confirmBtn.textContent=lang==='ar'?'تأكيد الطلب':'Confirm order';
     }
   }
 }
@@ -3289,6 +3305,68 @@ $('checkoutForm').onsubmit=e=>{
   submitCheckoutOrder();
 };
 $('confirmOrderBtn').onclick=submitCheckoutOrder;
+
+async function completeStripeCheckoutReturn(){
+  const params=new URLSearchParams(window.location.search);
+  const stripeState=params.get('stripe');
+  const sessionId=params.get('session_id');
+  if(stripeState!=='success'||!sessionId)return;
+
+  try{history.replaceState({},document.title,window.location.pathname+window.location.hash);}catch(_){}
+
+  let order=null;
+  try{order=JSON.parse(localStorage.getItem('kandorty_pending_stripe_order_v1')||'null');}catch(_){order=null;}
+  if(!order?.id){
+    alert(lang==='ar'
+      ?'تم الدفع، لكن تعذر العثور على بيانات الطلب المحفوظة. يرجى التواصل مع المتجر.'
+      :'Payment succeeded, but the saved order data could not be found. Please contact the store.');
+    return;
+  }
+
+  try{
+    const verifyResponse=await fetch('https://kandorty-stripe.aliyajan200011.workers.dev/verify-checkout-session',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({session_id:sessionId})
+    });
+    const verified=await verifyResponse.json().catch(()=>({}));
+    if(!verifyResponse.ok)throw new Error(verified.error||'تعذر التحقق من الدفع.');
+    if(verified.payment_status!=='paid')throw new Error('لم يتم تأكيد الدفع بعد.');
+    if(String(verified.orderId||'')!==String(order.id))throw new Error('رقم الطلب لا يطابق عملية الدفع.');
+
+    order.payment='card';
+    order.stripeSessionId=sessionId;
+    order.paymentStatus='paid';
+    order.paidAt=new Date().toISOString();
+
+    const submitResult=await submitCustomerOrder(order);
+
+    if(customerAuthUser?.uid){
+      customerCloudOrders=[order,...customerCloudOrders.filter(o=>o.id!==order.id)];
+    }
+
+    localStorage.setItem('kandorty_last_order_id',order.id);
+    localStorage.removeItem('kandorty_pending_stripe_order_v1');
+    cart=[];
+    saveCart();
+    try{$('checkoutForm').reset();}catch(_){}
+    closeCheckout();
+
+    alert(
+      (lang==='ar'?'✅ تم الدفع وتسجيل الطلب بنجاح.\n\nرقم الطلب: ':'✅ Payment and order registration succeeded.\n\nOrder number: ')+order.id+
+      (lang==='ar'?'\n\nاحتفظي بهذا الرقم لتتبع الطلب.':'\n\nKeep this number to track your order.')+
+      (submitResult?.editReady?(lang==='ar'?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'\nYou can edit the order from Track order while its status is New order.'):'')
+    );
+  }catch(error){
+    console.error('Stripe return verification error:',error);
+    alert((lang==='ar'
+      ?'❌ تم الرجوع من صفحة الدفع، لكن تعذر تأكيد الطلب.\n\n'
+      :'❌ Returned from payment, but the order could not be confirmed.\n\n')+(error?.message||''));
+  }
+}
+
+setTimeout(()=>{completeStripeCheckoutReturn();},150);
+
 
 
 
