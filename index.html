@@ -5391,4 +5391,38 @@ setTimeout(()=>{applyPublicLanguage();render();},0);
   </div>
 </div>
 
+<script id="kandorty-social-links-fix">
+(function(){
+function U(k,v){
+ v=String(v||'').trim(); if(!v)return '#';
+ if(/^https?:\/\//i.test(v))return v;
+ v=v.replace(/^@+/,'');
+ if(k==='instagram'){v=v.replace(/^(?:www\.)?instagram\.com\//i,'').replace(/^\/+|\/+$/g,'');return 'https://www.instagram.com/'+v}
+ if(k==='snapchat'){v=v.replace(/^(?:www\.)?snapchat\.com\/add\//i,'').replace(/^add\//i,'').replace(/^\/+|\/+$/g,'');return 'https://www.snapchat.com/add/'+v}
+ if(k==='whatsapp'){
+   if(/^(?:www\.)?wa\.me\//i.test(v)||/^(?:www\.)?(?:api\.)?whatsapp\.com\//i.test(v))return 'https://'+v;
+   v=v.replace(/[^\d]/g,'');return v?'https://wa.me/'+v:'#'
+ }
+ return v
+}
+function kind(el){
+ const x=((el.id||'')+' '+(el.className||'')+' '+(el.textContent||'')+' '+(el.getAttribute('aria-label')||'')+' '+(el.getAttribute('href')||'')).toLowerCase();
+ if(x.includes('instagram')||x.includes('انستغرام')||x.includes('إنستغرام'))return 'instagram';
+ if(x.includes('snapchat')||x.includes('سناب'))return 'snapchat';
+ if(x.includes('whatsapp')||x.includes('واتساب')||x.includes('واتس'))return 'whatsapp';
+ return ''
+}
+function fix(){
+ document.querySelectorAll('a').forEach(el=>{
+   const k=kind(el); if(!k)return;
+   let raw=el.dataset.socialValue||el.getAttribute('data-url')||el.getAttribute('data-link')||el.getAttribute('href')||'';
+   if(raw==='#'||raw==='/'||/^javascript:/i.test(raw))return;
+   const u=U(k,raw); if(u!=='#'){el.href=u;el.target='_blank';el.rel='noopener noreferrer'}
+ })
+}
+window.kandortySocialUrl=U;
+document.addEventListener('DOMContentLoaded',()=>{fix();setTimeout(fix,800);setTimeout(fix,2500)});
+new MutationObserver(fix).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','data-url','data-link','data-social-value']});
+})();
+</script>
 </body></html>
