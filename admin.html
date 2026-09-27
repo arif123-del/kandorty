@@ -696,57 +696,95 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+<style id="kandorty-category-image-cards">
+/* Four editable category image cards */
+.cats-v2 .cat.category-image-card{
+  min-height:210px;
+  padding:16px;
+  color:#fff !important;
+  background-color:#efe7e8;
+  background-size:cover !important;
+  background-position:center !important;
+  background-repeat:no-repeat !important;
+  border-color:rgba(255,255,255,.55);
+  box-shadow:0 10px 28px rgba(55,20,28,.10);
+  isolation:isolate;
+}
+.cats-v2 .cat.category-image-card::before{display:none !important;content:none !important}
+.cats-v2 .cat.category-image-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:linear-gradient(to top,rgba(20,8,12,.74) 0%,rgba(20,8,12,.24) 52%,rgba(20,8,12,.06) 100%);
+  pointer-events:none;
+}
+.cats-v2 .cat.category-image-card strong,
+.cats-v2 .cat.category-image-card span{
+  position:relative;
+  z-index:2;
+  color:#fff !important;
+  text-shadow:0 2px 8px rgba(0,0,0,.45);
+}
+.cats-v2 .cat.category-image-card strong{font-size:19px;line-height:1.35}
+.cats-v2 .cat.category-image-card span{font-size:13px;line-height:1.5;margin-top:6px}
+.cats-v2 .cat.category-image-card.active{
+  border:2px solid #fff !important;
+  box-shadow:0 0 0 3px var(--red),0 16px 34px rgba(50,12,22,.18) !important;
+}
+@media(max-width:540px){
+  .cats-v2 .cat.category-image-card{min-height:185px;padding:13px;border-radius:18px}
+  .cats-v2 .cat.category-image-card strong{font-size:17px}
+  .cats-v2 .cat.category-image-card span{font-size:11.5px}
+}
+
+.category-admin-box{padding:4px 0 14px}
+.category-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.category-admin-card{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff}
+.category-admin-card h4{margin:0 0 10px}
+.category-admin-preview{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;background:#f6f2f3;display:block;margin-bottom:10px}
+.category-admin-card label{display:block;font-size:12px;font-weight:700;margin:8px 0 5px}
+.category-admin-card input[type="text"],.category-admin-card input[type="file"]{width:100%;box-sizing:border-box}
+.category-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#categoryAdminStatus{margin-top:12px;font-size:13px;color:var(--muted);line-height:1.6}
+@media(max-width:700px){.category-admin-grid{grid-template-columns:1fr}}
+</style>
+<style id="kandorty-flexible-category-css">
+/* Flexible categories: 1 to 15 */
+#categoryCardsGrid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr)) !important;
+}
+#categoryCardsGrid .cat:first-child{grid-column:auto !important}
+#categoryCardsGrid[data-count="1"]{grid-template-columns:minmax(0,520px) !important;justify-content:center}
+#categoryCardsGrid[data-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+.category-admin-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}
+.category-admin-help{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+.category-admin-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.category-admin-card-head h4{margin:0}
+.category-admin-visible{display:flex !important;align-items:center;gap:7px;font-size:12px !important;font-weight:700;margin:0 !important}
+.category-admin-card .category-order-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.category-admin-card .category-order-actions .btn{padding:7px 10px;font-size:12px}
+.category-admin-card .danger-lite{border-color:#e6a5ae;color:#a40019;background:#fff}
+.category-admin-preview.no-image{background:linear-gradient(145deg,#f6eef0,#fff);min-height:150px}
+@media(max-width:900px){#categoryCardsGrid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+@media(max-width:540px){
+  #categoryCardsGrid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px}
+  #categoryCardsGrid[data-count="1"]{grid-template-columns:1fr !important}
+  .category-admin-toolbar .btn{width:100%}
+}
+</style>
 
 <style id="kandorty-admin-order-images-large">
-/* Admin orders: make customer ordered-product images much larger */
-#ordersList .order-products{
-  display:grid !important;
-  gap:14px !important;
-  margin:16px 0 !important;
-}
-#ordersList .order-product-row{
-  display:grid !important;
-  grid-template-columns:150px minmax(0,1fr) !important;
-  gap:16px !important;
-  align-items:center !important;
-  padding:14px !important;
-  border-radius:16px !important;
-}
-#ordersList .order-product-image,
-#ordersList .order-product-noimage{
-  width:150px !important;
-  height:190px !important;
-  max-width:none !important;
-  flex:0 0 150px !important;
-  object-fit:cover !important;
-  border-radius:14px !important;
-}
-#ordersList .order-product-title{
-  font-size:18px !important;
-  line-height:1.45 !important;
-  font-weight:800 !important;
-}
-#ordersList .order-product-code,
-#ordersList .order-product-qty{
-  font-size:15px !important;
-  line-height:1.5 !important;
-  margin-top:5px !important;
-}
+#ordersList .order-products{display:grid!important;gap:14px!important;margin:16px 0!important}
+#ordersList .order-product-row{display:grid!important;grid-template-columns:150px minmax(0,1fr)!important;gap:16px!important;align-items:center!important;padding:14px!important;border-radius:16px!important}
+#ordersList .order-product-image,#ordersList .order-product-noimage{width:150px!important;height:190px!important;max-width:none!important;flex:0 0 150px!important;object-fit:cover!important;border-radius:14px!important}
+#ordersList .order-product-title{font-size:18px!important;line-height:1.45!important;font-weight:800!important}
+#ordersList .order-product-code,#ordersList .order-product-qty{font-size:15px!important;line-height:1.5!important;margin-top:5px!important}
 @media(max-width:600px){
-  #ordersList .order-product-row{
-    grid-template-columns:130px minmax(0,1fr) !important;
-    gap:12px !important;
-    padding:12px !important;
-  }
-  #ordersList .order-product-image,
-  #ordersList .order-product-noimage{
-    width:130px !important;
-    height:170px !important;
-    flex-basis:130px !important;
-  }
-  #ordersList .order-product-title{font-size:16px !important}
-  #ordersList .order-product-code,
-  #ordersList .order-product-qty{font-size:14px !important}
+#ordersList .order-product-row{grid-template-columns:130px minmax(0,1fr)!important;gap:12px!important;padding:12px!important}
+#ordersList .order-product-image,#ordersList .order-product-noimage{width:130px!important;height:170px!important;flex-basis:130px!important}
+#ordersList .order-product-title{font-size:16px!important}
+#ordersList .order-product-code,#ordersList .order-product-qty{font-size:14px!important}
 }
 </style>
 
@@ -844,13 +882,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="adminView" class="hidden">
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
 <button id="orderSoundBtn" class="btn ghost" type="button" onclick="enableOrderSound()" style="margin:10px 0">🔊 تفعيل صوت الطلبات</button>
-<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button id="customersTabBtn" class="tab" onclick="showAdminTab('customers',this)">العملاء <span id="customersTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
+<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button id="customersTabBtn" class="tab" onclick="showAdminTab('customers',this)">العملاء <span id="customersTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('categories',this)">صور الأقسام</button><button class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
 <input id="code" placeholder="كود المنتج KD-1001" required>
 <input id="nameAr" placeholder="اسم المنتج بالعربية" required>
-<select id="category"><option value="women">مخاوير نسائية</option><option value="girls">مخاوير لبنوتات</option><option value="cotton">قطن</option><option value="silk">حرير</option></select>
+<select id="category"></select>
 <input id="price" type="number" min="0" step="0.01" placeholder="السعر AED" required>
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة"><div class="stock-admin-note">إذا وصل العدد إلى 0 سيظهر تلقائياً أن المنتج نفد من المخزون.</div>
@@ -900,6 +938,21 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" type="button" onclick="clearBannerImages()">حذف كل صور البانر</button>
 </div>
 </div>
+</div>
+
+
+<div id="adminCategoriesTab" class="hidden">
+  <div class="category-admin-box">
+    <h3 style="margin-top:0">إدارة أقسام الرئيسية</h3>
+    <p style="color:var(--muted);line-height:1.7">يمكنك عرض قسم واحد أو أكثر، وإضافة أقسام جديدة حتى 15 قسماً. لكل قسم صورة وعنوان ونص صغير، ويمكنك تغييرها من الهاتف في أي وقت.</p>
+    <div class="category-admin-toolbar">
+      <div><b id="categoryCountLabel">0 / 15</b><div class="category-admin-help">الأقسام الظاهرة فقط تظهر للزبائن. يمكن إخفاء قسم بدون حذف بياناته.</div></div>
+      <button id="addCategoryBtn" class="btn primary" type="button" onclick="addCategoryEditor()">+ إضافة قسم</button>
+    </div>
+    <div id="categoryAdminGrid" class="category-admin-grid"></div>
+    <div id="categoryAdminStatus"></div>
+    <button id="saveCategoryCardsBtn" class="btn primary" type="button" onclick="saveCategoryCards()" style="margin-top:12px;width:100%">حفظ الأقسام</button>
+  </div>
 </div>
 
 
@@ -1626,7 +1679,7 @@ auth.onAuthStateChanged(user=>{
     sessionAlertedOrderIds.clear();
   }
 });
-function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
+function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Categories','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='categories')loadCategoryAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
@@ -3916,7 +3969,289 @@ function mountShareButton(){
 mountHeroMediaSlot();
 mountShareButton();
 loadCustomerFeatures();
+// ===== Kandorty flexible editable category cards (1–15) =====
+const MAX_KANDORTY_CATEGORIES=15;
+const DEFAULT_CATEGORY_CARDS=[
+  {id:'women',image:'',titleAr:'مخاوير نسائية',subtitleAr:'أناقة لكل مناسبة',titleEn:"Women's Mukhawar",subtitleEn:'Elegance for every occasion',visible:true},
+  {id:'girls',image:'',titleAr:'مخاوير لبنوتات',subtitleAr:'تصاميم لطيفة ومريحة',titleEn:"Girls' Mukhawar",subtitleEn:'Sweet and comfortable designs',visible:true},
+  {id:'cotton',image:'',titleAr:'قطن',subtitleAr:'نعومة وراحة يومية',titleEn:'Cotton',subtitleEn:'Everyday softness',visible:true},
+  {id:'silk',image:'',titleAr:'حرير',subtitleAr:'لمسة فاخرة',titleEn:'Silk',subtitleEn:'A luxurious touch',visible:true}
+];
+let categoryCards=DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+let pendingCategoryFiles={};
+
+function makeCategoryId(){
+  return 'cat_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+}
+function cleanCategoryId(value){
+  const s=String(value||'').trim().toLowerCase().replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
+  return s||makeCategoryId();
+}
+function normalizedCategoryCards(raw){
+  let list=[];
+  const source=raw&&Object.prototype.hasOwnProperty.call(raw,'cards')?raw.cards:raw;
+  if(Array.isArray(source)){
+    list=source;
+  }else if(source&&typeof source==='object'){
+    // Migrate the old four-card object format automatically.
+    const preferred=['women','girls','cotton','silk'];
+    const keys=[...preferred.filter(k=>source[k]),...Object.keys(source).filter(k=>!preferred.includes(k))];
+    list=keys.map(k=>({id:k,...(source[k]||{})}));
+  }
+  if(!list.length)list=DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+  const used=new Set();
+  const out=[];
+  for(const item of list){
+    if(out.length>=MAX_KANDORTY_CATEGORIES)break;
+    const v=item&&typeof item==='object'?item:{};
+    let id=cleanCategoryId(v.id||v.key||'');
+    if(used.has(id))id=makeCategoryId();
+    used.add(id);
+    const fallback=DEFAULT_CATEGORY_CARDS.find(x=>x.id===id)||{};
+    out.push({
+      id,
+      image:String(v.image||fallback.image||''),
+      titleAr:String(v.titleAr||fallback.titleAr||'قسم جديد'),
+      subtitleAr:String(v.subtitleAr||fallback.subtitleAr||''),
+      titleEn:String(v.titleEn||fallback.titleEn||v.titleAr||fallback.titleAr||'New category'),
+      subtitleEn:String(v.subtitleEn||fallback.subtitleEn||v.subtitleAr||fallback.subtitleAr||''),
+      visible:v.visible!==false && v.active!==false
+    });
+  }
+  return out.length?out:DEFAULT_CATEGORY_CARDS.map(x=>({...x}));
+}
+function categoryBgValue(url){
+  const clean=String(url||'').replace(/"/g,'%22');
+  return clean
+    ? `linear-gradient(to top,rgba(20,8,12,.72),rgba(20,8,12,.08)),url("${clean}")`
+    : 'linear-gradient(145deg,#eadfe1,#f7eff0)';
+}
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function refreshCategorySelect(){
+  const select=document.getElementById('category');
+  if(!select)return;
+  const current=select.value;
+  const list=categoryCards.length?categoryCards:DEFAULT_CATEGORY_CARDS;
+  select.innerHTML=list.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.titleAr)}${c.visible===false?' — مخفي':''}</option>`).join('');
+  if(list.some(c=>c.id===current))select.value=current;
+  else if(list[0])select.value=list[0].id;
+}
+function chooseCategoryFilter(button,id){
+  document.querySelectorAll('#categoryCardsGrid .cat').forEach(x=>x.classList.remove('active'));
+  if(button)button.classList.add('active');
+  currentCat=normalizeCategoryValue(id);
+  render();
+  const productsEl=document.getElementById('products');
+  if(productsEl)setTimeout(()=>productsEl.scrollIntoView({behavior:'smooth',block:'start'}),20);
+}
+function applyCategoryCards(){
+  const grid=document.getElementById('categoryCardsGrid');
+  const visible=categoryCards.filter(c=>c.visible!==false).slice(0,MAX_KANDORTY_CATEGORIES);
+  if(currentCat!=='all'&&!visible.some(c=>normalizeCategoryValue(c.id)===normalizeCategoryValue(currentCat)))currentCat='all';
+  if(grid){
+    grid.dataset.count=String(visible.length);
+    grid.innerHTML='';
+    visible.forEach(card=>{
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='cat category-image-card';
+      btn.dataset.cat=card.id;
+      btn.dataset.ar=card.titleAr;
+      btn.dataset.en=card.titleEn;
+      btn.style.backgroundImage=categoryBgValue(card.image);
+      const strong=document.createElement('strong');
+      strong.dataset.ar=card.titleAr;strong.dataset.en=card.titleEn;
+      strong.textContent=(typeof lang!=='undefined'&&lang==='en')?card.titleEn:card.titleAr;
+      const small=document.createElement('span');
+      small.dataset.ar=card.subtitleAr;small.dataset.en=card.subtitleEn;
+      small.textContent=(typeof lang!=='undefined'&&lang==='en')?card.subtitleEn:card.subtitleAr;
+      btn.append(strong,small);
+      if(normalizeCategoryValue(currentCat)===normalizeCategoryValue(card.id))btn.classList.add('active');
+      btn.onclick=()=>chooseCategoryFilter(btn,card.id);
+      grid.appendChild(btn);
+    });
+  }
+  refreshCategorySelect();
+}
+function loadCategoryCards(){
+  try{
+    db.collection('settings').doc('categories').onSnapshot(doc=>{
+      categoryCards=normalizedCategoryCards(doc.exists?doc.data():{});
+      applyCategoryCards();
+      const tab=document.getElementById('adminCategoriesTab');
+      if(tab&&!tab.classList.contains('hidden'))fillCategoryAdmin();
+    },err=>{console.warn('Category settings:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();});
+  }catch(err){console.warn('Category settings unavailable:',err);categoryCards=normalizedCategoryCards({});applyCategoryCards();}
+}
+function captureCategoryEditorValues(){
+  categoryCards.forEach(card=>{
+    const read=id=>String((document.getElementById(id)||{value:''}).value||'').trim();
+    const visible=document.getElementById('catVisible_'+card.id);
+    if(document.getElementById('catTitleAr_'+card.id))card.titleAr=read('catTitleAr_'+card.id);
+    if(document.getElementById('catSubtitleAr_'+card.id))card.subtitleAr=read('catSubtitleAr_'+card.id);
+    if(document.getElementById('catTitleEn_'+card.id))card.titleEn=read('catTitleEn_'+card.id);
+    if(document.getElementById('catSubtitleEn_'+card.id))card.subtitleEn=read('catSubtitleEn_'+card.id);
+    if(visible)card.visible=!!visible.checked;
+  });
+}
+function categoryPreviewSource(card){
+  const pending=pendingCategoryFiles[card.id];
+  if(pending){
+    try{return URL.createObjectURL(pending)}catch(_){ }
+  }
+  return card.image||'';
+}
+function fillCategoryAdmin(){
+  const grid=document.getElementById('categoryAdminGrid');
+  if(!grid)return;
+  const count=document.getElementById('categoryCountLabel');if(count)count.textContent=`${categoryCards.length} / ${MAX_KANDORTY_CATEGORIES}`;
+  const add=document.getElementById('addCategoryBtn');if(add)add.disabled=categoryCards.length>=MAX_KANDORTY_CATEGORIES;
+  grid.innerHTML=categoryCards.map((c,i)=>`<div class="category-admin-card" data-category-editor="${escapeHtml(c.id)}">
+    <div class="category-admin-card-head"><h4>القسم ${i+1}</h4><label class="category-admin-visible"><input id="catVisible_${escapeHtml(c.id)}" type="checkbox" ${c.visible!==false?'checked':''}> ظاهر</label></div>
+    <img id="catPreview_${escapeHtml(c.id)}" class="category-admin-preview${c.image||pendingCategoryFiles[c.id]?'':' no-image'}" alt="">
+    <label>الصورة</label><input id="catFile_${escapeHtml(c.id)}" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectCategoryImage('${escapeHtml(c.id)}',this)">
+    <label>العنوان بالعربية</label><input id="catTitleAr_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.titleAr)}">
+    <label>النص الصغير بالعربية</label><input id="catSubtitleAr_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.subtitleAr)}">
+    <label>العنوان بالإنجليزية</label><input id="catTitleEn_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.titleEn)}">
+    <label>النص الصغير بالإنجليزية</label><input id="catSubtitleEn_${escapeHtml(c.id)}" type="text" value="${escapeHtml(c.subtitleEn)}">
+    <div class="category-order-actions">
+      <button class="btn ghost" type="button" onclick="moveCategoryEditor('${escapeHtml(c.id)}',-1)" ${i===0?'disabled':''}>↑ للأعلى</button>
+      <button class="btn ghost" type="button" onclick="moveCategoryEditor('${escapeHtml(c.id)}',1)" ${i===categoryCards.length-1?'disabled':''}>↓ للأسفل</button>
+      <button class="btn ghost" type="button" onclick="resetCategoryImage('${escapeHtml(c.id)}')">إزالة الصورة</button>
+      <button class="btn ghost danger-lite" type="button" onclick="removeCategoryEditor('${escapeHtml(c.id)}')" ${categoryCards.length<=1?'disabled':''}>حذف القسم</button>
+    </div>
+  </div>`).join('');
+  categoryCards.forEach(card=>{
+    const preview=document.getElementById('catPreview_'+card.id);
+    if(preview){
+      const src=categoryPreviewSource(card);
+      if(src){preview.src=src;preview.classList.remove('no-image');}
+      else{preview.removeAttribute('src');preview.classList.add('no-image');}
+    }
+  });
+}
+async function loadCategoryAdmin(){
+  fillCategoryAdmin();
+  try{
+    const doc=await db.collection('settings').doc('categories').get();
+    categoryCards=normalizedCategoryCards(doc.exists?doc.data():{});
+    fillCategoryAdmin();applyCategoryCards();
+  }catch(err){console.warn(err);}
+}
+function addCategoryEditor(){
+  captureCategoryEditorValues();
+  if(categoryCards.length>=MAX_KANDORTY_CATEGORIES){alert('الحد الأقصى هو 15 قسماً');return;}
+  const n=categoryCards.length+1;
+  categoryCards.push({id:makeCategoryId(),image:'',titleAr:`قسم ${n}`,subtitleAr:'',titleEn:`Category ${n}`,subtitleEn:'',visible:true});
+  fillCategoryAdmin();
+  setTimeout(()=>document.querySelector('#categoryAdminGrid .category-admin-card:last-child')?.scrollIntoView({behavior:'smooth',block:'center'}),30);
+}
+function removeCategoryEditor(key){
+  captureCategoryEditorValues();
+  if(categoryCards.length<=1){alert('يجب أن يبقى قسم واحد على الأقل');return;}
+  const card=categoryCards.find(c=>c.id===key);
+  if(!card)return;
+  if(!confirm(`حذف القسم «${card.titleAr||'بدون اسم'}»؟`))return;
+  categoryCards=categoryCards.filter(c=>c.id!==key);
+  delete pendingCategoryFiles[key];
+  fillCategoryAdmin();
+}
+function moveCategoryEditor(key,delta){
+  captureCategoryEditorValues();
+  const i=categoryCards.findIndex(c=>c.id===key);if(i<0)return;
+  const j=i+delta;if(j<0||j>=categoryCards.length)return;
+  [categoryCards[i],categoryCards[j]]=[categoryCards[j],categoryCards[i]];
+  fillCategoryAdmin();
+}
+function selectCategoryImage(key,input){
+  const file=input&&input.files&&input.files[0];
+  if(!file)return;
+  if(!/^image\/(jpeg|png|webp)$/i.test(file.type)){alert('اختاري صورة JPG أو PNG أو WebP');input.value='';return;}
+  if(file.size>15*1024*1024){alert('الصورة أكبر من 15MB. اختاري صورة أصغر.');input.value='';return;}
+  pendingCategoryFiles[key]=file;
+  const preview=document.getElementById('catPreview_'+key);
+  if(preview){
+    try{
+      const previewUrl=URL.createObjectURL(file);
+      preview.onload=()=>{try{URL.revokeObjectURL(previewUrl)}catch(_){ }};
+      preview.onerror=()=>{try{URL.revokeObjectURL(previewUrl)}catch(_){ }};
+      preview.src=previewUrl;preview.classList.remove('no-image');
+    }catch(_){preview.removeAttribute('src');preview.classList.add('no-image');}
+  }
+}
+function resetCategoryImage(key){
+  captureCategoryEditorValues();
+  const card=categoryCards.find(c=>c.id===key);if(!card)return;
+  delete pendingCategoryFiles[key];card.image='';
+  const input=document.getElementById('catFile_'+key);if(input)input.value='';
+  const preview=document.getElementById('catPreview_'+key);if(preview){preview.removeAttribute('src');preview.classList.add('no-image');}
+}
+async function compressCategoryImage(file){
+  if(file.size>15*1024*1024)throw new Error('حجم صورة القسم كبير جداً.');
+  const img=await loadImageFile(file);
+  let maxSide=720,quality=.68,blob,lastCanvas=null,lastQuality=.68;
+  const target=30*1024;
+  for(let attempt=0;attempt<10;attempt++){
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lastCanvas=canvas;lastQuality=quality;
+    blob=await canvasToBlob(canvas,'image/jpeg',quality);
+    if(blob.size<=target)break;
+    maxSide=Math.max(360,Math.round(maxSide*.84));quality=Math.max(.40,quality-.06);
+  }
+  if(!blob||!lastCanvas||blob.size>48*1024)throw new Error('تعذر ضغط صورة القسم بما يكفي. اختاري صورة أبسط أو أصغر.');
+  return lastCanvas.toDataURL('image/jpeg',lastQuality);
+}
+async function recompressExistingCategoryImage(dataUrl){
+  if(!String(dataUrl||'').startsWith('data:image/')||String(dataUrl).length<52000)return dataUrl||'';
+  try{
+    const blob=await (await fetch(dataUrl)).blob();
+    return await compressCategoryImage(blob);
+  }catch(_){return dataUrl||'';}
+}
+async function saveCategoryCards(){
+  if(typeof auth!=='undefined'&&!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  captureCategoryEditorValues();
+  const btn=document.getElementById('saveCategoryCardsBtn');
+  const status=document.getElementById('categoryAdminStatus');
+  if(categoryCards.length<1||categoryCards.length>MAX_KANDORTY_CATEGORIES){alert('اختاري من 1 إلى 15 قسماً');return;}
+  if(!categoryCards.some(c=>c.visible!==false)){alert('فعّلي قسماً واحداً على الأقل ليظهر في المتجر');return;}
+  if(categoryCards.some(c=>!String(c.titleAr||'').trim())){alert('اكتبي عنواناً عربياً لكل قسم');return;}
+  if(btn)btn.disabled=true;
+  try{
+    const next=normalizedCategoryCards({cards:categoryCards});
+    for(let i=0;i<next.length;i++){
+      const card=next[i];
+      if(status)status.textContent=`يتم تجهيز القسم ${i+1}/${next.length}...`;
+      if(pendingCategoryFiles[card.id])card.image=await compressCategoryImage(pendingCategoryFiles[card.id]);
+      else card.image=await recompressExistingCategoryImage(card.image);
+      card.titleEn=String(card.titleEn||card.titleAr||'').trim();
+      card.subtitleEn=String(card.subtitleEn||card.subtitleAr||'').trim();
+    }
+    const payload={version:2,cards:next,updatedAt:new Date().toISOString()};
+    const approxBytes=new Blob([JSON.stringify(payload)]).size;
+    if(approxBytes>900*1024)throw new Error('حجم صور الأقسام ما زال كبيراً. اختاري صوراً أصغر لبعض الأقسام.');
+    await db.collection('settings').doc('categories').set(payload);
+    categoryCards=normalizedCategoryCards(payload);
+    pendingCategoryFiles={};
+    fillCategoryAdmin();applyCategoryCards();
+    if(status)status.textContent=`تم حفظ ${categoryCards.length} قسم بنجاح ✅`;
+    alert('تم حفظ الأقسام');
+  }catch(err){
+    console.error('Category cards save error:',err);
+    if(status)status.textContent='فشل الحفظ: '+(err.message||'خطأ غير معروف');
+    alert(err.message||'تعذر حفظ الأقسام');
+  }finally{if(btn)btn.disabled=false;}
+}
+applyCategoryCards();
+// ===== end flexible editable category cards =====
+
 loadSettings();
+loadCategoryCards();
 loadCommerce();
 load();
 </script>
