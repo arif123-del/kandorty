@@ -904,6 +904,20 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="uploadStatus" class="upload-status">اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.</div>
 </div>
 <div id="imagePreview" class="images-preview full"></div>
+
+<div class="full upload-box" id="productVideoAdminBox">
+  <label for="productVideoFile"><b>فيديو المنتج — اختياري، يظهر بعد آخر صورة</b></label>
+  <input id="productVideoFile" type="file" accept="video/*">
+  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية. الفيديو يُرفع إلى Cloudinary ولن يبطئ تحميل صور المنتجات.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button id="uploadProductVideoBtn" class="btn primary" type="button" onclick="uploadProductVideoFromPhone()">⬆ رفع فيديو المنتج</button>
+    <button class="btn ghost" type="button" onclick="removeProductVideo()">حذف الفيديو</button>
+  </div>
+  <div class="progress-wrap"><div id="productVideoProgress" class="progress-bar"></div></div>
+  <div id="productVideoStatus" class="upload-status">لا يوجد فيديو للمنتج.</div>
+  <video id="productVideoPreview" class="hidden" muted controls playsinline style="width:100%;max-height:320px;margin-top:10px;border-radius:12px;background:#000"></video>
+</div>
+
 <textarea id="description" class="full" rows="3" placeholder="وصف المنتج"></textarea>
 <label><input id="isNew" type="checkbox"> منتج جديد</label>
 <label><input id="active" type="checkbox" checked> ظاهر في المتجر</label>
@@ -1790,6 +1804,7 @@ $('productForm').onsubmit=async e=>{
       isNew:$('isNew').checked,
       active:$('active').checked,
       images,
+      productVideoUrl:String(window.pendingProductVideoUrl||old?.productVideoUrl||'').trim(),
       imagePaths:[],
       imageMode:'firestore-spark',
       imageCount:images.length,
@@ -1841,6 +1856,11 @@ function resetForm(){
   $('active').checked=true;
   const stockInput=$('stock'); if(stockInput)stockInput.value='';
   pendingImages=[];pendingImageFiles=[];pendingImagePaths=[];
+  window.pendingProductVideoUrl='';
+  const pvf=$('productVideoFile'); if(pvf)pvf.value='';
+  const pvp=$('productVideoPreview'); if(pvp){pvp.pause();pvp.removeAttribute('src');pvp.load();pvp.classList.add('hidden');}
+  const pvs=$('productVideoStatus'); if(pvs)pvs.textContent='لا يوجد فيديو للمنتج.';
+  const pvb=$('productVideoProgress'); if(pvb)pvb.style.width='0%';
   clearPreviewObjectUrls();
   previewImages();
   setUploadProgress(0,'اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.');
@@ -1859,6 +1879,17 @@ function editProduct(id){
   const stockInput=$('stock'); if(stockInput)stockInput.value=(p.stock===null||p.stock===undefined)?'':p.stock;
   $('description').value=p.description||'';$('isNew').checked=!!p.isNew;$('active').checked=p.active!==false;
   const existing=p.images||[];$('imageUrls').value=existing.filter(x=>/^https?:\/\//i.test(x)).join('\n');pendingImages=existing.filter(x=>/^data:image\//i.test(x));pendingImagePaths=[];pendingImageFiles=[];$('imageFiles').value='';previewImages();
+  window.pendingProductVideoUrl=String(p.productVideoUrl||'').trim();
+  const pvf=$('productVideoFile'); if(pvf)pvf.value='';
+  const pvp=$('productVideoPreview');
+  const pvs=$('productVideoStatus');
+  if(window.pendingProductVideoUrl){
+    if(pvp){pvp.src=window.pendingProductVideoUrl;pvp.classList.remove('hidden');}
+    if(pvs)pvs.textContent='فيديو المنتج موجود وسيظهر بعد آخر صورة.';
+  }else{
+    if(pvp){pvp.pause();pvp.removeAttribute('src');pvp.load();pvp.classList.add('hidden');}
+    if(pvs)pvs.textContent='لا يوجد فيديو للمنتج.';
+  }
 }
 async function toggleProduct(id){
   const p=products.find(x=>x.id===id);if(!p)return;
@@ -3010,6 +3041,77 @@ function uploadVideoToCloudinary(file,onProgress){
     xhr.send(form);
   });
 }
+
+
+window.pendingProductVideoUrl=window.pendingProductVideoUrl||'';
+
+function setProductVideoProgress(percent,message){
+  const bar=document.getElementById('productVideoProgress');
+  const status=document.getElementById('productVideoStatus');
+  if(bar)bar.style.width=Math.max(0,Math.min(100,Number(percent)||0))+'%';
+  if(status && message)status.textContent=message;
+}
+function getVideoDuration(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const video=document.createElement('video');
+    video.preload='metadata';
+    video.onloadedmetadata=()=>{
+      const duration=Number(video.duration)||0;
+      URL.revokeObjectURL(url);
+      resolve(duration);
+    };
+    video.onerror=()=>{
+      URL.revokeObjectURL(url);
+      reject(new Error('تعذر قراءة مدة الفيديو.'));
+    };
+    video.src=url;
+  });
+}
+async function uploadProductVideoFromPhone(){
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  const input=document.getElementById('productVideoFile');
+  const file=input?.files?.[0];
+  if(!file){alert('اختاري فيديو المنتج أولاً.');return;}
+  if(!String(file.type||'').startsWith('video/')){alert('اختاري ملف فيديو صالح.');return;}
+
+  const btn=document.getElementById('uploadProductVideoBtn');
+  if(btn)btn.disabled=true;
+  try{
+    setProductVideoProgress(2,'يتم فحص مدة الفيديو...');
+    const duration=await getVideoDuration(file);
+    if(duration>30.15){
+      throw new Error('مدة فيديو المنتج يجب ألا تتجاوز 30 ثانية.');
+    }
+    setProductVideoProgress(5,'جارٍ رفع فيديو المنتج إلى Cloudinary...');
+    const result=await uploadVideoToCloudinary(file,p=>{
+      setProductVideoProgress(5+(p*.9),`جارٍ رفع الفيديو... ${Math.round(p)}%`);
+    });
+    const url=optimizeCloudinaryVideoUrl(result.secure_url||'');
+    window.pendingProductVideoUrl=url;
+    const preview=document.getElementById('productVideoPreview');
+    if(preview){
+      preview.src=url;
+      preview.classList.remove('hidden');
+      preview.load();
+    }
+    setProductVideoProgress(100,'تم رفع فيديو المنتج ✅ سيظهر بعد آخر صورة.');
+  }catch(err){
+    console.error('Product video upload error:',err);
+    setProductVideoProgress(0,'فشل رفع الفيديو: '+(err?.message||'خطأ غير معروف'));
+    alert(err?.message||'تعذر رفع فيديو المنتج.');
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+}
+function removeProductVideo(){
+  window.pendingProductVideoUrl='';
+  const input=document.getElementById('productVideoFile'); if(input)input.value='';
+  const preview=document.getElementById('productVideoPreview');
+  if(preview){preview.pause();preview.removeAttribute('src');preview.load();preview.classList.add('hidden');}
+  setProductVideoProgress(0,'تم حذف فيديو المنتج من هذا المنتج. اضغطي حفظ المنتج لتثبيت التغيير.');
+}
+
 
 async function uploadHomeVideoFromPhone(){
   if(!auth.currentUser){
