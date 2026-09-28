@@ -1082,6 +1082,44 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-product-video-and-zoom">
+#modalProductVideo{
+  display:none;
+  width:100%;
+  aspect-ratio:3/4;
+  object-fit:cover;
+  background:#000;
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+#modalProductVideo.show{display:block}
+#imageViewerImg{
+  transform-origin:center center !important;
+  touch-action:none !important;
+  cursor:zoom-in;
+}
+#imageViewerImg.zoomed{cursor:grab}
+#imageViewerImg.zoomed:active{cursor:grabbing}
+.image-viewer-zoom-controls{
+  position:absolute;
+  right:12px;
+  bottom:max(18px, env(safe-area-inset-bottom));
+  z-index:5;
+  display:flex;
+  gap:8px;
+}
+.image-viewer-zoom-controls button{
+  width:44px;height:44px;border:0;border-radius:50%;
+  background:rgba(255,255,255,.92);color:#111;
+  font-size:24px;font-weight:800;
+  box-shadow:0 4px 18px rgba(0,0,0,.22);
+}
+@media(max-width:700px){
+  #modalProductVideo{border-radius:0}
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1147,6 +1185,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
     <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
+    <video id="modalProductVideo" muted playsinline loop preload="none"></video>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
@@ -1902,6 +1941,7 @@ function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt
 let currentProductImages=[];
 let currentProductImageIndex=0;
 let currentProductId='';
+let currentProductVideoUrl='';
 
 let gallerySwipeBound=false;
 let imageViewerSwipeBound=false;
@@ -1970,12 +2010,18 @@ function bindHorizontalSwipe(el,onLeft,onRight){
   el.dataset.swipeBound='1';
 }
 
+function getCurrentProductMediaCount(){
+  return currentProductImages.length+(currentProductVideoUrl?1:0);
+}
+function isCurrentProductVideo(){
+  return !!currentProductVideoUrl && currentProductImageIndex===currentProductImages.length;
+}
 function stepProductImage(step,fromViewer){
-  if(!currentProductImages.length)return;
-  const count=currentProductImages.length;
+  const count=getCurrentProductMediaCount();
+  if(!count)return;
   currentProductImageIndex=(currentProductImageIndex+step+count)%count;
   renderProductGallery(step);
-  if(fromViewer || !$('imageViewerModal').classList.contains('hidden')){
+  if((fromViewer || !$('imageViewerModal').classList.contains('hidden')) && !isCurrentProductVideo()){
     updateFullscreenProductImage(step);
   }
 }
@@ -1983,14 +2029,16 @@ function stepProductImage(step,fromViewer){
 function updateFullscreenProductImage(direction=0){
   const viewer=$('imageViewerModal');
   const img=$('imageViewerImg');
-  if(!viewer || !img || !currentProductImages.length)return;
+  if(!viewer || !img || !currentProductImages.length || isCurrentProductVideo())return;
   preloadProductImages(currentProductImages);
+  resetImageZoom();
   animateImageSwap(img,currentProductImages[currentProductImageIndex],direction);
 }
 
 function openFullscreenProductImage(){
-  if(!currentProductImages.length)return;
+  if(!currentProductImages.length || isCurrentProductVideo())return;
   $('imageViewerModal').classList.remove('hidden');
+  resetImageZoom();
   updateFullscreenProductImage();
 }
 
@@ -2007,41 +2055,67 @@ function renderProductGallery(direction=0){
   const addBtn=$('modalAddSelectedBtn');
   const gallery=$('modalGallery');
   const mainImg=$('modalMainImage');
+  const video=$('modalProductVideo');
   const prevBtn=$('galleryPrevBtn');
   const nextBtn=$('galleryNextBtn');
+  const total=getCurrentProductMediaCount();
 
-  if(!currentProductImages.length){
+  if(!total){
     gallery.style.display='none';
-    if(selectedNote)selectedNote.textContent=lang==='ar'?'لا توجد ألوان/صور لهذا المنتج.':'No color/image is available for this product.';
+    if(selectedNote)selectedNote.textContent=lang==='ar'?'لا توجد صور أو فيديو لهذا المنتج.':'No images or video are available for this product.';
     return;
   }
 
   gallery.style.display='block';
-  mainImg.onload=null;
-  mainImg.removeAttribute('style');
-  preloadProductImages(currentProductImages);
-  animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   $('modalThumbs').innerHTML='';
 
-  if(prevBtn)prevBtn.disabled=currentProductImages.length<=1;
-  if(nextBtn)nextBtn.disabled=currentProductImages.length<=1;
+  const showingVideo=isCurrentProductVideo();
+  if(showingVideo){
+    mainImg.style.display='none';
+    mainImg.onclick=null;
+    video.classList.add('show');
 
-  bindHorizontalSwipe(mainImg,()=>stepProductImage(1),()=>stepProductImage(-1));
+    // Load the product video only when the customer reaches the last media item.
+    if(video.dataset.src!==currentProductVideoUrl){
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.dataset.src=currentProductVideoUrl;
+      video.src=currentProductVideoUrl;
+    }
+    video.play().catch(()=>{});
+  }else{
+    video.pause();
+    video.classList.remove('show');
+    // Free the video network/decoder when the customer goes back to images.
+    if(video.getAttribute('src')){
+      video.removeAttribute('src');
+      video.load();
+    }
+    video.dataset.src='';
+
+    mainImg.style.display='block';
+    mainImg.onclick=openFullscreenProductImage;
+    mainImg.onload=null;
+    mainImg.removeAttribute('style');
+    mainImg.style.display='block';
+    preloadProductImages(currentProductImages);
+    animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
+  }
+
+  if(prevBtn)prevBtn.disabled=total<=1;
+  if(nextBtn)nextBtn.disabled=total<=1;
+
+  bindHorizontalSwipe(gallery,()=>stepProductImage(1),()=>stepProductImage(-1));
   bindHorizontalSwipe($('imageViewerImg'),()=>stepProductImage(1,true),()=>stepProductImage(-1,true));
 
-  if(selectedNote){
-    selectedNote.textContent=currentProductImages.length>1
-      ? (lang==='ar'
-          ? 'اسحبي الصورة يمينًا أو يسارًا — اضغطي لعرضها بملء الشاشة'
-          : 'Swipe left or right — tap to view full screen')
-      : (lang==='ar'?'اضغطي الصورة لعرضها بملء الشاشة.':'Tap the image to view full screen.');
-  }
-  if(addBtn){
-    addBtn.textContent=lang==='ar'?'أضيفي للسلة':'Add to cart';
-  }
+  if(selectedNote)selectedNote.textContent='';
+  if(addBtn)addBtn.textContent=lang==='ar'?'أضيفي للسلة':'Add to cart';
 
-  if(!$('imageViewerModal').classList.contains('hidden')){
+  if(!$('imageViewerModal').classList.contains('hidden') && !showingVideo){
     updateFullscreenProductImage(direction);
+  }else if(showingVideo && !$('imageViewerModal').classList.contains('hidden')){
+    $('imageViewerModal').classList.add('hidden');
   }
 }
 
@@ -2054,6 +2128,7 @@ function openProduct(id){
   $('modalCode').textContent=p.code||'';
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
+  currentProductVideoUrl=String(p.productVideoUrl||'').trim();
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
@@ -2088,8 +2163,9 @@ function openProduct(id){
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
+      currentProductVideoUrl=String(fresh.productVideoUrl||'').trim();
       preloadProductImages(currentProductImages);
-      currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,freshImages.length-1));
+      currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1));
       renderProductGallery();
 
       const freshAddBtn=$('modalAddSelectedBtn');
@@ -2106,9 +2182,15 @@ function openProduct(id){
 }
 function addSelectedProductToCart(){
   if(!currentProductId)return;
-  addToCart(currentProductId,currentProductImageIndex);
+  addToCart(currentProductId,Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1)));
 }
-function closeProduct(){$('productModal').classList.add('hidden'); $('imageViewerModal').classList.add('hidden');}
+function closeProduct(){
+  $('productModal').classList.add('hidden');
+  $('imageViewerModal').classList.add('hidden');
+  const v=$('modalProductVideo');
+  if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
+  resetImageZoom();
+}
 
 $('adminBtn').onclick=()=>{$('adminModal').classList.remove('hidden'); syncAdminView(auth.currentUser)};function closeAdmin(){$('adminModal').classList.add('hidden')}
 function authErrorMessage(error){
@@ -5431,5 +5513,85 @@ setTimeout(()=>{applyPublicLanguage();render();},0);
     <div class="image-viewer-hint">اسحبي الصورة يمينًا أو يسارًا</div>
   </div>
 </div>
+
+
+<script id="kandorty-image-pinch-zoom">
+let kandortyImageZoom=1,kandortyImageX=0,kandortyImageY=0;
+let kandortyPinchStartDist=0,kandortyPinchStartZoom=1;
+let kandortyPanStartX=0,kandortyPanStartY=0,kandortyPanOriginX=0,kandortyPanOriginY=0;
+let kandortyLastTap=0;
+
+function applyImageZoom(){
+  const img=document.getElementById('imageViewerImg');
+  if(!img)return;
+  img.style.transform=`translate(${kandortyImageX}px,${kandortyImageY}px) scale(${kandortyImageZoom})`;
+  img.classList.toggle('zoomed',kandortyImageZoom>1.01);
+}
+function resetImageZoom(){
+  kandortyImageZoom=1;kandortyImageX=0;kandortyImageY=0;applyImageZoom();
+}
+function changeImageZoom(delta){
+  kandortyImageZoom=Math.max(1,Math.min(4,kandortyImageZoom+delta));
+  if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+  applyImageZoom();
+}
+function touchDistance(touches){
+  const a=touches[0],b=touches[1];
+  return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+}
+(function bindKandortyZoom(){
+  const img=document.getElementById('imageViewerImg');
+  if(!img || img.dataset.zoomBound==='1')return;
+  img.dataset.zoomBound='1';
+
+  img.addEventListener('dblclick',e=>{
+    e.preventDefault();
+    kandortyImageZoom=kandortyImageZoom>1?1:2;
+    if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+    applyImageZoom();
+  });
+
+  img.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      kandortyPinchStartDist=touchDistance(e.touches);
+      kandortyPinchStartZoom=kandortyImageZoom;
+      e.preventDefault();
+    }else if(e.touches.length===1){
+      const now=Date.now();
+      if(now-kandortyLastTap<280){
+        kandortyImageZoom=kandortyImageZoom>1?1:2;
+        if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+        applyImageZoom();
+        e.preventDefault();
+      }
+      kandortyLastTap=now;
+      kandortyPanStartX=e.touches[0].clientX;
+      kandortyPanStartY=e.touches[0].clientY;
+      kandortyPanOriginX=kandortyImageX;
+      kandortyPanOriginY=kandortyImageY;
+    }
+  },{passive:false});
+
+  img.addEventListener('touchmove',e=>{
+    if(e.touches.length===2 && kandortyPinchStartDist){
+      const ratio=touchDistance(e.touches)/kandortyPinchStartDist;
+      kandortyImageZoom=Math.max(1,Math.min(4,kandortyPinchStartZoom*ratio));
+      if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+      applyImageZoom();
+      e.preventDefault();
+    }else if(e.touches.length===1 && kandortyImageZoom>1){
+      kandortyImageX=kandortyPanOriginX+(e.touches[0].clientX-kandortyPanStartX);
+      kandortyImageY=kandortyPanOriginY+(e.touches[0].clientY-kandortyPanStartY);
+      applyImageZoom();
+      e.preventDefault();
+    }
+  },{passive:false});
+
+  img.addEventListener('touchend',()=>{
+    if(kandortyImageZoom<=1){resetImageZoom();}
+    kandortyPinchStartDist=0;
+  },{passive:true});
+})();
+</script>
 
 </body></html>
