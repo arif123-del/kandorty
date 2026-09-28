@@ -908,7 +908,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box" id="productVideoAdminBox">
   <label for="productVideoFile"><b>فيديو المنتج — اختياري، يظهر بعد آخر صورة</b></label>
   <input id="productVideoFile" type="file" accept="video/*">
-  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية. الفيديو يُرفع إلى Cloudinary ولن يبطئ تحميل صور المنتجات.</p>
+  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية. إذا كان الملف كبيراً، سيتم تصغير حجمه تلقائياً قبل الرفع لتسريع العملية.</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button id="uploadProductVideoBtn" class="btn primary" type="button" onclick="uploadProductVideoFromPhone()">⬆ رفع فيديو المنتج</button>
     <button class="btn ghost" type="button" onclick="removeProductVideo()">حذف الفيديو</button>
@@ -3068,6 +3068,106 @@ function getVideoDuration(file){
     video.src=url;
   });
 }
+
+async function compressProductVideoForUpload(file){
+  // Short 4K/1080p phone clips can still be very large. For files above 8 MB,
+  // create a lightweight 540p muted copy in the browser. If the browser does
+  // not support this path, safely fall back to the original file.
+  if(!file || file.size<=8*1024*1024)return file;
+  if(typeof MediaRecorder==='undefined')return file;
+
+  const mimeCandidates=[
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  const mime=mimeCandidates.find(x=>MediaRecorder.isTypeSupported?.(x));
+  if(!mime)return file;
+
+  return new Promise((resolve)=>{
+    let objectUrl='';
+    try{
+      objectUrl=URL.createObjectURL(file);
+      const video=document.createElement('video');
+      video.muted=true;
+      video.playsInline=true;
+      video.preload='auto';
+      video.src=objectUrl;
+
+      const cleanup=()=>{
+        try{video.pause()}catch(_){}
+        try{URL.revokeObjectURL(objectUrl)}catch(_){}
+      };
+
+      video.onerror=()=>{cleanup();resolve(file)};
+
+      video.onloadedmetadata=async()=>{
+        try{
+          const srcW=Math.max(2,video.videoWidth||540);
+          const srcH=Math.max(2,video.videoHeight||960);
+          const maxW=540;
+          const scale=Math.min(1,maxW/srcW);
+          const w=Math.max(2,Math.round(srcW*scale/2)*2);
+          const h=Math.max(2,Math.round(srcH*scale/2)*2);
+
+          const canvas=document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          const ctx=canvas.getContext('2d',{alpha:false});
+          if(!ctx){cleanup();resolve(file);return;}
+
+          const stream=canvas.captureStream(24);
+          const recorder=new MediaRecorder(stream,{
+            mimeType:mime,
+            videoBitsPerSecond:900000
+          });
+          const chunks=[];
+          recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
+          recorder.onerror=()=>{cleanup();resolve(file)};
+          recorder.onstop=()=>{
+            cleanup();
+            const blob=new Blob(chunks,{type:mime});
+            if(!blob.size || blob.size>=file.size){
+              resolve(file);
+              return;
+            }
+            const base=(file.name||'product-video').replace(/\.[^.]+$/,'');
+            resolve(new File([blob],base+'-web.webm',{type:mime,lastModified:Date.now()}));
+          };
+
+          let stopped=false;
+          const draw=()=>{
+            if(stopped)return;
+            if(video.ended){
+              stopped=true;
+              try{recorder.stop()}catch(_){cleanup();resolve(file)}
+              return;
+            }
+            try{ctx.drawImage(video,0,0,w,h)}catch(_){}
+            requestAnimationFrame(draw);
+          };
+
+          recorder.start(1000);
+          await video.play();
+          requestAnimationFrame(draw);
+
+          // Safety timeout: maximum product duration is 30 seconds.
+          setTimeout(()=>{
+            if(!stopped){
+              stopped=true;
+              try{recorder.stop()}catch(_){cleanup();resolve(file)}
+            }
+          },33000);
+        }catch(_){
+          cleanup();
+          resolve(file);
+        }
+      };
+    }catch(_){
+      try{if(objectUrl)URL.revokeObjectURL(objectUrl)}catch(__){}
+      resolve(file);
+    }
+  });
+}
+
 async function uploadProductVideoFromPhone(){
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
   const input=document.getElementById('productVideoFile');
@@ -3083,9 +3183,18 @@ async function uploadProductVideoFromPhone(){
     if(duration>30.15){
       throw new Error('مدة فيديو المنتج يجب ألا تتجاوز 30 ثانية.');
     }
-    setProductVideoProgress(5,'جارٍ رفع فيديو المنتج إلى Cloudinary...');
-    const result=await uploadVideoToCloudinary(file,p=>{
-      setProductVideoProgress(5+(p*.9),`جارٍ رفع الفيديو... ${Math.round(p)}%`);
+    let uploadFile=file;
+    if(file.size>8*1024*1024){
+      setProductVideoProgress(5,'يتم تصغير حجم الفيديو لتسريع الرفع...');
+      uploadFile=await compressProductVideoForUpload(file);
+      const before=(file.size/1024/1024).toFixed(1);
+      const after=(uploadFile.size/1024/1024).toFixed(1);
+      setProductVideoProgress(12,`تم تجهيز الفيديو: ${before} MB → ${after} MB`);
+    }
+
+    setProductVideoProgress(15,'جارٍ رفع فيديو المنتج إلى Cloudinary...');
+    const result=await uploadVideoToCloudinary(uploadFile,p=>{
+      setProductVideoProgress(15+(p*.85),`جارٍ رفع الفيديو... ${Math.round(p)}%`);
     });
     const url=optimizeCloudinaryVideoUrl(result.secure_url||'');
     window.pendingProductVideoUrl=url;
@@ -3104,6 +3213,18 @@ async function uploadProductVideoFromPhone(){
     if(btn)btn.disabled=false;
   }
 }
+
+const kandortyProductVideoInput=document.getElementById('productVideoFile');
+if(kandortyProductVideoInput && !kandortyProductVideoInput.dataset.sizeBound){
+  kandortyProductVideoInput.dataset.sizeBound='1';
+  kandortyProductVideoInput.addEventListener('change',()=>{
+    const f=kandortyProductVideoInput.files?.[0];
+    if(!f)return;
+    const mb=(f.size/1024/1024).toFixed(1);
+    setProductVideoProgress(0,`تم اختيار الفيديو — الحجم ${mb} MB`);
+  });
+}
+
 function removeProductVideo(){
   window.pendingProductVideoUrl='';
   const input=document.getElementById('productVideoFile'); if(input)input.value='';
