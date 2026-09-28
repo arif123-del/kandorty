@@ -1120,6 +1120,81 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-product-video-carousel-final">
+.product-gallery-stage{
+  display:grid !important;
+  position:relative !important;
+  overflow:hidden !important;
+}
+.product-gallery-stage > #modalMainImage,
+.product-gallery-stage > #modalProductVideo{
+  grid-area:1 / 1 !important;
+  width:100% !important;
+  height:auto !important;
+  aspect-ratio:3/4 !important;
+  object-fit:cover !important;
+  margin:0 !important;
+  align-self:stretch !important;
+}
+#modalProductVideo{
+  display:none !important;
+  background:#000 !important;
+  border:1px solid var(--line) !important;
+  border-radius:14px !important;
+}
+#modalProductVideo.show{
+  display:block !important;
+}
+.product-video-badge{
+  position:absolute;
+  top:12px;
+  right:12px;
+  z-index:6;
+  display:none;
+  align-items:center;
+  gap:5px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(17,17,17,.78);
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  pointer-events:none;
+  backdrop-filter:blur(3px);
+}
+.product-video-badge.show{display:inline-flex}
+.card-video-badge{
+  position:absolute;
+  top:10px;
+  right:10px;
+  z-index:3;
+  width:31px;
+  height:31px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:rgba(17,17,17,.78);
+  color:#fff;
+  font-size:15px;
+  line-height:1;
+  pointer-events:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.22);
+}
+@media(max-width:700px){
+  .product-gallery-stage > #modalMainImage,
+  .product-gallery-stage > #modalProductVideo{
+    border-radius:0 !important;
+  }
+  .product-video-badge{
+    top:10px;
+    right:10px;
+    font-size:11px;
+    padding:6px 9px;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1183,6 +1258,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
+    <div id="productVideoBadge" class="product-video-badge">▶ <span>فيديو</span></div>
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
     <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
     <video id="modalProductVideo" muted playsinline loop preload="none"></video>
@@ -1904,6 +1980,7 @@ function renderProductCard(p){
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
   const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
+  const videoBadge=p.productVideoUrl?`<div class="card-video-badge" title="${lang==='ar'?'هذا المنتج يحتوي على فيديو':'This product has a video'}">▶</div>`:'';
   const stockHtml=stockLabel(p)?`<div class="stock-note">${stockLabel(p)}</div>`:'';
   const variantCount=Array.isArray(p.images)?p.images.filter(Boolean).length:0;
   const addBtn=sold
@@ -1912,7 +1989,7 @@ function renderProductCard(p){
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
+    <div class="card-image-wrap">${soldOutBadge}${videoBadge}${imageHtml}</div>
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
@@ -2069,8 +2146,16 @@ function renderProductGallery(direction=0){
   gallery.style.display='block';
   $('modalThumbs').innerHTML='';
 
+  const badge=$('productVideoBadge');
+  if(badge){
+    badge.classList.toggle('show',!!currentProductVideoUrl && !isCurrentProductVideo());
+    const label=badge.querySelector('span');
+    if(label)label.textContent=lang==='ar'?'فيديو':'Video';
+  }
+
   const showingVideo=isCurrentProductVideo();
   if(showingVideo){
+    if(badge)badge.classList.remove('show');
     mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
@@ -2084,6 +2169,7 @@ function renderProductGallery(direction=0){
       video.src=currentProductVideoUrl;
     }
     video.play().catch(()=>{});
+    video.setAttribute('aria-label',lang==='ar'?'فيديو المنتج':'Product video');
   }else{
     video.pause();
     video.classList.remove('show');
@@ -2097,8 +2183,6 @@ function renderProductGallery(direction=0){
     mainImg.style.display='block';
     mainImg.onclick=openFullscreenProductImage;
     mainImg.onload=null;
-    mainImg.removeAttribute('style');
-    mainImg.style.display='block';
     preloadProductImages(currentProductImages);
     animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   }
