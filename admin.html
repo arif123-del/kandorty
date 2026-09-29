@@ -908,7 +908,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box" id="productVideoAdminBox">
   <label for="productVideoFile"><b>فيديو المنتج — اختياري، يظهر بعد آخر صورة</b></label>
   <input id="productVideoFile" type="file" accept="video/*">
-  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية. يتم رفع الفيديو مباشرة لتقليل وقت الانتظار.</p>
+  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية وحجم الملف حتى 40MB. الفيديو يُرفع إلى Cloudinary ولن يبطئ تحميل صور المنتجات.</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button id="uploadProductVideoBtn" class="btn primary" type="button" onclick="uploadProductVideoFromPhone()">⬆ رفع فيديو المنتج</button>
     <button class="btn ghost" type="button" onclick="removeProductVideo()">حذف الفيديو</button>
@@ -3030,7 +3030,9 @@ function uploadVideoToCloudinary(file,onProgress){
       if(xhr.status>=200 && xhr.status<300 && data && data.secure_url){
         resolve(data);
       }else{
-        const msg=data?.error?.message || ('Cloudinary upload failed ('+xhr.status+')');
+        let msg=data?.error?.message || ('Cloudinary upload failed ('+xhr.status+')');
+        if(xhr.status===413)msg='Cloudinary رفض حجم الملف. فيديو المنتج مسموح حتى 40MB في الموقع، لكن إعدادات حساب Cloudinary قد تحتاج رفع حد الرفع.';
+        if(xhr.status===0)msg='انقطع الاتصال أثناء رفع الفيديو. حاولي مرة أخرى على اتصال ثابت.';
         reject(new Error(msg));
       }
     };
@@ -3068,7 +3070,6 @@ function getVideoDuration(file){
     video.src=url;
   });
 }
-
 async function uploadProductVideoFromPhone(){
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
   const input=document.getElementById('productVideoFile');
@@ -3076,19 +3077,26 @@ async function uploadProductVideoFromPhone(){
   if(!file){alert('اختاري فيديو المنتج أولاً.');return;}
   if(!String(file.type||'').startsWith('video/')){alert('اختاري ملف فيديو صالح.');return;}
 
+  const MAX_PRODUCT_VIDEO_BYTES=40*1024*1024;
+  if(file.size>MAX_PRODUCT_VIDEO_BYTES){
+    const mb=(file.size/1024/1024).toFixed(1);
+    alert('حجم فيديو المنتج '+mb+'MB. الحد الأقصى المسموح 40MB.');
+    setProductVideoProgress(0,'الفيديو أكبر من 40MB.');
+    return;
+  }
+
   const btn=document.getElementById('uploadProductVideoBtn');
   if(btn)btn.disabled=true;
   try{
-    setProductVideoProgress(2,'يتم فحص مدة الفيديو...');
+    const sizeMb=(file.size/1024/1024).toFixed(1);
+    setProductVideoProgress(2,'يتم فحص الفيديو... الحجم '+sizeMb+'MB');
     const duration=await getVideoDuration(file);
     if(duration>30.15){
       throw new Error('مدة فيديو المنتج يجب ألا تتجاوز 30 ثانية.');
     }
-    // Upload the original clip directly. The previous browser-side compression
-    // had to replay the whole clip before uploading, which made even short videos feel slow.
-    setProductVideoProgress(5,'جارٍ رفع فيديو المنتج مباشرة إلى Cloudinary...');
+    setProductVideoProgress(5,'جارٍ رفع فيديو المنتج إلى Cloudinary...');
     const result=await uploadVideoToCloudinary(file,p=>{
-      setProductVideoProgress(5+(p*.95),`جارٍ رفع الفيديو... ${Math.round(p)}%`);
+      setProductVideoProgress(5+(p*.9),`جارٍ رفع الفيديو... ${Math.round(p)}%`);
     });
     const url=optimizeCloudinaryVideoUrl(result.secure_url||'');
     window.pendingProductVideoUrl=url;
@@ -3107,18 +3115,6 @@ async function uploadProductVideoFromPhone(){
     if(btn)btn.disabled=false;
   }
 }
-
-const kandortyProductVideoInput=document.getElementById('productVideoFile');
-if(kandortyProductVideoInput && !kandortyProductVideoInput.dataset.sizeBound){
-  kandortyProductVideoInput.dataset.sizeBound='1';
-  kandortyProductVideoInput.addEventListener('change',()=>{
-    const f=kandortyProductVideoInput.files?.[0];
-    if(!f)return;
-    const mb=(f.size/1024/1024).toFixed(1);
-    setProductVideoProgress(0,`تم اختيار الفيديو — الحجم ${mb} MB`);
-  });
-}
-
 function removeProductVideo(){
   window.pendingProductVideoUrl='';
   const input=document.getElementById('productVideoFile'); if(input)input.value='';
