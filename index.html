@@ -1121,122 +1121,24 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </style>
 
 
-<style id="kandorty-product-video-carousel-final">
-.product-gallery-stage{
-  display:grid !important;
-  position:relative !important;
-  overflow:hidden !important;
-}
-.product-gallery-stage > #modalMainImage,
-.product-gallery-stage > #modalProductVideo{
-  grid-area:1 / 1 !important;
-  width:100% !important;
-  height:auto !important;
-  aspect-ratio:3/4 !important;
-  object-fit:cover !important;
-  margin:0 !important;
-  align-self:stretch !important;
-}
-#modalProductVideo{
-  display:none !important;
-  background:#000 !important;
-  border:1px solid var(--line) !important;
-  border-radius:14px !important;
-}
-#modalProductVideo.show{
-  display:block !important;
-}
-.product-video-badge{
+<style id="kandorty-product-video-display-fix">
+.product-gallery-stage{position:relative}
+#modalProductVideo.show{display:block!important}
+#productVideoBadge{
+  display:none;
   position:absolute;
   top:12px;
   right:12px;
   z-index:6;
-  display:none;
-  align-items:center;
-  gap:5px;
-  padding:7px 10px;
-  border-radius:999px;
-  background:rgba(17,17,17,.78);
+  background:rgba(0,0,0,.72);
   color:#fff;
+  border-radius:999px;
+  padding:7px 10px;
   font-size:12px;
   font-weight:800;
   pointer-events:none;
-  backdrop-filter:blur(3px);
 }
-.product-video-badge.show{display:inline-flex}
-.card-video-badge{
-  position:absolute;
-  top:10px;
-  right:10px;
-  z-index:3;
-  width:31px;
-  height:31px;
-  border-radius:50%;
-  display:grid;
-  place-items:center;
-  background:rgba(17,17,17,.78);
-  color:#fff;
-  font-size:15px;
-  line-height:1;
-  pointer-events:none;
-  box-shadow:0 4px 14px rgba(0,0,0,.22);
-}
-@media(max-width:700px){
-  .product-gallery-stage > #modalMainImage,
-  .product-gallery-stage > #modalProductVideo{
-    border-radius:0 !important;
-  }
-  .product-video-badge{
-    top:10px;
-    right:10px;
-    font-size:11px;
-    padding:6px 9px;
-  }
-}
-</style>
-
-
-<style id="kandorty-video-badge-display-fix">
-/* Small, subtle video indicator on product cards */
-.card-image-wrap > .card-video-badge{
-  position:absolute !important;
-  top:8px !important;
-  right:8px !important;
-  width:21px !important;
-  height:21px !important;
-  min-width:21px !important;
-  max-width:21px !important;
-  display:grid !important;
-  place-items:center !important;
-  padding:0 !important;
-  border-radius:50% !important;
-  background:rgba(17,17,17,.64) !important;
-  color:#fff !important;
-  font-size:10px !important;
-  line-height:1 !important;
-  box-shadow:0 2px 7px rgba(0,0,0,.16) !important;
-  pointer-events:none !important;
-}
-
-/* Video occupies exactly the same gallery slot as the images */
-.product-gallery-stage > #modalProductVideo{
-  display:none !important;
-  grid-area:1 / 1 !important;
-  width:100% !important;
-  height:100% !important;
-  aspect-ratio:3 / 4 !important;
-  object-fit:cover !important;
-}
-.product-gallery-stage > #modalProductVideo.show{
-  display:block !important;
-}
-
-/* Keep the small in-modal "video available" hint subtle too */
-#productVideoBadge.product-video-badge{
-  font-size:10px !important;
-  padding:5px 7px !important;
-  opacity:.72 !important;
-}
+#productVideoBadge.show{display:block}
 </style>
 
 </head>
@@ -1302,10 +1204,10 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
-    <div id="productVideoBadge" class="product-video-badge">▶ <span>فيديو</span></div>
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
     <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
     <video id="modalProductVideo" muted playsinline loop preload="none"></video>
+    <div id="productVideoBadge">▶ فيديو المنتج</div>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
@@ -2024,7 +1926,6 @@ function renderProductCard(p){
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
   const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
   const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
-  const videoBadge=p.productVideoUrl?`<div class="card-video-badge" title="${lang==='ar'?'هذا المنتج يحتوي على فيديو':'This product has a video'}">▶</div>`:'';
   const stockHtml=stockLabel(p)?`<div class="stock-note">${stockLabel(p)}</div>`:'';
   const variantCount=Array.isArray(p.images)?p.images.filter(Boolean).length:0;
   const addBtn=sold
@@ -2033,7 +1934,7 @@ function renderProductCard(p){
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${soldOutBadge}${videoBadge}${imageHtml}</div>
+    <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
@@ -2190,19 +2091,12 @@ function renderProductGallery(direction=0){
   gallery.style.display='block';
   $('modalThumbs').innerHTML='';
 
-  const badge=$('productVideoBadge');
-  if(badge){
-    badge.classList.toggle('show',!!currentProductVideoUrl && !isCurrentProductVideo());
-    const label=badge.querySelector('span');
-    if(label)label.textContent=lang==='ar'?'فيديو':'Video';
-  }
-
   const showingVideo=isCurrentProductVideo();
   if(showingVideo){
-    if(badge)badge.classList.remove('show');
     mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
+    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.add('show');
 
     // Load the product video only when the customer reaches the last media item.
     if(video.dataset.src!==currentProductVideoUrl){
@@ -2211,12 +2105,19 @@ function renderProductGallery(direction=0){
       video.load();
       video.dataset.src=currentProductVideoUrl;
       video.src=currentProductVideoUrl;
+      video.muted=true;
+      video.loop=true;
+      video.playsInline=true;
+      video.preload='metadata';
+      video.load();
     }
-    video.play().catch(()=>{});
-    video.setAttribute('aria-label',lang==='ar'?'فيديو المنتج':'Product video');
+    const tryPlayProductVideo=()=>video.play().catch(()=>{});
+    if(video.readyState>=2)tryPlayProductVideo();
+    else video.addEventListener('canplay',tryPlayProductVideo,{once:true});
   }else{
     video.pause();
     video.classList.remove('show');
+    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.remove('show');
     // Free the video network/decoder when the customer goes back to images.
     if(video.getAttribute('src')){
       video.removeAttribute('src');
@@ -2227,6 +2128,8 @@ function renderProductGallery(direction=0){
     mainImg.style.display='block';
     mainImg.onclick=openFullscreenProductImage;
     mainImg.onload=null;
+    mainImg.removeAttribute('style');
+    mainImg.style.display='block';
     preloadProductImages(currentProductImages);
     animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   }
@@ -2256,7 +2159,7 @@ function openProduct(id){
   $('modalCode').textContent=p.code||'';
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
-  currentProductVideoUrl=String(p.productVideoUrl||'').trim();
+  currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
@@ -2291,7 +2194,7 @@ function openProduct(id){
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
-      currentProductVideoUrl=String(fresh.productVideoUrl||'').trim();
+      currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
       preloadProductImages(currentProductImages);
       currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1));
       renderProductGallery();
@@ -4340,12 +4243,47 @@ async function clearBannerImages(){
   alert('تم حذف صور البانر');
 }
 
+function normalizeSocialUrl(kind,value){
+  let v=String(value||'').trim();
+  if(!v)return '';
+
+  if(kind==='whatsapp'){
+    if(/^https?:\/\/(?:wa\.me|(?:api\.)?whatsapp\.com)\//i.test(v))return v;
+    const digits=v.replace(/[^\d]/g,'');
+    return digits?'https://wa.me/'+digits:'';
+  }
+
+  if(kind==='instagram'){
+    if(/^https?:\/\/(?:www\.)?instagram\.com\//i.test(v))return v;
+    v=v.replace(/^@+/,'')
+       .replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\//i,'')
+       .replace(/^\/+|\/+$/g,'');
+    return v?'https://www.instagram.com/'+encodeURIComponent(v):'';
+  }
+
+  if(kind==='snapchat'){
+    if(/^https?:\/\/(?:www\.)?snapchat\.com\/add\//i.test(v))return v;
+    if(/^https?:\/\/t\.snapchat\.com\//i.test(v))return v;
+    v=v.replace(/^@+/,'')
+       .replace(/^(?:https?:\/\/)?(?:www\.)?snapchat\.com\/add\//i,'')
+       .replace(/^add\//i,'')
+       .replace(/^\/+|\/+$/g,'');
+    return v?'https://www.snapchat.com/add/'+encodeURIComponent(v):'';
+  }
+
+  return '';
+}
+
 function renderSocialLinks(){
   if(!$('socialLinks'))return;
   const parts=[];
-  if(settings.whatsapp)parts.push(`<a style="color:#fff" href="https://wa.me/${settings.whatsapp.replace(/\D/g,'')}" target="_blank">WhatsApp</a>`);
-  if(settings.instagram)parts.push(`<a style="color:#fff" href="${esc(settings.instagram)}" target="_blank">Instagram</a>`);
-  if(settings.snapchat)parts.push(`<a style="color:#fff" href="${esc(settings.snapchat)}" target="_blank">Snapchat</a>`);
+  const wa=normalizeSocialUrl('whatsapp',settings.whatsapp);
+  const ig=normalizeSocialUrl('instagram',settings.instagram);
+  const sc=normalizeSocialUrl('snapchat',settings.snapchat);
+
+  if(wa)parts.push(`<a style="color:#fff" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`);
+  if(ig)parts.push(`<a style="color:#fff" href="${esc(ig)}" target="_blank" rel="noopener noreferrer">Instagram</a>`);
+  if(sc)parts.push(`<a style="color:#fff" href="${esc(sc)}" target="_blank" rel="noopener noreferrer">Snapchat</a>`);
   if(settings.email)parts.push(`<a style="color:#fff" href="mailto:${esc(settings.email)}">Email</a>`);
   $('socialLinks').innerHTML=parts.length?parts.join(' · '):'WhatsApp · Instagram · Snapchat · Email';
 }
