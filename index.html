@@ -1398,6 +1398,58 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-product-details-screen-fit-final">
+/* FINAL mobile product details: image touches top + both phone sides; info starts below */
+@media (max-width:760px){
+  #productModal{
+    inset:0 !important; padding:0 !important; margin:0 !important;
+    display:block !important; background:rgba(0,0,0,.55) !important;
+  }
+  #productModal.hidden{display:none !important;}
+  #productModal .modal-card{
+    width:100% !important; max-width:none !important;
+    height:100dvh !important; min-height:100dvh !important; max-height:100dvh !important;
+    margin:0 !important; padding:0 0 calc(18px + env(safe-area-inset-bottom)) !important;
+    border:0 !important; border-radius:0 !important; overflow-x:hidden !important; overflow-y:auto !important;
+    background:#fff !important;
+  }
+  #productModal #modalGallery,
+  #productModal .product-gallery-stage{
+    width:100% !important; max-width:none !important;
+    margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important;
+  }
+  #productModal #modalMainImage,
+  #productModal #modalProductVideo{
+    display:block !important; width:100% !important; max-width:none !important;
+    height:auto !important; aspect-ratio:3/4 !important;
+    margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important;
+    object-fit:cover !important; object-position:center !important;
+  }
+  #productModal .modal-head{
+    position:absolute !important; inset:0 0 auto 0 !important;
+    z-index:30 !important; margin:0 !important; padding:max(10px,env(safe-area-inset-top)) 12px 0 !important;
+    background:transparent !important; pointer-events:none !important;
+  }
+  #productModal .modal-head #modalName{display:none !important;}
+  #productModal .modal-head .x{
+    pointer-events:auto !important; width:44px !important; height:44px !important;
+    margin-inline-start:auto !important; border:0 !important; border-radius:50% !important;
+    background:rgba(255,255,255,.92) !important; box-shadow:0 4px 16px rgba(0,0,0,.18) !important;
+  }
+  #productModal .product-name-below,
+  #productModal #modalCode,
+  #productModal #modalPrice{
+    margin-left:14px !important; margin-right:14px !important;
+  }
+  #productModal .product-name-below{margin-top:14px !important;}
+  #productModal #modalAddSelectedBtn{
+    position:static !important; width:calc(100% - 28px) !important;
+    margin:12px 14px 0 !important; min-height:52px !important; border-radius:14px !important;
+    box-shadow:none !important;
+  }
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
