@@ -1247,6 +1247,66 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-product-card-fullscreen-slow-cart">
+#products .card{
+  overflow:hidden !important;
+  padding:0 !important;
+}
+#products .card-image-wrap{
+  margin:0 !important;
+  padding:0 !important;
+  width:100% !important;
+  overflow:hidden !important;
+}
+#products .card-image-wrap > img{
+  display:block !important;
+  width:100% !important;
+  height:auto !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  object-fit:cover !important;
+  object-position:center top !important;
+}
+@media(max-width:760px){
+  #products .card-image-wrap > img{
+    width:100% !important;
+    height:min(78vh,720px) !important;
+    aspect-ratio:auto !important;
+    object-fit:cover !important;
+    object-position:center top !important;
+  }
+  #products .card-body{
+    padding:10px 11px 12px !important;
+    background:#fff !important;
+  }
+  #products .card-body .name{margin:4px 0 !important;}
+  #products .card-body .price{margin-top:3px !important;}
+  #products .sales-progress-box{margin-top:7px !important;}
+  #products .card-actions{margin-top:8px !important;}
+}
+.fly-to-cart-image{
+  transition:
+    left 1.45s cubic-bezier(.22,.72,.18,1),
+    top 1.45s cubic-bezier(.22,.72,.18,1),
+    width 1.45s ease,
+    height 1.45s ease,
+    opacity 1.45s ease,
+    transform 1.45s ease !important;
+}
+#cartBtn.cart-catch{
+  animation:kandortyCartCatchSlow .75s ease !important;
+}
+@keyframes kandortyCartCatchSlow{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.12)}
+  70%{transform:scale(.98)}
+  100%{transform:scale(1)}
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -3419,7 +3479,7 @@ function animateProductToCart(triggerEl,imageUrl){
     cartBtn.classList.remove('cart-catch');
     void cartBtn.offsetWidth;
     cartBtn.classList.add('cart-catch');
-  },730);
+  },1480);
 }
 
 function addToCart(id,imageIndex=0,triggerEl=null){
@@ -3458,7 +3518,7 @@ function addToCart(id,imageIndex=0,triggerEl=null){
   // Do not open the cart automatically.
   // The customer continues shopping and completes checkout from the cart button.
   if(!$('productModal').classList.contains('hidden')){
-    setTimeout(()=>closeProduct(),180);
+    setTimeout(()=>closeProduct(),320);
   }
 }
 function updateCartCount(){
