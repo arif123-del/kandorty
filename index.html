@@ -1399,64 +1399,77 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </style>
 
 
-<style id="kandorty-tap-direct-info-final">
-/* FINAL: tapping a product card opens image + all purchase information directly below it. */
-#productModal .product-description-below{
-  margin:6px 14px 0;
-  color:#5f5558;
-  font-size:14px;
-  line-height:1.65;
-  white-space:pre-wrap;
-}
+<style id="kandorty-direct-product-info-visible-final">
 @media(max-width:760px){
+  /* Tap product -> image + information + buy button in the same product view. */
   #productModal .modal-card{
-    min-height:100% !important;
-    height:100% !important;
+    height:100dvh !important;
+    min-height:100dvh !important;
+    max-height:100dvh !important;
     overflow-y:auto !important;
-    overscroll-behavior:contain;
+    overscroll-behavior:contain !important;
   }
-  /* Shorter edge-to-edge image so price/info/button are visible immediately after one tap. */
+  #productModal #modalGallery,
+  #productModal .product-gallery-stage{
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+  #productModal .product-gallery-stage{
+    height:52dvh !important;
+    min-height:320px !important;
+    max-height:440px !important;
+    background:#f7f4f5 !important;
+  }
   #productModal #modalMainImage,
   #productModal #modalProductVideo{
-    width:100vw !important;
-    height:min(52svh,430px) !important;
-    min-height:300px !important;
+    width:100% !important;
+    height:100% !important;
+    max-height:none !important;
     aspect-ratio:auto !important;
     object-fit:cover !important;
-    object-position:center !important;
+    object-position:center top !important;
     border-radius:0 !important;
     margin:0 !important;
   }
-  #productModal .product-name-below{
-    display:block !important;
-    margin:10px 14px 3px !important;
-    font-size:18px !important;
-    font-weight:800 !important;
-  }
-  #productModal #modalCode{margin:2px 14px 3px !important;font-size:12px !important;}
-  #productModal #modalPrice{margin:2px 14px 4px !important;font-size:19px !important;}
-  #productModal .product-description-below{
-    margin:3px 14px 5px !important;
-    font-size:13px !important;
-    line-height:1.45 !important;
-    max-height:58px;
-    overflow:auto;
-  }
-  #productModal #modalSelectedVariant{margin:4px 14px !important;padding:5px 8px !important;}
+  #productModal .product-name-below,
+  #productModal #modalCode,
+  #productModal #modalPrice,
+  #productModal #modalDescription,
+  #productModal #modalSelectedVariant,
   #productModal #modalAddSelectedBtn{
+    margin-left:14px !important;
+    margin-right:14px !important;
+  }
+  #productModal .product-name-below{
+    margin-top:10px !important;
+    margin-bottom:3px !important;
+  }
+  #productModal #modalCode{margin-top:0 !important;margin-bottom:3px !important;}
+  #productModal #modalPrice{margin-top:0 !important;margin-bottom:4px !important;}
+  #productModal #modalDescription{
     display:block !important;
+    margin-top:2px !important;
+    margin-bottom:6px !important;
+    font-size:14px !important;
+    line-height:1.55 !important;
+    color:#555 !important;
+    white-space:pre-line !important;
+  }
+  #productModal #modalDescription:empty{display:none !important;}
+  #productModal #modalSelectedVariant{margin-top:4px !important;margin-bottom:5px !important;}
+  #productModal #modalAddSelectedBtn{
     position:static !important;
     width:calc(100% - 28px) !important;
     min-height:48px !important;
-    margin:7px 14px 12px !important;
+    margin-top:5px !important;
+    margin-bottom:14px !important;
   }
-  #productModal #modalMainImage{cursor:default !important;}
 }
-@media(max-width:420px) and (max-height:760px){
-  #productModal #modalMainImage,
-  #productModal #modalProductVideo{
-    height:min(46svh,350px) !important;
-    min-height:260px !important;
+@media(max-width:400px) and (max-height:760px){
+  #productModal .product-gallery-stage{
+    height:46dvh !important;
+    min-height:280px !important;
   }
 }
 </style>
@@ -1525,7 +1538,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
-    <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high">
+    <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" >
     <video id="modalProductVideo" muted playsinline loop preload="none"></video>
     <div id="productVideoBadge">▶ فيديو المنتج</div>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
@@ -1535,7 +1548,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div>
 <h2 id="modalNameBelow" class="product-name-below"></h2>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
-<p id="modalDescription" class="product-description-below"></p>
+<div id="modalDescription" class="product-description-direct"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
@@ -2482,7 +2495,7 @@ function renderProductGallery(direction=0){
     video.dataset.src='';
 
     mainImg.style.display='block';
-    mainImg.onclick=null;
+    mainImg.onclick=openFullscreenProductImage;
     mainImg.onload=null;
     mainImg.removeAttribute('style');
     mainImg.style.display='block';
@@ -2512,15 +2525,16 @@ function openProduct(id){
 
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
-  $('modalNameBelow').textContent=displayProductName(p);
   $('modalCode').textContent=p.code||'';
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
-  $('modalDescription').textContent=(lang==='ar'?(p.descriptionAr||p.description||p.detailsAr||p.details||''):(p.descriptionEn||p.description||p.detailsEn||p.details||''));
+  $('modalDescription').textContent=String(p.description||p.descriptionAr||p.detailsAr||p.details||'').trim();
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
+  const productCardEl=$('productModal').querySelector('.modal-card');
+  if(productCardEl) productCardEl.scrollTop=0;
   renderProductGallery();
 
   const addBtn=$('modalAddSelectedBtn');
@@ -2534,9 +2548,7 @@ function openProduct(id){
   // uploaded product image/color becomes available in the gallery.
   const selectedNote=$('modalSelectedVariant');
   if(currentProductImages.length<=1 && selectedNote && !isSoldOut(p)){
-    selectedNote.textContent=lang==='ar'
-      ? 'اضغطي الصورة لعرضها بملء الشاشة.'
-      : 'Tap the image to view full screen.';
+    selectedNote.textContent='';
   }
 
   db.collection('products').doc(id).get({source:'server'})
@@ -2549,10 +2561,9 @@ function openProduct(id){
       writeFastProductCache(products);
 
       $('modalName').textContent=displayProductName(fresh);
-      $('modalNameBelow').textContent=displayProductName(fresh);
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
-      $('modalDescription').textContent=(lang==='ar'?(fresh.descriptionAr||fresh.description||fresh.detailsAr||fresh.details||''):(fresh.descriptionEn||fresh.description||fresh.detailsEn||fresh.details||''));
+      $('modalDescription').textContent=String(fresh.description||fresh.descriptionAr||fresh.detailsAr||fresh.details||'').trim();
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
       preloadProductImages(currentProductImages);
