@@ -1283,6 +1283,7 @@ function load(){
 
       render();
       renderAdminList();
+      ensureProductTotalStockBaselines().catch(()=>{});
     },
     error=>{
       console.error('Firestore products read error:',error);
@@ -1676,6 +1677,7 @@ auth.onAuthStateChanged(user=>{
   if(isAdminUser){
     // Realtime admin data.
     startAdminOrdersListener();
+    ensureProductTotalStockBaselines().catch(()=>{});
     startAdminCustomersListener();
     unlockOrderSound(false).catch(()=>{});
   }else{
@@ -1755,6 +1757,54 @@ async function prepareProductImage(file,index,total){
   setUploadProgress(Math.round(((index+1)/total)*80),`تم تجهيز الصورة ${index+1}/${total}.`);
   return dataUrl;
 }
+function calculateProductTotalStock(oldProduct,newStock){
+  if(newStock===null)return null;
+  const cleanNew=Math.max(0,Math.floor(Number(newStock)||0));
+  if(!oldProduct)return cleanNew;
+
+  const oldStockRaw=Number(oldProduct.stock);
+  const oldStock=Number.isFinite(oldStockRaw)?Math.max(0,Math.floor(oldStockRaw)):cleanNew;
+  const oldTotalRaw=Number(oldProduct.totalStock);
+  let total=Number.isFinite(oldTotalRaw)&&oldTotalRaw>=0
+    ? Math.floor(oldTotalRaw)
+    : oldStock;
+
+  // If admin adds new stock, increase the total supply by the same amount.
+  if(cleanNew>oldStock)total+=(cleanNew-oldStock);
+  if(cleanNew>total)total=cleanNew;
+  return total;
+}
+
+let totalStockBaselineMigrationRunning=false;
+async function ensureProductTotalStockBaselines(){
+  if(totalStockBaselineMigrationRunning || !auth.currentUser)return;
+  if((auth.currentUser.email||'').toLowerCase()!==ADMIN_EMAIL)return;
+
+  const missing=products.filter(p=>{
+    const stock=getProductStock(p);
+    return stock!==null && !(Number.isFinite(Number(p.totalStock)) && Number(p.totalStock)>=0);
+  });
+  if(!missing.length)return;
+
+  totalStockBaselineMigrationRunning=true;
+  try{
+    const batch=db.batch();
+    missing.forEach(p=>{
+      const stock=getProductStock(p);
+      batch.set(db.collection('products').doc(p.id),{
+        totalStock:Math.max(0,Math.floor(Number(stock)||0)),
+        updatedAt:new Date().toISOString()
+      },{merge:true});
+    });
+    await batch.commit();
+    console.log('Sales progress initialized for',missing.length,'products');
+  }catch(err){
+    console.warn('Could not initialize sales progress totals:',err);
+  }finally{
+    totalStockBaselineMigrationRunning=false;
+  }
+}
+
 $('productForm').onsubmit=async e=>{
   e.preventDefault();
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
@@ -1792,6 +1842,9 @@ $('productForm').onsubmit=async e=>{
 
     setUploadProgress(84,'يتم التحقق من حجم بيانات المنتج...');
 
+    const cleanedStock=sanitizeStock($('stock')?.value);
+    const calculatedTotalStock=calculateProductTotalStock(old,cleanedStock);
+
     const p={
       id,
       code:$('code').value.trim(),
@@ -1799,7 +1852,8 @@ $('productForm').onsubmit=async e=>{
       category:$('category').value,
       price:Number($('price').value),
       salePrice:Number($('salePrice').value)||0,
-      stock:sanitizeStock($('stock')?.value),
+      stock:cleanedStock,
+      totalStock:calculatedTotalStock,
       description:$('description').value.trim(),
       isNew:$('isNew').checked,
       active:$('active').checked,
@@ -1821,19 +1875,29 @@ $('productForm').onsubmit=async e=>{
 
     setUploadProgress(90,`يتم حفظ المنتج و${images.length} صورة في Firestore...`);
 
-    // Save only the changed product document. This avoids rewriting all image-heavy products.
-    await db.collection('products').doc(id).set(p);
+    // Save only the changed product document and verify the video URL persisted.
+    await db.collection('products').doc(id).set(p,{merge:true});
 
-    if(old) products=products.map(x=>x.id===id?p:x);
-    else products.unshift(p);
+    const savedDoc=await db.collection('products').doc(id).get({source:'server'});
+    const savedData=savedDoc.exists?savedDoc.data():{};
+    const expectedVideo=String(p.productVideoUrl||'').trim();
+    const actualVideo=String(savedData.productVideoUrl||'').trim();
+
+    if(expectedVideo && actualVideo!==expectedVideo){
+      throw new Error('تم رفع الفيديو، لكن رابط الفيديو لم يُحفظ مع المنتج.');
+    }
+
+    const confirmedProduct={...p,...savedData,id};
+    if(old) products=products.map(x=>x.id===id?confirmedProduct:x);
+    else products.unshift(confirmedProduct);
 
     writeFastProductCache(products);
     render();
     renderAdminList();
 
     resetForm();
-    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة بنجاح.`);
-    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة.`);
+    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة${p.productVideoUrl?' + فيديو':''} بنجاح.`);
+    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}.`);
 
   }catch(err){
     console.error('Spark product save error:',err);
@@ -1868,7 +1932,12 @@ function resetForm(){
 function renderAdminList(){
   $('adminList').innerHTML=products.length?products.map(p=>{
     const stock=getProductStock(p);
-    const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock);
+    const totalRaw=Number(p.totalStock);
+    const total=(Number.isFinite(totalRaw)&&totalRaw>0)?Math.floor(totalRaw):(stock!==null?stock:null);
+    const soldPercent=(stock!==null&&total!==null&&total>0)
+      ? (stock<=0?100:Math.max(0,Math.min(99,Math.round(((total-stock)/total)*100))))
+      : null;
+    const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
     return `<div class="admin-item">${p.images?.[0]?`<img src="${p.images[0]}">`:'<div style="width:65px;height:75px;background:#eee"></div>'}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
   }).join(''):'<div class="empty">لا توجد منتجات</div>';
 }
@@ -3098,7 +3167,8 @@ async function uploadProductVideoFromPhone(){
     const result=await uploadVideoToCloudinary(file,p=>{
       setProductVideoProgress(5+(p*.9),`جارٍ رفع الفيديو... ${Math.round(p)}%`);
     });
-    const url=optimizeCloudinaryVideoUrl(result.secure_url||'');
+    const url=String(result.secure_url||'').trim();
+    if(!url)throw new Error('تم رفع الملف لكن لم يصل رابط الفيديو من Cloudinary.');
     window.pendingProductVideoUrl=url;
     const preview=document.getElementById('productVideoPreview');
     if(preview){
@@ -3106,7 +3176,9 @@ async function uploadProductVideoFromPhone(){
       preview.classList.remove('hidden');
       preview.load();
     }
-    setProductVideoProgress(100,'تم رفع فيديو المنتج ✅ سيظهر بعد آخر صورة.');
+    setProductVideoProgress(100,'تم رفع فيديو المنتج ✅ الآن اضغطي حفظ المنتج.');
+    const productVideoStatus=document.getElementById('productVideoStatus');
+    if(productVideoStatus)productVideoStatus.title=window.pendingProductVideoUrl;
   }catch(err){
     console.error('Product video upload error:',err);
     setProductVideoProgress(0,'فشل رفع الفيديو: '+(err?.message||'خطأ غير معروف'));
