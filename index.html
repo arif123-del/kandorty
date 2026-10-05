@@ -1399,81 +1399,30 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </style>
 
 
-<style id="kandorty-direct-product-info-visible-final">
-@media(max-width:760px){
-  /* Tap product -> image + information + buy button in the same product view. */
-  #productModal .modal-card{
-    height:100dvh !important;
-    min-height:100dvh !important;
-    max-height:100dvh !important;
-    overflow-y:auto !important;
-    overscroll-behavior:contain !important;
-  }
-  #productModal #modalGallery,
-  #productModal .product-gallery-stage{
-    width:100% !important;
-    margin:0 !important;
-    padding:0 !important;
-  }
-  #productModal .product-gallery-stage{
-    height:52dvh !important;
-    min-height:320px !important;
-    max-height:440px !important;
-    background:#f7f4f5 !important;
-  }
-  #productModal #modalMainImage,
-  #productModal #modalProductVideo{
-    width:100% !important;
-    height:100% !important;
-    max-height:none !important;
-    aspect-ratio:auto !important;
-    object-fit:cover !important;
-    object-position:center top !important;
-    border-radius:0 !important;
-    margin:0 !important;
-  }
-  #productModal .product-name-below,
-  #productModal #modalCode,
-  #productModal #modalPrice,
-  #productModal #modalDescription,
-  #productModal #modalSelectedVariant,
-  #productModal #modalAddSelectedBtn{
-    margin-left:14px !important;
-    margin-right:14px !important;
-  }
-  #productModal .product-name-below{
-    margin-top:10px !important;
-    margin-bottom:3px !important;
-  }
-  #productModal #modalCode{margin-top:0 !important;margin-bottom:3px !important;}
-  #productModal #modalPrice{margin-top:0 !important;margin-bottom:4px !important;}
-  #productModal #modalDescription{
-    display:block !important;
-    margin-top:2px !important;
-    margin-bottom:6px !important;
-    font-size:14px !important;
-    line-height:1.55 !important;
-    color:#555 !important;
-    white-space:pre-line !important;
-  }
-  #productModal #modalDescription:empty{display:none !important;}
-  #productModal #modalSelectedVariant{margin-top:4px !important;margin-bottom:5px !important;}
-  #productModal #modalAddSelectedBtn{
-    position:static !important;
-    width:calc(100% - 28px) !important;
-    min-height:48px !important;
-    margin-top:5px !important;
-    margin-bottom:14px !important;
-  }
+<style id="kandorty-direct-details-no-scroll-final">
+@media (max-width:760px){
+  #productModal{padding:0!important;place-items:start stretch!important;overflow:hidden!important;}
+  #productModal .modal-card{width:100vw!important;max-width:100vw!important;height:100dvh!important;min-height:0!important;max-height:100dvh!important;margin:0!important;padding:0!important;border-radius:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;background:#fff!important;}
+  #productModal #modalGallery{width:100%!important;height:min(62dvh,520px)!important;min-height:0!important;flex:0 1 auto!important;margin:0!important;padding:0!important;overflow:hidden!important;}
+  #productModal .product-gallery-stage{width:100%!important;height:100%!important;margin:0!important;padding:0!important;}
+  #productModal #modalMainImage,#productModal #modalProductVideo{width:100%!important;height:100%!important;max-width:none!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;object-fit:contain!important;object-position:center!important;background:#f7f4f5!important;}
+  #productModal .modal-head{position:absolute!important;top:max(8px,env(safe-area-inset-top))!important;left:0!important;right:0!important;z-index:30!important;padding:0 10px!important;pointer-events:none!important;}
+  #productModal .modal-head #modalName{display:none!important;}
+  #productModal .modal-head .x{pointer-events:auto!important;width:42px!important;height:42px!important;border-radius:50%!important;background:rgba(255,255,255,.94)!important;color:#111!important;display:grid!important;place-items:center!important;margin-inline-start:auto!important;}
+  #productModal #modalThumbs,#productModal .product-gallery-swipe-hint{display:none!important;}
+  #productModal .product-name-below{flex:0 0 auto!important;margin:8px 14px 2px!important;font-size:18px!important;line-height:1.25!important;max-height:46px!important;overflow:hidden!important;}
+  #productModal #modalCode{flex:0 0 auto!important;margin:0 14px 2px!important;font-size:12px!important;line-height:1.25!important;}
+  #productModal #modalPrice{flex:0 0 auto!important;margin:1px 14px 3px!important;font-size:19px!important;line-height:1.25!important;}
+  #productModal #modalSelectedVariant{flex:0 0 auto!important;margin:2px 14px 5px!important;font-size:12px!important;line-height:1.25!important;max-height:32px!important;overflow:hidden!important;}
+  #productModal #modalAddSelectedBtn{position:static!important;flex:0 0 48px!important;width:calc(100% - 28px)!important;min-height:48px!important;height:48px!important;margin:4px 14px max(8px,env(safe-area-inset-bottom))!important;box-shadow:none!important;}
 }
-@media(max-width:400px) and (max-height:760px){
-  #productModal .product-gallery-stage{
-    height:46dvh !important;
-    min-height:280px !important;
-  }
+@media (max-width:760px) and (max-height:700px){
+  #productModal #modalGallery{height:52dvh!important;}
+  #productModal .product-name-below{font-size:16px!important;margin-top:5px!important;}
+  #productModal #modalPrice{font-size:17px!important;}
+  #productModal #modalAddSelectedBtn{height:44px!important;min-height:44px!important;flex-basis:44px!important;}
 }
 </style>
-
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1548,7 +1497,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div>
 <h2 id="modalNameBelow" class="product-name-below"></h2>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
-<div id="modalDescription" class="product-description-direct"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
@@ -2527,14 +2475,11 @@ function openProduct(id){
   $('modalName').textContent=displayProductName(p);
   $('modalCode').textContent=p.code||'';
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
-  $('modalDescription').textContent=String(p.description||p.descriptionAr||p.detailsAr||p.details||'').trim();
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
-  const productCardEl=$('productModal').querySelector('.modal-card');
-  if(productCardEl) productCardEl.scrollTop=0;
   renderProductGallery();
 
   const addBtn=$('modalAddSelectedBtn');
@@ -2548,7 +2493,9 @@ function openProduct(id){
   // uploaded product image/color becomes available in the gallery.
   const selectedNote=$('modalSelectedVariant');
   if(currentProductImages.length<=1 && selectedNote && !isSoldOut(p)){
-    selectedNote.textContent='';
+    selectedNote.textContent=lang==='ar'
+      ? 'اضغطي الصورة لعرضها بملء الشاشة.'
+      : 'Tap the image to view full screen.';
   }
 
   db.collection('products').doc(id).get({source:'server'})
@@ -2563,7 +2510,6 @@ function openProduct(id){
       $('modalName').textContent=displayProductName(fresh);
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
-      $('modalDescription').textContent=String(fresh.description||fresh.descriptionAr||fresh.detailsAr||fresh.details||'').trim();
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
       preloadProductImages(currentProductImages);
