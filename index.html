@@ -1141,6 +1141,52 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #productVideoBadge.show{display:block}
 </style>
 
+
+<style id="kandorty-product-sales-progress">
+.sales-progress-box{
+  margin-top:8px;
+  padding:8px 9px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#fff8fa;
+}
+.sales-progress-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
+  font-size:11px;
+  font-weight:800;
+  color:#6f5b61;
+}
+.sales-progress-track{
+  width:100%;
+  height:10px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#eadfe2;
+}
+.sales-progress-fill{
+  height:100%;
+  width:0;
+  border-radius:999px;
+  background:linear-gradient(90deg,#b40018,#e52b4a);
+  transition:width .45s ease;
+}
+.sales-progress-box.complete .sales-progress-fill{
+  background:#111;
+}
+.sales-progress-box.complete .sales-progress-head{
+  color:#a40018;
+}
+@media(max-width:600px){
+  .sales-progress-box{padding:7px 8px;margin-top:6px}
+  .sales-progress-head{font-size:10px;margin-bottom:5px}
+  .sales-progress-track{height:8px}
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1919,6 +1965,39 @@ function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Numb
 function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
 function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفد المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
 function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')return null;const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=0?n:0;}
+function getProductTotalStock(p){
+  const total=Number(p?.totalStock);
+  const stock=getProductStock(p);
+  if(Number.isFinite(total) && total>0)return Math.max(0,Math.floor(total));
+  if(stock!==null && stock>0)return stock;
+  return stock===0?0:null;
+}
+function productSoldPercent(p){
+  const stock=getProductStock(p);
+  const total=getProductTotalStock(p);
+  if(stock===null || total===null)return null;
+  if(total<=0)return stock<=0?100:null;
+  const sold=Math.max(0,total-stock);
+  if(sold<=0)return 0;
+  if(stock<=0)return 100;
+  return Math.max(1,Math.min(99,Math.round((sold/total)*100)));
+}
+function salesProgressHtml(p){
+  const percent=productSoldPercent(p);
+  if(percent===null)return '';
+  const complete=percent>=100;
+  const label=lang==='ar'?'تم بيع':'Sold';
+  return `<div class="sales-progress-box ${complete?'complete':''}">
+    <div class="sales-progress-head">
+      <span>${complete?(lang==='ar'?'اكتمل البيع':'Sold out'):(label+' '+percent+'%')}</span>
+      <span>${percent}%</span>
+    </div>
+    <div class="sales-progress-track" aria-label="${percent}%">
+      <div class="sales-progress-fill" style="width:${percent}%"></div>
+    </div>
+  </div>`;
+}
+
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
@@ -1938,6 +2017,7 @@ function renderProductCard(p){
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
+    ${salesProgressHtml(p)}
     <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button>${addBtn}</div></div></article>`;
 }
 function render(){
