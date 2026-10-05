@@ -1269,6 +1269,135 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-product-details-edge-to-edge">
+@media(max-width:760px){
+  /* Product details fills the phone screen */
+  #productModal{
+    padding:0 !important;
+    place-items:start stretch !important;
+    background:rgba(0,0,0,.55) !important;
+  }
+
+  #productModal .modal-card{
+    position:relative !important;
+    width:100vw !important;
+    max-width:100vw !important;
+    min-height:100vh !important;
+    max-height:100vh !important;
+    margin:0 !important;
+    padding:0 0 calc(18px + env(safe-area-inset-bottom)) !important;
+    border-radius:0 !important;
+    overflow-y:auto !important;
+    background:#fff !important;
+  }
+
+  /* No gap on top, left or right of the tapped product image */
+  #productModal #modalGallery{
+    width:100vw !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:hidden !important;
+  }
+
+  #productModal .product-gallery-stage{
+    width:100vw !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  #productModal #modalMainImage,
+  #productModal #modalProductVideo{
+    display:block;
+    width:100vw !important;
+    max-width:100vw !important;
+    height:auto !important;
+    aspect-ratio:3/4 !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    object-fit:cover !important;
+    object-position:center !important;
+    background:#f6f3f4 !important;
+  }
+
+  /* Close button floats over the image; title is shown below the image */
+  #productModal .modal-head{
+    position:absolute !important;
+    top:max(10px,env(safe-area-inset-top)) !important;
+    left:0 !important;
+    right:0 !important;
+    z-index:20 !important;
+    padding:0 12px !important;
+    pointer-events:none !important;
+  }
+
+  #productModal .modal-head #modalName{
+    display:none !important;
+  }
+
+  #productModal .modal-head .x{
+    pointer-events:auto !important;
+    width:44px !important;
+    height:44px !important;
+    border-radius:50% !important;
+    background:rgba(255,255,255,.92) !important;
+    color:#111 !important;
+    box-shadow:0 4px 16px rgba(0,0,0,.18) !important;
+    display:grid !important;
+    place-items:center !important;
+    margin-inline-start:auto !important;
+  }
+
+  /* Product information starts only under the image */
+  #productModal .product-name-below,
+  #productModal #modalCode,
+  #productModal #modalPrice,
+  #productModal #modalSelectedVariant,
+  #productModal #modalAddSelectedBtn{
+    margin-left:14px !important;
+    margin-right:14px !important;
+  }
+
+  #productModal .product-name-below{
+    margin-top:14px !important;
+    margin-bottom:6px !important;
+    font-size:20px !important;
+    line-height:1.35 !important;
+  }
+
+  #productModal #modalCode{
+    margin-top:4px !important;
+    margin-bottom:6px !important;
+  }
+
+  #productModal #modalPrice{
+    margin-top:3px !important;
+    margin-bottom:7px !important;
+    font-size:20px !important;
+  }
+
+  /* Keep the add button in the information area, not floating over content */
+  #productModal #modalAddSelectedBtn{
+    position:static !important;
+    left:auto !important;
+    right:auto !important;
+    bottom:auto !important;
+    width:calc(100% - 28px) !important;
+    max-width:none !important;
+    min-height:50px !important;
+    margin-top:10px !important;
+    box-shadow:none !important;
+  }
+
+  #productModal .product-gallery-swipe-hint,
+  #productModal #modalThumbs{
+    display:none !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1341,6 +1470,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
   <div class="product-gallery-swipe-hint"></div>
 </div>
+<h2 id="modalNameBelow" class="product-name-below"></h2>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
@@ -5900,6 +6030,18 @@ function touchDistance(touches){
     if(kandortyImageZoom<=1){resetImageZoom();}
     kandortyPinchStartDist=0;
   },{passive:true});
+})();
+</script>
+
+
+<script id="kandorty-product-name-below-sync">
+(function(){
+  const source=document.getElementById('modalName');
+  const target=document.getElementById('modalNameBelow');
+  if(!source||!target)return;
+  const sync=()=>{ target.textContent=source.textContent||''; };
+  sync();
+  new MutationObserver(sync).observe(source,{childList:true,subtree:true,characterData:true});
 })();
 </script>
 
