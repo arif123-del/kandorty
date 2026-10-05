@@ -1398,28 +1398,40 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
-<style id="kandorty-tap-product-details-final">
+
+<style id="kandorty-tap-details-final-fix">
 @media(max-width:760px){
-  /* Tap product -> image and buying information are one continuous product view. */
+  /* Tapping a product opens one product-details sheet: image first, details immediately below. */
   #productModal .modal-card{
+    min-height:100svh !important;
+    max-height:100svh !important;
     overflow-y:auto !important;
-    overscroll-behavior:contain !important;
+    overscroll-behavior:contain;
   }
-  #productModal #modalGallery{
-    display:block !important;
+  #productModal #modalGallery,
+  #productModal .product-gallery-stage{
+    width:100% !important;
+    max-width:100% !important;
   }
-  #productModal .product-name-below,
-  #productModal #modalCode,
-  #productModal #modalPrice,
-  #productModal #modalSelectedVariant,
+  #productModal #modalMainImage,
+  #productModal #modalProductVideo{
+    width:100% !important;
+    max-width:100% !important;
+    height:min(58svh,125vw) !important;
+    aspect-ratio:auto !important;
+    object-fit:cover !important;
+    object-position:center !important;
+    border-radius:0 !important;
+    margin:0 !important;
+  }
+  /* Details are part of the same view and start directly under the image. */
+  #productModal .product-name-below{margin-top:12px !important;}
+  #productModal #modalSelectedVariant{margin-top:6px !important;margin-bottom:6px !important;}
   #productModal #modalAddSelectedBtn{
-    display:block !important;
-    visibility:visible !important;
-    opacity:1 !important;
+    position:static !important;
+    width:calc(100% - 28px) !important;
+    margin:8px 14px 14px !important;
   }
-  /* Keep product information directly attached to the bottom of the image. */
-  #productModal .product-name-below{margin-top:10px !important;}
-  #productModal #modalAddSelectedBtn{margin-bottom:10px !important;}
 }
 </style>
 
@@ -2443,7 +2455,8 @@ function renderProductGallery(direction=0){
     video.dataset.src='';
 
     mainImg.style.display='block';
-    mainImg.onclick=openFullscreenProductImage;
+    mainImg.onclick=null;
+    mainImg.style.cursor='default';
     mainImg.onload=null;
     mainImg.removeAttribute('style');
     mainImg.style.display='block';
@@ -2493,9 +2506,7 @@ function openProduct(id){
   // uploaded product image/color becomes available in the gallery.
   const selectedNote=$('modalSelectedVariant');
   if(currentProductImages.length<=1 && selectedNote && !isSoldOut(p)){
-    selectedNote.textContent=lang==='ar'
-      ? 'اضغطي الصورة لعرضها بملء الشاشة.'
-      : 'Tap the image to view full screen.';
+    selectedNote.textContent='';
   }
 
   db.collection('products').doc(id).get({source:'server'})
