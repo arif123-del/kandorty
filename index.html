@@ -1423,6 +1423,25 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   #productModal #modalAddSelectedBtn{height:44px!important;min-height:44px!important;flex-basis:44px!important;}
 }
 </style>
+
+<style id="kandorty-product-one-screen-v2">
+@media(max-width:760px){
+  #productModal .modal-card{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;}
+  #productModal #modalGallery{height:55dvh!important;max-height:55dvh!important;min-height:0!important;flex:0 0 55dvh!important;}
+  #productModal #modalMainImage,#productModal #modalProductVideo{width:100%!important;height:100%!important;object-fit:contain!important;background:#f7f4f5!important;}
+  #productModal .product-name-below{margin:7px 14px 1px!important;font-size:17px!important;line-height:1.2!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;}
+  #productModal #modalCode{margin:0 14px 1px!important;font-size:11px!important;line-height:1.15!important;}
+  #productModal #modalPrice{margin:1px 14px 2px!important;font-size:18px!important;line-height:1.15!important;}
+  #productModal .product-direct-stock{margin:1px 14px 2px!important;font-size:12px!important;font-weight:800!important;color:#13833b!important;line-height:1.2!important;}
+  #productModal .product-direct-description{margin:1px 14px 3px!important;font-size:11px!important;color:#5f5659!important;line-height:1.3!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;}
+  #productModal #modalAddSelectedBtn{position:static!important;flex:0 0 46px!important;width:calc(100% - 28px)!important;height:46px!important;min-height:46px!important;margin:3px 14px max(7px,env(safe-area-inset-bottom))!important;font-size:15px!important;}
+}
+@media(max-width:760px) and (max-height:720px){
+  #productModal #modalGallery{height:50dvh!important;max-height:50dvh!important;flex-basis:50dvh!important;}
+  #productModal .product-direct-description{-webkit-line-clamp:1!important;}
+  #productModal #modalAddSelectedBtn{height:42px!important;min-height:42px!important;flex-basis:42px!important;}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1497,6 +1516,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div>
 <h2 id="modalNameBelow" class="product-name-below"></h2>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<div id="modalStockDirect" class="product-direct-stock"></div>
+<div id="modalDescriptionDirect" class="product-direct-description"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
@@ -2467,6 +2488,22 @@ function renderProductGallery(direction=0){
   }
 }
 
+function fillDirectProductInfo(p){
+  const stockEl=$('modalStockDirect');
+  const descEl=$('modalDescriptionDirect');
+  if(stockEl){
+    const label=stockLabel(p);
+    stockEl.textContent=label ? ('✓ '+label) : '';
+    stockEl.style.display=label?'block':'none';
+    stockEl.style.color=isSoldOut(p)?'#a40018':'#13833b';
+  }
+  if(descEl){
+    const d=String(p.description||p.descriptionAr||p.detailsAr||p.details||'').trim();
+    descEl.textContent=d;
+    descEl.style.display=d?'block':'none';
+  }
+}
+
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
@@ -2475,6 +2512,7 @@ function openProduct(id){
   $('modalName').textContent=displayProductName(p);
   $('modalCode').textContent=p.code||'';
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
+  fillDirectProductInfo(p);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
@@ -2510,6 +2548,7 @@ function openProduct(id){
       $('modalName').textContent=displayProductName(fresh);
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
+      fillDirectProductInfo(fresh);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
       preloadProductImages(currentProductImages);
