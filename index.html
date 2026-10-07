@@ -1619,10 +1619,27 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <option>أم القيوين</option><option>رأس الخيمة</option><option>الفجيرة</option>
 </select>
 <input id="customerLocation" placeholder="المنطقة / العنوان" required>
-<select id="paymentMethod" class="full" required>
-<option value="cod">الدفع عند الاستلام</option>
-<option value="card">الدفع بالبطاقة</option>
-</select>
+<div class="payment-choice-wrap full" id="paymentChoiceWrap">
+  <div class="payment-choice-title">اختاري طريقة الدفع</div>
+  <div class="payment-choice-grid">
+    <label class="payment-choice-card selected" data-payment="cod">
+      <input type="radio" name="paymentChoiceVisual" value="cod" checked>
+      <span class="payment-radio" aria-hidden="true"></span>
+      <span class="payment-icon cod-icon" aria-hidden="true">💵</span>
+      <span class="payment-label">الدفع عند الاستلام</span>
+    </label>
+    <label class="payment-choice-card" data-payment="card">
+      <input type="radio" name="paymentChoiceVisual" value="card">
+      <span class="payment-radio" aria-hidden="true"></span>
+      <span class="payment-icon card-icon" aria-hidden="true">💳</span>
+      <span class="payment-label">الدفع بالبطاقة</span>
+    </label>
+  </div>
+  <select id="paymentMethod" required aria-label="طريقة الدفع">
+    <option value="cod">الدفع عند الاستلام</option>
+    <option value="card">الدفع بالبطاقة</option>
+  </select>
+</div>
 <textarea id="orderNotes" class="full" rows="3" placeholder="ملاحظات الطلب (اختياري)"></textarea>
 <div id="checkoutStatus" class="full" style="min-height:22px;font-size:13px;font-weight:700"></div>
 <button id="confirmOrderBtn" class="btn primary full" type="button">تأكيد الطلب</button>
@@ -6308,64 +6325,61 @@ body.kandorty-cart-open #cartBtn{
 </script>
 
 
-<style id="kandorty-hide-cart-entire-purchase-flow">
-body.kandorty-purchase-flow-active #cartBtn{
-  display:none!important;
-  visibility:hidden!important;
-  opacity:0!important;
-  pointer-events:none!important;
+<style id="kandorty-payment-choice-cards-css">
+.payment-choice-wrap{width:100%;margin:4px 0 2px}
+.payment-choice-title{font-weight:800;font-size:14px;margin:0 0 9px;color:#2a2225}
+.payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.payment-choice-card{
+  position:relative;min-height:108px;border:2px solid #eadfe1;border-radius:16px;
+  background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:7px;padding:14px 10px;cursor:pointer;transition:.18s ease;text-align:center;
+}
+.payment-choice-card input{position:absolute;opacity:0;pointer-events:none}
+.payment-choice-card .payment-radio{
+  position:absolute;top:10px;right:10px;width:21px;height:21px;border-radius:50%;
+  border:2px solid #b9afb2;background:#fff;box-shadow:inset 0 0 0 4px #fff;
+}
+.payment-choice-card.selected{border-color:#b40018;background:#fff7f8;box-shadow:0 7px 20px rgba(180,0,24,.10)}
+.payment-choice-card.selected .payment-radio{border-color:#b40018;background:#b40018}
+.payment-choice-card .payment-icon{font-size:31px;line-height:1}
+.payment-choice-card .payment-label{font-size:14px;font-weight:800;color:#211a1c}
+#paymentMethod{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+@media(max-width:420px){
+  .payment-choice-grid{gap:8px}
+  .payment-choice-card{min-height:100px;padding:12px 6px}
+  .payment-choice-card .payment-label{font-size:12.5px}
+  .payment-choice-card .payment-icon{font-size:28px}
 }
 </style>
-<script id="kandorty-hide-cart-entire-purchase-flow-js">
+<script id="kandorty-payment-choice-cards-js">
 (function(){
-  var cartBtn=document.getElementById('cartBtn');
-  if(!cartBtn)return;
-
-  function visible(el){
-    if(!el)return false;
-    if(el.classList && el.classList.contains('hidden'))return false;
-    var s=getComputedStyle(el);
-    return s.display!=='none' && s.visibility!=='hidden';
+  function syncPaymentCards(value){
+    var select=document.getElementById('paymentMethod');
+    if(!select)return;
+    if(value)select.value=value;
+    document.querySelectorAll('.payment-choice-card').forEach(function(card){
+      var on=card.dataset.payment===select.value;
+      card.classList.toggle('selected',on);
+      var radio=card.querySelector('input[type="radio"]');
+      if(radio)radio.checked=on;
+    });
+    select.dispatchEvent(new Event('change',{bubbles:true}));
   }
-
-  function isPurchaseFlowOpen(){
-    /* Known/likely purchase flow panels in this storefront. */
-    var ids=[
-      'cartModal','checkoutModal','orderModal','customerModal',
-      'customerInfoModal','paymentModal','paymentMethodModal',
-      'cashModal','cardModal','stripeModal'
-    ];
-    for(var i=0;i<ids.length;i++){
-      if(visible(document.getElementById(ids[i])))return true;
-    }
-
-    /* Also catch any modal/dialog containing checkout fields or payment choices,
-       so moving from cart -> name/phone -> cash/card does not show the cart icon. */
-    var panels=document.querySelectorAll('.modal,[role="dialog"]');
-    for(var j=0;j<panels.length;j++){
-      var p=panels[j];
-      if(!visible(p))continue;
-      if(p===document.getElementById('productModal') ||
-         p===document.getElementById('imageViewerModal'))continue;
-
-      var text=(p.textContent||'').toLowerCase();
-      var hasPurchaseUI =
-        p.querySelector('input[name*="phone"],input[id*="phone"],input[name*="name"],input[id*="name"],input[name*="payment"],input[type="radio"]') ||
-        /الدفع|بطاقة|كاش|نقد|تأكيد الطلب|إتمام الطلب|الهاتف|رقم الهاتف|checkout|payment|cash|card/.test(text);
-      if(hasPurchaseUI)return true;
-    }
-    return false;
+  document.querySelectorAll('.payment-choice-card').forEach(function(card){
+    card.addEventListener('click',function(){syncPaymentCards(card.dataset.payment);});
+  });
+  var select=document.getElementById('paymentMethod');
+  if(select){
+    select.addEventListener('change',function(){
+      document.querySelectorAll('.payment-choice-card').forEach(function(card){
+        var on=card.dataset.payment===select.value;
+        card.classList.toggle('selected',on);
+        var radio=card.querySelector('input[type="radio"]');
+        if(radio)radio.checked=on;
+      });
+    });
+    syncPaymentCards(select.value||'cod');
   }
-
-  function sync(){
-    document.body.classList.toggle('kandorty-purchase-flow-active',isPurchaseFlowOpen());
-  }
-
-  var observer=new MutationObserver(sync);
-  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','hidden']});
-  document.addEventListener('click',function(){setTimeout(sync,0);setTimeout(sync,120);},true);
-  document.addEventListener('change',function(){setTimeout(sync,0);},true);
-  sync();
 })();
 </script>
 
