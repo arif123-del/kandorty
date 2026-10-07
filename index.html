@@ -1247,407 +1247,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
-
-<style id="kandorty-slow-cart-only">
-.fly-to-cart-image{
-  transition:
-    left 1.45s cubic-bezier(.22,.72,.18,1),
-    top 1.45s cubic-bezier(.22,.72,.18,1),
-    width 1.45s ease,
-    height 1.45s ease,
-    opacity 1.45s ease,
-    transform 1.45s ease !important;
-}
-#cartBtn.cart-catch{
-  animation:kandortyCartCatchSlow .75s ease !important;
-}
-@keyframes kandortyCartCatchSlow{
-  0%{transform:scale(1)}
-  35%{transform:scale(1.12)}
-  70%{transform:scale(.98)}
-  100%{transform:scale(1)}
-}
-</style>
-
-
-<style id="kandorty-product-details-edge-to-edge">
-@media(max-width:760px){
-  /* Product details fills the phone screen */
-  #productModal{
-    padding:0 !important;
-    place-items:start stretch !important;
-    background:rgba(0,0,0,.55) !important;
-  }
-
-  #productModal .modal-card{
-    position:relative !important;
-    width:100vw !important;
-    max-width:100vw !important;
-    min-height:100vh !important;
-    max-height:100vh !important;
-    margin:0 !important;
-    padding:0 0 calc(18px + env(safe-area-inset-bottom)) !important;
-    border-radius:0 !important;
-    overflow-y:auto !important;
-    background:#fff !important;
-  }
-
-  /* No gap on top, left or right of the tapped product image */
-  #productModal #modalGallery{
-    width:100vw !important;
-    margin:0 !important;
-    padding:0 !important;
-    overflow:hidden !important;
-  }
-
-  #productModal .product-gallery-stage{
-    width:100vw !important;
-    margin:0 !important;
-    padding:0 !important;
-  }
-
-  #productModal #modalMainImage,
-  #productModal #modalProductVideo{
-    display:block;
-    width:100vw !important;
-    max-width:100vw !important;
-    height:auto !important;
-    aspect-ratio:3/4 !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:0 !important;
-    border-radius:0 !important;
-    object-fit:cover !important;
-    object-position:center !important;
-    background:#f6f3f4 !important;
-  }
-
-  /* Close button floats over the image; title is shown below the image */
-  #productModal .modal-head{
-    position:absolute !important;
-    top:max(10px,env(safe-area-inset-top)) !important;
-    left:0 !important;
-    right:0 !important;
-    z-index:20 !important;
-    padding:0 12px !important;
-    pointer-events:none !important;
-  }
-
-  #productModal .modal-head #modalName{
-    display:none !important;
-  }
-
-  #productModal .modal-head .x{
-    pointer-events:auto !important;
-    width:44px !important;
-    height:44px !important;
-    border-radius:50% !important;
-    background:rgba(255,255,255,.92) !important;
-    color:#111 !important;
-    box-shadow:0 4px 16px rgba(0,0,0,.18) !important;
-    display:grid !important;
-    place-items:center !important;
-    margin-inline-start:auto !important;
-  }
-
-  /* Product information starts only under the image */
-  #productModal .product-name-below,
-  #productModal #modalCode,
-  #productModal #modalPrice,
-  #productModal #modalSelectedVariant,
-  #productModal #modalAddSelectedBtn{
-    margin-left:14px !important;
-    margin-right:14px !important;
-  }
-
-  #productModal .product-name-below{
-    margin-top:14px !important;
-    margin-bottom:6px !important;
-    font-size:20px !important;
-    line-height:1.35 !important;
-  }
-
-  #productModal #modalCode{
-    margin-top:4px !important;
-    margin-bottom:6px !important;
-  }
-
-  #productModal #modalPrice{
-    margin-top:3px !important;
-    margin-bottom:7px !important;
-    font-size:20px !important;
-  }
-
-  /* Keep the add button in the information area, not floating over content */
-  #productModal #modalAddSelectedBtn{
-    position:static !important;
-    left:auto !important;
-    right:auto !important;
-    bottom:auto !important;
-    width:calc(100% - 28px) !important;
-    max-width:none !important;
-    min-height:50px !important;
-    margin-top:10px !important;
-    box-shadow:none !important;
-  }
-
-  #productModal .product-gallery-swipe-hint,
-  #productModal #modalThumbs{
-    display:none !important;
-  }
-}
-</style>
-
-
-<style id="kandorty-product-details-example-style">
-@media(max-width:760px){
-  #productModal{
-    padding:0 !important;
-    place-items:start stretch !important;
-  }
-  #productModal .product-detail-card{
-    width:100vw !important;
-    max-width:100vw !important;
-    min-height:100vh !important;
-    max-height:100vh !important;
-    margin:0 !important;
-    padding:0 0 calc(18px + env(safe-area-inset-bottom)) !important;
-    border-radius:0 !important;
-    overflow-y:auto !important;
-    background:#fff !important;
-  }
-  #productModal .product-detail-overlay-head{
-    position:absolute !important;
-    inset:0 0 auto 0 !important;
-    z-index:30 !important;
-    display:flex !important;
-    justify-content:space-between !important;
-    align-items:flex-start !important;
-    padding:max(16px,env(safe-area-inset-top)) 18px 0 !important;
-    pointer-events:none !important;
-  }
-  #productModal .product-back-btn,
-  #productModal .product-round-btn{
-    pointer-events:auto !important;
-    width:52px !important;
-    height:52px !important;
-    min-width:52px !important;
-    border:0 !important;
-    border-radius:50% !important;
-    background:rgba(255,255,255,.94) !important;
-    color:#17202a !important;
-    box-shadow:0 3px 14px rgba(0,0,0,.12) !important;
-    font-size:30px !important;
-    line-height:1 !important;
-    display:grid !important;
-    place-items:center !important;
-    margin:0 !important;
-  }
-  #productModal .product-top-actions{
-    display:flex !important;
-    gap:12px !important;
-    pointer-events:auto !important;
-  }
-  #productModal .product-round-btn{
-    font-size:27px !important;
-  }
-  #productModal .sr-only-product-title{
-    position:absolute !important;
-    width:1px !important;
-    height:1px !important;
-    overflow:hidden !important;
-    clip:rect(0,0,0,0) !important;
-  }
-
-  #productModal #modalGallery,
-  #productModal .product-gallery-stage{
-    width:100vw !important;
-    margin:0 !important;
-    padding:0 !important;
-  }
-  #productModal .product-gallery-stage{
-    position:relative !important;
-    overflow:hidden !important;
-    background:#f4f2f1 !important;
-  }
-  #productModal #modalMainImage,
-  #productModal #modalProductVideo{
-    display:block;
-    width:100vw !important;
-    max-width:100vw !important;
-    height:64vh !important;
-    min-height:460px !important;
-    max-height:700px !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:0 !important;
-    border-radius:0 !important;
-    object-fit:cover !important;
-    object-position:center top !important;
-    background:#f4f2f1 !important;
-  }
-
-  #productModal .product-gallery-nav{
-    display:none !important;
-  }
-  #productModal .product-media-counter{
-    position:absolute !important;
-    right:18px !important;
-    bottom:15px !important;
-    z-index:8 !important;
-    padding:6px 12px !important;
-    border-radius:18px !important;
-    background:rgba(40,40,40,.65) !important;
-    color:#fff !important;
-    font-size:13px !important;
-    font-weight:800 !important;
-    direction:ltr !important;
-  }
-
-  #productModal #modalThumbs{
-    display:flex !important;
-    gap:9px !important;
-    overflow-x:auto !important;
-    padding:12px 16px !important;
-    margin:0 !important;
-    background:#fff !important;
-    scrollbar-width:none !important;
-  }
-  #productModal #modalThumbs::-webkit-scrollbar{display:none}
-  #productModal #modalThumbs .detail-thumb{
-    flex:0 0 78px !important;
-    width:78px !important;
-    height:96px !important;
-    padding:0 !important;
-    border:2px solid transparent !important;
-    border-radius:12px !important;
-    overflow:hidden !important;
-    background:#f6f6f6 !important;
-  }
-  #productModal #modalThumbs .detail-thumb.active{
-    border-color:#a9002b !important;
-  }
-  #productModal #modalThumbs .detail-thumb img,
-  #productModal #modalThumbs .detail-thumb video{
-    width:100% !important;
-    height:100% !important;
-    object-fit:cover !important;
-    display:block !important;
-  }
-  #productModal #modalThumbs .detail-video-thumb{
-    position:relative !important;
-  }
-  #productModal #modalThumbs .detail-video-thumb::after{
-    content:'▶';
-    position:absolute;
-    inset:0;
-    display:grid;
-    place-items:center;
-    font-size:27px;
-    color:#fff;
-    background:rgba(0,0,0,.28);
-  }
-
-  #productModal .product-detail-info{
-    padding:4px 20px 8px !important;
-    direction:rtl !important;
-    text-align:right !important;
-  }
-  #productModal .product-name-below{
-    margin:6px 0 4px !important;
-    font-size:25px !important;
-    line-height:1.35 !important;
-    font-weight:900 !important;
-    color:#111 !important;
-  }
-  #productModal .product-meta-row{
-    display:flex !important;
-    align-items:center !important;
-    justify-content:space-between !important;
-    gap:10px !important;
-    margin:0 0 4px !important;
-  }
-  #productModal #modalCode{
-    margin:0 !important;
-    color:#666 !important;
-    font-size:14px !important;
-  }
-  #productModal .modal-stock-state{
-    font-size:13px !important;
-    font-weight:800 !important;
-    color:#149447 !important;
-    white-space:nowrap !important;
-  }
-  #productModal .product-detail-price{
-    margin:8px 0 4px !important;
-    font-size:35px !important;
-    font-weight:900 !important;
-    color:#a9002b !important;
-  }
-  #productModal .product-detail-description{
-    margin:8px 0 12px !important;
-    color:#555 !important;
-    font-size:14px !important;
-    line-height:1.8 !important;
-  }
-  #productModal .selected-variant-note{
-    margin:8px 0 !important;
-    font-size:13px !important;
-    font-weight:700 !important;
-    color:#666 !important;
-  }
-  #productModal .product-qty-row{
-    display:flex !important;
-    align-items:center !important;
-    justify-content:flex-start !important;
-    gap:14px !important;
-    margin:14px 0 !important;
-  }
-  #productModal .product-qty-control{
-    display:grid !important;
-    grid-template-columns:46px 58px 46px !important;
-    align-items:center !important;
-    border:1px solid #ddd !important;
-    border-radius:14px !important;
-    overflow:hidden !important;
-    direction:ltr !important;
-  }
-  #productModal .product-qty-control button{
-    height:46px !important;
-    border:0 !important;
-    background:#fff !important;
-    font-size:24px !important;
-  }
-  #productModal .product-qty-control span{
-    display:grid !important;
-    place-items:center !important;
-    height:46px !important;
-    font-weight:900 !important;
-    border-left:1px solid #eee !important;
-    border-right:1px solid #eee !important;
-  }
-  #productModal .product-main-buy-btn,
-  #productModal .product-buy-now-btn{
-    position:static !important;
-    width:100% !important;
-    min-height:56px !important;
-    margin:10px 0 0 !important;
-    border-radius:14px !important;
-    font-size:17px !important;
-    font-weight:900 !important;
-  }
-  #productModal .product-main-buy-btn{
-    background:#a9002b !important;
-    border-color:#a9002b !important;
-  }
-  #productModal .product-buy-now-btn{
-    background:#fff !important;
-    color:#a9002b !important;
-    border:2px solid #a9002b !important;
-  }
-}
-</style>
-
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1707,15 +1306,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div><h3>تواصل معنا</h3><p id="socialLinks">WhatsApp · Instagram · Snapchat · Email</p><p>الدفع بالبطاقة أو عند الاستلام</p></div>
 </div></footer>
 
-<div id="productModal" class="modal hidden"><div class="modal-card product-detail-card">
-<div class="modal-head product-detail-overlay-head">
-  <button class="x product-back-btn" type="button" onclick="closeProduct()" aria-label="رجوع">‹</button>
-  <div class="product-top-actions">
-    <button id="productFavBtn" class="product-round-btn" type="button" onclick="toggleCurrentProductFavorite()" aria-label="المفضلة">♡</button>
-    <button class="product-round-btn" type="button" onclick="shareCurrentProduct()" aria-label="مشاركة">⌯</button>
-  </div>
-  <h2 id="modalName" class="sr-only-product-title"></h2>
-</div>
+<div id="productModal" class="modal hidden"><div class="modal-card">
+<div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
@@ -1723,34 +1315,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
     <video id="modalProductVideo" muted playsinline loop preload="none"></video>
     <div id="productVideoBadge">▶ فيديو المنتج</div>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
-    <div id="productMediaCounter" class="product-media-counter">1 / 1</div>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
+  <div class="product-gallery-swipe-hint"></div>
 </div>
-
-<div class="product-detail-info">
-  <h2 id="modalNameBelow" class="product-name-below"></h2>
-  <div class="product-meta-row">
-    <p id="modalCode"></p>
-    <div id="modalStockState" class="modal-stock-state"></div>
-  </div>
-  <div id="modalPrice" class="price product-detail-price"></div>
-  <p id="modalDescription" class="product-detail-description"></p>
-
-  <div id="modalSelectedVariant" class="selected-variant-note"></div>
-
-  <div class="product-qty-row">
-    <strong>الكمية:</strong>
-    <div class="product-qty-control">
-      <button type="button" onclick="changeProductDetailQty(-1)">−</button>
-      <span id="productDetailQty">1</span>
-      <button type="button" onclick="changeProductDetailQty(1)">+</button>
-    </div>
-  </div>
-
-  <button id="modalAddSelectedBtn" class="btn primary product-main-buy-btn" type="button" onclick="addSelectedProductToCart()">🛒 أضف إلى السلة</button>
-  <button id="modalBuyNowBtn" class="btn product-buy-now-btn" type="button" onclick="buyCurrentProductNow()">⚡ اشتري الآن</button>
-</div>
+<p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
+<button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
@@ -2706,9 +2277,6 @@ function renderProductGallery(direction=0){
   if(prevBtn)prevBtn.disabled=total<=1;
   if(nextBtn)nextBtn.disabled=total<=1;
 
-  renderProductDetailThumbnails();
-  updateProductMediaCounter();
-
   bindHorizontalSwipe(gallery,()=>stepProductImage(1),()=>stepProductImage(-1));
   bindHorizontalSwipe($('imageViewerImg'),()=>stepProductImage(1,true),()=>stepProductImage(-1,true));
 
@@ -2730,9 +2298,6 @@ function openProduct(id){
   $('modalName').textContent=displayProductName(p);
   $('modalCode').textContent=p.code||'';
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
-  renderProductDetailInfo(p);
-  productDetailQty=1;
-  updateProductDetailQty();
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
@@ -2768,7 +2333,6 @@ function openProduct(id){
       $('modalName').textContent=displayProductName(fresh);
       $('modalCode').textContent=fresh.code||'';
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
-      renderProductDetailInfo(fresh);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
       preloadProductImages(currentProductImages);
@@ -2789,22 +2353,7 @@ function openProduct(id){
 }
 function addSelectedProductToCart(){
   if(!currentProductId)return;
-  const p=products.find(x=>String(x.id)===String(currentProductId));
-  if(!p)return;
-  const qty=Math.max(1,Math.floor(Number(productDetailQty)||1));
-  const imageIndex=Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1));
-  const stock=getProductStock(p);
-  if(stock!==null && productQtyInCart(currentProductId)+qty>stock){
-    alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
-    return;
-  }
-  const wasModalOpen=!$('productModal').classList.contains('hidden');
-  for(let i=0;i<qty;i++){
-    addToCart(currentProductId,imageIndex,i===0?$('modalAddSelectedBtn'):null);
-  }
-  if(wasModalOpen){
-    setTimeout(()=>closeProduct(),1550);
-  }
+  addToCart(currentProductId,Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1)),$('modalAddSelectedBtn'));
 }
 function closeProduct(){
   $('productModal').classList.add('hidden');
@@ -3870,7 +3419,7 @@ function animateProductToCart(triggerEl,imageUrl){
     cartBtn.classList.remove('cart-catch');
     void cartBtn.offsetWidth;
     cartBtn.classList.add('cart-catch');
-  },1480);
+  },730);
 }
 
 function addToCart(id,imageIndex=0,triggerEl=null){
@@ -3908,8 +3457,9 @@ function addToCart(id,imageIndex=0,triggerEl=null){
 
   // Do not open the cart automatically.
   // The customer continues shopping and completes checkout from the cart button.
-  // Product details closure is handled by addSelectedProductToCart/buyNow.
-
+  if(!$('productModal').classList.contains('hidden')){
+    setTimeout(()=>closeProduct(),180);
+  }
 }
 function updateCartCount(){
   const n=cart.reduce((s,x)=>s+(Number(x.qty)||0),0);
@@ -6329,127 +5879,6 @@ function touchDistance(touches){
     kandortyPinchStartDist=0;
   },{passive:true});
 })();
-</script>
-
-
-<script id="kandorty-product-name-below-sync">
-(function(){
-  const source=document.getElementById('modalName');
-  const target=document.getElementById('modalNameBelow');
-  if(!source||!target)return;
-  const sync=()=>{ target.textContent=source.textContent||''; };
-  sync();
-  new MutationObserver(sync).observe(source,{childList:true,subtree:true,characterData:true});
-})();
-</script>
-
-
-<script id="kandorty-product-details-example-js">
-let productDetailQty=1;
-
-function updateProductDetailQty(){
-  const el=document.getElementById('productDetailQty');
-  if(el)el.textContent=String(productDetailQty);
-}
-function changeProductDetailQty(delta){
-  const p=products.find(x=>String(x.id)===String(currentProductId));
-  const stock=p?getProductStock(p):null;
-  const maxQty=stock===null?99:Math.max(1,stock-productQtyInCart(currentProductId));
-  productDetailQty=Math.max(1,Math.min(maxQty,productDetailQty+delta));
-  updateProductDetailQty();
-}
-
-function productDetailDescription(p){
-  if(!p)return '';
-  return String(
-    (lang==='en'?(p.descriptionEn||p.detailsEn):(p.descriptionAr||p.detailsAr))
-    || p.description || p.details || ''
-  ).trim();
-}
-function renderProductDetailInfo(p){
-  const desc=document.getElementById('modalDescription');
-  if(desc)desc.textContent=productDetailDescription(p);
-
-  const stockEl=document.getElementById('modalStockState');
-  if(stockEl){
-    const stock=getProductStock(p);
-    if(stock===0){
-      stockEl.textContent=lang==='ar'?'● نفد من المخزون':'● Sold out';
-      stockEl.style.color='#b00020';
-    }else{
-      stockEl.textContent=lang==='ar'?'✓ متوفر في المخزون':'✓ In stock';
-      stockEl.style.color='#149447';
-    }
-  }
-  updateCurrentProductFavoriteButton();
-}
-
-function setProductDetailMedia(idx){
-  const old=currentProductImageIndex;
-  currentProductImageIndex=idx;
-  renderProductGallery(idx>=old?1:-1);
-}
-function updateProductMediaCounter(){
-  const el=document.getElementById('productMediaCounter');
-  if(!el)return;
-  const total=getCurrentProductMediaCount();
-  el.textContent=total?`${currentProductImageIndex+1} / ${total}`:'0 / 0';
-}
-
-function renderProductDetailThumbnails(){
-  const wrap=document.getElementById('modalThumbs');
-  if(!wrap)return;
-  const html=[];
-  currentProductImages.forEach((url,idx)=>{
-    html.push(`<button type="button" class="detail-thumb ${idx===currentProductImageIndex?'active':''}" onclick="setProductDetailMedia(${idx})"><img src="${escapeAttr(url)}" alt="" loading="lazy"></button>`);
-  });
-  if(currentProductVideoUrl){
-    const idx=currentProductImages.length;
-    html.push(`<button type="button" class="detail-thumb detail-video-thumb ${idx===currentProductImageIndex?'active':''}" onclick="setProductDetailMedia(${idx})"></button>`);
-  }
-  wrap.innerHTML=html.join('');
-  const active=wrap.querySelector('.detail-thumb.active');
-  if(active)active.scrollIntoView({block:'nearest',inline:'center'});
-}
-
-function updateCurrentProductFavoriteButton(){
-  const btn=document.getElementById('productFavBtn');
-  if(!btn||!currentProductId)return;
-  const active=Array.isArray(wishlist)&&wishlist.includes(currentProductId);
-  btn.textContent=active?'♥':'♡';
-  btn.style.color=active?'#a9002b':'#17202a';
-}
-function toggleCurrentProductFavorite(){
-  if(!currentProductId)return;
-  toggleWishlist(currentProductId);
-  updateCurrentProductFavoriteButton();
-}
-async function shareCurrentProduct(){
-  const p=products.find(x=>String(x.id)===String(currentProductId));
-  const title=p?displayProductName(p):'Kandorty';
-  const text=p&&p.code?`${title} — ${p.code}`:title;
-  const url=location.href.split('#')[0];
-  try{
-    if(navigator.share){
-      await navigator.share({title,text,url});
-      return;
-    }
-  }catch(e){}
-  try{
-    await navigator.clipboard.writeText(url);
-    alert(lang==='ar'?'تم نسخ رابط المنتج.':'Product link copied.');
-  }catch(e){}
-}
-function buyCurrentProductNow(){
-  if(!currentProductId)return;
-  addSelectedProductToCart();
-  setTimeout(()=>{
-    try{
-      renderCart();
-      document.getElementById('cartModal')?.classList.remove('hidden');
-    }catch(e){}
-  },1600);
-}
 </script>
 
 </body></html>
