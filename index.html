@@ -1210,6 +1210,58 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-stable-swipe-css">
+#productModal .product-gallery-stage{touch-action:pan-y!important;overflow:hidden!important}
+#productModal #modalMainImage,#productModal #modalProductVideo{
+  transform:none!important;
+  animation:none!important;
+}
+</style>
+<script id="kandorty-stable-swipe-js">
+(function(){
+ window.bindKandortyStableSwipe=function(gallery){
+   if(!gallery || gallery.dataset.stableSwipe==='1')return;
+   gallery.dataset.stableSwipe='1';
+
+   let sx=0,sy=0,ex=0,ey=0,t0=0,active=false,horizontal=false;
+
+   gallery.addEventListener('touchstart',function(e){
+     if(!e.touches || e.touches.length!==1)return;
+     const t=e.touches[0];
+     sx=ex=t.clientX; sy=ey=t.clientY; t0=performance.now();
+     active=true; horizontal=false;
+   },{passive:true});
+
+   gallery.addEventListener('touchmove',function(e){
+     if(!active || !e.touches || e.touches.length!==1)return;
+     const t=e.touches[0]; ex=t.clientX; ey=t.clientY;
+     const dx=ex-sx,dy=ey-sy;
+     if(!horizontal){
+       if(Math.abs(dx)<10 && Math.abs(dy)<10)return;
+       if(Math.abs(dy)>=Math.abs(dx)){active=false;return;}
+       horizontal=true;
+     }
+     if(horizontal)e.preventDefault();
+   },{passive:false});
+
+   gallery.addEventListener('touchend',function(){
+     if(!active)return;
+     active=false;
+     if(!horizontal)return;
+     const dx=ex-sx,dy=ey-sy;
+     const speed=Math.abs(dx)/Math.max(1,performance.now()-t0);
+     if(Math.abs(dx)>=55 && Math.abs(dx)>Math.abs(dy)*1.15 || speed>.65){
+       if(typeof window.stepProductImage==='function')
+         window.stepProductImage(dx<0?1:-1);
+     }
+   },{passive:true});
+
+   gallery.addEventListener('touchcancel',function(){active=false;horizontal=false},{passive:true});
+ };
+})();
+</script>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2257,7 +2309,7 @@ function renderProductGallery(direction=0){
   if(prevBtn)prevBtn.disabled=total<=1;
   if(nextBtn)nextBtn.disabled=total<=1;
 
-  /* Product swipe is handled by the no-flash track below. */
+  bindKandortyStableSwipe(gallery);
 
   /* Native gallery dots: created directly by the real gallery renderer. */
   {
@@ -6379,77 +6431,6 @@ body.kandorty-cart-open #cartBtn{
     });
     syncPaymentCards(select.value||'cod');
   }
-})();
-</script>
-
-
-<style id="kandorty-no-flash-swipe-css">
-#productModal .product-gallery-stage{position:relative!important;overflow:hidden!important;touch-action:pan-y!important}
-#productModal #modalMainImage{visibility:hidden!important;pointer-events:none!important}
-#kandortySwipeTrack{position:absolute;inset:0;display:flex;direction:ltr;will-change:transform;transform:translate3d(0,0,0);z-index:2}
-.kandortySwipeSlide{flex:0 0 100%;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
-.kandortySwipeSlide img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;-webkit-user-drag:none;user-select:none}
-</style>
-<script id="kandorty-no-flash-swipe-js">
-(function(){
- let installed=false,track=null,stage=null,startX=0,startY=0,baseX=0,dx=0,drag=false,horiz=false,t0=0;
- function images(){return Array.isArray(window.currentProductImages)?window.currentProductImages.filter(Boolean):[]}
- function index(){return Number(window.currentProductImageIndex)||0}
- function build(){
-   if(!stage)return;
-   let a=images(); if(!a.length){ if(track)track.innerHTML=''; return; }
-   if(!track){track=document.createElement('div');track.id='kandortySwipeTrack';stage.appendChild(track)}
-   track.innerHTML=a.map(u=>'<div class="kandortySwipeSlide"><img src="'+String(u).replace(/"/g,'&quot;')+'" draggable="false"></div>').join('');
-   track.style.transition='none';
-   baseX=-index()*stage.clientWidth;
-   track.style.transform='translate3d('+baseX+'px,0,0)';
- }
- function sync(){
-   if(!stage||!track)return;
-   baseX=-index()*stage.clientWidth;
-   track.style.transition='none';
-   track.style.transform='translate3d('+baseX+'px,0,0)';
- }
- function install(){
-   stage=document.querySelector('#productModal .product-gallery-stage');
-   if(!stage||installed)return; installed=true; build();
-   stage.addEventListener('touchstart',e=>{
-     if(!e.touches||e.touches.length!==1||images().length<2)return;
-     let t=e.touches[0];startX=t.clientX;startY=t.clientY;dx=0;t0=performance.now();drag=true;horiz=false;
-     sync();
-   },{passive:true});
-   stage.addEventListener('touchmove',e=>{
-     if(!drag)return;let t=e.touches&&e.touches[0];if(!t)return;
-     let x=t.clientX-startX,y=t.clientY-startY;
-     if(!horiz){if(Math.abs(x)<6&&Math.abs(y)<6)return;if(Math.abs(y)>=Math.abs(x)){drag=false;return}horiz=true}
-     e.preventDefault();dx=x;
-     let i=index(),a=images(),res=x;
-     if((i===0&&x>0)||(i===a.length-1&&x<0))res=x*.28;
-     track.style.transition='none';
-     track.style.transform='translate3d('+(baseX+res)+'px,0,0)';
-   },{passive:false});
-   stage.addEventListener('touchend',()=>{
-     if(!drag)return;drag=false;
-     let a=images(),i=index(),v=Math.abs(dx)/Math.max(1,performance.now()-t0),next=i;
-     if(horiz&&(Math.abs(dx)>stage.clientWidth*.18||v>.45)){next=dx<0?Math.min(a.length-1,i+1):Math.max(0,i-1)}
-     track.style.transition='transform 260ms cubic-bezier(.22,.61,.36,1)';
-     track.style.transform='translate3d('+(-next*stage.clientWidth)+'px,0,0)';
-     if(next!==i){
-       window.currentProductImageIndex=next;
-       setTimeout(()=>{
-         if(typeof window.renderProductGallery==='function')window.renderProductGallery(next>i?1:-1);
-         build();
-       },270);
-     } else setTimeout(sync,270);
-   },{passive:true});
-   stage.addEventListener('touchcancel',()=>{drag=false;sync()},{passive:true});
-   window.addEventListener('resize',sync,{passive:true});
- }
- const oldOpen=window.openProduct;
- if(typeof oldOpen==='function')window.openProduct=function(id){oldOpen(id);setTimeout(()=>{install();build()},0)};
- const oldRender=window.renderProductGallery;
- if(typeof oldRender==='function')window.renderProductGallery=function(d){oldRender(d);setTimeout(()=>{install();build()},0)};
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
 </script>
 
