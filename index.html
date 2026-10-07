@@ -5894,4 +5894,67 @@ function touchDistance(touches){
 })();
 </script>
 
+
+
+<style id="kandorty-edge-fast-cart-final">
+@media (max-width:700px){
+  /* Fill the complete gallery area from edge to edge: no empty side strip. */
+  #productModal .product-gallery-mainwrap,
+  #productModal .product-gallery-stage{background:#000!important;}
+  #productModal .product-gallery-mainimg{
+    width:100vw!important;height:70dvh!important;
+    object-fit:cover!important;object-position:center center!important;
+    background:#000!important;
+  }
+  #productModal #modalProductVideo{
+    width:100vw!important;height:70dvh!important;
+    object-fit:cover!important;object-position:center center!important;
+  }
+  /* Cart always belongs to the phone viewport and has zero drag lag. */
+  body>#cartBtn{
+    position:fixed!important;z-index:2147483000!important;
+    transition:none!important;animation:none!important;
+    will-change:left,top,transform!important;
+    touch-action:none!important;
+  }
+}
+</style>
+<script id="kandorty-edge-fast-cart-final-js">
+(function(){
+  function viewportCart(){
+    var b=document.getElementById('cartBtn');
+    if(!b)return;
+    /* Moving it under body prevents transformed/scrolling ancestors from trapping position:fixed. */
+    if(b.parentElement!==document.body) document.body.appendChild(b);
+    if(b.dataset.fastDrag==='1')return;
+    b.dataset.fastDrag='1';
+    var active=false, moved=false, dx=0, dy=0, lastX=0, lastY=0, raf=0;
+    function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+    function paint(){
+      raf=0;
+      var x=clamp(lastX-dx,4,innerWidth-b.offsetWidth-4);
+      var y=clamp(lastY-dy,4,innerHeight-b.offsetHeight-4);
+      b.style.setProperty('left',x+'px','important');
+      b.style.setProperty('top',y+'px','important');
+      b.style.setProperty('right','auto','important');
+      b.style.setProperty('bottom','auto','important');
+    }
+    b.addEventListener('pointerdown',function(e){
+      var r=b.getBoundingClientRect(); active=true;moved=false;dx=e.clientX-r.left;dy=e.clientY-r.top;
+      lastX=e.clientX;lastY=e.clientY;b.setPointerCapture?.(e.pointerId);e.preventDefault();
+    },{passive:false});
+    b.addEventListener('pointermove',function(e){
+      if(!active)return; moved=true;lastX=e.clientX;lastY=e.clientY;
+      if(!raf)raf=requestAnimationFrame(paint);e.preventDefault();
+    },{passive:false});
+    b.addEventListener('pointerup',function(e){if(!active)return;active=false;if(raf){cancelAnimationFrame(raf);raf=0;paint();}setTimeout(function(){moved=false},120);});
+    b.addEventListener('pointercancel',function(){active=false;});
+    b.addEventListener('click',function(e){if(moved){e.preventDefault();e.stopImmediatePropagation();}},true);
+  }
+  viewportCart();
+  addEventListener('DOMContentLoaded',viewportCart,{once:true});
+  addEventListener('resize',viewportCart,{passive:true});
+})();
+</script>
+
 </body></html>
