@@ -1187,6 +1187,29 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="native-gallery-dots-css">
+#productModal #galleryPrevBtn,#productModal #galleryNextBtn{display:none!important}
+#productModal .product-gallery-stage{position:relative!important}
+#productGalleryDotsNative{
+ position:absolute!important;left:50%!important;bottom:18px!important;
+ transform:translateX(-50%)!important;z-index:2147480000!important;
+ display:flex;align-items:center;justify-content:center;gap:8px;
+ padding:7px 11px;border-radius:999px;background:rgba(0,0,0,.50);
+ pointer-events:none!important;
+}
+#productGalleryDotsNative .native-gallery-dot{
+ display:block!important;width:10px!important;height:10px!important;
+ min-width:10px!important;min-height:10px!important;border-radius:50%!important;
+ background:#fff!important;border:2px solid rgba(0,0,0,.35)!important;
+ box-shadow:0 1px 5px rgba(0,0,0,.65)!important;opacity:.75!important;
+}
+#productGalleryDotsNative .native-gallery-dot.active{
+ width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;
+ background:#d40024!important;border:2px solid #fff!important;opacity:1!important;
+}
+</style>
+
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2219,6 +2242,26 @@ function renderProductGallery(direction=0){
 
   bindHorizontalSwipe(gallery,()=>stepProductImage(1),()=>stepProductImage(-1));
   bindHorizontalSwipe($('imageViewerImg'),()=>stepProductImage(1,true),()=>stepProductImage(-1,true));
+
+  /* Native gallery dots: created directly by the real gallery renderer. */
+  {
+    const stage=gallery.querySelector('.product-gallery-stage');
+    let dots=document.getElementById('productGalleryDotsNative');
+    if(stage && !dots){
+      dots=document.createElement('div');
+      dots.id='productGalleryDotsNative';
+      stage.appendChild(dots);
+    }
+    if(dots){
+      dots.innerHTML='';
+      dots.style.display=total>1?'flex':'none';
+      for(let i=0;i<total;i++){
+        const dot=document.createElement('span');
+        dot.className='native-gallery-dot'+(i===currentProductImageIndex?' active':'');
+        dots.appendChild(dot);
+      }
+    }
+  }
 
   if(selectedNote)selectedNote.textContent='';
   if(addBtn)addBtn.textContent=lang==='ar'?'أضيفي للسلة':'Add to cart';
