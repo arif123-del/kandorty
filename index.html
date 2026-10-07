@@ -2109,46 +2109,126 @@ function preloadNearbyProductGalleries(){
 
 function animateImageSwap(img,newSrc,direction=0){
   if(!img || !newSrc)return;
-  const outX=direction===0?0:(direction>0?-12:12);
-  img.style.opacity='0.55';
-  img.style.transform=`translateX(${outX}px)`;
-  requestAnimationFrame(()=>{
-    img.src=newSrc;
-    requestAnimationFrame(()=>{
-      img.style.opacity='1';
-      img.style.transform='translateX(0)';
-    });
-  });
+  /* Swipe animation is handled by the gesture itself; avoid a second jump. */
+  if(img.src!==newSrc) img.src=newSrc;
+  img.style.opacity='1';
+  img.style.transform='translate3d(0,0,0)';
 }
 
 function bindHorizontalSwipe(el,onLeft,onRight){
   if(!el || el.dataset.swipeBound==='1')return;
-  let startX=0,startY=0,moved=false;
-  const threshold=28;
-  el.addEventListener('touchstart',e=>{
-    const t=e.changedTouches?.[0];
-    if(!t)return;
-    startX=t.clientX;
-    startY=t.clientY;
-    moved=false;
-  },{passive:true});
-  el.addEventListener('touchmove',e=>{
-    const t=e.changedTouches?.[0];
-    if(!t)return;
-    const dx=t.clientX-startX;
-    const dy=t.clientY-startY;
-    if(Math.abs(dx)>12 && Math.abs(dx)>Math.abs(dy))moved=true;
-  },{passive:true});
-  el.addEventListener('touchend',e=>{
-    const t=e.changedTouches?.[0];
-    if(!t)return;
-    const dx=t.clientX-startX;
-    const dy=t.clientY-startY;
-    if(Math.abs(dx)>=threshold && Math.abs(dx)>Math.abs(dy)){
-      if(dx<0)onLeft?.();
-      else onRight?.();
+
+  let startX=0,startY=0,lastX=0,startTime=0;
+  let dragging=false,horizontal=false,ghost=null,base=null;
+
+  function cleanup(animateBack=false){
+    if(base){
+      base.style.transition=animateBack?'transform .22s cubic-bezier(.22,.75,.25,1)':'none';
+      base.style.transform='translate3d(0,0,0)';
     }
+    if(ghost){
+      if(animateBack){
+        const side=(lastX-startX)<0?1:-1;
+        ghost.style.transition='transform .22s cubic-bezier(.22,.75,.25,1)';
+        ghost.style.transform=`translate3d(${side*100}%,0,0)`;
+        setTimeout(()=>{ghost?.remove();ghost=null;},230);
+      }else{
+        ghost.remove(); ghost=null;
+      }
+    }
+    dragging=false; horizontal=false; base=null;
+  }
+
+  function makeGhost(dx){
+    if(ghost || !base || base.tagName!=='IMG')return;
+    const count=(typeof getCurrentProductMediaCount==='function')?getCurrentProductMediaCount():0;
+    if(count<2)return;
+
+    const step=dx<0?1:-1;
+    const nextIndex=(currentProductImageIndex+step+count)%count;
+    /* If the next item is video, don't fake an image; normal swipe still works. */
+    if(nextIndex>=currentProductImages.length)return;
+    const src=currentProductImages[nextIndex];
+    if(!src)return;
+
+    ghost=base.cloneNode(false);
+    ghost.removeAttribute('id');
+    ghost.removeAttribute('onclick');
+    ghost.src=src;
+    ghost.style.cssText += ';position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:inherit!important;object-position:inherit!important;z-index:2!important;pointer-events:none!important;transition:none!important;';
+    ghost.style.transform=`translate3d(${dx<0?100:-100}%,0,0)`;
+    const stage=el.querySelector?.('.product-gallery-stage') || base.parentElement;
+    if(stage){
+      stage.style.position='relative';
+      stage.style.overflow='hidden';
+      stage.appendChild(ghost);
+    }
+  }
+
+  el.addEventListener('touchstart',e=>{
+    const t=e.touches?.[0];
+    if(!t || e.touches.length!==1)return;
+    startX=lastX=t.clientX; startY=t.clientY; startTime=performance.now();
+    dragging=true; horizontal=false;
+    base=(el.querySelector?.('#modalMainImage') || (el.id==='imageViewerImg'?el:null));
+    if(base)base.style.transition='none';
   },{passive:true});
+
+  el.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    const t=e.touches?.[0]; if(!t)return;
+    const dx=t.clientX-startX, dy=t.clientY-startY; lastX=t.clientX;
+
+    if(!horizontal){
+      if(Math.abs(dx)<8 && Math.abs(dy)<8)return;
+      if(Math.abs(dy)>=Math.abs(dx)){ cleanup(true); return; }
+      horizontal=true;
+      makeGhost(dx);
+    }
+    if(!horizontal)return;
+    e.preventDefault();
+
+    const w=Math.max(1,el.clientWidth||window.innerWidth);
+    let x=Math.max(-w,Math.min(w,dx));
+    if(base)base.style.transform=`translate3d(${x}px,0,0)`;
+    if(ghost){
+      const start=dx<0?w:-w;
+      ghost.style.transform=`translate3d(${start+x}px,0,0)`;
+    }
+  },{passive:false});
+
+  el.addEventListener('touchend',e=>{
+    if(!dragging)return;
+    const dx=lastX-startX;
+    const dt=Math.max(1,performance.now()-startTime);
+    const velocity=Math.abs(dx)/dt;
+    const w=Math.max(1,el.clientWidth||window.innerWidth);
+    const commit=horizontal && (Math.abs(dx)>w*.18 || velocity>.45);
+
+    if(!commit){ cleanup(true); return; }
+
+    const left=dx<0;
+    if(base){
+      base.style.transition='transform .20s cubic-bezier(.22,.75,.25,1)';
+      base.style.transform=`translate3d(${left?-w:w}px,0,0)`;
+    }
+    if(ghost){
+      ghost.style.transition='transform .20s cubic-bezier(.22,.75,.25,1)';
+      ghost.style.transform='translate3d(0,0,0)';
+    }
+
+    setTimeout(()=>{
+      if(left)onLeft?.(); else onRight?.();
+      if(base){
+        base.style.transition='none';
+        base.style.transform='translate3d(0,0,0)';
+      }
+      ghost?.remove(); ghost=null;
+      dragging=false; horizontal=false; base=null;
+    },205);
+  },{passive:true});
+
+  el.addEventListener('touchcancel',()=>cleanup(true),{passive:true});
   el.dataset.swipeBound='1';
 }
 
@@ -6383,41 +6463,9 @@ body.kandorty-cart-open #cartBtn{
 })();
 </script>
 
-
-<style id="kandorty-clean-swipe-v2">
-#productModal .product-gallery-stage{touch-action:pan-y!important;overflow:hidden!important}
-#productModal #modalMainImage,#productModal #modalProductVideo{transition:none!important;transform:none!important}
-</style>
-<script id="kandorty-clean-swipe-v2-js">
-(function(){
- function install(){
-  var stage=document.querySelector('#productModal .product-gallery-stage');
-  if(!stage||stage.dataset.cleanSwipeV2==='1')return;
-  stage.dataset.cleanSwipeV2='1';
-  var sx=0,sy=0,ex=0,ey=0,tracking=false;
-  stage.addEventListener('touchstart',function(e){
-   if(!e.touches||e.touches.length!==1)return;
-   sx=ex=e.touches[0].clientX; sy=ey=e.touches[0].clientY; tracking=true;
-  },{passive:true,capture:true});
-  stage.addEventListener('touchmove',function(e){
-   if(!tracking||!e.touches||e.touches.length!==1)return;
-   ex=e.touches[0].clientX; ey=e.touches[0].clientY;
-   var dx=ex-sx,dy=ey-sy;
-   if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)){e.preventDefault();e.stopImmediatePropagation()}
-  },{passive:false,capture:true});
-  stage.addEventListener('touchend',function(e){
-   if(!tracking)return; tracking=false;
-   var dx=ex-sx,dy=ey-sy;
-   if(Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.15){
-    e.preventDefault();e.stopImmediatePropagation();
-    if(typeof window.stepProductImage==='function')window.stepProductImage(dx<0?1:-1);
-   }
-  },{passive:false,capture:true});
-  stage.addEventListener('touchcancel',function(){tracking=false},{passive:true,capture:true});
- }
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
- setTimeout(install,300);
-})();
-</script>
-
 </body></html>
+
+<style id="kandorty-premium-swipe-final">
+#productModal .product-gallery-stage{overflow:hidden!important;touch-action:pan-y!important}
+#productModal #modalMainImage{will-change:transform!important;backface-visibility:hidden!important}
+</style>
