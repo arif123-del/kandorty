@@ -6109,4 +6109,38 @@ function touchDistance(touches){
 }
 </style>
 
+
+<style id="single-dot-row-final">
+/* There must be exactly ONE pagination-dot row. */
+#productGalleryDots,
+.product-gallery-dots:not(#productGalleryDotsNative),
+.gallery-dots:not(#productGalleryDotsNative),
+.product-dots:not(#productGalleryDotsNative){
+  display:none!important;
+}
+#productGalleryDotsNative{
+  display:flex;
+  flex-direction:row!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+}
+#productGalleryDotsNative .native-gallery-dot{
+  position:static!important;
+  transform:none!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+}
+</style>
+<script id="remove-old-gallery-dots">
+(function(){
+ function clean(){
+   document.querySelectorAll('#productGalleryDots').forEach(function(x){x.remove();});
+ }
+ clean();
+ new MutationObserver(clean).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
 </body></html>
