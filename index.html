@@ -3337,7 +3337,7 @@ function cartVariantKey(item){
 function productQtyInCart(productId){
   return cart.reduce((sum,item)=>String(item?.id)===String(productId)?sum+(Number(item.qty)||0):sum,0);
 }
-function addToCart(id,imageIndex=0){
+function addToCart(id,imageIndex=0,keepProductOpen=false){
   const p=products.find(x=>x.id===id); if(!p)return;
   if(isSoldOut(p)){
     alert(lang==='ar'?'هذا المنتج نفد من المخزون.':'This product is sold out.');
@@ -3368,8 +3368,10 @@ function addToCart(id,imageIndex=0){
   }
 
   saveCart();
-  if(!$('productModal').classList.contains('hidden'))closeProduct();
-  $('cartModal').classList.remove('hidden');
+  if(!keepProductOpen){
+    if(!$('productModal').classList.contains('hidden'))closeProduct();
+    $('cartModal').classList.remove('hidden');
+  }
 }
 function updateCartCount(){const n=cart.reduce((s,x)=>s+(Number(x.qty)||0),0); if($('cartCount'))$('cartCount').textContent=n}
 function cartData(){
@@ -6144,93 +6146,56 @@ function touchDistance(touches){
 </script>
 
 
-<style id="fly-only-cart-final-css">
-/* Flying product clone */
-.kandorty-fly-product{
-  position:fixed!important;
-  z-index:2147483646!important;
-  pointer-events:none!important;
-  object-fit:cover!important;
-  border-radius:12px!important;
-  box-shadow:0 8px 24px rgba(0,0,0,.28)!important;
-  transition:left .62s cubic-bezier(.2,.75,.25,1),
-             top .62s cubic-bezier(.2,.75,.25,1),
-             width .62s cubic-bezier(.2,.75,.25,1),
-             height .62s cubic-bezier(.2,.75,.25,1),
-             opacity .62s ease,
-             transform .62s ease!important;
+<style id="kandorty-single-button-fly-final">
+#kandortyButtonFly{
+ position:fixed!important;z-index:2147483647!important;pointer-events:none!important;
+ width:42px!important;height:42px!important;border-radius:12px!important;
+ object-fit:cover!important;box-shadow:0 6px 18px rgba(0,0,0,.30)!important;
+ transition:left .58s cubic-bezier(.2,.8,.25,1),top .58s cubic-bezier(.2,.8,.25,1),
+ width .58s,height .58s,opacity .58s,transform .58s!important;
 }
 </style>
-<script id="fly-only-cart-final-js">
+<script id="kandorty-single-button-fly-final-js">
 (function(){
-  let suppressUntil=0;
+  /* Final behavior: Add button adds only; it NEVER opens the cart.
+     Exactly one product piece flies FROM THE BUTTON to the cart. */
+  window.addSelectedProductToCart=function(){
+    if(!currentProductId)return;
 
-  function cartButton(){
-    return document.getElementById('cartBtn');
-  }
+    var idx=Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1));
+    var btn=document.getElementById('modalAddSelectedBtn');
+    var cartBtn=document.getElementById('cartBtn');
+    var img=document.getElementById('modalMainImage');
 
-  function flyProductToCart(){
-    const img=document.getElementById('modalMainImage');
-    const cart=cartButton();
-    if(!img || !cart || !img.src) return;
+    /* Add to cart while keeping product page/modal open. */
+    addToCart(currentProductId,idx,true);
 
-    const a=img.getBoundingClientRect();
-    const b=cart.getBoundingClientRect();
-    const clone=img.cloneNode(false);
-    clone.removeAttribute('id');
-    clone.className='kandorty-fly-product';
-    Object.assign(clone.style,{
-      left:a.left+'px', top:a.top+'px',
-      width:Math.min(a.width,120)+'px',
-      height:Math.min(a.height,150)+'px',
-      opacity:'1', transform:'scale(1)'
-    });
-    document.body.appendChild(clone);
+    if(!btn||!cartBtn)return;
+    var br=btn.getBoundingClientRect(), cr=cartBtn.getBoundingClientRect();
+
+    /* Remove any previous flying piece, so only ONE can exist. */
+    var previous=document.getElementById('kandortyButtonFly');
+    if(previous)previous.remove();
+
+    var fly=document.createElement('img');
+    fly.id='kandortyButtonFly';
+    fly.src=(img && (img.currentSrc||img.src)) || '';
+    fly.style.left=(br.left+br.width/2-21)+'px';
+    fly.style.top=(br.top+br.height/2-21)+'px';
+    document.body.appendChild(fly);
 
     requestAnimationFrame(function(){
       requestAnimationFrame(function(){
-        clone.style.left=(b.left+b.width/2-15)+'px';
-        clone.style.top=(b.top+b.height/2-15)+'px';
-        clone.style.width='30px';
-        clone.style.height='30px';
-        clone.style.opacity='.15';
-        clone.style.transform='scale(.35)';
+        fly.style.left=(cr.left+cr.width/2-10)+'px';
+        fly.style.top=(cr.top+cr.height/2-10)+'px';
+        fly.style.width='20px';
+        fly.style.height='20px';
+        fly.style.opacity='.18';
+        fly.style.transform='scale(.45)';
       });
     });
-    setTimeout(function(){ clone.remove(); },700);
-  }
-
-  /* Stop only the immediate "open/go to cart" action caused by Add button.
-     The product's normal add handler still runs. */
-  document.addEventListener('click',function(e){
-    const add=e.target && e.target.closest ? e.target.closest('#modalAddSelectedBtn') : null;
-    if(!add) return;
-    suppressUntil=Date.now()+900;
-    flyProductToCart();
-  },true);
-
-  document.addEventListener('click',function(e){
-    const cart=e.target && e.target.closest ? e.target.closest('#cartBtn') : null;
-    if(cart && Date.now()<suppressUntil && !e.isTrusted){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    }
-  },true);
-
-  /* If existing code calls cart opening functions directly right after adding,
-     ignore that one automatic call. Manual cart use remains normal. */
-  function protect(name){
-    const old=window[name];
-    if(typeof old!=='function' || old.__flyOnlyProtected) return;
-    function wrapped(){
-      if(Date.now()<suppressUntil) return;
-      return old.apply(this,arguments);
-    }
-    wrapped.__flyOnlyProtected=true;
-    window[name]=wrapped;
-  }
-  ['openCart','showCart','toggleCart'].forEach(protect);
-  setTimeout(function(){ ['openCart','showCart','toggleCart'].forEach(protect); },500);
+    setTimeout(function(){ if(fly&&fly.parentNode)fly.remove(); },650);
+  };
 })();
 </script>
 
