@@ -5812,4 +5812,86 @@ function touchDistance(touches){
 }
 </style>
 
+
+
+<style id="kandorty-final-requested-controls">
+@media (max-width:700px){
+  /* Product view stays fixed vertically; only horizontal gallery swipes are allowed. */
+  #productModal{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important;}
+  #productModal .modal-card{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;overscroll-behavior:none!important;}
+  #productModal .product-gallery-mainwrap,
+  #productModal .product-gallery-stage{touch-action:pan-x!important;overscroll-behavior:none!important;}
+  #productModal .product-gallery-mainimg{
+    width:100vw!important;height:70dvh!important;max-width:100vw!important;max-height:70dvh!important;
+    object-fit:contain!important;object-position:center center!important;transform:none;
+  }
+  /* Keep video as the last item of the same gallery, never below the image. */
+  #productModal #modalProductVideo{
+    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+    object-fit:contain!important;background:#000!important;
+  }
+  /* Close button on the upper-left of the image. */
+  #productModal .modal-head{left:0!important;right:0!important;direction:ltr!important;justify-content:flex-start!important;}
+  #productModal .modal-head .x{position:absolute!important;left:14px!important;right:auto!important;top:12px!important;z-index:50!important;}
+
+  /* Floating draggable cart. */
+  #cartBtn{
+    position:fixed!important;right:12px;left:auto;top:52%;z-index:95!important;
+    width:64px!important;height:64px!important;min-width:64px!important;padding:0!important;margin:0!important;
+    border-radius:50%!important;background:#c9001f!important;color:#fff!important;border:3px solid #fff!important;
+    box-shadow:0 5px 18px rgba(0,0,0,.28)!important;display:flex!important;align-items:center!important;justify-content:center!important;
+    touch-action:none!important;user-select:none!important;-webkit-user-select:none!important;
+  }
+  #cartBtn>span:not(.nav-icon):not(#cartCount){display:none!important;}
+  #cartBtn .nav-icon{font-size:28px!important;line-height:1!important;}
+  #cartBtn #cartCount{position:absolute!important;top:-7px!important;right:-5px!important;background:#fff!important;color:#c9001f!important;border:2px solid #c9001f!important;border-radius:999px!important;min-width:25px!important;height:25px!important;display:grid!important;place-items:center!important;font-size:12px!important;font-weight:900!important;padding:0 4px!important;}
+}
+</style>
+<script id="kandorty-final-requested-controls-js">
+(function(){
+  function lockProductVerticalTouch(){
+    var modal=document.getElementById('productModal');
+    if(!modal || modal.dataset.verticalLock==='1') return;
+    var startX=0,startY=0;
+    modal.addEventListener('touchstart',function(e){
+      var t=e.touches&&e.touches[0]; if(!t)return; startX=t.clientX; startY=t.clientY;
+    },{passive:true});
+    modal.addEventListener('touchmove',function(e){
+      var t=e.touches&&e.touches[0]; if(!t)return;
+      var dx=Math.abs(t.clientX-startX), dy=Math.abs(t.clientY-startY);
+      if(dy>dx || e.target.closest('.modal-card')) e.preventDefault();
+    },{passive:false});
+    modal.dataset.verticalLock='1';
+  }
+
+  function makeCartDraggable(){
+    var b=document.getElementById('cartBtn'); if(!b || b.dataset.dragReady==='1')return;
+    b.dataset.dragReady='1';
+    var dragging=false,moved=false,ox=0,oy=0;
+    function clamp(v,a,z){return Math.max(a,Math.min(z,v));}
+    function start(x,y){
+      var r=b.getBoundingClientRect(); dragging=true;moved=false;ox=x-r.left;oy=y-r.top;
+      b.style.right='auto'; b.style.bottom='auto'; b.style.left=r.left+'px'; b.style.top=r.top+'px';
+    }
+    function move(x,y){
+      if(!dragging)return;
+      moved=true;
+      var left=clamp(x-ox,4,window.innerWidth-b.offsetWidth-4);
+      var top=clamp(y-oy,4,window.innerHeight-b.offsetHeight-4);
+      b.style.left=left+'px';b.style.top=top+'px';
+    }
+    function end(){dragging=false;setTimeout(function(){moved=false},80);}
+    b.addEventListener('touchstart',function(e){var t=e.touches[0];start(t.clientX,t.clientY);},{passive:true});
+    b.addEventListener('touchmove',function(e){var t=e.touches[0];move(t.clientX,t.clientY);e.preventDefault();},{passive:false});
+    b.addEventListener('touchend',end,{passive:true});
+    b.addEventListener('pointerdown',function(e){if(e.pointerType==='touch')return;start(e.clientX,e.clientY);b.setPointerCapture?.(e.pointerId);});
+    b.addEventListener('pointermove',function(e){if(e.pointerType==='touch'||!dragging)return;move(e.clientX,e.clientY);});
+    b.addEventListener('pointerup',function(e){if(e.pointerType==='touch')return;end();});
+    b.addEventListener('click',function(e){if(moved){e.preventDefault();e.stopImmediatePropagation();}},true);
+  }
+  lockProductVerticalTouch(); makeCartDraggable();
+  document.addEventListener('DOMContentLoaded',function(){lockProductVerticalTouch();makeCartDraggable();},{once:true});
+})();
+</script>
+
 </body></html>
