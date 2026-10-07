@@ -1187,66 +1187,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
-
-<style id="kandorty-fly-to-cart">
-.fly-to-cart-image{
-  position:fixed !important;
-  z-index:9999 !important;
-  pointer-events:none !important;
-  object-fit:cover !important;
-  border-radius:14px !important;
-  box-shadow:0 12px 32px rgba(0,0,0,.28) !important;
-  transition:
-    left .72s cubic-bezier(.2,.8,.2,1),
-    top .72s cubic-bezier(.2,.8,.2,1),
-    width .72s ease,
-    height .72s ease,
-    opacity .72s ease,
-    transform .72s ease !important;
-}
-#cartBtn.cart-catch{
-  animation:kandortyCartCatch .55s ease;
-}
-@keyframes kandortyCartCatch{
-  0%{transform:scale(1)}
-  35%{transform:scale(1.16)}
-  70%{transform:scale(.96)}
-  100%{transform:scale(1)}
-}
-</style>
-
-
-<style id="kandorty-font-smaller-cart-motion">
-/* Slightly smaller text on phones without changing layout */
-@media(max-width:760px){
-  body{font-size:14px !important}
-  .top .actions .btn{font-size:11px !important}
-  .card-body .name{font-size:13px !important}
-  .card-body .code{font-size:9px !important}
-  .card-body .price{font-size:16px !important}
-  .card-body .stock,
-  .card-body .stock-note{font-size:9px !important}
-  .card-actions .btn{font-size:10px !important}
-  .home-heading h2,
-  .shop-top h2{font-size:clamp(26px,7vw,36px) !important}
-  .home-heading p,
-  .shop-top p{font-size:13px !important}
-}
-
-/* Cart stays gently animated when it has items */
-#cartBtn.cart-has-items{
-  animation:kandortyCartFloat 1.8s ease-in-out infinite;
-  transform-origin:center;
-}
-@keyframes kandortyCartFloat{
-  0%,100%{transform:translateY(0) scale(1)}
-  50%{transform:translateY(-3px) scale(1.035)}
-}
-#cartBtn.cart-catch{
-  animation:kandortyCartCatch .55s ease !important;
-}
-</style>
-
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2071,7 +2011,7 @@ function renderProductCard(p){
     ? `<button class="btn primary" disabled>${lang==='ar'?'نفد المنتج':'Sold out'}</button>`
     : (variantCount>1
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
-      : `<button class="btn primary" onclick="addToCart('${p.id}',0,this)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
+      : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
     <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
@@ -2353,7 +2293,7 @@ function openProduct(id){
 }
 function addSelectedProductToCart(){
   if(!currentProductId)return;
-  addToCart(currentProductId,Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1)),$('modalAddSelectedBtn'));
+  addToCart(currentProductId,Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1)));
 }
 function closeProduct(){
   $('productModal').classList.add('hidden');
@@ -3354,75 +3294,7 @@ function cartVariantKey(item){
 function productQtyInCart(productId){
   return cart.reduce((sum,item)=>String(item?.id)===String(productId)?sum+(Number(item.qty)||0):sum,0);
 }
-function findCartAnimationImage(triggerEl){
-  if(triggerEl){
-    const card=triggerEl.closest?.('.card');
-    const cardImg=card?.querySelector('img');
-    if(cardImg && cardImg.src)return cardImg;
-  }
-  const modal=$('productModal');
-  if(modal && !modal.classList.contains('hidden')){
-    const main=$('modalMainImage');
-    if(main && main.src && main.style.display!=='none')return main;
-  }
-  return null;
-}
-
-function animateProductToCart(triggerEl,imageUrl){
-  const cartBtn=$('cartBtn');
-  if(!cartBtn)return;
-
-  const source=findCartAnimationImage(triggerEl);
-  const src=(source?.src)||imageUrl||'';
-  if(!src){
-    cartBtn.classList.remove('cart-catch');
-    void cartBtn.offsetWidth;
-    cartBtn.classList.add('cart-catch');
-    return;
-  }
-
-  const sourceRect=source?.getBoundingClientRect?.();
-  const cartRect=cartBtn.getBoundingClientRect();
-  if(!sourceRect || !sourceRect.width || !sourceRect.height)return;
-
-  const fly=document.createElement('img');
-  fly.src=src;
-  fly.className='fly-to-cart-image';
-
-  const startW=Math.min(110,Math.max(64,sourceRect.width*.42));
-  const startH=Math.min(140,Math.max(82,sourceRect.height*.42));
-  const startLeft=sourceRect.left+(sourceRect.width-startW)/2;
-  const startTop=sourceRect.top+(sourceRect.height-startH)/2;
-
-  fly.style.left=startLeft+'px';
-  fly.style.top=startTop+'px';
-  fly.style.width=startW+'px';
-  fly.style.height=startH+'px';
-  fly.style.opacity='1';
-  fly.style.transform='scale(1) rotate(0deg)';
-  document.body.appendChild(fly);
-
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      const endW=24,endH=30;
-      fly.style.left=(cartRect.left+cartRect.width/2-endW/2)+'px';
-      fly.style.top=(cartRect.top+cartRect.height/2-endH/2)+'px';
-      fly.style.width=endW+'px';
-      fly.style.height=endH+'px';
-      fly.style.opacity='.18';
-      fly.style.transform='scale(.35) rotate(8deg)';
-    });
-  });
-
-  setTimeout(()=>{
-    fly.remove();
-    cartBtn.classList.remove('cart-catch');
-    void cartBtn.offsetWidth;
-    cartBtn.classList.add('cart-catch');
-  },730);
-}
-
-function addToCart(id,imageIndex=0,triggerEl=null){
+function addToCart(id,imageIndex=0){
   const p=products.find(x=>x.id===id); if(!p)return;
   if(isSoldOut(p)){
     alert(lang==='ar'?'هذا المنتج نفد من المخزون.':'This product is sold out.');
@@ -3453,23 +3325,10 @@ function addToCart(id,imageIndex=0,triggerEl=null){
   }
 
   saveCart();
-  animateProductToCart(triggerEl,imageUrl);
-
-  // Do not open the cart automatically.
-  // The customer continues shopping and completes checkout from the cart button.
-  if(!$('productModal').classList.contains('hidden')){
-    setTimeout(()=>closeProduct(),180);
-  }
+  if(!$('productModal').classList.contains('hidden'))closeProduct();
+  $('cartModal').classList.remove('hidden');
 }
-function updateCartCount(){
-  const n=cart.reduce((s,x)=>s+(Number(x.qty)||0),0);
-  if($('cartCount'))$('cartCount').textContent=n;
-  const btn=$('cartBtn');
-  if(btn){
-    btn.title=lang==='ar'?`السلة — ${n} منتج`:`Cart — ${n} item${n===1?'':'s'}`;
-    btn.classList.toggle('cart-has-items',n>0);
-  }
-}
+function updateCartCount(){const n=cart.reduce((s,x)=>s+(Number(x.qty)||0),0); if($('cartCount'))$('cartCount').textContent=n}
 function cartData(){
   return cart.map((i,cartIndex)=>({
     item:i,
@@ -4883,7 +4742,7 @@ function renderWishlist(){
   ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
   <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
   <div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>
-  <div class="card-actions"><button class="btn primary" onclick="addToCart('${p.id}',0,this)">أضيفي للسلة</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">حذف</button></div>
+  <div class="card-actions"><button class="btn primary" onclick="addToCart('${p.id}')">أضيفي للسلة</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">حذف</button></div>
   </div></article>`).join(''):'<div class="empty">لا توجد منتجات في المفضلة</div>';
 }
 
