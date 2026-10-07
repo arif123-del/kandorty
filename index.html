@@ -6143,4 +6143,95 @@ function touchDistance(touches){
 })();
 </script>
 
+
+<style id="fly-only-cart-final-css">
+/* Flying product clone */
+.kandorty-fly-product{
+  position:fixed!important;
+  z-index:2147483646!important;
+  pointer-events:none!important;
+  object-fit:cover!important;
+  border-radius:12px!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.28)!important;
+  transition:left .62s cubic-bezier(.2,.75,.25,1),
+             top .62s cubic-bezier(.2,.75,.25,1),
+             width .62s cubic-bezier(.2,.75,.25,1),
+             height .62s cubic-bezier(.2,.75,.25,1),
+             opacity .62s ease,
+             transform .62s ease!important;
+}
+</style>
+<script id="fly-only-cart-final-js">
+(function(){
+  let suppressUntil=0;
+
+  function cartButton(){
+    return document.getElementById('cartBtn');
+  }
+
+  function flyProductToCart(){
+    const img=document.getElementById('modalMainImage');
+    const cart=cartButton();
+    if(!img || !cart || !img.src) return;
+
+    const a=img.getBoundingClientRect();
+    const b=cart.getBoundingClientRect();
+    const clone=img.cloneNode(false);
+    clone.removeAttribute('id');
+    clone.className='kandorty-fly-product';
+    Object.assign(clone.style,{
+      left:a.left+'px', top:a.top+'px',
+      width:Math.min(a.width,120)+'px',
+      height:Math.min(a.height,150)+'px',
+      opacity:'1', transform:'scale(1)'
+    });
+    document.body.appendChild(clone);
+
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        clone.style.left=(b.left+b.width/2-15)+'px';
+        clone.style.top=(b.top+b.height/2-15)+'px';
+        clone.style.width='30px';
+        clone.style.height='30px';
+        clone.style.opacity='.15';
+        clone.style.transform='scale(.35)';
+      });
+    });
+    setTimeout(function(){ clone.remove(); },700);
+  }
+
+  /* Stop only the immediate "open/go to cart" action caused by Add button.
+     The product's normal add handler still runs. */
+  document.addEventListener('click',function(e){
+    const add=e.target && e.target.closest ? e.target.closest('#modalAddSelectedBtn') : null;
+    if(!add) return;
+    suppressUntil=Date.now()+900;
+    flyProductToCart();
+  },true);
+
+  document.addEventListener('click',function(e){
+    const cart=e.target && e.target.closest ? e.target.closest('#cartBtn') : null;
+    if(cart && Date.now()<suppressUntil && !e.isTrusted){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  },true);
+
+  /* If existing code calls cart opening functions directly right after adding,
+     ignore that one automatic call. Manual cart use remains normal. */
+  function protect(name){
+    const old=window[name];
+    if(typeof old!=='function' || old.__flyOnlyProtected) return;
+    function wrapped(){
+      if(Date.now()<suppressUntil) return;
+      return old.apply(this,arguments);
+    }
+    wrapped.__flyOnlyProtected=true;
+    window[name]=wrapped;
+  }
+  ['openCart','showCart','toggleCart'].forEach(protect);
+  setTimeout(function(){ ['openCart','showCart','toggleCart'].forEach(protect); },500);
+})();
+</script>
+
 </body></html>
