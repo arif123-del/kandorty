@@ -6307,4 +6307,66 @@ body.kandorty-cart-open #cartBtn{
 })();
 </script>
 
+
+<style id="kandorty-hide-cart-entire-purchase-flow">
+body.kandorty-purchase-flow-active #cartBtn{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+</style>
+<script id="kandorty-hide-cart-entire-purchase-flow-js">
+(function(){
+  var cartBtn=document.getElementById('cartBtn');
+  if(!cartBtn)return;
+
+  function visible(el){
+    if(!el)return false;
+    if(el.classList && el.classList.contains('hidden'))return false;
+    var s=getComputedStyle(el);
+    return s.display!=='none' && s.visibility!=='hidden';
+  }
+
+  function isPurchaseFlowOpen(){
+    /* Known/likely purchase flow panels in this storefront. */
+    var ids=[
+      'cartModal','checkoutModal','orderModal','customerModal',
+      'customerInfoModal','paymentModal','paymentMethodModal',
+      'cashModal','cardModal','stripeModal'
+    ];
+    for(var i=0;i<ids.length;i++){
+      if(visible(document.getElementById(ids[i])))return true;
+    }
+
+    /* Also catch any modal/dialog containing checkout fields or payment choices,
+       so moving from cart -> name/phone -> cash/card does not show the cart icon. */
+    var panels=document.querySelectorAll('.modal,[role="dialog"]');
+    for(var j=0;j<panels.length;j++){
+      var p=panels[j];
+      if(!visible(p))continue;
+      if(p===document.getElementById('productModal') ||
+         p===document.getElementById('imageViewerModal'))continue;
+
+      var text=(p.textContent||'').toLowerCase();
+      var hasPurchaseUI =
+        p.querySelector('input[name*="phone"],input[id*="phone"],input[name*="name"],input[id*="name"],input[name*="payment"],input[type="radio"]') ||
+        /الدفع|بطاقة|كاش|نقد|تأكيد الطلب|إتمام الطلب|الهاتف|رقم الهاتف|checkout|payment|cash|card/.test(text);
+      if(hasPurchaseUI)return true;
+    }
+    return false;
+  }
+
+  function sync(){
+    document.body.classList.toggle('kandorty-purchase-flow-active',isPurchaseFlowOpen());
+  }
+
+  var observer=new MutationObserver(sync);
+  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','hidden']});
+  document.addEventListener('click',function(){setTimeout(sync,0);setTimeout(sync,120);},true);
+  document.addEventListener('change',function(){setTimeout(sync,0);},true);
+  sync();
+})();
+</script>
+
 </body></html>
