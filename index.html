@@ -6199,4 +6199,112 @@ function touchDistance(touches){
 })();
 </script>
 
+
+<style id="hide-floating-cart-while-cart-open">
+/* While the cart/checkout modal is open, hide the floating cart icon. */
+body.kandorty-cart-open #cartBtn{
+  display:none!important;
+}
+</style>
+
+<script id="hide-floating-cart-while-cart-open-js">
+(function(){
+  const cartModal=document.getElementById('cartModal');
+  const cartBtn=document.getElementById('cartBtn');
+  if(!cartModal || !cartBtn) return;
+
+  function syncCartIcon(){
+    const isOpen=!cartModal.classList.contains('hidden');
+    document.body.classList.toggle('kandorty-cart-open',isOpen);
+  }
+
+  /* Watch the real cart modal state, so it works with every way the cart
+     can be opened or closed and throughout the purchase flow. */
+  new MutationObserver(syncCartIcon).observe(cartModal,{
+    attributes:true,
+    attributeFilter:['class','style']
+  });
+
+  syncCartIcon();
+})();
+</script>
+
+
+<style id="smooth-product-fly-v2-css">
+#kandortyButtonFly{
+  position:fixed!important;
+  z-index:2147483647!important;
+  pointer-events:none!important;
+  object-fit:cover!important;
+  border-radius:14px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.28)!important;
+  will-change:transform,opacity!important;
+}
+#cartBtn.kandorty-cart-catch{
+  animation:kandortyCartCatch .34s ease!important;
+}
+@keyframes kandortyCartCatch{
+  0%{transform:scale(1)}
+  48%{transform:scale(1.18)}
+  100%{transform:scale(1)}
+}
+</style>
+<script id="smooth-product-fly-v2-js">
+(function(){
+  /* Replace the previous fly animation with one clean curved flight. */
+  window.addSelectedProductToCart=function(){
+    if(!currentProductId)return;
+
+    var idx=Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1));
+    var btn=document.getElementById('modalAddSelectedBtn');
+    var cart=document.getElementById('cartBtn');
+    var img=document.getElementById('modalMainImage');
+
+    addToCart(currentProductId,idx,true);
+    if(!btn||!cart||!img)return;
+
+    var old=document.getElementById('kandortyButtonFly');
+    if(old)old.remove();
+
+    var br=btn.getBoundingClientRect();
+    var cr=cart.getBoundingClientRect();
+    var startX=br.left+br.width/2;
+    var startY=br.top+br.height/2;
+    var endX=cr.left+cr.width/2;
+    var endY=cr.top+cr.height/2;
+
+    var fly=document.createElement('img');
+    fly.id='kandortyButtonFly';
+    fly.src=img.currentSrc||img.src;
+    fly.style.left='0';
+    fly.style.top='0';
+    fly.style.width='64px';
+    fly.style.height='64px';
+    fly.style.transform='translate3d('+(startX-32)+'px,'+(startY-32)+'px,0) scale(1)';
+    document.body.appendChild(fly);
+
+    var midX=startX+(endX-startX)*0.48;
+    var midY=Math.min(startY,endY)-85;
+
+    var anim=fly.animate([
+      {transform:'translate3d('+(startX-32)+'px,'+(startY-32)+'px,0) scale(1)',opacity:1,offset:0},
+      {transform:'translate3d('+(midX-25)+'px,'+(midY-25)+'px,0) scale(.78)',opacity:.95,offset:.52},
+      {transform:'translate3d('+(endX-10)+'px,'+(endY-10)+'px,0) scale(.28)',opacity:.12,offset:1}
+    ],{
+      duration:720,
+      easing:'cubic-bezier(.22,.72,.2,1)',
+      fill:'forwards'
+    });
+
+    anim.onfinish=function(){
+      fly.remove();
+      cart.classList.remove('kandorty-cart-catch');
+      void cart.offsetWidth;
+      cart.classList.add('kandorty-cart-catch');
+      setTimeout(function(){cart.classList.remove('kandorty-cart-catch')},360);
+    };
+  };
+})();
+</script>
+
 </body></html>
