@@ -1187,6 +1187,27 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+
+<style id="kandorty-product-edge-info-below-20261007">
+/* Mobile product view: image flush to top/left/right; product info immediately below. */
+.product-modal-close{position:absolute;z-index:190;background:rgba(255,255,255,.92);border:0;border-radius:50%;display:grid;place-items:center}
+.product-modal-info{padding:0 14px 16px;background:#fff}
+.product-modal-info #modalName{margin:0 0 6px;font-size:22px;line-height:1.3}
+.product-modal-info #modalCode{margin:0 0 6px}
+@media(max-width:700px){
+  #productModal{padding:0!important;place-items:start center!important;overflow:hidden!important;background:rgba(0,0,0,.55)!important}
+  #productModal .modal-card{position:relative!important;width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;padding:0!important;border-radius:0!important;overflow-y:auto!important;overflow-x:hidden!important;background:#fff!important}
+  #productModal .product-modal-close{top:calc(12px + env(safe-area-inset-top))!important;left:12px!important;width:42px!important;height:42px!important;font-size:30px!important;line-height:1!important}
+  #productModal .product-gallery-mainwrap{width:100vw!important;max-width:100vw!important;margin:0!important;padding:0!important;overflow:hidden!important}
+  #productModal .product-gallery-stage{width:100vw!important;margin:0!important;padding:0!important}
+  #productModal .product-gallery-mainimg{display:block!important;width:100vw!important;max-width:100vw!important;height:auto!important;aspect-ratio:auto!important;object-fit:contain!important;object-position:center top!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#fff!important}
+  #productModal #modalProductVideo{width:100vw!important;max-width:100vw!important;margin:0!important;border-radius:0!important}
+  #productModal .product-modal-info{padding:10px 14px calc(16px + env(safe-area-inset-bottom))!important;margin:0!important}
+  #productModal .product-modal-info #modalName{margin:0 0 5px!important;font-size:20px!important}
+  #productModal .product-modal-info #modalCode{margin:0 0 5px!important}
+  #productModal #modalAddSelectedBtn{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;width:100%!important;max-width:none!important;margin:10px 0 0!important;min-height:50px!important;box-shadow:none!important}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1247,7 +1268,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div></footer>
 
 <div id="productModal" class="modal hidden"><div class="modal-card">
-<div class="modal-head"><h2 id="modalName"></h2><button class="x" onclick="closeProduct()">×</button></div>
+<button class="x product-modal-close" onclick="closeProduct()" aria-label="إغلاق">×</button>
 <div id="modalGallery" class="product-gallery-mainwrap">
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
@@ -1259,9 +1280,11 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
   <div class="product-gallery-swipe-hint"></div>
 </div>
+<div class="product-modal-info"><h2 id="modalName"></h2>
 <p id="modalCode"></p><div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
+</div>
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
