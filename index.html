@@ -6384,124 +6384,39 @@ body.kandorty-cart-open #cartBtn{
 </script>
 
 
-<style id="kandorty-smooth-natural-swipe-v1">
-/* Smooth, finger-following product gallery swipe */
-#productModal .product-gallery-stage{
-  overflow:hidden!important;
-  touch-action:pan-y!important;
-}
-#productModal #modalMainImage{
-  will-change:transform,opacity!important;
-  backface-visibility:hidden!important;
-  -webkit-backface-visibility:hidden!important;
-  transition:transform .28s cubic-bezier(.22,.72,.22,1),opacity .20s ease!important;
-}
-#productModal #modalProductVideo{
-  will-change:transform,opacity!important;
-  transition:transform .28s cubic-bezier(.22,.72,.22,1),opacity .20s ease!important;
-}
+<style id="kandorty-clean-swipe-v2">
+#productModal .product-gallery-stage{touch-action:pan-y!important;overflow:hidden!important}
+#productModal #modalMainImage,#productModal #modalProductVideo{transition:none!important;transform:none!important}
 </style>
-<script id="kandorty-smooth-natural-swipe-v1-js">
+<script id="kandorty-clean-swipe-v2-js">
 (function(){
-  function setup(){
-    var stage=document.querySelector('#productModal .product-gallery-stage');
-    if(!stage || stage.dataset.kSmoothSwipe==='1') return;
-    stage.dataset.kSmoothSwipe='1';
-
-    var startX=0,startY=0,lastX=0,startT=0,dragging=false,horizontal=false;
-    var activeEl=null;
-
-    function mediaEl(){
-      var video=document.getElementById('modalProductVideo');
-      if(video && video.classList.contains('show')) return video;
-      return document.getElementById('modalMainImage');
-    }
-    function reset(el, animated){
-      if(!el)return;
-      el.style.transition=animated
-        ? 'transform .30s cubic-bezier(.22,.72,.22,1), opacity .20s ease'
-        : 'none';
-      el.style.transform='translate3d(0,0,0) scale(1)';
-      el.style.opacity='1';
-    }
-
-    stage.addEventListener('touchstart',function(e){
-      if(!e.touches || e.touches.length!==1)return;
-      var t=e.touches[0];
-      startX=lastX=t.clientX; startY=t.clientY; startT=performance.now();
-      dragging=true; horizontal=false; activeEl=mediaEl();
-      if(activeEl) activeEl.style.transition='none';
-    },{passive:true,capture:true});
-
-    stage.addEventListener('touchmove',function(e){
-      if(!dragging || !e.touches || e.touches.length!==1)return;
-      var t=e.touches[0], dx=t.clientX-startX, dy=t.clientY-startY;
-      lastX=t.clientX;
-      if(!horizontal){
-        if(Math.abs(dx)<7 && Math.abs(dy)<7)return;
-        if(Math.abs(dy)>Math.abs(dx)){ dragging=false; reset(activeEl,true); return; }
-        horizontal=true;
-      }
-      if(!horizontal)return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      var w=Math.max(1,stage.clientWidth);
-      var resisted=dx;
-      if(Math.abs(dx)>w*.72) resisted=(dx<0?-1:1)*(w*.72+(Math.abs(dx)-w*.72)*.18);
-      if(activeEl){
-        activeEl.style.transform='translate3d('+resisted+'px,0,0) scale(.992)';
-        activeEl.style.opacity=String(Math.max(.76,1-Math.abs(resisted)/w*.18));
-      }
-    },{passive:false,capture:true});
-
-    stage.addEventListener('touchend',function(e){
-      if(!dragging && !horizontal)return;
-      var dx=lastX-startX, dt=Math.max(1,performance.now()-startT);
-      var velocity=Math.abs(dx)/dt;
-      var w=Math.max(1,stage.clientWidth);
-      var commit=horizontal && (Math.abs(dx)>Math.min(62,w*.16) || velocity>.48);
-
-      if(horizontal){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
-
-      if(!commit){ reset(activeEl,true); }
-      else{
-        var dir=dx<0 ? 1 : -1;
-        var el=activeEl;
-        if(el){
-          el.style.transition='transform .18s cubic-bezier(.4,0,.8,.3), opacity .16s ease';
-          el.style.transform='translate3d('+(dx<0?-w*.24:w*.24)+'px,0,0) scale(.985)';
-          el.style.opacity='.72';
-        }
-        setTimeout(function(){
-          try{ if(typeof window.stepProductImage==='function') window.stepProductImage(dir); }catch(_){}
-          requestAnimationFrame(function(){
-            var fresh=mediaEl();
-            if(fresh){
-              fresh.style.transition='none';
-              fresh.style.transform='translate3d('+(dx<0?w*.12:-w*.12)+'px,0,0) scale(.992)';
-              fresh.style.opacity='.80';
-              requestAnimationFrame(function(){ reset(fresh,true); });
-            }
-          });
-        },115);
-      }
-      dragging=false; horizontal=false; activeEl=null;
-    },{passive:false,capture:true});
-
-    stage.addEventListener('touchcancel',function(){
-      reset(activeEl,true); dragging=false; horizontal=false; activeEl=null;
-    },{passive:true,capture:true});
-  }
-
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',setup,{once:true});
-  else setup();
-
-  /* Product modal exists from page load, but retry once for safety. */
-  setTimeout(setup,400);
+ function install(){
+  var stage=document.querySelector('#productModal .product-gallery-stage');
+  if(!stage||stage.dataset.cleanSwipeV2==='1')return;
+  stage.dataset.cleanSwipeV2='1';
+  var sx=0,sy=0,ex=0,ey=0,tracking=false;
+  stage.addEventListener('touchstart',function(e){
+   if(!e.touches||e.touches.length!==1)return;
+   sx=ex=e.touches[0].clientX; sy=ey=e.touches[0].clientY; tracking=true;
+  },{passive:true,capture:true});
+  stage.addEventListener('touchmove',function(e){
+   if(!tracking||!e.touches||e.touches.length!==1)return;
+   ex=e.touches[0].clientX; ey=e.touches[0].clientY;
+   var dx=ex-sx,dy=ey-sy;
+   if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)){e.preventDefault();e.stopImmediatePropagation()}
+  },{passive:false,capture:true});
+  stage.addEventListener('touchend',function(e){
+   if(!tracking)return; tracking=false;
+   var dx=ex-sx,dy=ey-sy;
+   if(Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.15){
+    e.preventDefault();e.stopImmediatePropagation();
+    if(typeof window.stepProductImage==='function')window.stepProductImage(dx<0?1:-1);
+   }
+  },{passive:false,capture:true});
+  stage.addEventListener('touchcancel',function(){tracking=false},{passive:true,capture:true});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+ setTimeout(install,300);
 })();
 </script>
 
