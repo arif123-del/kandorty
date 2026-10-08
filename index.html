@@ -2248,6 +2248,7 @@ function updateFullscreenProductImage(direction=0){
   preloadProductImages(currentProductImages);
   resetImageZoom();
   animateImageSwap(img,currentProductImages[currentProductImageIndex],direction);
+  renderKandortyViewerDots();
 }
 
 function openFullscreenProductImage(){
@@ -2378,7 +2379,7 @@ function updatePublicProductDetails(p){
   if(code)code.textContent=publicProductCode(p);
   if(desc){
     const value=String(p?.description||p?.descriptionAr||p?.detailsAr||p?.descriptionEn||'').trim();
-    desc.textContent=value;
+    desc.textContent=value ? "الوصف: "+value : "";
     desc.hidden=!value;
   }
 }
@@ -5817,6 +5818,7 @@ setTimeout(()=>{applyPublicLanguage();render();},0);
     <img id="imageViewerImg" alt="" loading="eager" decoding="async" fetchpriority="high">
     <button class="image-viewer-nav next" type="button" onclick="stepProductImage(1,true);event.stopPropagation();" aria-label="Next image">‹</button>
     <div class="image-viewer-hint">اسحبي الصورة يمينًا أو يسارًا</div>
+    <div id="kandortyViewerDots" class="kandorty-viewer-dots" aria-label="مؤشر الصور"></div>
   </div>
 </div>
 
@@ -6610,5 +6612,41 @@ body.kandorty-cart-open #cartBtn{
     if(typeof updateFullscreenProductImage==='function')updateFullscreenProductImage(dx<0?1:-1);
   },{passive:true});
 })();
+</script>
+
+<!-- Kandorty: visible product description label, viewer dots, white lower background -->
+<style id="kandorty-viewer-dots-light-bottom">
+#productModal #modalPublicDescription:not([hidden]){display:block!important;visibility:visible!important;color:#50474a!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+#imageViewerModal{background:#fff!important;}
+#imageViewerModal .image-viewer-card{background:#fff!important;}
+#imageViewerModal #imageViewerImg{background:#fff!important;}
+#kandortyViewerDots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:8;display:flex;align-items:center;justify-content:center;gap:9px;max-width:90vw;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.88);direction:ltr;box-shadow:0 2px 12px #0002}
+#kandortyViewerDots .viewer-dot{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:#a7a7a7;cursor:pointer;flex:none}
+#kandortyViewerDots .viewer-dot.active{background:#b40018;width:12px;height:12px}
+#kandortyViewerDots[hidden]{display:none!important}
+</style>
+<script id="kandorty-viewer-dots-script">
+function renderKandortyViewerDots(){
+  const holder=document.getElementById('kandortyViewerDots');
+  if(!holder)return;
+  const n=Array.isArray(currentProductImages)?currentProductImages.length:0;
+  holder.replaceChildren();
+  holder.hidden=n<2;
+  if(n<2)return;
+  for(let i=0;i<n;i++){
+    const dot=document.createElement('button');
+    dot.type='button';
+    dot.className='viewer-dot'+(i===currentProductImageIndex?' active':'');
+    dot.setAttribute('aria-label','الصورة '+(i+1));
+    dot.setAttribute('aria-current',i===currentProductImageIndex?'true':'false');
+    dot.addEventListener('click',function(e){
+      e.stopPropagation();
+      currentProductImageIndex=i;
+      renderProductGallery();
+      updateFullscreenProductImage();
+    });
+    holder.appendChild(dot);
+  }
+}
 </script>
 </body></html>
