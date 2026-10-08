@@ -1270,7 +1270,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" id="profileBtn"><span class="nav-icon">👤</span><span>الحساب</span></button>
 <button class="btn ghost" id="wishlistBtn"><span class="nav-icon">❤</span><span>المفضلة</span> <span id="wishlistCount" class="header-count">0</span></button>
 <button class="btn ghost" id="trackBtn"><span class="nav-icon">📍</span><span>تتبع الطلب</span></button>
-<button class="btn ghost" id="cartBtn"><span class="nav-icon">🛒</span><span>السلة</span> <span id="cartCount" class="header-count">0</span></button>
+<div id="cartFloatingGroup"><button class="btn ghost" id="cartBtn"><span class="nav-icon">🛒</span><span>السلة</span> <span id="cartCount" class="header-count">0</span></button><div id="cartCustomNote" hidden></div></div>
 <button class="btn ghost" id="langBtn"><span class="nav-icon">🌐</span><span>EN</span></button>
 <button class="btn ghost" id="adminBtn" style="display:none">الإدارة <span id="newOrderHeaderCount" class="header-count" style="display:none">0</span></button>
 </div></div></header>
@@ -1528,6 +1528,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="instagramUrl" placeholder="Instagram link">
 <input id="snapchatUrl" placeholder="Snapchat link">
 <input id="emailAddress" type="email" placeholder="Email address">
+<label class="full" for="cartCustomText">النص أسفل السلة (حتى 15 حرفًا، اختياري)</label>
+<input class="full" id="cartCustomText" maxlength="15" placeholder="اكتبي نصًا قصيرًا">
 <button class="btn primary full" type="submit">حفظ الإعدادات</button>
 </form>
 </div>
@@ -3906,6 +3908,7 @@ async function saveSettings(){
   localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
   await db.collection('settings').doc('store').set(settings);
   renderSocialLinks();
+  renderCartCustomNote();
   renderHomeBanner();
   renderHomeVideo();
 }
@@ -3914,6 +3917,7 @@ function loadSettingsForm(){
   $('instagramUrl').value=settings.instagram||'';
   $('snapchatUrl').value=settings.snapchat||'';
   $('emailAddress').value=settings.email||'';
+  $('cartCustomText').value=settings.cartCustomText||'';
 }
 $('settingsForm').onsubmit=e=>{
   e.preventDefault();
@@ -3921,6 +3925,7 @@ $('settingsForm').onsubmit=e=>{
   settings.instagram=$('instagramUrl').value.trim();
   settings.snapchat=$('snapchatUrl').value.trim();
   settings.email=$('emailAddress').value.trim();
+  settings.cartCustomText=Array.from($('cartCustomText').value.trim()).slice(0,15).join('');
   saveSettings();
   alert('تم حفظ الإعدادات');
 }
@@ -6434,4 +6439,37 @@ body.kandorty-cart-open #cartBtn{
 })();
 </script>
 
+
+<style id="kandorty-cart-small-note-css">
+@media(max-width:700px){
+ #cartBtn{width:52px!important;height:52px!important;min-width:52px!important;border-width:2px!important}
+ #cartBtn .nav-icon{font-size:23px!important}
+ #cartBtn #cartCount{min-width:20px!important;height:20px!important;font-size:10px!important}
+}
+#cartCustomNote{max-width:105px;padding:4px 7px;border-radius:8px;background:#fff;color:#b70020;font-size:11px;font-weight:700;text-align:center;overflow-wrap:anywhere;box-shadow:0 2px 9px #0002}
+#cartCustomNote[hidden]{display:none!important}
+#cartFloatingGroup{display:contents}
+#cartCustomNote:not([hidden]){position:fixed;z-index:2147482999;right:6px;top:calc(52% + 55px)}
+</style>
+<script id="kandorty-cart-small-note-js">
+function renderCartCustomNote(){
+ const note=document.getElementById('cartCustomNote');if(!note)return;
+ const val=Array.from(String((typeof settings!=='undefined'&&settings.cartCustomText)||'').trim()).slice(0,15).join('');
+ note.textContent=val;note.hidden=!val;
+}
+(function(){
+ const note=document.getElementById('cartCustomNote'),btn=document.getElementById('cartBtn');
+ if(!note||!btn)return;
+ function position(){
+  if(note.hidden)return;const r=btn.getBoundingClientRect();
+  note.style.left=Math.max(0,Math.min(innerWidth-note.offsetWidth,r.left+r.width/2-note.offsetWidth/2))+'px';
+  note.style.top=Math.min(innerHeight-note.offsetHeight-4,r.bottom+5)+'px';
+  note.style.display=getComputedStyle(btn).visibility==='hidden'||getComputedStyle(btn).display==='none'?'none':'';
+ }
+ const mo=new MutationObserver(position);mo.observe(btn,{attributes:true,attributeFilter:['style','class']});
+ const no=new MutationObserver(position);no.observe(note,{attributes:true,attributeFilter:['hidden']});
+ addEventListener('scroll',position,{passive:true});addEventListener('resize',position,{passive:true});
+ setInterval(position,600);position();
+})();
+</script>
 </body></html>
