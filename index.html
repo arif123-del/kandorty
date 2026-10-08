@@ -6546,4 +6546,42 @@ body.kandorty-cart-open #cartBtn{
   #imageViewerModal .image-viewer-card { width:92vw !important; height:78dvh !important; max-width:92vw !important; max-height:78dvh !important; }
 }
 </style>
+
+<!-- Only fullscreen viewer: taller photo and horizontal swipe. -->
+<style id="kandorty-viewer-only-safe-update">
+#imageViewerModal{padding:0 !important;background:#080808 !important;align-items:flex-start !important;}
+#imageViewerModal .image-viewer-card{box-sizing:border-box !important;width:100vw !important;max-width:100vw !important;height:calc(100dvh - 54px) !important;max-height:calc(100dvh - 54px) !important;margin:0 !important;padding:0 !important;border:0 !important;border-radius:0 !important;background:#080808 !important;overflow:hidden !important;touch-action:pan-y !important;}
+#imageViewerModal #imageViewerImg{display:block !important;width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;object-fit:cover !important;object-position:center !important;border-radius:0 !important;background:#080808 !important;touch-action:pan-y !important;}
+#imageViewerModal .image-viewer-hint{display:none !important;}
+</style>
+<script id="kandorty-viewer-swipe-only-safe-update">
+(function(){
+  var viewer=document.getElementById('imageViewerModal');
+  var img=document.getElementById('imageViewerImg');
+  if(!viewer||!img)return;
+  var startX=0,startY=0,tracking=false,multiTouch=false;
+  img.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1){tracking=false;multiTouch=true;return;}
+    multiTouch=false;tracking=true;
+    startX=e.touches[0].clientX;startY=e.touches[0].clientY;
+  },{passive:true});
+  img.addEventListener('touchmove',function(e){
+    if(e.touches.length!==1){multiTouch=true;tracking=false;}
+  },{passive:true});
+  img.addEventListener('touchend',function(e){
+    if(!tracking||multiTouch||e.touches.length||!e.changedTouches.length)return;
+    tracking=false;
+    if(typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01)return;
+    var dx=e.changedTouches[0].clientX-startX;
+    var dy=e.changedTouches[0].clientY-startY;
+    if(Math.abs(dx)<45||Math.abs(dx)<Math.abs(dy)*1.25)return;
+    if(typeof currentProductImages==='undefined'||currentProductImages.length<2)return;
+    // Skip any video slot: keep the full-screen photo viewer open.
+    var next=(currentProductImageIndex+(dx<0?1:-1)+currentProductImages.length)%currentProductImages.length;
+    currentProductImageIndex=next;
+    if(typeof renderProductGallery==='function')renderProductGallery(dx<0?1:-1);
+    if(typeof updateFullscreenProductImage==='function')updateFullscreenProductImage(dx<0?1:-1);
+  },{passive:true});
+})();
+</script>
 </body></html>
