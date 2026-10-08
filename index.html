@@ -1275,6 +1275,12 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
  #imageViewerModal .image-viewer-card{width:90vw !important;height:78dvh !important;max-width:90vw !important;max-height:78dvh !important;}
 }
 </style>
+<style id="kandorty-public-short-code-description">
+#productModal #modalCode{overflow-wrap:anywhere!important;word-break:normal!important}
+#productModal #modalPublicDescription{display:block!important;margin:5px 14px 7px!important;font-size:14px!important;line-height:1.55!important;color:#50474a!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;max-height:75px!important;overflow-y:auto!important}
+#productModal #modalPublicDescription[hidden]{display:none!important}
+@media(max-width:700px){#productModal #modalPublicDescription{font-size:13px!important;max-height:60px!important;margin:3px 14px 4px!important}}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1347,7 +1353,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
   <div class="product-gallery-swipe-hint"></div>
 </div>
-<p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<p id="modalCode"></p><div id="modalPublicDescription" class="public-product-description" hidden></div><div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
 </div></div>
@@ -2121,7 +2127,7 @@ function renderProductCard(p){
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
     <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
-    <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
+    <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
     ${salesProgressHtml(p)}
@@ -2142,7 +2148,7 @@ function render(){
  }
 
  const list=categoryProducts.filter(p=>{
-   return !q || ((p.code||'')+' '+(p.nameAr||'')+' '+(p.nameEn||'')).toLowerCase().includes(q);
+   return !q || ((p.code||'')+' '+publicProductCode(p)+' '+(p.nameAr||'')+' '+(p.nameEn||'')).toLowerCase().includes(q);
  });
  $('products').innerHTML=list.length?list.map(renderProductCard).join(''):`<div class="empty">${lang==='ar'?'لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.':'No products yet. Add products from the admin panel.'}</div>`;
 }
@@ -2356,13 +2362,34 @@ function renderProductGallery(direction=0){
   }
 }
 
+
+// Public-facing stable short reference; original Firestore document ID stays unchanged.
+function publicProductCode(p){
+  const original=String(p?.code||'').trim();
+  if(/^KD-\d{4,8}$/i.test(original))return original.toUpperCase();
+  const key=String(p?.id||original||p?.nameAr||'');
+  let h=2166136261;
+  for(let i=0;i<key.length;i++){h=Math.imul(h^key.charCodeAt(i),16777619);}
+  return 'KD-'+String(100000+(h>>>0)%900000);
+}
+function updatePublicProductDetails(p){
+  const code=document.getElementById('modalCode');
+  const desc=document.getElementById('modalPublicDescription');
+  if(code)code.textContent=publicProductCode(p);
+  if(desc){
+    const value=String(p?.description||p?.descriptionAr||p?.detailsAr||p?.descriptionEn||'').trim();
+    desc.textContent=value;
+    desc.hidden=!value;
+  }
+}
+
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
 
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
-  $('modalCode').textContent=p.code||'';
+  updatePublicProductDetails(p);
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
@@ -2397,7 +2424,7 @@ function openProduct(id){
       writeFastProductCache(products);
 
       $('modalName').textContent=displayProductName(fresh);
-      $('modalCode').textContent=fresh.code||'';
+      updatePublicProductDetails(fresh);
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
@@ -4873,7 +4900,7 @@ function renderWishlist(){
   const list=wishlist.map(id=>products.find(p=>p.id===id)).filter(Boolean);
   $('wishlistItems').innerHTML=list.length?list.map(p=>`<article class="card">
   ${p.images?.[0]?`<img src="${p.images[0]}" alt="" decoding="async">`:`<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">لا توجد صورة</div>`}
-  <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(displayProductName(p))}</div>
+  <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
   <div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>
   <div class="card-actions"><button class="btn primary" onclick="addToCart('${p.id}')">أضيفي للسلة</button><button class="btn ghost" onclick="toggleWishlist('${p.id}')">حذف</button></div>
   </div></article>`).join(''):'<div class="empty">لا توجد منتجات في المفضلة</div>';
