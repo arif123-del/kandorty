@@ -871,7 +871,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <img id="modalMainImage" class="product-gallery-mainimg" alt="">
 <div id="modalThumbs" class="product-gallery-thumbs"></div>
 </div>
-<p id="modalCode"></p><div id="modalPrice" class="price"></div>
+<div id="modalDescription" class="product-description hidden" dir="auto"></div><p id="modalCode"></p><div id="modalPrice" class="price"></div>
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
@@ -1415,6 +1415,8 @@ function openProduct(id){
   if(!p)return;
   $('modalName').textContent=p.nameAr;
   $('modalCode').textContent=p.code;
+  const descriptionEl=$('modalDescription');
+  if(descriptionEl){descriptionEl.textContent=String(p.description||'').trim();descriptionEl.classList.toggle('hidden',!descriptionEl.textContent);}
   $('modalPrice').textContent=money(p.salePrice||p.price);
   currentProductImages=(p.images||[]).filter(Boolean);
   currentProductImageIndex=0;
