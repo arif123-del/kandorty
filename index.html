@@ -1263,29 +1263,16 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </script>
 
 
-<style id="kandorty-image-fit-and-gentle-viewer">
-/* Keep every product image fully visible within its existing frame. */
-.card img, .product-gallery-mainimg, #modalMainImg,
-.product-gallery-stage img:not(.product-video-icon){
-  object-fit:contain !important;
-  object-position:center center !important;
-}
-/* Opened images are only moderately larger, never full-screen sized. */
-#imageViewerModal{background:rgba(0,0,0,.72) !important;}
-#imageViewerModal .image-viewer-card{
-  width:min(90vw,520px) !important;
-  height:min(78dvh,720px) !important;
-  max-width:90vw !important;
-  max-height:78dvh !important;
-}
-#imageViewerModal #imageViewerImg{
-  display:block !important;
-  max-width:100% !important;
-  max-height:100% !important;
-  width:auto !important;
-  height:auto !important;
-  object-fit:contain !important;
-  border-radius:12px !important;
+<style id="kandorty-safe-photo-layout-fix">
+/* Storefront cards: fill their frames, without white letterboxing. */
+.products .card img, .card img {object-fit:cover !important;object-position:center center !important;}
+/* Opened image: visibly large, but leave a margin around it. */
+#imageViewerModal{padding:20px !important;background:rgba(0,0,0,.78) !important;}
+#imageViewerModal .image-viewer-card{width:88vw !important;height:76dvh !important;max-width:600px !important;max-height:760px !important;}
+#imageViewerModal #imageViewerImg{display:block !important;width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;object-fit:contain !important;border-radius:8px !important;}
+@media(max-width:700px){
+ #imageViewerModal{padding:16px !important;background:rgba(0,0,0,.78) !important;}
+ #imageViewerModal .image-viewer-card{width:90vw !important;height:78dvh !important;max-width:90vw !important;max-height:78dvh !important;}
 }
 </style>
 </head>
