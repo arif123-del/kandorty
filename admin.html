@@ -1083,6 +1083,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="instagramUrl" placeholder="Instagram link">
 <input id="snapchatUrl" placeholder="Snapchat link">
 <input id="emailAddress" type="email" placeholder="Email address">
+<label class="full" for="cartButtonNote">النص أسفل زر السلة (اختياري، حتى 15 حرفاً)</label>
+<input class="full" id="cartButtonNote" maxlength="15" placeholder="اكتبي النص هنا (15 حرفاً)">
 <button class="btn primary full" type="submit">حفظ الإعدادات</button>
 </form>
 </div>
@@ -2844,6 +2846,7 @@ function loadSettingsForm(){
   $('instagramUrl').value=settings.instagram||'';
   $('snapchatUrl').value=settings.snapchat||'';
   $('emailAddress').value=settings.email||'';
+  $('cartButtonNote').value=settings.cartButtonNote||'';
 }
 $('settingsForm').onsubmit=e=>{
   e.preventDefault();
@@ -2851,6 +2854,7 @@ $('settingsForm').onsubmit=e=>{
   settings.instagram=$('instagramUrl').value.trim();
   settings.snapchat=$('snapchatUrl').value.trim();
   settings.email=$('emailAddress').value.trim();
+  settings.cartButtonNote=Array.from($('cartButtonNote').value.trim()).slice(0,15).join('');
   saveSettings();
   alert('تم حفظ الإعدادات');
 }
