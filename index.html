@@ -1270,7 +1270,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost" id="profileBtn"><span class="nav-icon">👤</span><span>الحساب</span></button>
 <button class="btn ghost" id="wishlistBtn"><span class="nav-icon">❤</span><span>المفضلة</span> <span id="wishlistCount" class="header-count">0</span></button>
 <button class="btn ghost" id="trackBtn"><span class="nav-icon">📍</span><span>تتبع الطلب</span></button>
-<div id="cartFloatingGroup"><button class="btn ghost" id="cartBtn"><span class="nav-icon">🛒</span><span>السلة</span> <span id="cartCount" class="header-count">0</span></button><div id="cartCustomNote" hidden></div></div>
+<div id="cartFloatingGroup"><button class="btn ghost" id="cartBtn"><span class="nav-icon">🛒</span><span>السلة</span> <span id="cartCount" class="header-count">0</span></button><span id="cartCustomNote" hidden></span></div>
 <button class="btn ghost" id="langBtn"><span class="nav-icon">🌐</span><span>EN</span></button>
 <button class="btn ghost" id="adminBtn" style="display:none">الإدارة <span id="newOrderHeaderCount" class="header-count" style="display:none">0</span></button>
 </div></div></header>
@@ -6443,33 +6443,29 @@ body.kandorty-cart-open #cartBtn{
 
 
 <style id="kandorty-cart-small-note-css">
-#cartCustomNote{position:fixed!important;z-index:2147483000!important;max-width:130px;padding:5px 9px;border-radius:9px;background:white;color:#b40018;font:700 12px Arial,Tahoma,sans-serif;text-align:center;box-shadow:0 3px 12px #0003;pointer-events:none}
-#cartCustomNote[hidden]{display:none!important}
+/* The label is attached to the movable cart itself, never to the viewport. */
+#cartBtn #cartCustomNote{position:absolute!important;display:block!important;top:calc(100% + 5px)!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;z-index:2!important;width:max-content!important;max-width:130px!important;box-sizing:border-box!important;padding:5px 9px!important;border-radius:9px!important;background:white!important;color:#b40018!important;font:700 12px Arial,Tahoma,sans-serif!important;text-align:center!important;line-height:1.35!important;box-shadow:0 3px 12px #0003!important;pointer-events:none!important;white-space:normal!important;animation:none!important;transition:none!important}
+#cartBtn #cartCustomNote[hidden]{display:none!important}
 #cartFloatingGroup{display:contents}
 @media(max-width:700px){#cartBtn{min-width:52px!important}}
 </style>
 <script id="kandorty-cart-small-note-js">
 (function(){
- const note=document.getElementById('cartCustomNote');
- const btn=document.getElementById('cartBtn');
- if(!note||!btn)return;
- // Keep label outside header/grid so no parent layout can clip it.
- document.body.appendChild(note);
- function position(){
-   if(note.hidden)return;
-   const r=btn.getBoundingClientRect();
-   note.style.left=Math.max(4,Math.min(innerWidth-note.offsetWidth-4,r.left+(r.width-note.offsetWidth)/2))+'px';
-   note.style.top=Math.max(4,Math.min(innerHeight-note.offsetHeight-4,r.bottom+5))+'px';
-   note.style.visibility=(r.width&&r.height&&getComputedStyle(btn).visibility!=='hidden')?'visible':'hidden';
+ function attach(){
+   const btn=document.getElementById('cartBtn');
+   const note=document.getElementById('cartCustomNote');
+   if(btn&&note&&note.parentElement!==btn)btn.appendChild(note);
  }
  window.renderCartCustomNote=function(){
+   attach();
+   const note=document.getElementById('cartCustomNote');if(!note)return;
    const value=(typeof settings!=='undefined'&&settings&&(settings.cartButtonNote||settings.cartCustomText))||'';
    const val=Array.from(String(value).trim()).slice(0,15).join('');
-   note.textContent=val;note.hidden=!val;position();
+   note.textContent=val;note.hidden=!val;
  };
- addEventListener('scroll',position,{passive:true});
- addEventListener('resize',position,{passive:true});
- // Independent Firestore subscription so admin changes appear even if cached settings lag.
+ // The site replaces its cart button during initialization; retain the note within it.
+ attach();
+ document.addEventListener('DOMContentLoaded',attach,{once:true});
  if(typeof db!=='undefined'&&db&&typeof db.collection==='function'){
    db.collection('settings').doc('store').onSnapshot(function(snapshot){
      if(!snapshot.exists)return;
