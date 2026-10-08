@@ -6722,4 +6722,76 @@ function renderKandortyViewerDots(){
   },true);
 })();
 </script>
+
+<!-- Kandorty product-page scroll gallery and reliable cart action -->
+<style id="kandorty-product-scroll-20261008">
+#productModal .modal-card{overflow-y:auto!important;overscroll-behavior:contain!important;max-height:96dvh!important;background:#fff!important;scroll-behavior:smooth}
+#productModal #modalAddSelectedBtn{position:relative!important;inset:auto!important;display:block!important;pointer-events:auto!important;z-index:5!important;width:calc(100% - 28px)!important;margin:12px 14px!important;min-height:52px!important}
+#productModal #kandortyMorePhotos{padding:8px 14px 25px;background:#fff}
+#productModal #kandortyMorePhotos h3{font-size:16px;margin:14px 0;color:#171214}
+#productModal #kandortyMorePhotos img{display:block;width:100%;max-width:700px;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:10px;background:#fff}
+#productModal #kandortyMorePhotos .photo-position{font-size:12px;color:#71666a;text-align:center;margin:0 0 8px}
+#productModal #kandortyCartFeedback{margin:8px 14px;color:#146b2f;font-size:14px;font-weight:700;min-height:18px}
+</style>
+<script id="kandorty-product-scroll-20261008-js">
+(function(){
+  var modal=document.getElementById('productModal');
+  var button=document.getElementById('modalAddSelectedBtn');
+  if(!modal||!button)return;
+  var more=document.createElement('section');
+  more.id='kandortyMorePhotos';
+  more.setAttribute('aria-label','بقية صور المنتج');
+  button.insertAdjacentElement('afterend',more);
+  var feedback=document.createElement('div');
+  feedback.id='kandortyCartFeedback';
+  button.insertAdjacentElement('afterend',feedback);
+  var lastKey='';
+  function refresh(){
+    if(modal.classList.contains('hidden'))return;
+    var images=Array.isArray(currentProductImages)?currentProductImages:[];
+    // Top photo is already displayed; put all additional photos below the buy button.
+    var key=String(currentProductId)+'|'+images.join('\u001f');
+    if(key===lastKey)return;
+    lastKey=key;
+    more.replaceChildren();
+    if(images.length<2){more.hidden=true;return;}
+    more.hidden=false;
+    var heading=document.createElement('h3');
+    heading.textContent='بقية صور المنتج';
+    more.appendChild(heading);
+    images.slice(1).forEach(function(src,i){
+      if(typeof src!=='string'||!src.trim())return;
+      var im=document.createElement('img');
+      im.src=src;im.alt='صورة المنتج '+(i+2);im.loading='lazy';im.decoding='async';
+      more.appendChild(im);
+    });
+  }
+  new MutationObserver(refresh).observe(modal,{attributes:true,attributeFilter:['class']});
+  // Fresh Firestore images may arrive after the modal opens.
+  var oldRender=window.renderProductGallery;
+  if(typeof oldRender==='function'){
+    window.renderProductGallery=function(){var result=oldRender.apply(this,arguments);refresh();return result;};
+  }
+  var oldOpen=window.openProduct;
+  if(typeof oldOpen==='function'){
+    window.openProduct=function(){lastKey='';feedback.textContent='';var result=oldOpen.apply(this,arguments);refresh();modal.querySelector('.modal-card').scrollTop=0;return result;};
+  }
+  // Capture before any older click overrides; prevent duplicate cart additions.
+  button.addEventListener('click',function(e){
+    e.preventDefault();e.stopImmediatePropagation();
+    if(button.disabled||!currentProductId)return;
+    var before=Array.isArray(cart)?cart.reduce(function(n,x){return n+(Number(x.qty)||0)},0):0;
+    try{
+      var index=Math.max(0,Math.min(Number(currentProductImageIndex)||0,(currentProductImages||[]).length-1));
+      if(typeof window.addToCart!=='function')throw Error('Cart function unavailable');
+      window.addToCart(currentProductId,index,true);
+      var after=Array.isArray(cart)?cart.reduce(function(n,x){return n+(Number(x.qty)||0)},0):before;
+      if(after>before){
+        feedback.textContent='✓ تمت إضافة المنتج إلى السلة';
+        if(typeof window.updateCartCount==='function')window.updateCartCount();
+      }else{feedback.textContent='لم تتم الإضافة. تحققي من الكمية المتاحة.';}
+    }catch(err){console.error('Product cart add failed',err);feedback.textContent='تعذرت الإضافة إلى السلة. يرجى المحاولة مرة أخرى.';}
+  },true);
+})();
+</script>
 </body></html>
