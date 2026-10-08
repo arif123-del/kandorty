@@ -6500,4 +6500,14 @@ body.kandorty-cart-open #cartBtn{
  }catch(error){console.warn('Cart note init:',error)}
 })();
 </script>
+
+<!-- Kandorty: compact all-red cart; keep the admin note attached to the draggable button -->
+<style id="kandorty-compact-red-cart-final">
+@media(max-width:760px){
+ #cartBtn{width:47px!important;height:47px!important;min-width:47px!important;border:2px solid #fff!important;background:#c9001f!important;color:#fff!important;box-shadow:0 3px 12px #0003!important}
+ #cartBtn .nav-icon{font-size:20px!important}
+ #cartBtn #cartCount{min-width:18px!important;height:18px!important;top:-6px!important;right:-5px!important;padding:0 3px!important;font-size:9px!important;border:1.5px solid #fff!important;background:#c9001f!important;color:#fff!important}
+ #cartBtn > #cartCustomNote:not([hidden]){min-width:51px!important;max-width:104px!important;padding:3px 6px!important;font:700 10px/1.25 Arial,Tahoma,sans-serif!important;background:#c9001f!important;color:#fff!important;border-radius:999px!important;top:calc(100% - 1px)!important;box-shadow:0 2px 6px #0002!important}
+}
+</style>
 </body></html>
