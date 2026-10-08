@@ -2811,6 +2811,7 @@ $('productForm').onsubmit=async e=>{
       price:Number($('price').value),
       salePrice:Number($('salePrice').value)||0,
       stock:sanitizeStock($('stock')?.value),
+      totalStock:(()=>{const next=sanitizeStock($('stock')?.value);if(next===null)return null;const oldRemaining=getProductStock(old);const previousTotal=old?.totalStock!=null?Number(old.totalStock):oldRemaining;const alreadySold=oldRemaining!==null&&Number.isFinite(previousTotal)?Math.max(0,previousTotal-oldRemaining):0;return next+alreadySold;})(),
       description:$('description').value.trim(),
       isNew:$('isNew').checked,
       active:$('active').checked,
@@ -3380,7 +3381,8 @@ async function saveOrderWithStock(order){
 
       updates.push({
         ref:row.ref,
-        stock:current-row.need
+        stock:current-row.need,
+        totalStock:(Number.isFinite(Number(data.totalStock)) && Number(data.totalStock)>0)?Math.max(Number(data.totalStock),current):current
       });
     }
 
@@ -3389,6 +3391,7 @@ async function saveOrderWithStock(order){
     for(const update of updates){
       tx.update(update.ref,{
         stock:update.stock,
+        totalStock:update.totalStock,
         updatedAt
       });
     }
@@ -6789,6 +6792,27 @@ function renderKandortyViewerDots(){
       if(after>before){
         feedback.textContent='✓ تمت إضافة المنتج إلى السلة';
         if(typeof window.updateCartCount==='function')window.updateCartCount();
+        // Run the flight only after the cart quantity has really increased.
+        var cartIcon=document.getElementById('cartBtn');
+        var mainPhoto=document.getElementById('modalMainImage');
+        if(cartIcon&&mainPhoto&&(mainPhoto.currentSrc||mainPhoto.src)){
+          var previousFly=document.getElementById('kandortyButtonFly');
+          if(previousFly)previousFly.remove();
+          var from=button.getBoundingClientRect(),to=cartIcon.getBoundingClientRect();
+          var x=from.left+from.width/2,y=from.top+from.height/2;
+          var tx=to.left+to.width/2,ty=to.top+to.height/2;
+          var flying=document.createElement('img');
+          flying.id='kandortyButtonFly';flying.src=mainPhoto.currentSrc||mainPhoto.src;
+          flying.style.cssText='position:fixed!important;left:0;top:0;width:64px;height:64px;object-fit:cover;border-radius:12px;pointer-events:none;z-index:999999;box-shadow:0 5px 20px #0005';
+          document.body.appendChild(flying);
+          var animation=flying.animate([
+            {transform:'translate('+(x-32)+'px,'+(y-32)+'px) scale(1)',opacity:1},
+            {transform:'translate('+((x+tx)/2-28)+'px,'+(Math.min(y,ty)-85)+'px) scale(.8)',opacity:1,offset:.52},
+            {transform:'translate('+(tx-12)+'px,'+(ty-12)+'px) scale(.25)',opacity:.15}
+          ],{duration:850,easing:'cubic-bezier(.2,.65,.2,1)',fill:'forwards'});
+          animation.onfinish=function(){flying.remove();cartIcon.classList.remove('kandorty-cart-catch');void cartIcon.offsetWidth;cartIcon.classList.add('kandorty-cart-catch');setTimeout(function(){cartIcon.classList.remove('kandorty-cart-catch')},450)};
+          animation.oncancel=function(){flying.remove()};
+        }
       }else{feedback.textContent='لم تتم الإضافة. تحققي من الكمية المتاحة.';}
     }catch(err){console.error('Product cart add failed',err);feedback.textContent='تعذرت الإضافة إلى السلة. يرجى المحاولة مرة أخرى.';}
   },true);
