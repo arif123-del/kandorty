@@ -6443,36 +6443,42 @@ body.kandorty-cart-open #cartBtn{
 
 
 <style id="kandorty-cart-small-note-css">
-@media(max-width:700px){
- #cartBtn{width:52px!important;height:52px!important;min-width:52px!important;border-width:2px!important}
- #cartBtn .nav-icon{font-size:23px!important}
- #cartBtn #cartCount{min-width:20px!important;height:20px!important;font-size:10px!important}
-}
-#cartCustomNote{max-width:105px;padding:4px 7px;border-radius:8px;background:#fff;color:#b70020;font-size:11px;font-weight:700;text-align:center;overflow-wrap:anywhere;box-shadow:0 2px 9px #0002}
+#cartCustomNote{position:fixed!important;z-index:2147483000!important;max-width:130px;padding:5px 9px;border-radius:9px;background:white;color:#b40018;font:700 12px Arial,Tahoma,sans-serif;text-align:center;box-shadow:0 3px 12px #0003;pointer-events:none}
 #cartCustomNote[hidden]{display:none!important}
 #cartFloatingGroup{display:contents}
-#cartCustomNote:not([hidden]){position:fixed;z-index:2147482999;right:6px;top:calc(52% + 55px)}
+@media(max-width:700px){#cartBtn{min-width:52px!important}}
 </style>
 <script id="kandorty-cart-small-note-js">
-function renderCartCustomNote(){
- const note=document.getElementById('cartCustomNote');if(!note)return;
- const val=Array.from(String((typeof settings!=='undefined'&&settings.cartCustomText)||'').trim()).slice(0,15).join('');
- note.textContent=val;note.hidden=!val;
- if(val){requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));}
-}
 (function(){
- const note=document.getElementById('cartCustomNote'),btn=document.getElementById('cartBtn');
+ const note=document.getElementById('cartCustomNote');
+ const btn=document.getElementById('cartBtn');
  if(!note||!btn)return;
+ // Keep label outside header/grid so no parent layout can clip it.
+ document.body.appendChild(note);
  function position(){
-  if(note.hidden)return;const r=btn.getBoundingClientRect();
-  note.style.left=Math.max(0,Math.min(innerWidth-note.offsetWidth,r.left+r.width/2-note.offsetWidth/2))+'px';
-  note.style.top=Math.min(innerHeight-note.offsetHeight-4,r.bottom+5)+'px';
-  note.style.display=getComputedStyle(btn).visibility==='hidden'||getComputedStyle(btn).display==='none'?'none':'';
+   if(note.hidden)return;
+   const r=btn.getBoundingClientRect();
+   note.style.left=Math.max(4,Math.min(innerWidth-note.offsetWidth-4,r.left+(r.width-note.offsetWidth)/2))+'px';
+   note.style.top=Math.max(4,Math.min(innerHeight-note.offsetHeight-4,r.bottom+5))+'px';
+   note.style.visibility=(r.width&&r.height&&getComputedStyle(btn).visibility!=='hidden')?'visible':'hidden';
  }
- const mo=new MutationObserver(position);mo.observe(btn,{attributes:true,attributeFilter:['style','class']});
- const no=new MutationObserver(position);no.observe(note,{attributes:true,attributeFilter:['hidden']});
- addEventListener('scroll',position,{passive:true});addEventListener('resize',position,{passive:true});
- setInterval(position,600);position();
+ window.renderCartCustomNote=function(){
+   const value=(typeof settings!=='undefined'&&settings&&(settings.cartButtonNote||settings.cartCustomText))||'';
+   const val=Array.from(String(value).trim()).slice(0,15).join('');
+   note.textContent=val;note.hidden=!val;position();
+ };
+ addEventListener('scroll',position,{passive:true});
+ addEventListener('resize',position,{passive:true});
+ // Independent Firestore subscription so admin changes appear even if cached settings lag.
+ if(typeof db!=='undefined'&&db&&typeof db.collection==='function'){
+   db.collection('settings').doc('store').onSnapshot(function(snapshot){
+     if(!snapshot.exists)return;
+     const data=snapshot.data()||{};
+     if(typeof settings!=='undefined'&&settings)Object.assign(settings,data);
+     window.renderCartCustomNote();
+   },function(err){console.warn('Cart note settings:',err)});
+ }
+ window.renderCartCustomNote();
 })();
 </script>
 </body></html>
