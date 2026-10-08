@@ -2118,10 +2118,10 @@ function renderProductCard(p){
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
     <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
+    ${salesProgressHtml(p)}
     <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
-    ${salesProgressHtml(p)}
     <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button>${addBtn}</div></div></article>`;
 }
 function render(){
@@ -2375,20 +2375,6 @@ function updatePublicProductDetails(p){
   }
 }
 
-function updateModalSalesProgress(p){
-  const modal=document.querySelector('#productModal .modal-card');
-  if(!modal)return;
-  let area=document.getElementById('modalSalesProgress');
-  if(!area){
-    area=document.createElement('div');
-    area.id='modalSalesProgress';
-    area.style.cssText='margin:12px 16px 16px;clear:both';
-    const price=document.getElementById('modalPrice');
-    if(price)price.insertAdjacentElement('afterend',area);
-    else modal.appendChild(area);
-  }
-  area.innerHTML=salesProgressHtml(p);
-}
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
@@ -2396,7 +2382,6 @@ function openProduct(id){
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
-  document.getElementById('modalSalesProgress')?.remove();
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
@@ -2432,7 +2417,6 @@ function openProduct(id){
 
       $('modalName').textContent=displayProductName(fresh);
       updatePublicProductDetails(fresh);
-      updateModalSalesProgress(fresh);
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
