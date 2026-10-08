@@ -6443,38 +6443,45 @@ body.kandorty-cart-open #cartBtn{
 
 
 <style id="kandorty-cart-small-note-css">
-/* The label is attached to the movable cart itself, never to the viewport. */
-#cartBtn > #cartCustomNote{position:absolute!important;display:block!important;visibility:visible!important;opacity:1!important;top:calc(100% + 5px)!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;z-index:2!important;width:max-content!important;max-width:130px!important;box-sizing:border-box!important;padding:5px 9px!important;border-radius:9px!important;background:white!important;color:#b40018!important;font:700 12px Arial,Tahoma,sans-serif!important;text-align:center!important;line-height:1.35!important;box-shadow:0 3px 12px #0003!important;pointer-events:none!important;white-space:normal!important;animation:none!important;transition:none!important}
-#cartBtn > #cartCustomNote[hidden]{display:none!important}
+/* Cart and note travel as one unit; note lives inside the draggable button. */
+#cartBtn{overflow:visible!important;isolation:isolate!important}
+#cartBtn #cartCustomNote{position:absolute!important;display:block!important;visibility:visible!important;opacity:1!important;top:calc(100% - 2px)!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;z-index:10!important;min-width:74px!important;max-width:150px!important;width:max-content!important;box-sizing:border-box!important;padding:6px 11px!important;border-radius:999px!important;background:#08ad08!important;color:#fff!important;font:700 12px/1.4 Arial,Tahoma,sans-serif!important;text-align:center!important;white-space:normal!important;box-shadow:0 3px 9px #0003!important;pointer-events:none!important;animation:none!important;transition:none!important}
+#cartBtn #cartCustomNote[hidden]{display:none!important}
 #cartFloatingGroup{display:contents}
-@media(max-width:700px){#cartBtn{min-width:52px!important}}
 </style>
 <script id="kandorty-cart-small-note-js">
 (function(){
- function attach(){
-   const btn=document.getElementById('cartBtn');
-   const note=document.getElementById('cartCustomNote');
-   if(btn&&note&&note.parentElement!==btn)btn.appendChild(note);
+ let noteValue='';
+ function render(){
+   const btn=document.getElementById('cartBtn');if(!btn)return;
+   let note=document.getElementById('cartCustomNote');
+   if(!note){note=document.createElement('span');note.id='cartCustomNote';}
+   if(note.parentElement!==btn)btn.appendChild(note);
+   const value=Array.from(String(noteValue||'').trim()).slice(0,15).join('');
+   if(note.textContent!==value)note.textContent=value;
+   note.hidden=!value;
  }
- window.renderCartCustomNote=function(){
-   attach();
-   const note=document.getElementById('cartCustomNote');if(!note)return;
-   const value=(typeof settings!=='undefined'&&settings&&(settings.cartButtonNote||settings.cartCustomText))||'';
-   const val=Array.from(String(value).trim()).slice(0,15).join('');
-   note.textContent=val;note.hidden=!val;
- };
- // The site replaces its cart button during initialization; retain the note within it.
- attach();
- document.addEventListener('DOMContentLoaded',attach,{once:true});
+ function fromSettings(){
+   try{if(typeof settings!=='undefined'&&settings){noteValue=settings.cartButtonNote||settings.cartCustomText||noteValue;}}catch(e){}
+   render();
+ }
+ window.renderCartCustomNote=fromSettings;
+ // The storefront replaces its cart node with a clone; reattach the label afterwards.
+ let queued=false;
+ new MutationObserver(function(){
+   if(queued)return;queued=true;
+   queueMicrotask(function(){queued=false;render();});
+ }).observe(document.body,{childList:true,subtree:false});
+ fromSettings();
+ document.addEventListener('DOMContentLoaded',fromSettings,{once:true});
  if(typeof db!=='undefined'&&db&&typeof db.collection==='function'){
    db.collection('settings').doc('store').onSnapshot(function(snapshot){
      if(!snapshot.exists)return;
      const data=snapshot.data()||{};
-     if(typeof settings!=='undefined'&&settings)Object.assign(settings,data);
-     window.renderCartCustomNote();
-   },function(err){console.warn('Cart note settings:',err)});
+     noteValue=data.cartButtonNote||data.cartCustomText||'';
+     render();
+   },function(err){console.warn('Cart label:',err)});
  }
- window.renderCartCustomNote();
 })();
 </script>
 </body></html>
