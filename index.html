@@ -1145,10 +1145,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <style id="kandorty-product-sales-progress">
 .sales-progress-box{
   margin-top:8px;
-  padding:8px 9px;
-  border:1px solid var(--line);
-  border-radius:11px;
-  background:#fff8fa;
+  padding:5px 0;
+  border:0;
+  background:transparent;
 }
 .sales-progress-head{
   display:flex;
@@ -2079,7 +2078,7 @@ function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
 function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفد المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
 function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')return null;const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=0?n:0;}
 function getProductTotalStock(p){
-  const total=Number(p?.totalStock);
+  const total=p?.totalStock==null || p.totalStock==='' ? NaN : Number(p.totalStock);
   const stock=getProductStock(p);
   if(Number.isFinite(total) && total>0)return Math.max(0,Math.floor(total));
   if(stock!==null && stock>0)return stock;
@@ -2097,17 +2096,9 @@ function productSoldPercent(p){
 }
 function salesProgressHtml(p){
   const percent=productSoldPercent(p);
-  if(percent===null)return '';
-  const complete=percent>=100;
-  const label=lang==='ar'?'تم بيع':'Sold';
-  return `<div class="sales-progress-box ${complete?'complete':''}">
-    <div class="sales-progress-head">
-      <span>${complete?(lang==='ar'?'اكتمل البيع':'Sold out'):(label+' '+percent+'%')}</span>
-      <span>${percent}%</span>
-    </div>
-    <div class="sales-progress-track" aria-label="${percent}%">
-      <div class="sales-progress-fill" style="width:${percent}%"></div>
-    </div>
+  const width=percent===null?0:Math.max(0,Math.min(100,percent));
+  return `<div class="sales-progress-box" role="progressbar" aria-label="تقدم مبيعات المنتج" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${width}">
+    <div class="sales-progress-track"><div class="sales-progress-fill" style="width:${width}%"></div></div>
   </div>`;
 }
 
@@ -2384,6 +2375,20 @@ function updatePublicProductDetails(p){
   }
 }
 
+function updateModalSalesProgress(p){
+  const modal=document.querySelector('#productModal .modal-card');
+  if(!modal)return;
+  let area=document.getElementById('modalSalesProgress');
+  if(!area){
+    area=document.createElement('div');
+    area.id='modalSalesProgress';
+    area.style.cssText='margin:12px 16px 16px;clear:both';
+    const price=document.getElementById('modalPrice');
+    if(price)price.insertAdjacentElement('afterend',area);
+    else modal.appendChild(area);
+  }
+  area.innerHTML=salesProgressHtml(p);
+}
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
@@ -2391,6 +2396,7 @@ function openProduct(id){
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
+  updateModalSalesProgress(p);
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
@@ -2426,6 +2432,7 @@ function openProduct(id){
 
       $('modalName').textContent=displayProductName(fresh);
       updatePublicProductDetails(fresh);
+      updateModalSalesProgress(fresh);
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
