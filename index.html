@@ -1789,16 +1789,10 @@ function writeFastProductCache(list){
 }
 
 function load(){
-  // FAST FIRST PAINT:
-  // Show the last known products immediately, without waiting for Firestore.
+  // Do not paint cached products before the live Firestore snapshot:
+  // outdated items used to flash briefly and disappear on startup.
+  // The existing error handler below still uses the cache if offline.
   const cached=readFastProductCache();
-  if(cached.length){
-    products=cached;
-    render();
-    renderAdminList();
-    const status=$('onlineStatus');
-    if(status){status.textContent='جارٍ التحديث...';status.style.color='#8a6d00'}
-  }
 
   // Then synchronize fresh/full product data from Firestore.
   db.collection('products').onSnapshot(
@@ -6544,6 +6538,46 @@ body.kandorty-cart-open #cartBtn{
   #productModal #modalAddSelectedBtn { margin-top:17px !important; }
   #imageViewerModal { padding:0 !important; }
   #imageViewerModal .image-viewer-card { width:92vw !important; height:78dvh !important; max-width:92vw !important; max-height:78dvh !important; }
+}
+</style>
+
+<!-- Kandorty Oct 08: no stale product flash, shorter hero, image viewer without white gutters -->
+<style id="kandorty-oct08-three-fixes">
+/* Preserve the full-width video while reducing only its vertical dimension. */
+#homeVideoSection.hero-embedded .home-video-card {
+  aspect-ratio: 16 / 8 !important;
+}
+@media(max-width:540px){
+  #homeVideoSection.hero-embedded .home-video-card {aspect-ratio:16 / 8 !important;}
+}
+/* The second tap opens the image-only viewer: eliminate the white margins
+   created by the earlier contain and limited-width image styles. */
+#imageViewerModal {background:#090909 !important; padding:0 !important;}
+#imageViewerModal .image-viewer-card {
+  background:#090909 !important;
+  border:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+}
+#imageViewerModal #imageViewerImg {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  background:#090909 !important;
+  border:0 !important;
+  border-radius:0 !important;
+}
+@media(max-width:700px){
+  #imageViewerModal .image-viewer-card {
+    width:92vw !important;
+    height:78dvh !important;
+    max-width:92vw !important;
+    max-height:78dvh !important;
+  }
 }
 </style>
 </body></html>
