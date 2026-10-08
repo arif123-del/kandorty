@@ -5962,7 +5962,7 @@ function touchDistance(touches){
     box-shadow:0 5px 18px rgba(0,0,0,.28)!important;display:flex!important;align-items:center!important;justify-content:center!important;
     touch-action:none!important;user-select:none!important;-webkit-user-select:none!important;
   }
-  #cartBtn>span:not(.nav-icon):not(#cartCount){display:none!important;}
+  #cartBtn>span:not(.nav-icon):not(#cartCount):not(#cartCustomNote){display:none!important;}
   #cartBtn .nav-icon{font-size:28px!important;line-height:1!important;}
   #cartBtn #cartCount{position:absolute!important;top:-7px!important;right:-5px!important;background:#fff!important;color:#c9001f!important;border:2px solid #c9001f!important;border-radius:999px!important;min-width:25px!important;height:25px!important;display:grid!important;place-items:center!important;font-size:12px!important;font-weight:900!important;padding:0 4px!important;}
 }
@@ -6443,45 +6443,61 @@ body.kandorty-cart-open #cartBtn{
 
 
 <style id="kandorty-cart-small-note-css">
-/* Cart and note travel as one unit; note lives inside the draggable button. */
+/* The cart note is a child of the actual draggable button, not a separate floating element. */
 #cartBtn{overflow:visible!important;isolation:isolate!important}
-#cartBtn #cartCustomNote{position:absolute!important;display:block!important;visibility:visible!important;opacity:1!important;top:calc(100% - 2px)!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;z-index:10!important;min-width:74px!important;max-width:150px!important;width:max-content!important;box-sizing:border-box!important;padding:6px 11px!important;border-radius:999px!important;background:#08ad08!important;color:#fff!important;font:700 12px/1.4 Arial,Tahoma,sans-serif!important;text-align:center!important;white-space:normal!important;box-shadow:0 3px 9px #0003!important;pointer-events:none!important;animation:none!important;transition:none!important}
-#cartBtn #cartCustomNote[hidden]{display:none!important}
+#cartBtn > #cartCustomNote:not([hidden]){
+ display:block!important;visibility:visible!important;opacity:1!important;
+ position:absolute!important;top:calc(100% - 1px)!important;left:50%!important;
+ right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;
+ z-index:100!important;min-width:70px!important;max-width:145px!important;width:max-content!important;
+ padding:6px 10px!important;margin:0!important;box-sizing:border-box!important;
+ border-radius:999px!important;background:#08ad08!important;color:white!important;
+ font:700 12px/1.3 Arial,Tahoma,sans-serif!important;text-align:center!important;
+ white-space:normal!important;pointer-events:none!important;
+ box-shadow:0 3px 9px #0003!important;animation:none!important;transition:none!important;
+}
+#cartBtn > #cartCustomNote[hidden]{display:none!important}
 #cartFloatingGroup{display:contents}
 </style>
 <script id="kandorty-cart-small-note-js">
 (function(){
- let noteValue='';
- function render(){
-   const btn=document.getElementById('cartBtn');if(!btn)return;
+ let lastNote='';
+ function renderCartCustomNote(){
+   const btn=document.getElementById('cartBtn');
+   if(!btn)return;
    let note=document.getElementById('cartCustomNote');
    if(!note){note=document.createElement('span');note.id='cartCustomNote';}
-   if(note.parentElement!==btn)btn.appendChild(note);
-   const value=Array.from(String(noteValue||'').trim()).slice(0,15).join('');
-   if(note.textContent!==value)note.textContent=value;
+   if(note.parentNode!==btn)btn.appendChild(note);
+   const value=Array.from(String(lastNote||'').trim()).slice(0,15).join('');
+   note.textContent=value;
    note.hidden=!value;
  }
  function fromSettings(){
-   try{if(typeof settings!=='undefined'&&settings){noteValue=settings.cartButtonNote||settings.cartCustomText||noteValue;}}catch(e){}
-   render();
+   try{
+     if(typeof settings!=='undefined'&&settings){
+       const v=settings.cartButtonNote||settings.cartCustomText||'';
+       if(v)lastNote=String(v);
+     }
+   }catch(e){}
+   renderCartCustomNote();
  }
  window.renderCartCustomNote=fromSettings;
- // The storefront replaces its cart node with a clone; reattach the label afterwards.
- let queued=false;
- new MutationObserver(function(){
-   if(queued)return;queued=true;
-   queueMicrotask(function(){queued=false;render();});
- }).observe(document.body,{childList:true,subtree:false});
+ // The existing storefront replaces the cart button with a clone; keep the note attached.
+ const observer=new MutationObserver(function(){renderCartCustomNote();});
+ observer.observe(document.body,{childList:true,subtree:false});
  fromSettings();
  document.addEventListener('DOMContentLoaded',fromSettings,{once:true});
- if(typeof db!=='undefined'&&db&&typeof db.collection==='function'){
-   db.collection('settings').doc('store').onSnapshot(function(snapshot){
-     if(!snapshot.exists)return;
-     const data=snapshot.data()||{};
-     noteValue=data.cartButtonNote||data.cartCustomText||'';
-     render();
-   },function(err){console.warn('Cart label:',err)});
- }
+ // Read the same Firestore settings document used by the admin form.
+ try{
+   if(typeof db!=='undefined'&&db&&typeof db.collection==='function'){
+     db.collection('settings').doc('store').onSnapshot(function(snapshot){
+       if(!snapshot.exists)return;
+       const data=snapshot.data()||{};
+       lastNote=String(data.cartButtonNote||data.cartCustomText||'');
+       renderCartCustomNote();
+     },function(error){console.warn('Cart note read:',error)});
+   }
+ }catch(error){console.warn('Cart note init:',error)}
 })();
 </script>
 </body></html>
