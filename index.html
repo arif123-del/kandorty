@@ -5484,7 +5484,7 @@ function readCategoryCardsCache(){
 function writeCategoryCardsCache(value){
   try{localStorage.setItem(CATEGORY_CACHE_KEY,JSON.stringify({version:2,cards:value}));}catch(e){}
 }
-let categoryCards=readCategoryCardsCache();
+let categoryCards=[]; // Wait for authoritative categories; avoid stale first-frame flash.
 let pendingCategoryFiles={};
 
 function makeCategoryId(){
@@ -5583,9 +5583,7 @@ function applyCategoryCards(){
   refreshCategorySelect();
 }
 function loadCategoryCards(){
-  // categoryCards was already filled from local cache/defaults, so render it
-  // immediately and let Firestore refresh it in the background.
-  applyCategoryCards();
+  // Wait for Firestore before displaying categories; no cached/default flash.
   try{
     db.collection('settings').doc('categories').onSnapshot(doc=>{
       categoryCards=normalizedCategoryCards(doc.exists?doc.data():{});
@@ -5766,7 +5764,7 @@ async function saveCategoryCards(){
     alert(err.message||'تعذر حفظ الأقسام');
   }finally{if(btn)btn.disabled=false;}
 }
-applyCategoryCards();
+// Categories become visible after the authoritative Firestore snapshot.
 // ===== end flexible editable category cards =====
 
 loadSettings();
@@ -6579,5 +6577,17 @@ body.kandorty-cart-open #cartBtn{
     max-height:78dvh !important;
   }
 }
+</style>
+
+<!-- Kandorty Oct 08: full photo viewer with narrow bottom control strip; prevent stale categories flash -->
+<style id="kandorty-viewer-fullheight-final">
+#imageViewerModal{inset:0!important;padding:0!important;background:#090909!important;}
+#imageViewerModal .image-viewer-card{position:absolute!important;inset:0 0 7.5dvh 0!important;width:100vw!important;max-width:none!important;height:auto!important;max-height:none!important;padding:0!important;margin:0!important;overflow:hidden!important;background:#090909!important;}
+#imageViewerModal #imageViewerImg{display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center!important;border:0!important;border-radius:0!important;}
+#imageViewerModal .image-viewer-hint{display:none!important;}
+#imageViewerModal .image-viewer-close{top:12px!important;left:12px!important;}
+@media(max-width:700px){#imageViewerModal .image-viewer-card{width:100vw!important;height:auto!important;max-width:none!important;max-height:none!important;}}
+/* Hide category cards until the live settings snapshot has arrived. */
+#categoryCardsGrid:empty{min-height:0!important;}
 </style>
 </body></html>
