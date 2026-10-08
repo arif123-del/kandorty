@@ -1262,6 +1262,32 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 })();
 </script>
 
+
+<style id="kandorty-image-fit-and-gentle-viewer">
+/* Keep every product image fully visible within its existing frame. */
+.card img, .product-gallery-mainimg, #modalMainImg,
+.product-gallery-stage img:not(.product-video-icon){
+  object-fit:contain !important;
+  object-position:center center !important;
+}
+/* Opened images are only moderately larger, never full-screen sized. */
+#imageViewerModal{background:rgba(0,0,0,.72) !important;}
+#imageViewerModal .image-viewer-card{
+  width:min(90vw,520px) !important;
+  height:min(78dvh,720px) !important;
+  max-width:90vw !important;
+  max-height:78dvh !important;
+}
+#imageViewerModal #imageViewerImg{
+  display:block !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  width:auto !important;
+  height:auto !important;
+  object-fit:contain !important;
+  border-radius:12px !important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
