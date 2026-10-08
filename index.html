@@ -6543,10 +6543,10 @@ body.kandorty-cart-open #cartBtn{
 <style id="kandorty-oct08-three-fixes">
 /* Preserve the full-width video while reducing only its vertical dimension. */
 #homeVideoSection.hero-embedded .home-video-card {
-  aspect-ratio: 16 / 8 !important;
+  aspect-ratio: 16 / 9 !important;
 }
 @media(max-width:540px){
-  #homeVideoSection.hero-embedded .home-video-card {aspect-ratio:16 / 8 !important;}
+  #homeVideoSection.hero-embedded .home-video-card {aspect-ratio:16 / 9 !important;}
 }
 /* The second tap opens the image-only viewer: eliminate the white margins
    created by the earlier contain and limited-width image styles. */
@@ -6590,4 +6590,32 @@ body.kandorty-cart-open #cartBtn{
 /* Hide category cards until the live settings snapshot has arrived. */
 #categoryCardsGrid:empty{min-height:0!important;}
 </style>
+
+<!-- Kandorty: swipe between product photos inside the expanded image viewer -->
+<script id="kandorty-viewer-swipe-oct08">
+(function(){
+  const viewer=document.getElementById('imageViewerModal');
+  if(!viewer || viewer.dataset.photoSwipeReady==='1') return;
+  viewer.dataset.photoSwipeReady='1';
+  let startX=0,startY=0,tracking=false;
+  viewer.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1){tracking=false;return;}
+    const t=e.touches[0];startX=t.clientX;startY=t.clientY;tracking=true;
+  },{passive:true});
+  viewer.addEventListener('touchend',function(e){
+    if(!tracking || e.changedTouches.length!==1)return;
+    tracking=false;
+    if(typeof kandortyImageZoom!=='undefined' && kandortyImageZoom>1.02)return;
+    const t=e.changedTouches[0],dx=t.clientX-startX,dy=t.clientY-startY;
+    if(Math.abs(dx)<45 || Math.abs(dx)<Math.abs(dy)*1.25)return;
+    if(typeof currentProductImages==='undefined' || currentProductImages.length<2)return;
+    // Stay on photos, never switch the expanded photo viewer to the product video.
+    const count=currentProductImages.length;
+    currentProductImageIndex=(currentProductImageIndex+(dx<0?1:-1)+count)%count;
+    if(typeof renderProductGallery==='function')renderProductGallery(dx<0?1:-1);
+    if(typeof updateFullscreenProductImage==='function')updateFullscreenProductImage(dx<0?1:-1);
+  },{passive:true});
+  viewer.addEventListener('touchcancel',function(){tracking=false;},{passive:true});
+})();
+</script>
 </body></html>
