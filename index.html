@@ -6649,4 +6649,77 @@ function renderKandortyViewerDots(){
   }
 }
 </script>
+
+<!-- Kandorty: tap product photo to see every photo in a vertical scroll -->
+<style id="kandorty-vertical-photo-viewer">
+#imageViewerModal{background:#fff!important;overflow:hidden!important;align-items:stretch!important}
+#imageViewerModal .image-viewer-card{display:block!important;position:relative!important;width:100%!important;max-width:100%!important;height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;background:#fff!important}
+#imageViewerModal #imageViewerImg,#imageViewerModal .image-viewer-nav,#imageViewerModal .image-viewer-hint{display:none!important}
+#imageViewerModal #kandortyVerticalPhotos{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#fff;padding:54px 0 76px;scrollbar-width:thin}
+#kandortyVerticalPhotos .vertical-photo{display:block;width:100%;height:auto;object-fit:contain;background:#fff;margin:0 auto 10px;max-width:900px}
+#imageViewerModal .image-viewer-close{position:absolute!important;top:max(10px,env(safe-area-inset-top))!important;left:12px!important;z-index:30!important;background:#fff!important;box-shadow:0 2px 12px #0003}
+#imageViewerModal #kandortyViewerDots{z-index:25!important}
+</style>
+<script id="kandorty-vertical-photo-viewer-script">
+(function(){
+  const viewer=document.getElementById('imageViewerModal');
+  const card=viewer&&viewer.querySelector('.image-viewer-card');
+  if(!viewer||!card)return;
+  const gallery=document.createElement('div');
+  gallery.id='kandortyVerticalPhotos';
+  gallery.setAttribute('aria-label','صور المنتج');
+  gallery.addEventListener('click',e=>e.stopPropagation());
+  card.appendChild(gallery);
+  function buildPhotos(){
+    const images=Array.isArray(currentProductImages)?currentProductImages.filter(Boolean):[];
+    const key=images.join('\u001f');
+    if(gallery.dataset.photoKey===key)return;
+    gallery.dataset.photoKey=key;
+    gallery.replaceChildren();
+    images.forEach((src,i)=>{
+      const image=document.createElement('img');
+      image.className='vertical-photo';
+      image.src=src;
+      image.alt='صورة المنتج '+(i+1);
+      image.loading=i===0?'eager':'lazy';
+      image.decoding='async';
+      image.dataset.index=String(i);
+      gallery.appendChild(image);
+    });
+  }
+  const originalOpen=openFullscreenProductImage;
+  openFullscreenProductImage=function(){
+    if(!currentProductImages.length||isCurrentProductVideo())return;
+    buildPhotos();
+    viewer.classList.remove('hidden');
+    gallery.scrollTop=0;
+    currentProductImageIndex=0;
+    renderKandortyViewerDots();
+  };
+  const originalRender=renderProductGallery;
+  renderProductGallery=function(...args){
+    const result=originalRender.apply(this,args);
+    if(!viewer.classList.contains('hidden'))buildPhotos();
+    return result;
+  };
+  gallery.addEventListener('scroll',()=>{
+    const imgs=gallery.querySelectorAll('.vertical-photo');
+    let index=0;
+    for(let i=0;i<imgs.length;i++){
+      if(imgs[i].getBoundingClientRect().top<=window.innerHeight*.45)index=i;
+    }
+    if(index!==currentProductImageIndex){currentProductImageIndex=index;renderKandortyViewerDots();}
+  },{passive:true});
+  gallery.addEventListener('click',e=>e.stopPropagation());
+  // Dots jump to the matching image without replacing the scrollable gallery.
+  const dots=document.getElementById('kandortyViewerDots');
+  if(dots)dots.addEventListener('click',e=>{
+    const button=e.target.closest('.viewer-dot');
+    if(!button)return;
+    const i=Array.from(dots.children).indexOf(button);
+    const target=gallery.querySelectorAll('.vertical-photo')[i];
+    if(target){e.stopImmediatePropagation();e.stopPropagation();target.scrollIntoView({behavior:'smooth',block:'start'});}
+  },true);
+})();
+</script>
 </body></html>
