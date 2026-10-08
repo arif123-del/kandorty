@@ -2396,7 +2396,7 @@ function openProduct(id){
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
-  updateModalSalesProgress(p);
+  document.getElementById('modalSalesProgress')?.remove();
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
