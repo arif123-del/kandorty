@@ -6868,21 +6868,21 @@ function renderKandortyViewerDots(){
  function indices(){const a=list(),n=a.length,j=((currentProductImageIndex%n)+n)%n;return n?[(j-1+n)%n,j,(j+1)%n]:[];}
  function render(){const a=list(),ids=indices();if(!ids.length)return;ids.forEach((id,k)=>{if(slides[k].getAttribute('src')!==a[id])slides[k].src=a[id];cached(a[id]);});track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';}
  function reset(){track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';gesture=null;animating=false;}
- function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;render();}
+ function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;list().forEach(cached);render();}
  // Main gallery updates its src asynchronously; keep our carousel synchronized with it.
- new MutationObserver(()=>{if(!modal.classList.contains('hidden')){if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
+ new MutationObserver(()=>{if(!modal.classList.contains('hidden')){list().forEach(cached);if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
  new MutationObserver(()=>{if(active&&!gesture&&!animating)render();}).observe(main,{attributes:true,attributeFilter:['src']});
  surface.addEventListener('touchstart',e=>{
    if(e.touches.length!==1||animating||list().length<2){gesture=null;return;}
    if(!active)sync();render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false,ready:false};
-   const a=list(),ids=indices();gesture.ready=ids.every(id=>loaded(a[id]));
+   const a=list(),ids=indices();gesture.ready=loaded(a[ids[1]]);gesture.dirReady={left:loaded(a[ids[2]]),right:loaded(a[ids[0]])};
    e.stopPropagation();
  },{passive:true});
  surface.addEventListener('touchmove',e=>{
    if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
    gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
    if(!gesture.horizontal&&Math.abs(gesture.dx)>9&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.2)gesture.horizontal=true;
-   if(gesture.horizontal){e.preventDefault();if(gesture.ready){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
+   if(gesture.horizontal){e.preventDefault();if(gesture.ready && (gesture.dx<0?gesture.dirReady.left:gesture.dirReady.right)){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
    e.stopPropagation();
  },{passive:false});
  surface.addEventListener('touchend',async e=>{
@@ -6896,10 +6896,10 @@ function renderKandortyViewerDots(){
      await awaitImage(src);
      if(token!==epoch||modal.classList.contains('hidden')){reset();return;}
      // If neighbors were not ready during the drag, only animate once loaded.
-     if(!g.ready){render();}
+     if(!g.ready || !(dir>0?g.dirReady.left:g.dirReady.right)){render();}
      track.style.transition='transform 240ms cubic-bezier(.2,.7,.2,1)';
      track.style.transform=dir>0?'translate3d(-66.666666%,0,0)':'translate3d(0%,0,0)';
-     await new Promise(resolve=>track.addEventListener('transitionend',resolve,{once:true}));
+     await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;track.removeEventListener('transitionend',finish);resolve();};track.addEventListener('transitionend',finish);setTimeout(finish,360);});
      if(token!==epoch||modal.classList.contains('hidden')){reset();return;}
      currentProductImageIndex=next;
      main.src=src;
@@ -6913,34 +6913,31 @@ function renderKandortyViewerDots(){
 })();
 </script>
 
-<!-- Kandorty: stable photo controls and cart visibility -->
-<style id="kd-safe-controls-cart">
-/* Photo swipe surface stays under all actionable controls. */
-#productModal .kd-detail-carousel{z-index:35!important}
+<!-- Cart is invisible until at least one item is in the cart. -->
+<style id="kd-cart-visibility-20261010">
+#cartFloatingGroup.kd-cart-empty,#cartBtn.kd-cart-empty{display:none!important;visibility:hidden!important;pointer-events:none!important}
+/* Photo controls never steal a swipe, but close buttons stay clickable. */
 #productModal .product-gallery-nav{pointer-events:none!important}
-#productModal .modal-head{z-index:100!important;pointer-events:none!important}
-#productModal .modal-head .x{position:relative!important;z-index:101!important;pointer-events:auto!important;touch-action:manipulation!important}
-#productModal #productGalleryDotsNative,#productModal .product-gallery-dots{position:relative;z-index:52!important;pointer-events:none!important}
-#imageViewerModal .image-viewer-close{position:absolute!important;z-index:101!important;pointer-events:auto!important;touch-action:manipulation!important}
-#imageViewerModal #kandortyViewerDots{z-index:55!important;pointer-events:none!important}
-#cartFloatingGroup.kd-cart-is-empty{display:none!important}
+#productModal #productGalleryDotsNative{pointer-events:none!important}
 </style>
-<script id="kd-cart-only-after-add">
+<script id="kd-cart-visibility-script-20261010">
 (function(){
-  const group=document.getElementById('cartFloatingGroup');
-  if(!group)return;
-  function syncCartVisibility(){
-    let quantity=0;
-    try{if(Array.isArray(cart))quantity=cart.reduce((sum,item)=>sum+Math.max(0,Number(item.qty)||0),0)}catch(e){}
-    group.classList.toggle('kd-cart-is-empty',quantity===0);
-  }
-  // Use the actual cart data, not a badge that may be delayed or replaced by translations.
-  const oldUpdate=typeof updateCartCount==='function'?updateCartCount:null;
-  if(oldUpdate){updateCartCount=function(){const result=oldUpdate.apply(this,arguments);syncCartVisibility();return result;};}
-  const badge=document.getElementById('cartCount');
-  if(badge)new MutationObserver(syncCartVisibility).observe(badge,{childList:true,characterData:true,subtree:true});
-  syncCartVisibility();
-  window.addEventListener('pageshow',syncCartVisibility);
+ const group=document.getElementById('cartFloatingGroup');
+ const button=document.getElementById('cartBtn');
+ if(!group||!button)return;
+ function sync(){
+   let n=0;
+   try{if(Array.isArray(cart))n=cart.reduce((v,item)=>v+Math.max(0,Number(item.qty)||0),0);}catch(e){}
+   const empty=n<=0;
+   group.classList.toggle('kd-cart-empty',empty);
+   button.classList.toggle('kd-cart-empty',empty);
+ }
+ const original=typeof updateCartCount==='function'?updateCartCount:null;
+ if(original)updateCartCount=function(){const result=original.apply(this,arguments);sync();return result;};
+ const count=document.getElementById('cartCount');
+ if(count)new MutationObserver(sync).observe(count,{childList:true,characterData:true,subtree:true});
+ window.addEventListener('pageshow',sync);
+ sync();
 })();
 </script>
 </body></html>
