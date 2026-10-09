@@ -1280,6 +1280,16 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #productModal #modalPublicDescription[hidden]{display:none!important}
 @media(max-width:700px){#productModal #modalPublicDescription{font-size:13px!important;max-height:60px!important;margin:3px 14px 4px!important}}
 </style>
+
+<!-- Prevent mobile tap flash / sticky hover on product photos -->
+<style id="kandorty-no-tap-flash-20261009">
+@media (hover:none), (pointer:coarse){
+  #products .card:hover{transform:none!important;box-shadow:0 7px 25px rgba(45,0,8,.04)!important}
+  #products .card:hover img{transform:none!important}
+  #products .card,#products .card img{ -webkit-tap-highlight-color:transparent!important; }
+}
+#products .card-image-wrap img{ -webkit-tap-highlight-color:transparent; }
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2174,6 +2184,13 @@ function preloadNearbyProductGalleries(){
 function animateImageSwap(img,newSrc,direction=0){
   if(!img || !newSrc)return;
   const outX=direction===0?0:(direction>0?-12:12);
+  // Opening the first image must never dim/flash the image.
+  if(direction===0){
+    if(img.getAttribute('src')!==newSrc)img.src=newSrc;
+    img.style.opacity='1';
+    img.style.transform='none';
+    return;
+  }
   img.style.opacity='0.55';
   img.style.transform=`translateX(${outX}px)`;
   requestAnimationFrame(()=>{
@@ -2387,8 +2404,8 @@ function openProduct(id){
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
-  $('productModal').classList.remove('hidden');
   renderProductGallery();
+  $('productModal').classList.remove('hidden');
 
   const addBtn=$('modalAddSelectedBtn');
   if(addBtn){
