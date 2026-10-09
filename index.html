@@ -6790,11 +6790,16 @@ function renderKandortyViewerDots(){
 (function(){
  const viewer=document.getElementById('imageViewerModal');
  const card=viewer&&viewer.querySelector('.image-viewer-card');
- const main=document.getElementById('imageViewerImg');
+ let main=document.getElementById('imageViewerImg');
  if(!card||!main)return;
+ // Remove legacy swipe/zoom listeners: they were switching on touch-down and again on release.
+ const cleanMain=main.cloneNode(true);
+ main.replaceWith(cleanMain);
+ main=cleanMain;
  const layer=document.createElement('div');layer.className='kd-swipe-layer';
  const track=document.createElement('div');track.className='kd-swipe-track';layer.appendChild(track);card.insertBefore(layer,main);
  const cache=new Map();
+ // One gesture has exactly one owner, and the index is committed only after release.
  const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
  let gesture=null,busy=false,swallowClick=false;
  function preload(src){
