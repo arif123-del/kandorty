@@ -6868,21 +6868,21 @@ function renderKandortyViewerDots(){
  function indices(){const a=list(),n=a.length,j=((currentProductImageIndex%n)+n)%n;return n?[(j-1+n)%n,j,(j+1)%n]:[];}
  function render(){const a=list(),ids=indices();if(!ids.length)return;ids.forEach((id,k)=>{if(slides[k].getAttribute('src')!==a[id])slides[k].src=a[id];cached(a[id]);});track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';}
  function reset(){track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';gesture=null;animating=false;}
- function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;render();}
+ function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;list().forEach(cached);render();}
  // Main gallery updates its src asynchronously; keep our carousel synchronized with it.
- new MutationObserver(()=>{if(!modal.classList.contains('hidden')){if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
+ new MutationObserver(()=>{if(!modal.classList.contains('hidden')){list().forEach(cached);if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
  new MutationObserver(()=>{if(active&&!gesture&&!animating)render();}).observe(main,{attributes:true,attributeFilter:['src']});
  surface.addEventListener('touchstart',e=>{
    if(e.touches.length!==1||animating||list().length<2){gesture=null;return;}
    if(!active)sync();render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false,ready:false};
-   const a=list(),ids=indices();gesture.ready=ids.every(id=>loaded(a[id]));
+   const a=list(),ids=indices();gesture.ready=loaded(a[ids[1]]); gesture.dirReady={left:loaded(a[ids[2]]),right:loaded(a[ids[0]])};
    e.stopPropagation();
  },{passive:true});
  surface.addEventListener('touchmove',e=>{
    if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
    gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
    if(!gesture.horizontal&&Math.abs(gesture.dx)>9&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.2)gesture.horizontal=true;
-   if(gesture.horizontal){e.preventDefault();if(gesture.ready){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
+   if(gesture.horizontal){e.preventDefault();if(gesture.ready && (gesture.dx<0?gesture.dirReady.left:gesture.dirReady.right)){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
    e.stopPropagation();
  },{passive:false});
  surface.addEventListener('touchend',async e=>{
@@ -6909,6 +6909,24 @@ function renderKandortyViewerDots(){
  },{passive:true});
  surface.addEventListener('touchcancel',()=>{reset();},{passive:true});
  surface.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!animating&&typeof openFullscreenProductImage==='function')openFullscreenProductImage();});
+ sync();
+})();
+</script>
+
+<!-- Kandorty: symmetrical gesture capture on both sides of product photo -->
+<style id="kd-detail-symmetric-swipe-fix">
+#productModal .product-gallery-nav{pointer-events:none!important}
+#productModal .kd-detail-carousel{z-index:49!important;touch-action:pan-y!important}
+#cartBtn.kd-cart-empty,#cartFloatingGroup.kd-cart-empty{display:none!important}
+</style>
+<script id="kd-cart-visibility-fix">
+(function(){
+ const btn=document.getElementById('cartBtn');
+ const group=document.getElementById('cartFloatingGroup');
+ const count=document.getElementById('cartCount');
+ if(!btn||!count)return;
+ function sync(){const qty=Number(count.textContent.trim())||0;const empty=qty<=0;btn.classList.toggle('kd-cart-empty',empty);if(group)group.classList.toggle('kd-cart-empty',empty);}
+ new MutationObserver(sync).observe(count,{childList:true,characterData:true,subtree:true});
  sync();
 })();
 </script>
