@@ -6940,4 +6940,23 @@ function renderKandortyViewerDots(){
  sync();
 })();
 </script>
+
+<!-- Kandorty modal close reliability patch -->
+<style id="kd-modal-close-fix">
+#productModal .modal-head{z-index:250!important;pointer-events:none!important}
+#productModal .modal-head .x{position:relative!important;z-index:251!important;pointer-events:auto!important;touch-action:manipulation!important;transform:none!important;animation:none!important}
+#imageViewerModal .image-viewer-close{z-index:251!important;pointer-events:auto!important;touch-action:manipulation!important;transform:none!important;animation:none!important}
+</style>
+<script id="kd-modal-close-fix-js">
+(function(){
+  const product=document.getElementById('productModal');
+  const viewer=document.getElementById('imageViewerModal');
+  const pClose=product&&product.querySelector('.modal-head .x');
+  const vClose=viewer&&viewer.querySelector('.image-viewer-close');
+  function hideViewer(){if(viewer)viewer.classList.add('hidden');}
+  function hideProduct(){hideViewer();if(typeof closeProduct==='function')closeProduct();else if(product)product.classList.add('hidden');}
+  if(pClose){pClose.setAttribute('type','button');pClose.removeAttribute('onclick');pClose.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();hideProduct();},true);}
+  if(vClose){vClose.setAttribute('type','button');vClose.removeAttribute('onclick');vClose.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();hideViewer();},true);}
+})();
+</script>
 </body></html>
