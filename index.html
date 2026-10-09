@@ -364,10 +364,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 .shop-top.clean-shop-top{display:block !important;margin-bottom:18px !important}
 .shop-top.clean-shop-top .shop-copy-only{max-width:720px}
 .stock-admin-note{grid-column:1/-1;font-size:12px;color:#777;margin-top:-6px}
-/* Compact sold-out indicator */
-#products .sold-out-badge{top:6px;left:6px;padding:4px 7px;border-radius:7px;font-size:10px;line-height:1.15;box-shadow:0 2px 7px #0002}
-#products .card.sold-out .card-actions .btn.primary{padding:5px 6px!important;min-height:28px!important;font-size:11px!important;line-height:1.1!important}
-#products .card-body .stock-note{display:none!important}
 </style>
 
 
@@ -1284,16 +1280,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #productModal #modalPublicDescription[hidden]{display:none!important}
 @media(max-width:700px){#productModal #modalPublicDescription{font-size:13px!important;max-height:60px!important;margin:3px 14px 4px!important}}
 </style>
-
-<!-- Prevent mobile tap flash / sticky hover on product photos -->
-<style id="kandorty-no-tap-flash-20261009">
-@media (hover:none), (pointer:coarse){
-  #products .card:hover{transform:none!important;box-shadow:0 7px 25px rgba(45,0,8,.04)!important}
-  #products .card:hover img{transform:none!important}
-  #products .card,#products .card img{ -webkit-tap-highlight-color:transparent!important; }
-}
-#products .card-image-wrap img{ -webkit-tap-highlight-color:transparent; }
-</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2088,8 +2074,8 @@ function moneyHtml(v){
 }
 function hasManagedStock(p){return p && p.stock!=='' && p.stock!==null && p.stock!==undefined && Number.isFinite(Number(p.stock));}
 function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Number(p.stock))):null;}
-function isSoldOut(p){const s=getProductStock(p);return s===null || s<=0;}
-function stockLabel(p){const s=getProductStock(p);if(s===null)return lang==='ar'?'نفذ المنتج':'Sold out';return s<=0?(lang==='ar'?'نفذ المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
+function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
+function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفد المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
 function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')return null;const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=0?n:0;}
 function getProductTotalStock(p){
   const total=p?.totalStock==null || p.totalStock==='' ? NaN : Number(p.totalStock);
@@ -2122,20 +2108,20 @@ function renderProductCard(p){
     ? `<img src="${p.images[0]}" alt="" loading="eager" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
   const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
-  const soldOutBadge=sold?`<div class="sold-out-badge">${getProductStock(p)===null?(lang==='ar'?'نفذ المنتج':'Sold out'):(lang==='ar'?'نفذ المنتج':'Sold out')}</div>`:'';
-  const stockHtml=''; // No stock quantity text on public product cards
+  const soldOutBadge=sold?`<div class="sold-out-badge">${lang==='ar'?'نفد المنتج':'Sold out'}</div>`:'';
+  const stockHtml=stockLabel(p)?`<div class="stock-note">${stockLabel(p)}</div>`:'';
   const variantCount=Array.isArray(p.images)?p.images.filter(Boolean).length:0;
   const addBtn=sold
-    ? `<button class="btn primary" disabled>${getProductStock(p)===null?(lang==='ar'?'نفذ المنتج':'Sold out'):(lang==='ar'?'نفذ المنتج':'Sold out')}</button>`
+    ? `<button class="btn primary" disabled>${lang==='ar'?'نفد المنتج':'Sold out'}</button>`
     : (variantCount>1
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${imageHtml}</div>
-    ${salesProgressHtml(p)}
+    <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
     <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
+    ${salesProgressHtml(p)}
     <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button>${addBtn}</div></div></article>`;
 }
 function render(){
@@ -2188,13 +2174,6 @@ function preloadNearbyProductGalleries(){
 function animateImageSwap(img,newSrc,direction=0){
   if(!img || !newSrc)return;
   const outX=direction===0?0:(direction>0?-12:12);
-  // Opening the first image must never dim/flash the image.
-  if(direction===0){
-    if(img.getAttribute('src')!==newSrc)img.src=newSrc;
-    img.style.opacity='1';
-    img.style.transform='none';
-    return;
-  }
   img.style.opacity='0.55';
   img.style.transform=`translateX(${outX}px)`;
   requestAnimationFrame(()=>{
@@ -2396,6 +2375,20 @@ function updatePublicProductDetails(p){
   }
 }
 
+function updateModalSalesProgress(p){
+  const modal=document.querySelector('#productModal .modal-card');
+  if(!modal)return;
+  let area=document.getElementById('modalSalesProgress');
+  if(!area){
+    area=document.createElement('div');
+    area.id='modalSalesProgress';
+    area.style.cssText='margin:12px 16px 16px;clear:both';
+    const price=document.getElementById('modalPrice');
+    if(price)price.insertAdjacentElement('afterend',area);
+    else modal.appendChild(area);
+  }
+  area.innerHTML=salesProgressHtml(p);
+}
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
@@ -2403,18 +2396,19 @@ function openProduct(id){
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
+  document.getElementById('modalSalesProgress')?.remove();
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
-  renderProductGallery();
   $('productModal').classList.remove('hidden');
+  renderProductGallery();
 
   const addBtn=$('modalAddSelectedBtn');
   if(addBtn){
     addBtn.disabled=isSoldOut(p);
-    if(isSoldOut(p))addBtn.textContent=getProductStock(p)===null?(lang==='ar'?'نفذ المنتج':'Sold out'):(lang==='ar'?'نفذ المنتج':'Sold out');
+    if(isSoldOut(p))addBtn.textContent=lang==='ar'?'نفد المنتج':'Sold out';
   }
 
   // The fast-start cache may contain only the first large embedded image.
@@ -2438,6 +2432,7 @@ function openProduct(id){
 
       $('modalName').textContent=displayProductName(fresh);
       updatePublicProductDetails(fresh);
+      updateModalSalesProgress(fresh);
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
@@ -2448,7 +2443,7 @@ function openProduct(id){
       const freshAddBtn=$('modalAddSelectedBtn');
       if(freshAddBtn){
         freshAddBtn.disabled=isSoldOut(fresh);
-        if(isSoldOut(fresh))freshAddBtn.textContent=getProductStock(fresh)===null?(lang==='ar'?'نفذ المنتج':'Sold out'):(lang==='ar'?'نفذ المنتج':'Sold out');
+        if(isSoldOut(fresh))freshAddBtn.textContent=lang==='ar'?'نفد المنتج':'Sold out';
       }
     })
     .catch(err=>{
@@ -3378,9 +3373,9 @@ async function saveOrderWithStock(order){
     // 2) Validate stock after all reads are complete.
     const updates=[];
     for(const row of stockRows){
-      if(!row.snap.exists)throw Object.assign(new Error('المنتج لم يعد متوفراً.'),{code:'stock/unavailable'});
+      if(!row.snap.exists)continue;
       const data=row.snap.data()||{};
-      if(!hasManagedStock(data))throw Object.assign(new Error('لم يتم تحديد كمية المنتج: '+(data.nameAr||data.code||'المنتج')),{code:'stock/unmanaged'});
+      if(!hasManagedStock(data))continue;
 
       const current=Math.max(0,Math.floor(Number(data.stock)||0));
       if(current<row.need){
@@ -3466,7 +3461,7 @@ function productQtyInCart(productId){
 function addToCart(id,imageIndex=0,keepProductOpen=false){
   const p=products.find(x=>x.id===id); if(!p)return;
   if(isSoldOut(p)){
-    alert(getProductStock(p)===null?(lang==='ar'?'يرجى انتظار تحديد كمية هذا المنتج.':'Stock has not been set for this product.'):(lang==='ar'?'هذا المنتج نفد من المخزون.':'This product is sold out.'));
+    alert(lang==='ar'?'هذا المنتج نفد من المخزون.':'This product is sold out.');
     return;
   }
 
@@ -3480,7 +3475,7 @@ function addToCart(id,imageIndex=0,keepProductOpen=false){
   const stock=getProductStock(p);
   const nextProductQty=productQtyInCart(id)+1;
   if(stock!==null && nextProductQty>stock){
-    alert(stock===null?(lang==='ar'?'كمية المنتج غير محددة.':'Stock not set.'):(lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
+    alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
     return;
   }
 
@@ -3532,8 +3527,8 @@ function changeCartQty(cartIndex,d){
   const stock=getProductStock(p);
   let next=(Number(i.qty)||0)+d;
 
-  if(d>0 && (stock===null || productQtyInCart(i.id)+d>stock)){
-    alert(stock===null?(lang==='ar'?'كمية المنتج غير محددة.':'Stock not set.'):(lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
+  if(d>0 && stock!==null && productQtyInCart(i.id)+d>stock){
+    alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
     return;
   }
 
@@ -6665,16 +6660,77 @@ function renderKandortyViewerDots(){
 }
 </script>
 
-<!-- Kandorty horizontal fullscreen photo viewer: no vertical photo list -->
-<style id="kandorty-horizontal-photo-viewer">
-#imageViewerModal .image-viewer-card{display:flex!important;align-items:center!important;justify-content:center!important;touch-action:pan-y!important}
-#imageViewerModal #imageViewerImg{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;touch-action:pan-y!important}
-#imageViewerModal #kandortyVerticalPhotos{display:none!important}
-#imageViewerModal #kandortyViewerDots{display:flex!important;position:absolute!important;bottom:max(15px,env(safe-area-inset-bottom))!important}
-#imageViewerModal #kandortyViewerDots[hidden]{display:none!important}
+<!-- Kandorty: tap product photo to see every photo in a vertical scroll -->
+<style id="kandorty-vertical-photo-viewer">
+#imageViewerModal{background:#fff!important;overflow:hidden!important;align-items:stretch!important}
+#imageViewerModal .image-viewer-card{display:block!important;position:relative!important;width:100%!important;max-width:100%!important;height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;background:#fff!important}
+#imageViewerModal #imageViewerImg,#imageViewerModal .image-viewer-nav,#imageViewerModal .image-viewer-hint{display:none!important}
+#imageViewerModal #kandortyVerticalPhotos{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#fff;padding:54px 0 76px;scrollbar-width:thin}
+#kandortyVerticalPhotos .vertical-photo{display:block;width:100%;height:auto;object-fit:contain;background:#fff;margin:0 auto 10px;max-width:900px}
+#imageViewerModal .image-viewer-close{position:absolute!important;top:max(10px,env(safe-area-inset-top))!important;left:12px!important;z-index:30!important;background:#fff!important;box-shadow:0 2px 12px #0003}
+#imageViewerModal #kandortyViewerDots{z-index:25!important}
 </style>
-<script id="kandorty-horizontal-photo-viewer-script">
-// The existing fullscreen horizontal swipe handler and viewer dots remain active.
+<script id="kandorty-vertical-photo-viewer-script">
+(function(){
+  const viewer=document.getElementById('imageViewerModal');
+  const card=viewer&&viewer.querySelector('.image-viewer-card');
+  if(!viewer||!card)return;
+  const gallery=document.createElement('div');
+  gallery.id='kandortyVerticalPhotos';
+  gallery.setAttribute('aria-label','صور المنتج');
+  gallery.addEventListener('click',e=>e.stopPropagation());
+  card.appendChild(gallery);
+  function buildPhotos(){
+    const images=Array.isArray(currentProductImages)?currentProductImages.filter(Boolean):[];
+    const key=images.join('\u001f');
+    if(gallery.dataset.photoKey===key)return;
+    gallery.dataset.photoKey=key;
+    gallery.replaceChildren();
+    images.forEach((src,i)=>{
+      const image=document.createElement('img');
+      image.className='vertical-photo';
+      image.src=src;
+      image.alt='صورة المنتج '+(i+1);
+      image.loading=i===0?'eager':'lazy';
+      image.decoding='async';
+      image.dataset.index=String(i);
+      gallery.appendChild(image);
+    });
+  }
+  const originalOpen=openFullscreenProductImage;
+  openFullscreenProductImage=function(){
+    if(!currentProductImages.length||isCurrentProductVideo())return;
+    buildPhotos();
+    viewer.classList.remove('hidden');
+    gallery.scrollTop=0;
+    currentProductImageIndex=0;
+    renderKandortyViewerDots();
+  };
+  const originalRender=renderProductGallery;
+  renderProductGallery=function(...args){
+    const result=originalRender.apply(this,args);
+    if(!viewer.classList.contains('hidden'))buildPhotos();
+    return result;
+  };
+  gallery.addEventListener('scroll',()=>{
+    const imgs=gallery.querySelectorAll('.vertical-photo');
+    let index=0;
+    for(let i=0;i<imgs.length;i++){
+      if(imgs[i].getBoundingClientRect().top<=window.innerHeight*.45)index=i;
+    }
+    if(index!==currentProductImageIndex){currentProductImageIndex=index;renderKandortyViewerDots();}
+  },{passive:true});
+  gallery.addEventListener('click',e=>e.stopPropagation());
+  // Dots jump to the matching image without replacing the scrollable gallery.
+  const dots=document.getElementById('kandortyViewerDots');
+  if(dots)dots.addEventListener('click',e=>{
+    const button=e.target.closest('.viewer-dot');
+    if(!button)return;
+    const i=Array.from(dots.children).indexOf(button);
+    const target=gallery.querySelectorAll('.vertical-photo')[i];
+    if(target){e.stopImmediatePropagation();e.stopPropagation();target.scrollIntoView({behavior:'smooth',block:'start'});}
+  },true);
+})();
 </script>
 
 <!-- Kandorty product-page scroll gallery and reliable cart action -->
@@ -6769,12 +6825,4 @@ function renderKandortyViewerDots(){
   },true);
 })();
 </script>
-
-<!-- Kandorty fullscreen photo: edge-to-edge, slightly shorter, no white gutters -->
-<style id="kandorty-viewer-edge-to-edge-compact-20261009">
-#imageViewerModal{background:#fff!important;padding:0!important;align-items:flex-start!important;justify-content:center!important;overflow:hidden!important;}
-#imageViewerModal .image-viewer-card{width:100vw!important;max-width:100vw!important;height:80dvh!important;max-height:80dvh!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#fff!important;overflow:hidden!important;position:relative!important;}
-#imageViewerModal #imageViewerImg{display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center top!important;background:#fff!important;border:0!important;border-radius:0!important;}
-#imageViewerModal #kandortyViewerDots{bottom:14px!important;}
-</style>
 </body></html>
