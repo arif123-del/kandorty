@@ -6767,73 +6767,76 @@ function renderKandortyViewerDots(){
 #imageViewerModal #imageViewerImg{display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center top!important;background:#fff!important;border:0!important;border-radius:0!important;}
 #imageViewerModal #kandortyViewerDots{bottom:14px!important;}
 </style>
-<!-- Kandorty: single-owner, no-flash fullscreen swipe -->
-<style id="kd-seamless-gallery-style">
-#imageViewerModal .image-viewer-card{touch-action:pan-y!important}
-#imageViewerModal #imageViewerImg{touch-action:pan-y!important;transition:none!important;opacity:1!important;user-select:none!important;-webkit-user-drag:none!important}
-#imageViewerModal .kd-swipe-layer{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none;display:none;background:transparent}
-#imageViewerModal .kd-swipe-track{position:absolute;inset:0;display:flex;width:300%;height:100%;left:-100%;transform:translate3d(0,0,0);will-change:transform}
-#imageViewerModal .kd-swipe-track img{width:33.333333%;height:100%;flex:0 0 33.333333%;object-fit:cover;object-position:center top;display:block}
-#imageViewerModal .image-viewer-close,#imageViewerModal #kandortyViewerDots{z-index:6!important}
+<!-- Kandorty: isolated fullscreen image carousel; no legacy image touch handlers -->
+<style id="kd-clean-viewer-carousel-css">
+#imageViewerModal .kd-clean-carousel{position:absolute;inset:0;z-index:3;overflow:hidden;touch-action:pan-y;background:transparent;}
+#imageViewerModal .kd-clean-carousel-track{display:flex;width:300%;height:100%;transform:translate3d(-33.333333%,0,0);will-change:transform;}
+#imageViewerModal .kd-clean-carousel-track img{display:block;width:33.333333%;height:100%;flex:0 0 33.333333%;object-fit:cover;object-position:center top;user-select:none;-webkit-user-drag:none;}
+#imageViewerModal .image-viewer-close,#imageViewerModal #kandortyViewerDots{z-index:8!important}
 </style>
-<script id="kd-seamless-gallery-script">
+<script id="kd-clean-viewer-carousel-js">
 (function(){
- const viewer=document.getElementById('imageViewerModal'),card=viewer&&viewer.querySelector('.image-viewer-card');
- let main=document.getElementById('imageViewerImg');if(!card||!main)return;
- // Remove old element-level gesture handlers, including older zoom and swipe listeners.
- const fresh=main.cloneNode(true);main.replaceWith(fresh);main=fresh;
- const layer=document.createElement('div');layer.className='kd-swipe-layer';
- const track=document.createElement('div');track.className='kd-swipe-track';layer.appendChild(track);card.insertBefore(layer,main);
- const cache=new Map();let gesture=null,locked=false,lastSwipe=0;
- const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
- function load(src){if(!src)return Promise.reject();let i=cache.get(src);if(!i){i=new Image();i.decoding='async';i.src=src;cache.set(src,i);}return i.complete&&i.naturalWidth?Promise.resolve(i):new Promise((resolve,reject)=>{i.addEventListener('load',()=>resolve(i),{once:true});i.addEventListener('error',reject,{once:true});});}
- function warm(){const a=photos(),n=a.length,j=currentProductImageIndex;if(n){load(a[j%n]).catch(()=>{});load(a[(j+1)%n]).catch(()=>{});load(a[(j+n-1)%n]).catch(()=>{});}}
- function clear(){layer.style.display='none';main.style.visibility='visible';track.style.transition='none';track.style.transform='translate3d(0,0,0)';locked=false;}
- async function move(dir){
-  const a=photos(),n=a.length;if(n<2||locked)return;
-  locked=true;const old=currentProductImageIndex,next=(old+dir+n)%n;
-  try{
-   // Never hide the current image before the next photo has decoded.
-   await Promise.all([load(a[old]),load(a[next])]);
-   if(viewer.classList.contains('hidden')||photos()[old]!==a[old]){clear();return;}
-   const indices=[(old-1+n)%n,old,(old+1)%n];
-   track.replaceChildren(...indices.map(j=>{const im=document.createElement('img');im.src=a[j];im.alt='';im.draggable=false;return im;}));
-   track.style.transition='none';track.style.transform='translate3d(0,0,0)';
-   layer.style.display='block';main.style.visibility='hidden';
-   void track.offsetWidth;
-   track.style.transition='transform 260ms cubic-bezier(.22,.65,.2,1)';
-   track.style.transform='translate3d('+(-dir*card.clientWidth)+'px,0,0)';
-   await new Promise(r=>setTimeout(r,285));
-   currentProductImageIndex=next;
-   main.src=a[next];main.style.opacity='1';main.style.transform='none';main.style.transition='none';
-   const detail=document.getElementById('modalMainImage');if(detail)detail.src=a[next];
-   if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();
-   requestAnimationFrame(()=>requestAnimationFrame(clear));
-  }catch(e){clear();}
- }
- // Capture the fullscreen gesture before legacy listeners can process it.
- function inside(e){return !viewer.classList.contains('hidden')&&e.target&&e.target.closest&&e.target.closest('#imageViewerModal .image-viewer-card')&&!e.target.closest('.image-viewer-close, #kandortyViewerDots');}
- window.addEventListener('touchstart',e=>{
-  if(!inside(e)||e.touches.length!==1||locked)return;
-  const t=e.touches[0];gesture={x:t.clientX,y:t.clientY,id:t.identifier,dx:0,dy:0};warm();
-  e.stopImmediatePropagation();
- },{capture:true,passive:true});
- window.addEventListener('touchmove',e=>{
-  if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);
-  if(!t){gesture=null;return;}
-  gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
-  if(Math.abs(gesture.dx)>10&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.15)e.preventDefault();
-  e.stopImmediatePropagation();
- },{capture:true,passive:false});
- window.addEventListener('touchend',e=>{
-  if(!gesture)return;const g=gesture;gesture=null;
-  const t=Array.from(e.changedTouches).find(t=>t.identifier===g.id);
-  if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
-  e.stopImmediatePropagation();
-  if(Math.abs(g.dx)>48&&Math.abs(g.dx)>Math.abs(g.dy)*1.15){lastSwipe=Date.now();move(g.dx<0?1:-1);}
- },{capture:true,passive:true});
- window.addEventListener('touchcancel',e=>{if(gesture){gesture=null;e.stopImmediatePropagation();}},{capture:true,passive:true});
- window.addEventListener('click',e=>{if(Date.now()-lastSwipe<450&&inside(e)){e.preventDefault();e.stopImmediatePropagation();}},{capture:true});
+ const modal=document.getElementById('imageViewerModal');
+ const card=modal&&modal.querySelector('.image-viewer-card');
+ const main=document.getElementById('imageViewerImg');
+ if(!modal||!card||!main)return;
+ // An independent gesture surface shields the photo from every older touch handler.
+ const surface=document.createElement('div');surface.className='kd-clean-carousel';
+ const track=document.createElement('div');track.className='kd-clean-carousel-track';surface.appendChild(track);
+ main.insertAdjacentElement('afterend',surface);
+ const slides=[0,1,2].map(()=>{const i=document.createElement('img');i.draggable=false;track.appendChild(i);return i;});
+ const cache=new Map();let active=false,gesture=null,animating=false,epoch=0;
+ const list=()=>Array.isArray(currentProductImages)?currentProductImages:[];
+ function cached(url){if(!url)return null;let im=cache.get(url);if(!im){im=new Image();im.decoding='async';im.src=url;cache.set(url,im);}return im;}
+ function loaded(url){const im=cached(url);return !!(im&&im.complete&&im.naturalWidth>0);}
+ function awaitImage(url){const im=cached(url);if(!im)return Promise.reject();if(loaded(url))return Promise.resolve();return new Promise((resolve,reject)=>{im.addEventListener('load',resolve,{once:true});im.addEventListener('error',reject,{once:true});});}
+ function indices(){const a=list(),n=a.length,j=((currentProductImageIndex%n)+n)%n;return n?[(j-1+n)%n,j,(j+1)%n]:[];}
+ function render(){const a=list(),ids=indices();if(!ids.length)return;ids.forEach((id,k)=>{if(slides[k].getAttribute('src')!==a[id])slides[k].src=a[id];cached(a[id]);});track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';}
+ function reset(){track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';gesture=null;animating=false;}
+ function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;render();}
+ // Main gallery updates its src asynchronously; keep our carousel synchronized with it.
+ new MutationObserver(()=>{if(!modal.classList.contains('hidden')){if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
+ new MutationObserver(()=>{if(active&&!gesture&&!animating)render();}).observe(main,{attributes:true,attributeFilter:['src']});
+ surface.addEventListener('touchstart',e=>{
+   if(e.touches.length!==1||animating||list().length<2){gesture=null;return;}
+   if(!active)sync();render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false,ready:false};
+   const a=list(),ids=indices();gesture.ready=ids.every(id=>loaded(a[id]));
+   e.stopPropagation();
+ },{passive:true});
+ surface.addEventListener('touchmove',e=>{
+   if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
+   gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
+   if(!gesture.horizontal&&Math.abs(gesture.dx)>9&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.2)gesture.horizontal=true;
+   if(gesture.horizontal){e.preventDefault();if(gesture.ready){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
+   e.stopPropagation();
+ },{passive:false});
+ surface.addEventListener('touchend',async e=>{
+   if(!gesture)return;const g=gesture;gesture=null;
+   const t=Array.from(e.changedTouches).find(t=>t.identifier===g.id);if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
+   e.stopPropagation();
+   const dir=g.horizontal&&Math.abs(g.dx)>Math.max(48,card.clientWidth*.16)?(g.dx<0?1:-1):0;
+   if(!dir){track.style.transition='transform 180ms ease-out';track.style.transform='translate3d(-33.333333%,0,0)';return;}
+   animating=true;const a=list(),old=currentProductImageIndex,n=a.length,next=(old+dir+n)%n,src=a[next],token=++epoch;
+   try{
+     await awaitImage(src);
+     if(token!==epoch||modal.classList.contains('hidden')){reset();return;}
+     // If neighbors were not ready during the drag, only animate once loaded.
+     if(!g.ready){render();}
+     track.style.transition='transform 240ms cubic-bezier(.2,.7,.2,1)';
+     track.style.transform=dir>0?'translate3d(-66.666666%,0,0)':'translate3d(0%,0,0)';
+     await new Promise(resolve=>track.addEventListener('transitionend',resolve,{once:true}));
+     if(token!==epoch||modal.classList.contains('hidden')){reset();return;}
+     currentProductImageIndex=next;
+     main.src=src;
+     if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();
+     // Update hidden product detail without invoking legacy fullscreen swipe handlers.
+     const detail=document.getElementById('modalMainImage');if(detail)detail.src=src;
+     render();animating=false;
+   }catch(err){reset();}
+ },{passive:true});
+ surface.addEventListener('touchcancel',()=>{reset();},{passive:true});
+ surface.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
+ sync();
 })();
 </script>
 
