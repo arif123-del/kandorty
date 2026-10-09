@@ -6866,39 +6866,49 @@ function renderKandortyViewerDots(){
 })();
 </script>
 
-<!-- Kandorty: one gesture = one change inside product details -->
-<style>
-#productModal .product-gallery-stage{touch-action:pan-y!important}
-#productModal #modalMainImage{opacity:1!important;transform:none!important;transition:none!important}
+<!-- Kandorty: document-capture single swipe owner for product details -->
+<style id="kd-product-gesture-final-css">
+#productModal .product-gallery-stage{touch-action:pan-y!important;overscroll-behavior-x:contain!important}
+#productModal #modalMainImage{transition:none!important;animation:none!important;opacity:1!important}
 </style>
-<script id="kd-product-single-swipe">
+<script id="kd-product-gesture-final-js">
 (function(){
- const stage=document.querySelector('#productModal .product-gallery-stage');
- if(!stage)return;
- let g=null, blockClick=false;
- stage.addEventListener('touchstart',function(e){
-   if(e.touches.length!==1){g=null;return;}
-   const t=e.touches[0];g={x:t.clientX,y:t.clientY,dx:0,dy:0,axis:null};
-   e.stopPropagation();
- },{capture:true,passive:true});
- stage.addEventListener('touchmove',function(e){
-   if(!g||e.touches.length!==1)return;
-   const t=e.touches[0];g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
-   if(!g.axis && Math.max(Math.abs(g.dx),Math.abs(g.dy))>9)g.axis=Math.abs(g.dx)>Math.abs(g.dy)*1.15?'x':'y';
-   if(g.axis==='x')e.preventDefault();
-   e.stopPropagation();
- },{capture:true,passive:false});
- stage.addEventListener('touchend',function(e){
-   if(!g)return;
-   const done=g;g=null;
-   e.stopPropagation();
-   if(done.axis!=='x'||Math.abs(done.dx)<45||Math.abs(done.dx)<Math.abs(done.dy)*1.15)return;
-   blockClick=true;
-   if(typeof stepProductImage==='function')stepProductImage(done.dx<0?1:-1);
-   setTimeout(()=>{blockClick=false},400);
- },{capture:true,passive:true});
- stage.addEventListener('touchcancel',function(e){g=null;e.stopPropagation()},{capture:true,passive:true});
- stage.addEventListener('click',function(e){if(blockClick){e.preventDefault();e.stopImmediatePropagation();blockClick=false;}},{capture:true});
+  // Capture on document BEFORE all legacy handlers on modal/gallery/image.
+  // This prevents the same swipe being counted at touchstart and touchend.
+  let g=null, suppressUntil=0;
+  const isStage=e=>e.target&&e.target.closest&&e.target.closest('#productModal .product-gallery-stage');
+  document.addEventListener('touchstart',function(e){
+    if(!isStage(e)||e.touches.length!==1){g=null;return;}
+    const t=e.touches[0];
+    g={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,axis:null,started:performance.now()};
+    e.stopPropagation();
+  },{capture:true,passive:true});
+  document.addEventListener('touchmove',function(e){
+    if(!g)return;
+    const t=Array.from(e.touches).find(t=>t.identifier===g.id);
+    if(!t){g=null;return;}
+    g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
+    if(!g.axis&&Math.max(Math.abs(g.dx),Math.abs(g.dy))>9)
+      g.axis=Math.abs(g.dx)>Math.abs(g.dy)*1.15?'x':'y';
+    if(g.axis==='x')e.preventDefault();
+    e.stopPropagation();
+  },{capture:true,passive:false});
+  document.addEventListener('touchend',function(e){
+    if(!g)return;
+    const done=g;g=null;
+    const t=Array.from(e.changedTouches).find(t=>t.identifier===done.id);
+    if(t){done.dx=t.clientX-done.x;done.dy=t.clientY-done.y;}
+    e.stopPropagation();
+    if(done.axis!=='x'||Math.abs(done.dx)<48||Math.abs(done.dx)<Math.abs(done.dy)*1.15)return;
+    suppressUntil=performance.now()+550;
+    if(typeof stepProductImage==='function')stepProductImage(done.dx<0?1:-1);
+  },{capture:true,passive:true});
+  document.addEventListener('touchcancel',function(e){if(g){g=null;e.stopPropagation()}},{capture:true,passive:true});
+  document.addEventListener('click',function(e){
+    if(performance.now()<suppressUntil&&isStage(e)){
+      e.preventDefault();e.stopImmediatePropagation();
+    }
+  },{capture:true});
 })();
 </script>
 </body></html>
