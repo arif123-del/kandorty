@@ -6868,21 +6868,21 @@ function renderKandortyViewerDots(){
  function indices(){const a=list(),n=a.length,j=((currentProductImageIndex%n)+n)%n;return n?[(j-1+n)%n,j,(j+1)%n]:[];}
  function render(){const a=list(),ids=indices();if(!ids.length)return;ids.forEach((id,k)=>{if(slides[k].getAttribute('src')!==a[id])slides[k].src=a[id];cached(a[id]);});track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';}
  function reset(){track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';gesture=null;animating=false;}
- function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;list().forEach(cached);render();}
+ function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;render();}
  // Main gallery updates its src asynchronously; keep our carousel synchronized with it.
- new MutationObserver(()=>{if(!modal.classList.contains('hidden')){list().forEach(cached);if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
+ new MutationObserver(()=>{if(!modal.classList.contains('hidden')){if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
  new MutationObserver(()=>{if(active&&!gesture&&!animating)render();}).observe(main,{attributes:true,attributeFilter:['src']});
  surface.addEventListener('touchstart',e=>{
    if(e.touches.length!==1||animating||list().length<2){gesture=null;return;}
    if(!active)sync();render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false,ready:false};
-   const a=list(),ids=indices();gesture.ready=loaded(a[ids[1]]); gesture.dirReady={left:loaded(a[ids[2]]),right:loaded(a[ids[0]])};
+   const a=list(),ids=indices();gesture.ready=ids.every(id=>loaded(a[id]));
    e.stopPropagation();
  },{passive:true});
  surface.addEventListener('touchmove',e=>{
    if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
    gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
    if(!gesture.horizontal&&Math.abs(gesture.dx)>9&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.2)gesture.horizontal=true;
-   if(gesture.horizontal){e.preventDefault();if(gesture.ready && (gesture.dx<0?gesture.dirReady.left:gesture.dirReady.right)){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
+   if(gesture.horizontal){e.preventDefault();if(gesture.ready){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
    e.stopPropagation();
  },{passive:false});
  surface.addEventListener('touchend',async e=>{
@@ -6913,21 +6913,34 @@ function renderKandortyViewerDots(){
 })();
 </script>
 
-<!-- Kandorty: symmetrical gesture capture on both sides of product photo -->
-<style id="kd-detail-symmetric-swipe-fix">
+<!-- Kandorty: stable photo controls and cart visibility -->
+<style id="kd-safe-controls-cart">
+/* Photo swipe surface stays under all actionable controls. */
+#productModal .kd-detail-carousel{z-index:35!important}
 #productModal .product-gallery-nav{pointer-events:none!important}
-#productModal .kd-detail-carousel{z-index:49!important;touch-action:pan-y!important}
-#cartBtn.kd-cart-empty,#cartFloatingGroup.kd-cart-empty{display:none!important}
+#productModal .modal-head{z-index:100!important;pointer-events:none!important}
+#productModal .modal-head .x{position:relative!important;z-index:101!important;pointer-events:auto!important;touch-action:manipulation!important}
+#productModal #productGalleryDotsNative,#productModal .product-gallery-dots{position:relative;z-index:52!important;pointer-events:none!important}
+#imageViewerModal .image-viewer-close{position:absolute!important;z-index:101!important;pointer-events:auto!important;touch-action:manipulation!important}
+#imageViewerModal #kandortyViewerDots{z-index:55!important;pointer-events:none!important}
+#cartFloatingGroup.kd-cart-is-empty{display:none!important}
 </style>
-<script id="kd-cart-visibility-fix">
+<script id="kd-cart-only-after-add">
 (function(){
- const btn=document.getElementById('cartBtn');
- const group=document.getElementById('cartFloatingGroup');
- const count=document.getElementById('cartCount');
- if(!btn||!count)return;
- function sync(){const qty=Number(count.textContent.trim())||0;const empty=qty<=0;btn.classList.toggle('kd-cart-empty',empty);if(group)group.classList.toggle('kd-cart-empty',empty);}
- new MutationObserver(sync).observe(count,{childList:true,characterData:true,subtree:true});
- sync();
+  const group=document.getElementById('cartFloatingGroup');
+  if(!group)return;
+  function syncCartVisibility(){
+    let quantity=0;
+    try{if(Array.isArray(cart))quantity=cart.reduce((sum,item)=>sum+Math.max(0,Number(item.qty)||0),0)}catch(e){}
+    group.classList.toggle('kd-cart-is-empty',quantity===0);
+  }
+  // Use the actual cart data, not a badge that may be delayed or replaced by translations.
+  const oldUpdate=typeof updateCartCount==='function'?updateCartCount:null;
+  if(oldUpdate){updateCartCount=function(){const result=oldUpdate.apply(this,arguments);syncCartVisibility();return result;};}
+  const badge=document.getElementById('cartCount');
+  if(badge)new MutationObserver(syncCartVisibility).observe(badge,{childList:true,characterData:true,subtree:true});
+  syncCartVisibility();
+  window.addEventListener('pageshow',syncCartVisibility);
 })();
 </script>
 </body></html>
