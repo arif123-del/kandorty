@@ -6797,10 +6797,17 @@ function renderKandortyViewerDots(){
  card.insertBefore(layer,main);
  let active=false,axis='',sx=0,sy=0,dx=0,started=0,animating=false,lockClickUntil=0;
  const list=()=>typeof currentProductImages!=='undefined'&&Array.isArray(currentProductImages)?currentProductImages:[];
+ const cache=new Map();
+ function warm(src){if(!src||cache.has(src))return;const im=new Image();cache.set(src,im);im.src=src;if(im.decode)im.decode().catch(()=>{});}
+ function warmNeighbors(){const a=list(),n=a.length,i=currentProductImageIndex;if(n){warm(a[i%n]);warm(a[(i+1)%n]);warm(a[(i+n-1)%n]);}}
+ viewer.addEventListener('touchstart',warmNeighbors,{capture:true,passive:true});
  function showTrack(){
    const a=list(),n=a.length,i=currentProductImageIndex;
    if(n<2)return false;
    const ids=[(i+n-1)%n,i,(i+1)%n];
+   // Never reveal the swipe track until all visible frames are decoded.
+   const ready=ids.every(j=>{const im=cache.get(a[j]);return im&&im.complete&&im.naturalWidth>0});
+   if(!ready){ids.forEach(j=>warm(a[j]));return false;}
    track.replaceChildren(...ids.map(j=>{const el=document.createElement('img');el.src=a[j];el.alt='';el.draggable=false;return el}));
    track.style.transition='none';track.style.transform='translate3d(0,0,0)';
    layer.style.display='block';main.style.visibility='hidden';return true;
@@ -6809,7 +6816,7 @@ function renderKandortyViewerDots(){
  function end(cancel){
    if(!active||animating)return;
    active=false;
-   if(axis!=='x'){reset();return;}
+   if(axis!=='x'||layer.style.display!=='block'){reset();return;}
    const w=card.clientWidth||window.innerWidth;
    const duration=Math.max(1,Date.now()-started);
    const go=!cancel&&(Math.abs(dx)>w*.22||(Math.abs(dx)>45&&Math.abs(dx)/duration>.45));
@@ -6825,6 +6832,7 @@ function renderKandortyViewerDots(){
        currentProductImageIndex=(currentProductImageIndex+direction+list().length)%list().length;
        if(typeof renderProductGallery==='function')renderProductGallery();
        if(typeof updateFullscreenProductImage==='function')updateFullscreenProductImage(0);
+       warmNeighbors();
      }
      reset();
    },ms+35);
@@ -6839,7 +6847,7 @@ function renderKandortyViewerDots(){
    const x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;
    if(!axis&&Math.max(Math.abs(x),Math.abs(y))>9)axis=Math.abs(x)>Math.abs(y)*1.18?'x':'y';
    if(axis==='x'){
-     if(layer.style.display!=='block'&&!showTrack())return;
+     if(layer.style.display!=='block'&&!showTrack()){e.preventDefault();e.stopImmediatePropagation();return;}
      dx=Math.max(-card.clientWidth,Math.min(card.clientWidth,x));
      track.style.transform='translate3d('+dx+'px,0,0)';
      e.preventDefault();e.stopImmediatePropagation();
