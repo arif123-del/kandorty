@@ -6840,49 +6840,76 @@ function renderKandortyViewerDots(){
 })();
 </script>
 
-<!-- Kandorty: document-capture single swipe owner for product details -->
-<style id="kd-product-gesture-final-css">
-#productModal .product-gallery-stage{touch-action:pan-y!important;overscroll-behavior-x:contain!important}
-#productModal #modalMainImage{transition:none!important;animation:none!important;opacity:1!important}
+<!-- Kandorty: first product photo carousel matching fullscreen gesture -->
+<style id="kd-detail-carousel-style">
+#productModal .product-gallery-stage{position:relative!important;overflow:hidden!important}
+#productModal .kd-detail-carousel{position:absolute;inset:0;z-index:32;overflow:hidden;touch-action:pan-y;background:transparent}
+#productModal .kd-detail-track{display:flex;width:300%;height:100%;transform:translate3d(-33.333333%,0,0);will-change:transform}
+#productModal .kd-detail-track img{width:33.333333%;flex:0 0 33.333333%;height:100%;object-fit:cover;object-position:center center;display:block;user-select:none;-webkit-user-drag:none}
+#productModal .product-gallery-nav,#productModal #productGalleryDotsNative,#productModal #productVideoBadge{z-index:48!important}
+#productModal .kd-detail-carousel[hidden]{display:none!important}
 </style>
-<script id="kd-product-gesture-final-js">
+<script id="kd-detail-carousel-script">
 (function(){
-  // Capture on document BEFORE all legacy handlers on modal/gallery/image.
-  // This prevents the same swipe being counted at touchstart and touchend.
-  let g=null, suppressUntil=0;
-  const isStage=e=>e.target&&e.target.closest&&e.target.closest('#productModal .product-gallery-stage');
-  document.addEventListener('touchstart',function(e){
-    if(!isStage(e)||e.touches.length!==1){g=null;return;}
-    const t=e.touches[0];
-    g={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,axis:null,started:performance.now()};
-    e.stopPropagation();
-  },{capture:true,passive:true});
-  document.addEventListener('touchmove',function(e){
-    if(!g)return;
-    const t=Array.from(e.touches).find(t=>t.identifier===g.id);
-    if(!t){g=null;return;}
-    g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
-    if(!g.axis&&Math.max(Math.abs(g.dx),Math.abs(g.dy))>9)
-      g.axis=Math.abs(g.dx)>Math.abs(g.dy)*1.15?'x':'y';
-    if(g.axis==='x')e.preventDefault();
-    e.stopPropagation();
-  },{capture:true,passive:false});
-  document.addEventListener('touchend',function(e){
-    if(!g)return;
-    const done=g;g=null;
-    const t=Array.from(e.changedTouches).find(t=>t.identifier===done.id);
-    if(t){done.dx=t.clientX-done.x;done.dy=t.clientY-done.y;}
-    e.stopPropagation();
-    if(done.axis!=='x'||Math.abs(done.dx)<48||Math.abs(done.dx)<Math.abs(done.dy)*1.15)return;
-    suppressUntil=performance.now()+550;
-    if(typeof stepProductImage==='function')stepProductImage(done.dx<0?1:-1);
-  },{capture:true,passive:true});
-  document.addEventListener('touchcancel',function(e){if(g){g=null;e.stopPropagation()}},{capture:true,passive:true});
-  document.addEventListener('click',function(e){
-    if(performance.now()<suppressUntil&&isStage(e)){
-      e.preventDefault();e.stopImmediatePropagation();
-    }
-  },{capture:true});
+ const modal=document.getElementById('productModal');
+ const card=modal&&modal.querySelector('.product-gallery-stage');
+ const main=document.getElementById('modalMainImage');
+ if(!modal||!card||!main)return;
+ // An independent gesture surface shields the photo from every older touch handler.
+ const surface=document.createElement('div');surface.className='kd-detail-carousel';
+ const track=document.createElement('div');track.className='kd-detail-track';surface.appendChild(track);
+ main.insertAdjacentElement('afterend',surface);
+ const slides=[0,1,2].map(()=>{const i=document.createElement('img');i.draggable=false;track.appendChild(i);return i;});
+ const cache=new Map();let active=false,gesture=null,animating=false,epoch=0;
+ const list=()=>Array.isArray(currentProductImages)?currentProductImages:[];
+ function cached(url){if(!url)return null;let im=cache.get(url);if(!im){im=new Image();im.decoding='async';im.src=url;cache.set(url,im);}return im;}
+ function loaded(url){const im=cached(url);return !!(im&&im.complete&&im.naturalWidth>0);}
+ function awaitImage(url){const im=cached(url);if(!im)return Promise.reject();if(loaded(url))return Promise.resolve();return new Promise((resolve,reject)=>{im.addEventListener('load',resolve,{once:true});im.addEventListener('error',reject,{once:true});});}
+ function indices(){const a=list(),n=a.length,j=((currentProductImageIndex%n)+n)%n;return n?[(j-1+n)%n,j,(j+1)%n]:[];}
+ function render(){const a=list(),ids=indices();if(!ids.length)return;ids.forEach((id,k)=>{if(slides[k].getAttribute('src')!==a[id])slides[k].src=a[id];cached(a[id]);});track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';}
+ function reset(){track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';gesture=null;animating=false;}
+ function sync(){if(modal.classList.contains('hidden')){active=false;reset();return;}active=true;render();}
+ // Main gallery updates its src asynchronously; keep our carousel synchronized with it.
+ new MutationObserver(()=>{if(!modal.classList.contains('hidden')){if(!gesture&&!animating)render();}else{active=false;reset();}}).observe(modal,{attributes:true,attributeFilter:['class']});
+ new MutationObserver(()=>{if(active&&!gesture&&!animating)render();}).observe(main,{attributes:true,attributeFilter:['src']});
+ surface.addEventListener('touchstart',e=>{
+   if(e.touches.length!==1||animating||list().length<2){gesture=null;return;}
+   if(!active)sync();render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false,ready:false};
+   const a=list(),ids=indices();gesture.ready=ids.every(id=>loaded(a[id]));
+   e.stopPropagation();
+ },{passive:true});
+ surface.addEventListener('touchmove',e=>{
+   if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
+   gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
+   if(!gesture.horizontal&&Math.abs(gesture.dx)>9&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.2)gesture.horizontal=true;
+   if(gesture.horizontal){e.preventDefault();if(gesture.ready){track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+gesture.dx+'px),0,0)';}}
+   e.stopPropagation();
+ },{passive:false});
+ surface.addEventListener('touchend',async e=>{
+   if(!gesture)return;const g=gesture;gesture=null;
+   const t=Array.from(e.changedTouches).find(t=>t.identifier===g.id);if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
+   e.stopPropagation();
+   const dir=g.horizontal&&Math.abs(g.dx)>Math.max(48,card.clientWidth*.16)?(g.dx<0?1:-1):0;
+   if(!dir){track.style.transition='transform 180ms ease-out';track.style.transform='translate3d(-33.333333%,0,0)';return;}
+   animating=true;const a=list(),old=currentProductImageIndex,n=a.length,next=(old+dir+n)%n,src=a[next],token=++epoch;
+   try{
+     await awaitImage(src);
+     if(token!==epoch||modal.classList.contains('hidden')){reset();return;}
+     // If neighbors were not ready during the drag, only animate once loaded.
+     if(!g.ready){render();}
+     track.style.transition='transform 240ms cubic-bezier(.2,.7,.2,1)';
+     track.style.transform=dir>0?'translate3d(-66.666666%,0,0)':'translate3d(0%,0,0)';
+     await new Promise(resolve=>track.addEventListener('transitionend',resolve,{once:true}));
+     if(token!==epoch||modal.classList.contains('hidden')){reset();return;}
+     currentProductImageIndex=next;
+     main.src=src;
+     if(typeof renderProductGallery==='function')renderProductGallery();
+     render();animating=false;
+   }catch(err){reset();}
+ },{passive:true});
+ surface.addEventListener('touchcancel',()=>{reset();},{passive:true});
+ surface.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!animating&&typeof openFullscreenProductImage==='function')openFullscreenProductImage();});
+ sync();
 })();
 </script>
 </body></html>
