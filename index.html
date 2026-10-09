@@ -2186,24 +2186,13 @@ function preloadNearbyProductGalleries(){
 }
 
 function animateImageSwap(img,newSrc,direction=0){
-  if(!img || !newSrc)return;
-  const outX=direction===0?0:(direction>0?-12:12);
-  // Opening the first image must never dim/flash the image.
-  if(direction===0){
-    if(img.getAttribute('src')!==newSrc)img.src=newSrc;
-    img.style.opacity='1';
-    img.style.transform='none';
-    return;
-  }
-  img.style.opacity='0.55';
-  img.style.transform=`translateX(${outX}px)`;
-  requestAnimationFrame(()=>{
-    img.src=newSrc;
-    requestAnimationFrame(()=>{
-      img.style.opacity='1';
-      img.style.transform='translateX(0)';
-    });
-  });
+  if(!img||!newSrc)return;
+  // Keep the existing image visible until the next image has loaded.
+  img.style.transition='none';img.style.opacity='1';img.style.transform='none';
+  if(img.getAttribute('src')===newSrc)return;
+  const next=new Image();next.decoding='async';next.src=newSrc;
+  const commit=()=>{if(currentProductImages.includes(newSrc) && currentProductImages[currentProductImageIndex]===newSrc){img.src=newSrc;img.style.opacity='1';img.style.transform='none';}};
+  if(next.complete&&next.naturalWidth)commit();else next.onload=commit;
 }
 
 function bindHorizontalSwipe(el,onLeft,onRight){
@@ -2343,7 +2332,8 @@ function renderProductGallery(direction=0){
   if(prevBtn)prevBtn.disabled=total<=1;
   if(nextBtn)nextBtn.disabled=total<=1;
 
-  bindKandortyStableSwipe(gallery);
+  // Product gallery swipe is owned by kdProductSwipe below.
+
 
   /* Native gallery dots: created directly by the real gallery renderer. */
   {
@@ -6873,6 +6863,42 @@ function renderKandortyViewerDots(){
  viewer.addEventListener('transitionend',()=>{if(viewer.classList.contains('hidden'))hide()});
  // Warm all images when the fullscreen viewer opens, without blocking the UI.
  viewer.addEventListener('touchstart',warm,{passive:true});
+})();
+</script>
+
+<!-- Kandorty: one gesture = one change inside product details -->
+<style>
+#productModal .product-gallery-stage{touch-action:pan-y!important}
+#productModal #modalMainImage{opacity:1!important;transform:none!important;transition:none!important}
+</style>
+<script id="kd-product-single-swipe">
+(function(){
+ const stage=document.querySelector('#productModal .product-gallery-stage');
+ if(!stage)return;
+ let g=null, blockClick=false;
+ stage.addEventListener('touchstart',function(e){
+   if(e.touches.length!==1){g=null;return;}
+   const t=e.touches[0];g={x:t.clientX,y:t.clientY,dx:0,dy:0,axis:null};
+   e.stopPropagation();
+ },{capture:true,passive:true});
+ stage.addEventListener('touchmove',function(e){
+   if(!g||e.touches.length!==1)return;
+   const t=e.touches[0];g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
+   if(!g.axis && Math.max(Math.abs(g.dx),Math.abs(g.dy))>9)g.axis=Math.abs(g.dx)>Math.abs(g.dy)*1.15?'x':'y';
+   if(g.axis==='x')e.preventDefault();
+   e.stopPropagation();
+ },{capture:true,passive:false});
+ stage.addEventListener('touchend',function(e){
+   if(!g)return;
+   const done=g;g=null;
+   e.stopPropagation();
+   if(done.axis!=='x'||Math.abs(done.dx)<45||Math.abs(done.dx)<Math.abs(done.dy)*1.15)return;
+   blockClick=true;
+   if(typeof stepProductImage==='function')stepProductImage(done.dx<0?1:-1);
+   setTimeout(()=>{blockClick=false},400);
+ },{capture:true,passive:true});
+ stage.addEventListener('touchcancel',function(e){g=null;e.stopPropagation()},{capture:true,passive:true});
+ stage.addEventListener('click',function(e){if(blockClick){e.preventDefault();e.stopImmediatePropagation();blockClick=false;}},{capture:true});
 })();
 </script>
 </body></html>
