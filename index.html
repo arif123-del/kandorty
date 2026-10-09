@@ -6778,91 +6778,62 @@ function renderKandortyViewerDots(){
 </style>
 <script id="kd-seamless-gallery-script">
 (function(){
- const viewer=document.getElementById('imageViewerModal');
- const card=viewer&&viewer.querySelector('.image-viewer-card');
- let main=document.getElementById('imageViewerImg');
- if(!card||!main)return;
- // Remove legacy swipe/zoom listeners: they were switching on touch-down and again on release.
- const cleanMain=main.cloneNode(true);
- main.replaceWith(cleanMain);
- main=cleanMain;
+ const viewer=document.getElementById('imageViewerModal'),card=viewer&&viewer.querySelector('.image-viewer-card');
+ let main=document.getElementById('imageViewerImg');if(!card||!main)return;
+ // Remove old element-level gesture handlers, including older zoom and swipe listeners.
+ const fresh=main.cloneNode(true);main.replaceWith(fresh);main=fresh;
  const layer=document.createElement('div');layer.className='kd-swipe-layer';
  const track=document.createElement('div');track.className='kd-swipe-track';layer.appendChild(track);card.insertBefore(layer,main);
- const cache=new Map();
- // One gesture has exactly one owner, and the index is committed only after release.
+ const cache=new Map();let gesture=null,locked=false,lastSwipe=0;
  const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
- let gesture=null,busy=false,swallowClick=false;
- function preload(src){
-   if(!src)return null;
-   if(!cache.has(src)){
-     const img=new Image();img.decoding='async';img.src=src;cache.set(src,img);
-     if(img.decode)img.decode().catch(()=>{});
-   }
-   return cache.get(src);
- }
- function ready(src){const i=preload(src);return !!(i&&i.complete&&i.naturalWidth>0);}
- function warm(){const a=photos(),n=a.length,i=currentProductImageIndex;if(!n)return;preload(a[i%n]);preload(a[(i+1)%n]);preload(a[(i+n-1)%n]);}
- function hide(){layer.style.display='none';track.style.transition='none';track.style.transform='translate3d(0,0,0)';main.style.visibility='visible';gesture=null;busy=false;}
- function prepare(){
-   const a=photos(),n=a.length,i=currentProductImageIndex;
-   if(n<2)return false;
-   const indices=[(i+n-1)%n,i,(i+1)%n];
-   if(!indices.every(j=>ready(a[j])))return false;
-   track.replaceChildren(...indices.map(j=>{const img=document.createElement('img');img.src=a[j];img.alt='';img.draggable=false;return img;}));
+ function load(src){if(!src)return Promise.reject();let i=cache.get(src);if(!i){i=new Image();i.decoding='async';i.src=src;cache.set(src,i);}return i.complete&&i.naturalWidth?Promise.resolve(i):new Promise((resolve,reject)=>{i.addEventListener('load',()=>resolve(i),{once:true});i.addEventListener('error',reject,{once:true});});}
+ function warm(){const a=photos(),n=a.length,j=currentProductImageIndex;if(n){load(a[j%n]).catch(()=>{});load(a[(j+1)%n]).catch(()=>{});load(a[(j+n-1)%n]).catch(()=>{});}}
+ function clear(){layer.style.display='none';main.style.visibility='visible';track.style.transition='none';track.style.transform='translate3d(0,0,0)';locked=false;}
+ async function move(dir){
+  const a=photos(),n=a.length;if(n<2||locked)return;
+  locked=true;const old=currentProductImageIndex,next=(old+dir+n)%n;
+  try{
+   // Never hide the current image before the next photo has decoded.
+   await Promise.all([load(a[old]),load(a[next])]);
+   if(viewer.classList.contains('hidden')||photos()[old]!==a[old]){clear();return;}
+   const indices=[(old-1+n)%n,old,(old+1)%n];
+   track.replaceChildren(...indices.map(j=>{const im=document.createElement('img');im.src=a[j];im.alt='';im.draggable=false;return im;}));
    track.style.transition='none';track.style.transform='translate3d(0,0,0)';
-   layer.style.display='block';main.style.visibility='hidden';return true;
+   layer.style.display='block';main.style.visibility='hidden';
+   void track.offsetWidth;
+   track.style.transition='transform 260ms cubic-bezier(.22,.65,.2,1)';
+   track.style.transform='translate3d('+(-dir*card.clientWidth)+'px,0,0)';
+   await new Promise(r=>setTimeout(r,285));
+   currentProductImageIndex=next;
+   main.src=a[next];main.style.opacity='1';main.style.transform='none';main.style.transition='none';
+   const detail=document.getElementById('modalMainImage');if(detail)detail.src=a[next];
+   if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();
+   requestAnimationFrame(()=>requestAnimationFrame(clear));
+  }catch(e){clear();}
  }
- viewer.addEventListener('click',e=>{if(swallowClick){e.preventDefault();e.stopImmediatePropagation();swallowClick=false;}},{capture:true});
- main.addEventListener('touchstart',e=>{
-   if(viewer.classList.contains('hidden')||busy||e.touches.length!==1||photos().length<2||kandortyImageZoom>1.01)return;
-   const t=e.touches[0];gesture={x:t.clientX,y:t.clientY,dx:0,axis:'',start:performance.now(),shown:false};warm();
-   // Stop earlier conflicting swipe handlers from starting a second transition.
-   e.stopImmediatePropagation();
+ // Capture the fullscreen gesture before legacy listeners can process it.
+ function inside(e){return !viewer.classList.contains('hidden')&&e.target&&e.target.closest&&e.target.closest('#imageViewerModal .image-viewer-card')&&!e.target.closest('.image-viewer-close, #kandortyViewerDots');}
+ window.addEventListener('touchstart',e=>{
+  if(!inside(e)||e.touches.length!==1||locked)return;
+  const t=e.touches[0];gesture={x:t.clientX,y:t.clientY,id:t.identifier,dx:0,dy:0};warm();
+  e.stopImmediatePropagation();
  },{capture:true,passive:true});
- main.addEventListener('touchmove',e=>{
-   if(!gesture)return;
-   e.stopImmediatePropagation();
-   if(e.touches.length!==1){hide();return;}
-   const t=e.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
-   if(!gesture.axis&&Math.max(Math.abs(dx),Math.abs(dy))>7)gesture.axis=Math.abs(dx)>Math.abs(dy)*1.15?'x':'y';
-   if(gesture.axis!=='x')return;
-   e.preventDefault();
-   if(!gesture.shown){gesture.shown=prepare();if(!gesture.shown)return;}
-   gesture.dx=Math.max(-card.clientWidth,Math.min(card.clientWidth,dx));
-   track.style.transform='translate3d('+gesture.dx+'px,0,0)';
+ window.addEventListener('touchmove',e=>{
+  if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);
+  if(!t){gesture=null;return;}
+  gesture.dx=t.clientX-gesture.x;gesture.dy=t.clientY-gesture.y;
+  if(Math.abs(gesture.dx)>10&&Math.abs(gesture.dx)>Math.abs(gesture.dy)*1.15)e.preventDefault();
+  e.stopImmediatePropagation();
  },{capture:true,passive:false});
- main.addEventListener('touchend',e=>{
-   if(!gesture)return;
-   e.stopImmediatePropagation();
-   const g=gesture;gesture=null;
-   if(!g.shown){hide();return;}
-   const w=card.clientWidth||window.innerWidth;
-   const elapsed=Math.max(1,performance.now()-g.start);
-   const go=Math.abs(g.dx)>w*.2||(Math.abs(g.dx)>40&&Math.abs(g.dx)/elapsed>.5);
-   const dir=go?(g.dx<0?1:-1):0;
-   busy=true;swallowClick=true;
-   const destination=dir?-dir*w:0;
-   const ms=dir?240:180;
-   track.style.transition='transform '+ms+'ms cubic-bezier(.22,.68,.18,1)';
-   requestAnimationFrame(()=>track.style.transform='translate3d('+destination+'px,0,0)');
-   setTimeout(()=>{
-     if(dir){
-       const a=photos();currentProductImageIndex=(currentProductImageIndex+dir+a.length)%a.length;
-       const src=a[currentProductImageIndex];
-       // Both visible images are already decoded. Swap beneath the covering track.
-       main.style.transition='none';main.style.opacity='1';main.style.transform='none';
-       main.src=src;
-       const modalImg=document.getElementById('modalMainImage');if(modalImg)modalImg.src=src;
-       if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();
-       warm();
-     }
-     requestAnimationFrame(()=>requestAnimationFrame(hide));
-   },ms+20);
+ window.addEventListener('touchend',e=>{
+  if(!gesture)return;const g=gesture;gesture=null;
+  const t=Array.from(e.changedTouches).find(t=>t.identifier===g.id);
+  if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
+  e.stopImmediatePropagation();
+  if(Math.abs(g.dx)>48&&Math.abs(g.dx)>Math.abs(g.dy)*1.15){lastSwipe=Date.now();move(g.dx<0?1:-1);}
  },{capture:true,passive:true});
- main.addEventListener('touchcancel',e=>{if(!gesture)return;e.stopImmediatePropagation();hide();},{capture:true,passive:true});
- viewer.addEventListener('transitionend',()=>{if(viewer.classList.contains('hidden'))hide()});
- // Warm all images when the fullscreen viewer opens, without blocking the UI.
- viewer.addEventListener('touchstart',warm,{passive:true});
+ window.addEventListener('touchcancel',e=>{if(gesture){gesture=null;e.stopImmediatePropagation();}},{capture:true,passive:true});
+ window.addEventListener('click',e=>{if(Date.now()-lastSwipe<450&&inside(e)){e.preventDefault();e.stopImmediatePropagation();}},{capture:true});
 })();
 </script>
 
