@@ -5156,7 +5156,8 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
   const shown=normalizeOrderShape(o);
   const flow=['new','preparing','shipping','delivered'];
   const idx=flow.indexOf(shown.status);
-  const canEdit=shown.status==='new'&&editable;
+  const cancelPending=Boolean(shown.customerEdit?.cancelRequestedAt||editable?.cancelRequestedAt);
+  const canEdit=shown.status==='new'&&editable&&!cancelPending;
   $('trackingResult').innerHTML=`<div class="track-box">
     <b>${esc(shown.id||'')}</b>
     <div class="track-steps">
@@ -5167,7 +5168,8 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
     <div class="order-products-title">المنتجات المطلوبة</div>
     ${renderOrderItemsHtml(shown)}
     <div class="price" style="margin-top:8px">${moneyHtml(shown.total||0)}</div>
-    ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button>`:''}
+    ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button><button class="btn ghost" style="width:100%;margin-top:9px;border-color:#b91c1c;color:#b91c1c" onclick="requestOrderCancellation()">طلب إلغاء الطلب</button>`:''}
+    ${cancelPending&&shown.status==='new'?'<div class="customer-edit-note" style="color:#9a3412;font-weight:700">⏳ تم إرسال طلب الإلغاء إلى إدارة المتجر، بانتظار المراجعة.</div>':''}
     ${shown.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
     ${shown.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
@@ -5315,6 +5317,39 @@ function removeCustomerEditItem(itemId){
   renderCustomerOrderEditItems();
 }
 
+let cancellationSubmitting=false;
+async function requestOrderCancellation(){
+  if(cancellationSubmitting||!activeEditableOrder)return;
+  const edit=activeEditableOrder;
+  const orderId=String(edit.orderId||'');
+  if(!orderId||!edit.editToken||edit.cancelRequestedAt)return;
+  if(!confirm('هل تريدين طلب إلغاء الطلب رقم '+orderId+'؟ سيتم إخطار الإدارة، وقد يتطلب الدفع بالبطاقة مراجعة الاسترداد.'))return;
+  cancellationSubmitting=true;
+  try{
+    const trackingSnap=await db.collection('tracking').doc(orderId).get();
+    if(!trackingSnap.exists||trackingSnap.data()?.status!=='new')throw new Error('بدأ تجهيز الطلب أو تغيّرت حالته، ولا يمكن طلب الإلغاء الآن.');
+    const currentEdit=await db.collection('order_edits').doc(edit.editToken).get();
+    if(!currentEdit.exists||String(currentEdit.data()?.orderId||'')!==orderId)throw new Error('تعذر التحقق من ملكية الطلب.');
+    if(currentEdit.data()?.cancelRequestedAt)throw new Error('تم إرسال طلب الإلغاء مسبقاً.');
+    const now=new Date().toISOString();
+    const customer=currentEdit.data()?.customer||edit.customer||{};
+    const notes=String(currentEdit.data()?.notes||'');
+    const quantities=currentEdit.data()?.quantities||quantitiesFromOrderItems(edit.items);
+    const batch=db.batch();
+    batch.update(db.collection('orders').doc(orderId),{
+      customerEdit:{customer,notes,quantities,editProof:edit.editToken,updatedAt:now,cancelRequestedAt:now},
+      customerModifiedAt:now
+    });
+    batch.update(db.collection('order_edits').doc(edit.editToken),{cancelRequestedAt:now,updatedAt:now});
+    await batch.commit();
+    activeEditableOrder={...edit,customer,notes,quantities,cancelRequestedAt:now,updatedAt:now};
+    renderTrackingResult({id:orderId,status:'new',customer,items:edit.items||[],customerEdit:{cancelRequestedAt:now}},activeEditableOrder);
+    alert('✅ تم إرسال طلب الإلغاء إلى الإدارة. سيتم مراجعته، ولا يُعدّ الطلب ملغياً حتى تؤكد الإدارة الإلغاء.');
+  }catch(error){
+    console.error('Cancellation request failed:',error);
+    alert('تعذر إرسال طلب الإلغاء. '+(error?.message||'يرجى المحاولة لاحقاً.'));
+  }finally{cancellationSubmitting=false;}
+}
 function openCustomerOrderEdit(){
   if(!activeEditableOrder){
     alert('ابحثي عن الطلب برقم الطلب ورقم الهاتف أولاً.');
