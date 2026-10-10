@@ -7498,7 +7498,7 @@ async function cancelOrderFromMyOrders(orderId,button){
       if(normalizeOrderPhone(phone).length<6)throw new Error('أدخلي رقم الهاتف المسجل في الطلب (6 أرقام على الأقل).');
       verifiedEdit=await loadEditableOrder(code,phone);
     }
-    if(!verifiedEdit)throw new Error('لم نتمكن من تأكيد ملكية هذا الطلب. استخدمي رقم الهاتف الأصلي، وإذا كان الطلب قديماً افتحي إدارة الطلبات لتفعيل التحقق.');
+    if(!verifiedEdit)throw new Error('لم نتمكن من تأكيد ملكية هذا الطلب. تأكدي من رقم الهاتف المستخدم عند الشراء، أو تواصلي مع المتجر للمساعدة.');
     if(verifiedEdit.cancelRequestedAt)throw new Error('تم إلغاء هذا الطلب سابقاً.');
     activeEditableOrder=verifiedEdit;
     activeOrderAccessKey=verifiedEdit.accessKey||'';
