@@ -1282,6 +1282,25 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 .my-orders-list .order-product-image{width:64px;min-height:70px;object-fit:cover;}
 @media(max-width:500px){.my-orders-card{padding:14px!important}.my-orders-actions .btn{flex:1 1 calc(50% - 8px)}.my-orders-list .order-card{padding:12px}}
 </style>
+<style id="kandorty-my-orders-products-only">
+#myOrdersModal .my-orders-card{max-width:620px!important;}
+#myOrdersModal .my-orders-list{display:grid;gap:12px;padding:4px 0 12px;}
+#myOrdersModal .my-purchased-product{display:flex;align-items:center;gap:13px;
+  border:1px solid #f0e3e5;background:#fff;border-radius:16px;padding:12px;
+  box-shadow:0 3px 14px rgba(53,14,24,.045);}
+#myOrdersModal .my-purchased-image,#myOrdersModal .my-purchased-noimage{
+  width:88px;height:110px;flex:0 0 88px;object-fit:cover;border-radius:11px;background:#f5f0f1;}
+#myOrdersModal .my-purchased-noimage{display:grid;place-items:center;font-size:12px;color:#777;}
+#myOrdersModal .my-purchased-info{min-width:0;flex:1;}
+#myOrdersModal .my-purchased-name{font-weight:800;font-size:15px;line-height:1.55;overflow-wrap:anywhere;}
+#myOrdersModal .my-purchased-quantity{color:#785e66;font-size:13px;margin-top:8px;}
+#myOrdersModal .my-purchased-price{margin-top:7px;font-size:14px;font-weight:800;color:#961129;}
+#myOrdersModal #myOrdersInfo.hidden{display:none!important;}
+@media(max-width:500px){
+ #myOrdersModal .my-purchased-product{padding:9px;gap:10px;}
+ #myOrdersModal .my-purchased-image,#myOrdersModal .my-purchased-noimage{width:76px;height:98px;flex-basis:76px;}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -1660,12 +1679,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="myOrdersModal" class="modal hidden" dir="rtl"><div class="modal-card my-orders-card">
   <div class="modal-head"><h2>📦 طلباتي</h2><button class="x" type="button" onclick="closeMyOrders()" aria-label="إغلاق">×</button></div>
-  <div id="myOrdersInfo" class="notice" aria-live="polite"></div>
-  <div class="my-orders-actions">
-    <button class="btn ghost" id="myOrdersTrackBtn" type="button">📍 تتبع برقم الطلب</button>
-    <button class="btn ghost" id="myOrdersSignInBtn" type="button">📱 الدخول برقم الهاتف</button>
-    <button class="btn primary" id="myOrdersRefreshBtn" type="button">↻ تحديث</button>
-  </div>
+  <div id="myOrdersInfo" class="notice hidden" role="alert"></div>
   <div id="myOrdersList" class="my-orders-list" aria-live="polite"></div>
 </div></div>
 
@@ -6908,8 +6922,8 @@ function renderKandortyViewerDots(){
 </script>
 <style id="kandorty-no-entry-image-jump">#productModal #modalMainImage,#imageViewerModal #imageViewerImg{animation:none!important;transform-origin:center center!important}#productModal:not(.hidden) .product-gallery-stage{contain:paint}#imageViewerModal:not(.hidden) .image-viewer-card{overflow:hidden!important}</style>
 <script id="kandorty-customer-my-orders-feature">
-// A customer can see either receipts created on this browser, or orders whose
-// customerUid is verified by Firebase Phone Authentication. No phone-only search.
+// My Orders displays purchased product items only. It never does an unverified
+// phone-number lookup; receipts come from this browser or the signed-in account.
 let myOrdersReturnAfterLogin=false;
 let myOrdersRefreshSeq=0;
 function closeMyOrders(){
@@ -6917,43 +6931,40 @@ function closeMyOrders(){
   const el=document.getElementById('myOrdersModal');
   if(el)el.classList.add('hidden');
 }
-function viewMyOrderTracking(id){
-  closeMyOrders();
-  const btn=document.getElementById('trackBtn');
-  if(btn)btn.click();
-  document.getElementById('trackingNumber').value=id;
-  const phone=customerAuthUser?.phoneNumber||customerProfile?.phone||'';
-  if(phone)document.getElementById('trackingPhone').value=phone;
-  trackOrder();
-}
 function renderMyOrders(){
   const listEl=document.getElementById('myOrdersList');
   const info=document.getElementById('myOrdersInfo');
-  const loginBtn=document.getElementById('myOrdersSignInBtn');
   if(!listEl||!info)return;
   recoverLastCustomerReceipt();
-  const loggedIn=!!customerAuthUser?.uid;
-  const list=customerVisibleOrders().map(effectiveOrderView);
-  if(loginBtn)loginBtn.classList.toggle('hidden',loggedIn);
-  info.textContent=loggedIn
-    ?(myOrdersCloudLoadFailed?'تعذر تحديث طلبات الحساب. تظهر الطلبات المحفوظة سابقاً فقط. تحققي من الاتصال وصلاحيات Firebase ثم أعيدي المحاولة.':'هذه طلبات حسابك المسجل برقم الهاتف، بالإضافة إلى الطلبات المحفوظة على هذا الجهاز.')
-    :'هذه طلباتك المحفوظة على هذا الجهاز فقط. للدخول من جهاز آخر، استخدمي رقم هاتفك الموثّق. ولطلب قديم استخدمي رقم الطلب.';
-  if(!list.length){
-    listEl.innerHTML='<div class="empty">لا توجد طلبات محفوظة حتى الآن. يمكنك تتبع طلب سابق باستخدام رقمه.</div>';
+  const orders=customerVisibleOrders().map(effectiveOrderView);
+  // Expose only purchased products, not tracking, order IDs or progress.
+  const purchased=[];
+  orders.forEach(order=>{
+    const items=Array.isArray(order.items)?order.items:[];
+    items.forEach(item=>{
+      const qty=Math.floor(Number(item.qty)||0);
+      if(qty>0)purchased.push({item,qty});
+    });
+  });
+  info.textContent=myOrdersCloudLoadFailed&&customerAuthUser?.uid
+    ?'تعذّر تحديث مشتريات الحساب، تُعرض المشتريات المحفوظة فقط.':'';
+  info.classList.toggle('hidden',!info.textContent);
+  if(!purchased.length){
+    listEl.innerHTML='<div class="empty">لا توجد منتجات تم شراؤها بعد.</div>';
     return;
   }
-  listEl.innerHTML=list.map(o=>{
-    const code=String(o.id||'');
-    const date=o.createdAt?new Date(o.createdAt):null;
-    const when=date && !isNaN(date.getTime())?date.toLocaleString('ar-AE'):'';
-    const status=esc(statusText(o.status||'new'));
-    return `<div class="order-card" dir="rtl">
-      <div class="my-order-header"><b class="my-order-code">${esc(code)}</b><span class="my-order-status">${status}</span></div>
-      <div class="my-order-time">${esc(when)}</div>
-      <div class="order-products-title">المنتجات المطلوبة</div>
-      ${renderOrderItemsHtml(o)}
-      <div class="my-order-foot"><strong>${moneyHtml(Number(o.total)||0)}</strong>
-      <button type="button" class="btn ghost my-order-track" data-order-id="${esc(code)}">📍 تتبع الطلب</button></div>
+  listEl.innerHTML=purchased.map(({item,qty})=>{
+    const photo=orderItemImage(item);
+    const label=esc(item.name||item.nameAr||item.code||'منتج');
+    return `<div class="my-purchased-product" dir="rtl">
+      ${photo?`<img class="my-purchased-image" src="${esc(photo)}" alt="${label}" loading="lazy">`:
+        '<div class="my-purchased-noimage">بدون صورة</div>'}
+      <div class="my-purchased-info">
+        <div class="my-purchased-name">${label}</div>
+        <div class="my-purchased-quantity">الكمية: ${qty}</div>
+        ${Number.isFinite(Number(item.price))&&Number(item.price)>0
+          ?`<div class="my-purchased-price">${moneyHtml(Number(item.price))}</div>`:''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -6961,40 +6972,16 @@ async function refreshMyOrders(){
   const modal=document.getElementById('myOrdersModal');
   if(!modal||modal.classList.contains('hidden'))return;
   const seq=++myOrdersRefreshSeq;
-  const btn=document.getElementById('myOrdersRefreshBtn');
-  if(btn){btn.disabled=true;btn.textContent='جارٍ التحديث...';}
   try{
     if(!authInitialStateResolved){
       await Promise.race([authInitialStatePromise,new Promise(r=>setTimeout(r,4000))]);
     }
     if(seq!==myOrdersRefreshSeq)return;
-    if(customerAuthUser?.uid){
-      await loadCustomerCloudOrders();
-    }
-    // Public tracking holds only order status; use it to refresh local receipts.
-    const local=readCustomerOwnOrders();
-    let changed=false;
-    await Promise.all(local.slice(0,35).map(async o=>{
-      try{
-        const snap=await db.collection('tracking').doc(o.id).get();
-        if(snap.exists && snap.data()?.status){
-          o.status=snap.data().status;
-          changed=true;
-        }
-      }catch(e){console.warn('Own order status refresh failed',o.id,e)}
-    }));
-    if(changed)saveCustomerOwnOrders(local);
+    if(customerAuthUser?.uid)await loadCustomerCloudOrders();
   }catch(error){
-    console.warn('My orders refresh failed:',error);
-    if(seq===myOrdersRefreshSeq){
-      const msg=document.getElementById('myOrdersInfo');
-      if(msg)msg.textContent='تعذر تحديث الطلبات الآن؛ قد تكون البيانات المعروضة قديمة.';
-    }
+    console.warn('My purchased products refresh failed:',error);
   }finally{
-    if(seq===myOrdersRefreshSeq){
-      if(btn){btn.disabled=false;btn.textContent='↻ تحديث';}
-      renderMyOrders();
-    }
+    if(seq===myOrdersRefreshSeq)renderMyOrders();
   }
 }
 function openMyOrders(){
@@ -7009,23 +6996,6 @@ function openMyOrders(){
   const modal=document.getElementById('myOrdersModal');
   if(!btn||!modal)return;
   btn.addEventListener('click',openMyOrders);
-  document.getElementById('myOrdersRefreshBtn').addEventListener('click',refreshMyOrders);
-  document.getElementById('myOrdersTrackBtn').addEventListener('click',()=>{
-    closeMyOrders();
-    const track=document.getElementById('trackBtn');
-    if(track)track.click();
-  });
-  document.getElementById('myOrdersSignInBtn').addEventListener('click',()=>{
-    myOrdersReturnAfterLogin=true;
-    closeMyOrders();
-    chooseCustomerPhoneLogin();
-  });
-  document.getElementById('myOrdersList').addEventListener('click',event=>{
-    const action=event.target.closest('.my-order-track');
-    if(!action)return;
-    const id=action.getAttribute('data-order-id');
-    if(id)viewMyOrderTracking(id);
-  });
 })();
 </script>
 
