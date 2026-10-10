@@ -2284,7 +2284,7 @@ const ADMIN_CANCEL_ALERTS_KEY='kandorty_admin_seen_cancel_requests_v1';
 const adminCancelAlertsSession=new Set();
 function isPendingCustomerCancellation(order){
   const edit=order?.customerEdit;
-  return order?.status==='new'&&Boolean(edit?.cancelRequestedAt)&&edit?.editProof===order?.editToken;
+  return ['new','cancelled'].includes(order?.status)&&Boolean(edit?.cancelRequestedAt)&&edit?.editProof===order?.editToken;
 }
 function pendingCancellationOrders(){
   return (Array.isArray(orders)?orders:[]).filter(isPendingCustomerCancellation);
@@ -2295,8 +2295,8 @@ function renderAdminCancellationRequests(){
   const pending=pendingCancellationOrders();
   box.innerHTML=pending.length?
     '<div style="border:2px solid #dc2626;border-radius:14px;padding:14px;background:#fff3f3;color:#991b1b;margin:12px 0;font-size:16px;font-weight:700">'+
-    '🔔 طلبات إلغاء تنتظر مراجعتك: '+pending.length+
-    '<div style="font-size:13px;margin-top:6px;color:#6b2020">راجعي الطلبات المعلّمة أدناه، ثم حدّثي حالتها. للطلبات المدفوعة بالبطاقة، تحققي من استرداد المبلغ يدوياً.</div>'+
+    '🔔 طلبات ألغاها العملاء: '+pending.length+
+    '<div style="font-size:13px;margin-top:6px;color:#6b2020">الطلبات الملغاة معلّمة أدناه. إذا دُفعت بالبطاقة، تابعي استرداد المبلغ في Stripe.</div>'+
     '</div>':'';
 }
 function notifiedCancellationRequests(){
@@ -2308,11 +2308,11 @@ function notifyAdminCustomerCancellation(order,count){
   const note=(order.payment==='card'?' (مدفوع بالبطاقة: راجعي الاسترداد)':'');
   playNewOrderSound();
   if(typeof showBrowserOrderNotification==='function'){
-    showBrowserOrderNotification('🔔 طلب إلغاء من العميل','رقم الطلب: '+(order.id||'-')+' — '+(customer.name||'-')+note,'cancel-'+(order.id||''));
+    showBrowserOrderNotification('🔔 العميل ألغى طلباً','رقم الطلب: '+(order.id||'-')+' — '+(customer.name||'-')+note,'cancel-'+(order.id||''));
   }
-  alert('🔔 طلب إلغاء من العميل!\\n\\nرقم الطلب: '+(order.id||'-')+
+  alert('🔔 ألغى العميل الطلب!\\n\\nرقم الطلب: '+(order.id||'-')+
     '\\nالعميل: '+(customer.name||'-')+'\\nالهاتف: '+(customer.phone||'-')+
-    '\\nالحالة: في انتظار موافقة الإدارة'+note+
+    '\\nالحالة: ملغي من العميل'+note+
     (count>1?'\\nطلبات إلغاء جديدة أخرى: '+(count-1):''));
 }
 function alertNewCustomerCancellationRequests(docs){
@@ -2333,6 +2333,25 @@ function alertNewCustomerCancellationRequests(docs){
   notifyAdminCustomerCancellation(newRequests[0],newRequests.length);
 }
 
+const customerCancelFinalizing=new Set();
+async function finalizeCustomerCancellation(order){
+  const id=String(order?.id||'');
+  if(!id||customerCancelFinalizing.has(id)||!isPendingCustomerCancellation(order)||order.status!=='new')return;
+  customerCancelFinalizing.add(id);
+  try{
+    const orderRef=db.collection('orders').doc(id),trackRef=db.collection('tracking').doc(id);
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(orderRef);
+      if(!snap.exists)return;
+      const latest={id,...snap.data()};
+      if(!isPendingCustomerCancellation(latest)||latest.status!=='new')return;
+      const canceledAt=String(latest.customerEdit.cancelRequestedAt);
+      tx.update(orderRef,{status:'cancelled',cancelledBy:'customer',cancelledAt:canceledAt});
+      tx.set(trackRef,{id,status:'cancelled',cancelledAt:canceledAt},{merge:true});
+    });
+  }catch(error){console.warn('Auto-finalize customer cancellation failed for '+id,error);}
+  finally{customerCancelFinalizing.delete(id);}
+}
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
 
@@ -2372,6 +2391,7 @@ function startAdminOrdersListener(){
       orders=docs;
       // Alert even on the next admin login if the customer requested cancellation while away.
       alertNewCustomerCancellationRequests(docs);
+      docs.filter(o=>o.status==='new'&&isPendingCustomerCancellation(o)).forEach(o=>finalizeCustomerCancellation(o));
       try{localStorage.removeItem(ORDERS_KEY);}catch(error){console.warn('Old order cache cleanup skipped:',error);}
       ensureCustomerEditForOldOrders(orders).catch(console.warn);
       renderOrders();
@@ -2489,6 +2509,7 @@ function effectiveOrderView(order){
 
   return {
     ...o,
+    status:o.status==='new'&&edit.cancelRequestedAt&&edit.editProof===o.editToken?'cancelled':o.status,
     customer,
     notes:typeof edit.notes==='string'?edit.notes:(o.notes||''),
     items,
@@ -2846,7 +2867,7 @@ function renderOrders(){
     const o=effectiveOrderView(raw);
     return `<div class="order-card">
       <div class="order-head"><div><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small>
-      ${isPendingCustomerCancellation(raw)?'<br><span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;padding:5px 9px;border-radius:9px;font-weight:800">🔔 العميل طلب إلغاء هذا الطلب — بانتظار مراجعتك</span>':o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
+      ${isPendingCustomerCancellation(raw)?'<br><span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;padding:5px 9px;border-radius:9px;font-weight:800">🔔 تم إلغاء الطلب بواسطة العميل</span>':o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
       </div>
       <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
         ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
@@ -2863,40 +2884,39 @@ function renderOrders(){
     :'<div class="empty">لا توجد طلبات بعد</div>');
 }
 async function updateOrderStatus(id,status){
-  const current=orders.find(o=>o.id===id);
+  const current=orders.find(o=>String(o.id)===String(id));
   if(!current||!auth.currentUser)return;
+  if(isPendingCustomerCancellation(current)&&status!=='cancelled'){
+    alert('العميل ألغى الطلب بالفعل؛ لا يمكن تحويله إلى التجهيز أو التوصيل.');
+    renderOrders();return;
+  }
   if(status==='cancelled'&&current.payment==='card'&&current.paymentStatus==='paid'){
-    if(!confirm('هذا الطلب مدفوع بالبطاقة. تغيير الحالة إلى ملغي لا يعيد المال تلقائياً؛ يجب مراجعة الاسترداد في Stripe. هل تودين المتابعة؟')){
+    if(!confirm('إلغاء الطلب لا يعيد المبلغ تلقائياً إلى البطاقة. يجب مراجعة الاسترداد في Stripe. هل تودين المتابعة؟')){
       renderOrders();return;
     }
   }
-
   try{
-    // PRIMARY: update the real private order first.
-    await db.collection('orders').doc(id).update({status});
-
-    orders=orders.map(o=>o.id===id?{...o,status}:o);
-    try{localStorage.removeItem(ORDERS_KEY);}catch(error){console.warn('Old order cache cleanup skipped:',error);}
-    renderOrders();
-    renderProfileOrders();
-
-    // SECONDARY: sync public tracking; failure here does not undo the order update.
-    try{
-      await db.collection('tracking').doc(id).set({
-        id,
-        status,
-        createdAt:current.createdAt||''
-      },{merge:true});
-    }catch(trackError){
-      console.warn('Tracking status sync failed:',trackError);
-    }
+    const orderRef=db.collection('orders').doc(id),trackRef=db.collection('tracking').doc(id);
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(orderRef);
+      if(!snap.exists)throw new Error('الطلب غير موجود.');
+      const latest={id,...snap.data()};
+      if(isPendingCustomerCancellation(latest)&&status!=='cancelled')
+        throw new Error('العميل ألغى الطلب بالفعل.');
+      if(latest.status==='cancelled'&&status!=='cancelled')
+        throw new Error('الطلب ملغي ولا يمكن إرساله.');
+      tx.update(orderRef,{status});
+      tx.set(trackRef,{id,status,createdAt:latest.createdAt||''},{merge:true});
+    });
+    orders=orders.map(o=>String(o.id)===String(id)?{...o,status}:o);
+    try{localStorage.removeItem(ORDERS_KEY);}catch(_){}
+    renderOrders();renderProfileOrders();
   }catch(error){
     console.error('Order status update error:',error);
-    alert('تعذر تحديث حالة الطلب');
+    alert('تعذر تحديث حالة الطلب: '+(error?.message||''));
     renderOrders();
   }
 }
-
 
 const SETTINGS_KEY='kandorty_settings_v1';
 const CLOUDINARY_CLOUD_NAME='zz3znbcp';
