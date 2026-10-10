@@ -3580,8 +3580,9 @@ async function syncOrdersToTracking(orderList){
         if(!o||!o.id)return;
         batch.set(db.collection('tracking').doc(o.id),{
           id:o.id,
-          status:o.status||'new',
-          createdAt:o.createdAt||''
+          status:isPendingCustomerCancellation(o)?'cancelled':(o.status||'new'),
+          createdAt:o.createdAt||'',
+          ...(o.cancellationLockedAt?{cancellationLockedAt:o.cancellationLockedAt}:{})
         },{merge:true});
       });
       await batch.commit();
@@ -3932,7 +3933,7 @@ async function ensureCustomerEditForOldOrders(orderList){
   // before creating order_edits / order_access. Those orders used to be
   // skipped forever. This repair checks and recreates the missing records.
   const candidates=(Array.isArray(orderList)?orderList:[])
-    .filter(o=>o&&o.status==='new'&&o.customer?.phone);
+    .filter(o=>o&&o.status==='new'&&o.customer?.phone&&!o.customerEdit?.cancelRequestedAt);
 
   if(!candidates.length)return;
 
@@ -4589,8 +4590,11 @@ async function updateOrderStatus(id,status){
         throw new Error('العميل ألغى الطلب بالفعل.');
       if(latest.status==='cancelled'&&status!=='cancelled')
         throw new Error('الطلب ملغي ولا يمكن إرساله.');
-      tx.update(orderRef,{status});
-      tx.set(trackRef,{id,status,createdAt:latest.createdAt||''},{merge:true});
+      // Once one of the three processing states was selected, cancellation
+      // stays locked even if admin later changes the visible status back.
+      const lock=latest.cancellationLockedAt||(['preparing','shipping','delivered'].includes(status)?new Date().toISOString():'');
+      tx.update(orderRef,{status,...(lock?{cancellationLockedAt:lock}:{})});
+      tx.set(trackRef,{id,status,createdAt:latest.createdAt||'',...(lock?{cancellationLockedAt:lock}:{})},{merge:true});
     });
     orders=orders.map(o=>String(o.id)===String(id)?{...o,status}:o);
     try{localStorage.removeItem(ORDERS_KEY);}catch(_){}
