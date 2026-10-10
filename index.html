@@ -1769,6 +1769,12 @@ body.kandorty-cart-open #cartBtn{
  }
 }
 </style>
+<style id="kandorty-my-orders-order-code-style">
+#myOrdersModal .my-purchased-order{margin:0 0 12px;padding:10px;border:1px solid #eadfe2;border-radius:16px;background:#fff}
+#myOrdersModal .my-purchased-order-code{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:700;font-size:13px;color:#61142b;padding:4px 3px 12px;overflow-wrap:anywhere}
+#myOrdersModal .my-purchased-order-code b{font-size:14px;color:#171214;unicode-bidi:isolate}
+#myOrdersModal .my-purchased-order .my-purchased-product:last-child{margin-bottom:0}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -7136,35 +7142,40 @@ function renderMyOrders(){
   if(!listEl||!info)return;
   recoverLastCustomerReceipt();
   const orders=customerVisibleOrders().map(effectiveOrderView);
-  // Expose only purchased products, not tracking, order IDs or progress.
-  const purchased=[];
-  orders.forEach(order=>{
-    const items=Array.isArray(order.items)?order.items:[];
-    items.forEach(item=>{
-      const qty=Math.floor(Number(item.qty)||0);
-      if(qty>0)purchased.push({item,qty});
-    });
-  });
+  // Group purchased products by their original order so every order code is visible.
+  const purchasedOrders=orders.map(order=>({
+    code:String(order.id||'').trim(),
+    items:(Array.isArray(order.items)?order.items:[]).map(item=>({
+      item,qty:Math.floor(Number(item.qty)||0)
+    })).filter(row=>row.qty>0)
+  })).filter(order=>order.items.length>0);
   info.textContent=myOrdersCloudLoadFailed&&customerAuthUser?.uid
     ?'تعذّر تحديث مشتريات الحساب، تُعرض المشتريات المحفوظة فقط.':'';
   info.classList.toggle('hidden',!info.textContent);
-  if(!purchased.length){
+  if(!purchasedOrders.length){
     listEl.innerHTML='<div class="empty">لا توجد منتجات تم شراؤها بعد.</div>';
     return;
   }
-  listEl.innerHTML=purchased.map(({item,qty})=>{
-    const photo=orderItemImage(item);
-    const label=esc(item.name||item.nameAr||item.code||'منتج');
-    return `<div class="my-purchased-product" dir="rtl">
-      ${photo?`<img class="my-purchased-image" src="${esc(photo)}" alt="${label}" loading="lazy">`:
-        '<div class="my-purchased-noimage">بدون صورة</div>'}
-      <div class="my-purchased-info">
-        <div class="my-purchased-name">${label}</div>
-        <div class="my-purchased-quantity">الكمية: ${qty}</div>
-        ${Number.isFinite(Number(item.price))&&Number(item.price)>0
-          ?`<div class="my-purchased-price">${moneyHtml(Number(item.price))}</div>`:''}
-      </div>
-    </div>`;
+  listEl.innerHTML=purchasedOrders.map(order=>{
+    const code=esc(order.code);
+    const itemsHtml=order.items.map(({item,qty})=>{
+      const photo=orderItemImage(item);
+      const label=esc(item.name||item.nameAr||item.code||'منتج');
+      return `<div class="my-purchased-product" dir="rtl">
+        ${photo?`<img class="my-purchased-image" src="${esc(photo)}" alt="${label}" loading="lazy">`:
+          '<div class="my-purchased-noimage">بدون صورة</div>'}
+        <div class="my-purchased-info">
+          <div class="my-purchased-name">${label}</div>
+          <div class="my-purchased-quantity">الكمية: ${qty}</div>
+          ${Number.isFinite(Number(item.price))&&Number(item.price)>0
+            ?`<div class="my-purchased-price">${moneyHtml(Number(item.price))}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<section class="my-purchased-order" dir="rtl">
+      <div class="my-purchased-order-code">رقم الطلب: <b dir="ltr">${code||'—'}</b></div>
+      ${itemsHtml}
+    </section>`;
   }).join('');
 }
 async function refreshMyOrders(){
