@@ -2185,7 +2185,11 @@ body.kandorty-cart-open #cartBtn{
 <div id="cartModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head"><h2>سلة المشتريات</h2><button class="x" onclick="closeCart()">×</button></div>
 <div id="cartItems"></div>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;font-weight:700">
+<div id="cartDeliveryBreakdown" style="margin-top:15px;font-size:14px;line-height:2">
+<div style="display:flex;justify-content:space-between"><span>قيمة المنتجات</span><b id="cartSubtotal">0 د.إ</b></div>
+<div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><b id="cartDeliveryFee">25 د.إ</b></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-weight:700">
 <span>الإجمالي</span><span id="cartTotal" class="price">0 د.إ</span>
 </div>
 <button id="checkoutOpenBtn" class="btn primary" style="width:100%;margin-top:14px">إتمام الطلب</button>
@@ -2224,6 +2228,12 @@ body.kandorty-cart-open #cartBtn{
   </select>
 </div>
 <textarea id="orderNotes" class="full" rows="3" placeholder="ملاحظات الطلب (اختياري)"></textarea>
+<div class="full" id="checkoutPriceBreakdown" style="padding:10px;border:1px solid #eadfe1;border-radius:12px;line-height:2">
+<div style="display:flex;justify-content:space-between"><span>المنتجات</span><strong id="checkoutSubtotal">0 د.إ</strong></div>
+<div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><strong id="checkoutDeliveryFee">25 د.إ</strong></div>
+<div style="display:flex;justify-content:space-between"><span>الإجمالي مع التوصيل</span><strong id="checkoutGrandTotal">0 د.إ</strong></div>
+<div id="stripeDeliveryNotice" style="font-size:12px;color:#8b311e" hidden>عند الدفع بالبطاقة، رسوم التوصيل 25 د.إ تُدفع عند الاستلام، ولا تُحصّل بواسطة البطاقة.</div>
+</div>
 <div id="checkoutStatus" class="full" style="min-height:22px;font-size:13px;font-weight:700"></div>
 <button id="confirmOrderBtn" class="btn primary full" type="button">تأكيد الطلب</button>
 <button class="btn ghost full" type="button" id="whatsappOrderBtn">إرسال الطلب عبر WhatsApp</button>
@@ -4074,6 +4084,14 @@ function cartData(){
     product:products.find(p=>String(p.id)===String(i.id))
   })).filter(x=>x.product);
 }
+const KANDORTY_DELIVERY_FEE=25;
+function kandortyCartSubtotal(rows){return rows.reduce((sum,x)=>sum+Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0),0);}
+function refreshCheckoutDelivery(){
+ const rows=cartData(), subtotal=kandortyCartSubtotal(rows),fee=rows.length?KANDORTY_DELIVERY_FEE:0;
+ const set=(id,v)=>{const el=document.getElementById(id);if(el)el.innerHTML=moneyHtml(v);};
+ set("checkoutSubtotal",subtotal);set("checkoutDeliveryFee",fee);set("checkoutGrandTotal",subtotal+fee);
+ const notice=document.getElementById("stripeDeliveryNotice");if(notice)notice.hidden=document.getElementById("paymentMethod")?.value!=="card";
+}
 function renderCart(){
   if(!$('cartItems'))return;
   const rows=cartData();
@@ -4089,8 +4107,11 @@ function renderCart(){
       <div class="qty"><button onclick="changeCartQty(${cartIndex},-1)">−</button><span>${item.qty}</span><button onclick="changeCartQty(${cartIndex},1)">+</button><button onclick="removeCartItem(${cartIndex})">×</button></div>
     </div>`;
   }).join(''):'<div class="empty">السلة فارغة</div>';
-  const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0)),0);
-  $('cartTotal').innerHTML=moneyHtml(total);
+  const subtotal=kandortyCartSubtotal(rows),delivery=rows.length?KANDORTY_DELIVERY_FEE:0;
+  $('cartTotal').innerHTML=moneyHtml(subtotal+delivery);
+  $('cartSubtotal').innerHTML=moneyHtml(subtotal);
+  $('cartDeliveryFee').innerHTML=moneyHtml(delivery);
+  refreshCheckoutDelivery();
   $('checkoutOpenBtn').disabled=!rows.length;
 }
 function changeCartQty(cartIndex,d){
@@ -4124,6 +4145,9 @@ function removeCart(id){
 }
 function closeCart(){$('cartModal').classList.add('hidden')}
 function closeCheckout(){$('checkoutModal').classList.add('hidden')}
+document.getElementById('paymentMethod')?.addEventListener('change',refreshCheckoutDelivery);
+document.querySelectorAll('input[name="paymentChoiceVisual"]').forEach(el=>el.addEventListener('change',()=>setTimeout(refreshCheckoutDelivery,0)));
+
 $('cartBtn').onclick=()=>{renderCart();$('cartModal').classList.remove('hidden')}
 $('checkoutOpenBtn').onclick=()=>{
   if(!cart.length)return;
@@ -4172,6 +4196,7 @@ async function submitCheckoutOrder(){
     return;
   }
   if(!validateCheckoutFields())return;
+  refreshCheckoutDelivery();
 
   const confirmBtn=$('confirmOrderBtn');
   checkoutSubmitting=true;
@@ -4180,7 +4205,9 @@ async function submitCheckoutOrder(){
     confirmBtn.textContent=lang==='ar'?'جارٍ تأكيد الطلب...':'Confirming order...';
   }
 
-  const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
+  const subtotal=kandortyCartSubtotal(rows);
+  const deliveryFee=KANDORTY_DELIVERY_FEE;
+  const total=subtotal+deliveryFee;
   const verifiedPhone=customerAuthUser?.phoneNumber||'';
   const order={
     id:'KD-'+Date.now().toString().slice(-8),
@@ -4200,6 +4227,7 @@ async function submitCheckoutOrder(){
     payment:$('paymentMethod').value,
     notes:$('orderNotes').value.trim(),
     status:'new',
+    subtotal,deliveryFee,deliveryPayment: $('paymentMethod').value==='card'?'on_delivery':'with_order',
     total,
     items:rows.map(x=>({
       id:x.product.id,
@@ -5425,13 +5453,15 @@ $('customerOrderEditForm').onsubmit=async e=>{
 
 function buildWhatsAppMessage(){
   const rows=cartData();
-  const total=rows.reduce((s,x)=>s+(Number(x.product.salePrice||x.product.price)*x.item.qty),0);
+  const subtotal=kandortyCartSubtotal(rows),delivery=rows.length?KANDORTY_DELIVERY_FEE:0,total=subtotal+delivery;
   return [
     'طلب جديد من Kandorty',
     '',
     ...rows.map(x=>`${x.product.nameAr} (${x.product.code}) × ${x.item.qty} = ${money((x.product.salePrice||x.product.price)*x.item.qty)}`),
     '',
-    'الإجمالي: '+money(total),
+    'المنتجات: '+money(subtotal),
+    'رسوم التوصيل: '+money(delivery),
+    'الإجمالي مع التوصيل: '+money(total),
     'الاسم: '+$('customerName').value.trim(),
     'الهاتف: '+$('customerPhone').value.trim(),
     'الإمارة: '+$('customerCity').value,
