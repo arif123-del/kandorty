@@ -3258,7 +3258,14 @@ function backToOrderFolders(){
     selectedOrdersCustomer=key&&orderCustomerGroups.has(key)?key:null;
     if(!selectedOrdersCustomer)selectedOrdersOrderId=null;
     renderOrders();
-    if(selectedOrdersCustomer){const card=ordersAdminScroll();if(card)card.scrollTop=0;}
+    if(selectedOrdersCustomer){
+      const card=ordersAdminScroll();
+      const heading=$('ordersCustomerFileView')?.querySelector('.customer-file-header');
+      if(card&&heading){
+        const offset=heading.getBoundingClientRect().top-card.getBoundingClientRect().top;
+        card.scrollTop=Math.max(0,card.scrollTop+offset-12);
+      }
+    }
     else restoreOrderFolderPosition();
   });
 })();
