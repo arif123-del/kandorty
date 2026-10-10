@@ -3401,6 +3401,12 @@ function changePin(){resetAdminPassword()}
 
 const CART_KEY='kandorty_cart_v1', ORDERS_KEY='kandorty_orders_v1';
 const CUSTOMER_OWN_ORDERS_KEY='kandorty_customer_own_orders_v1';
+// Firestore owns the full order records. Do not fill browser storage with every
+// customer's order; this cache caused QuotaExceededError after a successful purchase.
+function discardLegacyOrdersCache(){
+  try{localStorage.removeItem(ORDERS_KEY);}catch(error){console.warn('Legacy orders cache cleanup skipped:',error);}
+}
+
 function readCustomerOwnOrders(){
   try{
     const v=JSON.parse(localStorage.getItem(CUSTOMER_OWN_ORDERS_KEY)||'[]');
@@ -3458,6 +3464,9 @@ function loadCommerce(){
     cart=Array.isArray(saved)?saved.filter(item=>item&&item.id&&Number(item.qty)>0).map(item=>({...item,qty:Math.max(1,Math.floor(Number(item.qty)))})):[];
   }catch(e){cart=[]}
   try{orders=JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]')}catch(e){orders=[]}
+  // Preserve this device's last verified receipt before removing the obsolete bulk cache.
+  recoverLastCustomerReceipt();
+  discardLegacyOrdersCache();
   updateCartCount(); renderProfileOrders();
 }
 
@@ -3656,7 +3665,7 @@ function startAdminOrdersListener(){
       });
 
       orders=docs;
-      localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+      discardLegacyOrdersCache();
       ensureCustomerEditForOldOrders(orders).catch(console.warn);
       renderOrders();
       renderProfileOrders();
@@ -3970,7 +3979,7 @@ async function submitCustomerOrder(order){
   // This happens for both cash-on-delivery and verified Stripe payments.
   rememberCustomerOwnOrder(order);
   orders=[order,...orders.filter(o=>o.id!==order.id)];
-  localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+  discardLegacyOrdersCache();
   renderProfileOrders();
   try{
     await db.collection('tracking').doc(order.id).set({id:order.id,status:order.status||'new',createdAt:order.createdAt||''});
@@ -4451,7 +4460,7 @@ async function updateOrderStatus(id,status){
     await db.collection('orders').doc(id).update({status});
 
     orders=orders.map(o=>o.id===id?{...o,status}:o);
-    localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+    discardLegacyOrdersCache();
     renderOrders();
     renderProfileOrders();
 
@@ -5384,7 +5393,7 @@ $('customerOrderEditForm').onsubmit=async e=>{
       customerEdit:{customer,notes,quantities,editProof:token,updatedAt:now},
       customerModifiedAt:now
     }:o);
-    localStorage.setItem(ORDERS_KEY,JSON.stringify(orders));
+    discardLegacyOrdersCache();
 
     customerProfile={...customerProfile,name:customer.name,phone:customer.phone,location:customer.location};
     saveCustomerProfile();
