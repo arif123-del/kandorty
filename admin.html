@@ -823,7 +823,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminOrdersTab .order-folder-status-select{padding:9px;border:1px solid #dbc8d0;border-radius:10px;background:white;max-width:180px}#adminOrdersTab .order-folder-note{margin:8px 0;color:#97192a;font-weight:800;font-size:13px}#adminOrdersTab .order-folder-hint{color:#72636b;font-size:13px;margin:10px 0 14px}</style>
 <style id="kandorty-admin-fullscreen-orders-scroll-fix">
 /* Admin uses the entire viewport, rather than a centered modal. */
-#adminModal:not(.hidden){inset:0!important;display:block!important;padding:0!important;margin:0!important;background:#fff!important;overflow:hidden!important;align-items:unset!important;justify-items:unset!important}
+#adminModal:not(.hidden){position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:10000!important;display:block!important;padding:0!important;margin:0!important;background:#fff!important;overflow:hidden!important;align-items:unset!important;justify-items:unset!important}
 #adminModal>.modal-card{box-sizing:border-box!important;width:100%!important;max-width:none!important;min-width:0!important;height:100vh!important;height:100dvh!important;max-height:none!important;min-height:0!important;border-radius:0!important;margin:0!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;scroll-behavior:auto!important;padding:16px clamp(14px,3vw,40px) max(24px,env(safe-area-inset-bottom))!important}
 #adminModal .modal-head{max-width:none!important}
 #adminOrdersTab .customer-folder-list{display:grid!important;gap:10px!important;width:100%!important}
@@ -2998,7 +2998,12 @@ function buildOrderCustomerGroups(){
     if(o.status==='cancelled'||isPendingCustomerCancellation(raw))group.cancelled++;
     if(String(o.createdAt||'')>group.latest)group.latest=String(o.createdAt||'');
   });
-  for(const g of groups.values())g.history.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  for(const g of groups.values()){
+    // Fulfillment work comes first; canceled orders remain in the same file below.
+    const isCanceled=o=>o.status==='cancelled'||Boolean(o.customerEdit?.cancelRequestedAt);
+    g.history.sort((a,b)=>Number(isCanceled(a))-Number(isCanceled(b))||
+      String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  }
   return groups;
 }
 
@@ -3084,7 +3089,13 @@ function renderOrders(){
   const visible=[...orderCustomerGroups.values()].filter(g=>
     !q||[g.name,g.phone,g.city,...g.history.map(o=>o.id)]
       .some(v=>String(v||'').toUpperCase().includes(q)));
-  visible.sort((a,b)=>String(b.latest).localeCompare(String(a.latest))||String(a.name||'').localeCompare(String(b.name||'')));
+  visible.sort((a,b)=>{
+    // Do not put customers with canceled-only orders above active customer work.
+    const active=g=>g.history.some(o=>o.status!=='cancelled'&&!o.customerEdit?.cancelRequestedAt);
+    return Number(active(b))-Number(active(a))||
+      String(b.latest).localeCompare(String(a.latest))||
+      String(a.name||'').localeCompare(String(b.name||''));
+  });
   list.innerHTML=visible.length?visible.map(orderCustomerFolderCard).join('')
     :(q?'<div class="empty">لا يوجد طلب أو عميل مطابق للبحث</div>':'<div class="empty">لا توجد طلبات بعد</div>');
 }
@@ -3128,8 +3139,13 @@ function returnToOrdersList(){
 }
 function backToOrderFolders(){
   if(!selectedOrdersCustomer)return;
-  if(history.state?.kandortyOrdersCustomer===selectedOrdersCustomer)history.back();
-  else returnToOrdersList();
+  // Do not navigate through browser history when tapping the in-panel back
+  // button. Android was restoring document scroll to the beginning.
+  if(history.state?.kandortyOrdersCustomer===selectedOrdersCustomer){
+    try{history.replaceState({...history.state,kandortyOrdersCustomer:null},'',location.href);}
+    catch(e){console.warn('Order history state could not be updated',e);}
+  }
+  returnToOrdersList();
 }
 (function initOrdersCustomerFolders(){
   $('ordersList')?.addEventListener('click',e=>{
