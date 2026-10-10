@@ -6768,4 +6768,76 @@ modal.addEventListener('touchmove',e=>{if(!active||e.touches.length!==1)return;l
 modal.addEventListener('touchend',e=>{if(!active)return;active=false;if(!gesture)return;e.preventDefault();e.stopImmediatePropagation();animating=true;const d=dir,w=card.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(70,w*.18),target=commit?-d*w:0;const ms=commit?240:180;img.style.transition='transform '+ms+'ms cubic-bezier(.2,.75,.25,1)';if(neighbor)neighbor.style.transition=img.style.transition;requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)';});setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);img.src=photos()[currentProductImageIndex];if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();if(typeof renderProductGallery==='function')renderProductGallery();}clean();},ms+20);},{capture:true,passive:false});
 modal.addEventListener('touchcancel',clean,{capture:true,passive:true});
 })();
-</script></body></html>
+</script>
+<style id="kandorty-primary-loop-style">
+#productModal .product-gallery-stage{position:relative!important;overflow:hidden!important;touch-action:none!important}
+#productModal .product-gallery-stage #modalMainImage{transition:none!important;animation:none!important}
+#productModal .kandorty-primary-neighbor{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;pointer-events:none!important;z-index:5!important}
+#imageViewerModal .kandorty-neighbor{object-fit:contain!important;object-position:center!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important}
+</style>
+<script id="kandorty-primary-loop-and-size-fix">
+(function(){
+ const stage=document.querySelector('#productModal .product-gallery-stage');
+ const img=document.getElementById('modalMainImage');
+ if(stage&&img){
+ let sx=0,sy=0,dx=0,active=false,drag=false,neighbor=null,dir=0,busy=false;
+ const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
+ const wrap=i=>(i+photos().length)%photos().length;
+ function clear(){if(neighbor){neighbor.remove();neighbor=null;}img.style.transition='none';img.style.transform='translate3d(0,0,0)';active=false;drag=false;dx=0;dir=0;busy=false;}
+ function setNeighbor(d){
+  if(neighbor)neighbor.remove();neighbor=null;dir=d;
+  if(photos().length<2)return;
+  neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-primary-neighbor';
+  neighbor.src=photos()[wrap(currentProductImageIndex+d)];
+  const r=img.getBoundingClientRect(),pr=stage.getBoundingClientRect();
+  neighbor.style.cssText+=';left:'+(r.left-pr.left)+'px!important;top:'+(r.top-pr.top)+'px!important;width:'+r.width+'px!important;height:'+r.height+'px!important;object-fit:'+getComputedStyle(img).objectFit+'!important;';
+  neighbor.style.transform='translate3d('+(d*stage.clientWidth)+'px,0,0)';
+  img.insertAdjacentElement('afterend',neighbor);
+ }
+ stage.addEventListener('touchstart',function(e){
+  if(busy||e.touches.length!==1||e.target.closest('button'))return;
+  clear();sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;
+  e.stopImmediatePropagation();
+ },{capture:true,passive:true});
+ stage.addEventListener('touchmove',function(e){
+  if(!active||e.touches.length!==1)return;
+  let x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;
+  if(!drag&&Math.abs(x)<7)return;
+  if(!drag&&Math.abs(y)>Math.abs(x))return;
+  drag=true;e.preventDefault();e.stopImmediatePropagation();
+  let d=x<0?1:-1;if(d!==dir)setNeighbor(d);
+  dx=x;img.style.transition='none';img.style.transform='translate3d('+dx+'px,0,0)';
+  if(neighbor)neighbor.style.transform='translate3d('+(dx+d*stage.clientWidth)+'px,0,0)';
+ },{capture:true,passive:false});
+ stage.addEventListener('touchend',function(e){
+  if(!active)return;active=false;e.stopImmediatePropagation();
+  if(!drag){clear();return}
+  e.preventDefault();busy=true;
+  let d=dir,w=stage.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
+  img.style.transition='transform '+ms+'ms cubic-bezier(.22,.7,.2,1)';
+  if(neighbor)neighbor.style.transition=img.style.transition;
+  requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)'});
+  setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);if(typeof renderProductGallery==='function')renderProductGallery();}clear();},ms+35);
+ },{capture:true,passive:false});
+ stage.addEventListener('touchcancel',clear,{capture:true});
+ }
+ // Keep fullscreen incoming slide exactly the same rendered size as the current slide.
+ const modal=document.getElementById('imageViewerModal');
+ if(modal){
+ const obs=new MutationObserver(()=>{
+  const main=document.getElementById('imageViewerImg');
+  const next=modal.querySelector('.kandorty-neighbor');
+  if(!main||!next)return;
+  const cs=getComputedStyle(main),r=main.getBoundingClientRect(),parent=main.offsetParent||main.parentElement,pr=parent.getBoundingClientRect();
+  next.style.setProperty('width',cs.width,'important');
+  next.style.setProperty('height',cs.height,'important');
+  next.style.setProperty('object-fit',cs.objectFit,'important');
+  next.style.setProperty('object-position',cs.objectPosition,'important');
+  next.style.setProperty('top',(r.top-pr.top)+'px','important');
+  next.style.setProperty('left',(r.left-pr.left)+'px','important');
+ });
+ obs.observe(modal,{childList:true,subtree:true});
+ }
+})();
+</script>
+</body></html>
