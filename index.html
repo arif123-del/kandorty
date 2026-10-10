@@ -6751,23 +6751,21 @@ function renderKandortyViewerDots(){
 </style>
 
 <style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style><style id="kandorty-smooth-carousel-style">
-#imageViewerModal .image-viewer-card{touch-action:pan-x!important}
+#imageViewerModal .image-viewer-card{touch-action:none!important}
 #imageViewerModal #imageViewerImg{will-change:transform;backface-visibility:hidden}
 #imageViewerModal .kandorty-neighbor{position:absolute!important;left:0;top:0;width:100%;height:100%;object-fit:contain;pointer-events:none;will-change:transform;background:#fff;z-index:2}
 </style>
-<script id="kandorty-smooth-carousel-script">
+<script id="kandorty-seamless-loop-carousel">
 (function(){
- const modal=document.getElementById('imageViewerModal'),img=document.getElementById('imageViewerImg');
- if(!modal||!img)return;
- const card=img.parentElement;
- let startX=0,startY=0,offset=0,active=false,locked=false,neighbor=null,dir=0,startTime=0;
- function clear(){if(neighbor){neighbor.remove();neighbor=null}img.style.transition='';img.style.transform='';locked=false;active=false;offset=0;}
- function available(d){return Array.isArray(currentProductImages)&&currentProductImageIndex+d>=0&&currentProductImageIndex+d<currentProductImages.length;}
- function setup(d){if(neighbor&&dir===d)return;if(neighbor)neighbor.remove();neighbor=null;dir=d;if(!available(d))return;neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-neighbor';neighbor.src=currentProductImages[currentProductImageIndex+d];neighbor.style.transform='translate3d('+((d>0?1:-1)*card.clientWidth)+'px,0,0)';img.insertAdjacentElement('afterend',neighbor);}
- modal.addEventListener('touchstart',function(e){if(locked||e.touches.length!==1||e.target.closest('button')||!card.contains(e.target)||kandortyImageZoom>1.01)return;startX=e.touches[0].clientX;startY=e.touches[0].clientY;startTime=performance.now();offset=0;active=true;dir=0;},{capture:true,passive:true});
- modal.addEventListener('touchmove',function(e){if(!active||locked||e.touches.length!==1)return;const x=e.touches[0].clientX-startX,y=e.touches[0].clientY-startY;if(Math.abs(x)<5&&dir===0)return;if(Math.abs(y)>Math.abs(x)*1.3&&dir===0)return;e.preventDefault();e.stopImmediatePropagation();const d=x<0?1:-1;if(d!==dir)setup(d);offset=available(d)?x:x*.18;img.style.transition='none';img.style.transform='translate3d('+offset+'px,0,0)';if(neighbor){neighbor.style.transition='none';neighbor.style.transform='translate3d('+(offset+(d>0?1:-1)*card.clientWidth)+'px,0,0)';}},{capture:true,passive:false});
- modal.addEventListener('touchend',function(e){if(!active||locked)return;active=false;if(dir===0)return;e.preventDefault();e.stopImmediatePropagation();let elapsed=Math.max(1,performance.now()-startTime);let commit=available(dir)&&(Math.abs(offset)>card.clientWidth*.23||(Math.abs(offset)>25&&Math.abs(offset)/elapsed>.55));locked=true;const width=card.clientWidth;const target=commit?-dir*width:0;const duration=commit?Math.max(190,Math.min(330,260*(1-Math.abs(offset)/width))):220;const ease='transform '+duration+'ms cubic-bezier(.22,.61,.36,1)';img.style.transition=ease;if(neighbor)neighbor.style.transition=ease;requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+dir*width)+'px,0,0)';});setTimeout(()=>{if(commit){currentProductImageIndex+=dir;if(typeof renderProductGallery==='function')renderProductGallery();if(typeof updateFullscreenProductImage==='function')updateFullscreenProductImage();}clear();},duration+35);
- },{capture:true,passive:false});
- modal.addEventListener('touchcancel',clear,{capture:true,passive:true});
+const modal=document.getElementById('imageViewerModal'),img=document.getElementById('imageViewerImg');if(!modal||!img)return;
+const card=img.parentElement;let active=false,animating=false,sx=0,sy=0,dx=0,dir=0,neighbor=null,gesture=false;
+const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
+const wrap=i=>(i+photos().length)%photos().length;
+function clean(){if(neighbor){neighbor.remove();neighbor=null}img.style.transition='none';img.style.transform='translate3d(0,0,0)';active=false;gesture=false;dir=0;dx=0;animating=false;}
+function adjacent(d){if(neighbor)neighbor.remove();neighbor=null;dir=d;if(photos().length<2)return;neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-neighbor';neighbor.src=photos()[wrap(currentProductImageIndex+d)];neighbor.style.transition='none';neighbor.style.transform='translate3d('+(d*card.clientWidth)+'px,0,0)';img.insertAdjacentElement('afterend',neighbor);}
+modal.addEventListener('touchstart',e=>{if(animating||e.touches.length!==1||e.target.closest('button')||!card.contains(e.target)||typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01)return;clean();sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;},{capture:true,passive:true});
+modal.addEventListener('touchmove',e=>{if(!active||e.touches.length!==1)return;let x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;if(!gesture&&Math.abs(x)<6)return;if(!gesture&&Math.abs(y)>Math.abs(x))return;gesture=true;e.preventDefault();e.stopImmediatePropagation();let d=x<0?1:-1;if(d!==dir)adjacent(d);dx=x;img.style.transition='none';img.style.transform='translate3d('+dx+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(dx+d*card.clientWidth)+'px,0,0)';},{capture:true,passive:false});
+modal.addEventListener('touchend',e=>{if(!active)return;active=false;if(!gesture)return;e.preventDefault();e.stopImmediatePropagation();animating=true;const d=dir,w=card.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(70,w*.18),target=commit?-d*w:0;const ms=commit?240:180;img.style.transition='transform '+ms+'ms cubic-bezier(.2,.75,.25,1)';if(neighbor)neighbor.style.transition=img.style.transition;requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)';});setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);img.src=photos()[currentProductImageIndex];if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();if(typeof renderProductGallery==='function')renderProductGallery();}clean();},ms+20);},{capture:true,passive:false});
+modal.addEventListener('touchcancel',clean,{capture:true,passive:true});
 })();
 </script></body></html>
