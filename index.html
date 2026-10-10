@@ -6746,8 +6746,8 @@ function renderKandortyViewerDots(){
 
 <style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style><style id="kandorty-unified-carousel-css">
 #productModal .product-gallery-stage,#imageViewerModal .image-viewer-card{position:relative!important;overflow:hidden!important;touch-action:pan-y!important}
-#productModal #modalMainImage,#imageViewerModal #imageViewerImg{transition:none!important;animation:none!important;backface-visibility:hidden!important}
-.kandorty-swipe-next{position:absolute!important;pointer-events:none!important;z-index:6!important;max-width:none!important;max-height:none!important;transition:none!important;animation:none!important;backface-visibility:hidden!important}
+#productModal #modalMainImage,#imageViewerModal #imageViewerImg{transition:none;animation:none!important;backface-visibility:hidden!important}
+.kandorty-swipe-next{position:absolute!important;pointer-events:none!important;z-index:6!important;max-width:none!important;max-height:none!important;transition:none;animation:none!important;backface-visibility:hidden!important}
 </style>
 <script id="kandorty-unified-carousel-js">
 (function(){
@@ -6756,7 +6756,7 @@ function renderKandortyViewerDots(){
   let startX=0,startY=0,delta=0,drag=false,active=false,busy=false,dir=0,ghost=null,token=0;
   const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
   const wrap=n=>(n+photos().length)%photos().length;
-  function reset(){if(ghost){ghost.remove();ghost=null}img.style.transition='none';img.style.transform='translate3d(0,0,0)';img.style.opacity='1';img.style.visibility='visible';active=false;drag=false;dir=0;delta=0;busy=false;}
+  function reset(){if(ghost){ghost.remove();ghost=null}img.style.setProperty('transition','none','important');img.style.transform='translate3d(0,0,0)';img.style.opacity='1';img.style.visibility='visible';active=false;drag=false;dir=0;delta=0;busy=false;}
   function adjacent(d){
    if(ghost)ghost.remove();ghost=null;dir=d;
    if(photos().length<2)return;
@@ -6765,7 +6765,7 @@ function renderKandortyViewerDots(){
    ghost.src=photos()[wrap(currentProductImageIndex+d)];ghost.decoding='async';
    const style=getComputedStyle(img);
    ghost.style.cssText='left:'+(r.left-sr.left)+'px!important;top:'+(r.top-sr.top)+'px!important;width:'+r.width+'px!important;height:'+r.height+'px!important;object-fit:'+style.objectFit+'!important;object-position:'+style.objectPosition+'!important;';
-   ghost.style.transform='translate3d('+(d*stage.clientWidth)+'px,0,0)';
+   ghost.style.setProperty('transition','none','important');ghost.style.transform='translate3d('+(d*stage.clientWidth)+'px,0,0)';
    stage.appendChild(ghost);
   }
   stage.addEventListener('touchstart',e=>{
@@ -6789,7 +6789,7 @@ function renderKandortyViewerDots(){
    e.preventDefault();e.stopImmediatePropagation();busy=true;
    const d=dir,w=stage.clientWidth,commit=Math.abs(delta)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
    const transition='transform '+ms+'ms cubic-bezier(.22,.7,.2,1)';
-   img.style.transition=transition;if(ghost)ghost.style.transition=transition;
+   img.style.setProperty('transition',transition,'important');if(ghost)ghost.style.setProperty('transition',transition,'important');
    requestAnimationFrame(()=>{
     img.style.transform='translate3d('+target+'px,0,0)';
     if(ghost)ghost.style.transform='translate3d('+(target+d*w)+'px,0,0)';
@@ -6801,8 +6801,8 @@ function renderKandortyViewerDots(){
     const nextIndex=wrap(currentProductImageIndex+d),url=photos()[nextIndex];
     // Keep the incoming image visible while the original changes behind it.
     // This prevents a blank frame, size flash or abrupt jump after lifting the finger.
-    if(ghost){ghost.style.transition='none';ghost.style.transform='translate3d(0,0,0)'}
-    img.style.transition='none';img.style.transform='translate3d(0,0,0)';
+    if(ghost){ghost.style.setProperty('transition','none','important');ghost.style.transform='translate3d(0,0,0)'}
+    img.style.setProperty('transition','none','important');img.style.transform='translate3d(0,0,0)';
     img.style.visibility='hidden';currentProductImageIndex=nextIndex;
     if(fullscreen){img.src=url;if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();}
     else if(typeof renderProductGallery==='function')renderProductGallery();
