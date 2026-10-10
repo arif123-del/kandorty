@@ -1301,6 +1301,424 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
  #myOrdersModal .my-purchased-image,#myOrdersModal .my-purchased-noimage{width:76px;height:98px;flex-basis:76px;}
 }
 </style>
+
+<!-- Load all final storefront styles before content to prevent old-layout flash on first paint. -->
+<style id="kandorty-product-mobile-approved-layout">
+/* Approved mobile product view: large image (~60%), compact details below. */
+@media (max-width:700px){
+  #productModal{padding:0!important;place-items:start stretch!important;overflow:hidden!important;background:rgba(0,0,0,.55)!important;}
+  #productModal .modal-card{width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;padding:0 0 calc(10px + env(safe-area-inset-bottom))!important;border-radius:0!important;overflow-y:auto!important;overflow-x:hidden!important;background:#fff!important;}
+  #productModal .modal-head{position:absolute!important;inset:0 0 auto 0!important;height:64px!important;z-index:20!important;padding:10px 14px!important;pointer-events:none!important;}
+  #productModal .modal-head #modalName{display:none!important;}
+  #productModal .modal-head .x{pointer-events:auto!important;width:44px!important;height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.92)!important;display:grid!important;place-items:center!important;line-height:1!important;box-shadow:0 2px 10px rgba(0,0,0,.12)!important;}
+  #productModal .product-gallery-mainwrap{width:100vw!important;height:60dvh!important;min-height:52dvh!important;max-height:62dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#f5f3f3!important;flex:0 0 auto!important;}
+  #productModal .product-gallery-stage{width:100%!important;height:100%!important;margin:0!important;padding:0!important;}
+  #productModal .product-gallery-mainimg{width:100%!important;height:100%!important;aspect-ratio:auto!important;object-fit:cover!important;object-position:center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#f5f3f3!important;}
+  #productModal #modalProductVideo{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:0!important;}
+  #productModal #modalCode{margin:12px 16px 3px!important;padding:0!important;font-size:13px!important;color:#71666a!important;}
+  #productModal #modalCode::before{content:"الكود: ";}
+  #productModal #modalPrice{margin:2px 16px 8px!important;padding:0!important;font-size:25px!important;line-height:1.2!important;}
+  #productModal #modalSelectedVariant{margin:4px 16px!important;}
+  #productModal #modalAddSelectedBtn{position:static!important;display:block!important;width:calc(100% - 32px)!important;max-width:none!important;min-height:54px!important;margin:8px 16px 0!important;border-radius:14px!important;box-shadow:none!important;font-size:17px!important;}
+  #productModal .product-gallery-nav{background:rgba(255,255,255,.72)!important;}
+}
+</style>
+<style id="kandorty-product-final-70-30">
+/* FINAL: image 3.5/5 of phone, details 1.5/5; never crop the product image. */
+@media (max-width:700px){
+  #productModal .product-gallery-mainwrap{
+    width:100vw!important; height:70dvh!important; min-height:70dvh!important; max-height:70dvh!important;
+    margin:0!important; padding:0!important; background:#fff!important; overflow:hidden!important;
+  }
+  #productModal .product-gallery-stage{width:100%!important;height:100%!important;background:#fff!important;}
+  #productModal .product-gallery-mainimg{
+    width:100%!important; height:100%!important; max-width:100%!important; max-height:100%!important;
+    aspect-ratio:auto!important; object-fit:contain!important; object-position:center!important;
+    margin:0!important; padding:0!important; border:0!important; border-radius:0!important; background:#fff!important;
+  }
+  #productModal #modalProductVideo{width:100%!important;height:100%!important;object-fit:contain!important;background:#000!important;}
+  #productModal #modalInfoName{margin:7px 14px 0!important;font-size:18px!important;line-height:1.2!important;}
+  #productModal #modalCode{margin:3px 14px 1px!important;font-size:12px!important;line-height:1.2!important;}
+  #productModal #modalPrice{margin:1px 14px 4px!important;font-size:23px!important;line-height:1.15!important;}
+  #productModal #modalAddSelectedBtn{width:calc(100% - 28px)!important;min-height:50px!important;margin:5px 14px 0!important;font-size:17px!important;}
+}
+</style>
+<style id="kandorty-final-requested-controls">
+@media (max-width:700px){
+  /* Product view stays fixed vertically; only horizontal gallery swipes are allowed. */
+  #productModal{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important;}
+  #productModal .modal-card{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;overscroll-behavior:none!important;}
+  #productModal .product-gallery-mainwrap,
+  #productModal .product-gallery-stage{touch-action:pan-x!important;overscroll-behavior:none!important;}
+  #productModal .product-gallery-mainimg{
+    width:100vw!important;height:70dvh!important;max-width:100vw!important;max-height:70dvh!important;
+    object-fit:contain!important;object-position:center center!important;transform:none;
+  }
+  /* Keep video as the last item of the same gallery, never below the image. */
+  #productModal #modalProductVideo{
+    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+    object-fit:contain!important;background:#000!important;
+  }
+  /* Close button on the upper-left of the image. */
+  #productModal .modal-head{left:0!important;right:0!important;direction:ltr!important;justify-content:flex-start!important;}
+  #productModal .modal-head .x{position:absolute!important;left:14px!important;right:auto!important;top:12px!important;z-index:50!important;}
+
+  /* Floating draggable cart. */
+  #cartBtn{
+    position:fixed!important;right:12px;left:auto;top:52%;z-index:95!important;
+    width:56px!important;height:56px!important;min-width:56px!important;padding:0!important;margin:0!important;
+    border-radius:50%!important;background:#15803d!important;color:#fff!important;border:3px solid #fff!important;
+    box-shadow:0 5px 18px rgba(0,0,0,.28)!important;display:flex!important;align-items:center!important;justify-content:center!important;
+    touch-action:none!important;user-select:none!important;-webkit-user-select:none!important;
+  }
+  #cartBtn>span:not(.nav-icon):not(#cartCount):not(#cartCustomNote){display:none!important;}
+  #cartBtn .nav-icon{font-size:24px!important;line-height:1!important;}
+  #cartBtn #cartCount{position:absolute!important;top:-7px!important;right:-5px!important;background:#fff!important;color:#15803d!important;border:2px solid #15803d!important;border-radius:999px!important;min-width:22px!important;height:22px!important;display:grid!important;place-items:center!important;font-size:11px!important;font-weight:900!important;padding:0 4px!important;}
+}
+</style>
+<style id="kandorty-edge-fast-cart-final">
+@media (max-width:700px){
+  /* Fill the complete gallery area from edge to edge: no empty side strip. */
+  #productModal .product-gallery-mainwrap,
+  #productModal .product-gallery-stage{background:#000!important;}
+  #productModal .product-gallery-mainimg{
+    width:100vw!important;height:70dvh!important;
+    object-fit:cover!important;object-position:center center!important;
+    background:#000!important;
+  }
+  #productModal #modalProductVideo{
+    width:100vw!important;height:70dvh!important;
+    object-fit:cover!important;object-position:center center!important;
+  }
+  /* Cart always belongs to the phone viewport and has zero drag lag. */
+  body>#cartBtn{
+    position:fixed!important;z-index:2147483000!important;
+    transition:none!important;animation:none!important;
+    will-change:left,top,transform!important;
+    touch-action:none!important;
+  }
+}
+</style>
+<style id="kandorty-cart-dots-animation-fix">
+/* Hide side gallery arrows; use dots at the bottom of the photo instead. */
+#productModal #galleryPrevBtn,#productModal #galleryNextBtn{display:none!important}
+#productGalleryDots{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:45;display:flex;gap:7px;align-items:center;justify-content:center;direction:ltr;pointer-events:none}
+#productGalleryDots .pg-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55);border:1px solid rgba(0,0,0,.28);box-shadow:0 1px 3px #0005}
+#productGalleryDots .pg-dot.active{width:9px;height:9px;background:#fff;border-color:#fff}
+#productModal .product-gallery-stage{position:relative!important}
+.cart-fly-item{position:fixed;z-index:2147483646;pointer-events:none;border-radius:14px;object-fit:cover;box-shadow:0 8px 24px #0005;transition:left .52s cubic-bezier(.2,.75,.25,1),top .52s cubic-bezier(.2,.75,.25,1),width .52s,height .52s,opacity .52s,transform .52s}
+</style>
+<style id="kandorty-dots-visibility-final">
+#productModal #galleryPrevBtn,
+#productModal #galleryNextBtn{display:none!important}
+#productModal .product-gallery-stage{position:relative!important}
+#productGalleryDots{
+  display:flex!important;
+  position:absolute!important;
+  left:50%!important;
+  bottom:14px!important;
+  transform:translateX(-50%)!important;
+  z-index:999!important;
+  gap:8px!important;
+  padding:6px 10px!important;
+  border-radius:999px!important;
+  background:rgba(0,0,0,.34)!important;
+  pointer-events:none!important;
+}
+#productGalleryDots:empty{display:none!important}
+#productGalleryDots .pg-dot{
+  display:block!important;
+  width:9px!important;
+  height:9px!important;
+  min-width:9px!important;
+  min-height:9px!important;
+  border-radius:50%!important;
+  background:#fff!important;
+  opacity:.62!important;
+  border:1px solid rgba(0,0,0,.35)!important;
+  box-shadow:0 1px 4px rgba(0,0,0,.55)!important;
+}
+#productGalleryDots .pg-dot.active{
+  width:11px!important;
+  height:11px!important;
+  min-width:11px!important;
+  min-height:11px!important;
+  opacity:1!important;
+  background:#b40018!important;
+  border:2px solid #fff!important;
+}
+</style>
+<style id="single-dot-row-final">
+/* There must be exactly ONE pagination-dot row. */
+#productGalleryDots,
+.product-gallery-dots:not(#productGalleryDotsNative),
+.gallery-dots:not(#productGalleryDotsNative),
+.product-dots:not(#productGalleryDotsNative){
+  display:none!important;
+}
+#productGalleryDotsNative{
+  display:flex;
+  flex-direction:row!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+}
+#productGalleryDotsNative .native-gallery-dot{
+  position:static!important;
+  transform:none!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+}
+</style>
+<style id="kandorty-single-button-fly-final">
+#kandortyButtonFly{
+ position:fixed!important;z-index:2147483647!important;pointer-events:none!important;
+ width:42px!important;height:42px!important;border-radius:12px!important;
+ object-fit:cover!important;box-shadow:0 6px 18px rgba(0,0,0,.30)!important;
+ transition:left .58s cubic-bezier(.2,.8,.25,1),top .58s cubic-bezier(.2,.8,.25,1),
+ width .58s,height .58s,opacity .58s,transform .58s!important;
+}
+</style>
+<style id="hide-floating-cart-while-cart-open">
+/* While the cart/checkout modal is open, hide the floating cart icon. */
+body.kandorty-cart-open #cartBtn{
+  display:none!important;
+}
+</style>
+<style id="smooth-product-fly-v2-css">
+#kandortyButtonFly{
+  position:fixed!important;
+  z-index:2147483647!important;
+  pointer-events:none!important;
+  object-fit:cover!important;
+  border-radius:14px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.28)!important;
+  will-change:transform,opacity!important;
+}
+#cartBtn.kandorty-cart-catch{
+  animation:kandortyCartCatch .34s ease!important;
+}
+@keyframes kandortyCartCatch{
+  0%{transform:scale(1)}
+  48%{transform:scale(1.18)}
+  100%{transform:scale(1)}
+}
+</style>
+<style id="kandorty-payment-choice-cards-css">
+.payment-choice-wrap{width:100%;margin:4px 0 2px}
+.payment-choice-title{font-weight:800;font-size:14px;margin:0 0 9px;color:#2a2225}
+.payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.payment-choice-card{
+  position:relative;min-height:108px;border:2px solid #eadfe1;border-radius:16px;
+  background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:7px;padding:14px 10px;cursor:pointer;transition:.18s ease;text-align:center;
+}
+.payment-choice-card input{position:absolute;opacity:0;pointer-events:none}
+.payment-choice-card .payment-radio{
+  position:absolute;top:10px;right:10px;width:21px;height:21px;border-radius:50%;
+  border:2px solid #b9afb2;background:#fff;box-shadow:inset 0 0 0 4px #fff;
+}
+.payment-choice-card.selected{border-color:#b40018;background:#fff7f8;box-shadow:0 7px 20px rgba(180,0,24,.10)}
+.payment-choice-card.selected .payment-radio{border-color:#b40018;background:#b40018}
+.payment-choice-card .payment-icon{font-size:31px;line-height:1}
+.payment-choice-card .payment-label{font-size:14px;font-weight:800;color:#211a1c}
+#paymentMethod{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+@media(max-width:420px){
+  .payment-choice-grid{gap:8px}
+  .payment-choice-card{min-height:100px;padding:12px 6px}
+  .payment-choice-card .payment-label{font-size:12.5px}
+  .payment-choice-card .payment-icon{font-size:28px}
+}
+</style>
+<style id="kandorty-cart-small-note-css">
+/* The cart note is a child of the actual draggable button, not a separate floating element. */
+#cartBtn{overflow:visible!important;isolation:isolate!important}
+#cartBtn > #cartCustomNote:not([hidden]){
+ display:block!important;visibility:visible!important;opacity:1!important;
+ position:absolute!important;top:calc(100% - 1px)!important;left:50%!important;
+ right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;
+ z-index:100!important;min-width:60px!important;max-width:125px!important;width:max-content!important;
+ padding:4px 8px!important;margin:0!important;box-sizing:border-box!important;
+ border-radius:999px!important;background:#08ad08!important;color:white!important;
+ font:700 11px/1.3 Arial,Tahoma,sans-serif!important;text-align:center!important;
+ white-space:normal!important;pointer-events:none!important;
+ box-shadow:0 3px 9px #0003!important;animation:none!important;transition:none!important;
+}
+#cartBtn > #cartCustomNote[hidden]{display:none!important}
+#cartFloatingGroup{display:contents}
+</style>
+<style id="kandorty-compact-red-cart-final">
+@media(max-width:760px){
+ #cartBtn{width:47px!important;height:47px!important;min-width:47px!important;border:2px solid #fff!important;background:#15803d!important;color:#fff!important;box-shadow:0 3px 12px #0003!important}
+ #cartBtn .nav-icon{font-size:20px!important}
+ #cartBtn #cartCount{min-width:18px!important;height:18px!important;top:-6px!important;right:-5px!important;padding:0 3px!important;font-size:9px!important;border:1.5px solid #fff!important;background:#15803d!important;color:#fff!important}
+ #cartBtn > #cartCustomNote:not([hidden]){min-width:45px!important;max-width:94px!important;padding:2px 5px!important;font:700 8px/1.2 Arial,Tahoma,sans-serif!important;background:#15803d!important;color:#fff!important;border-radius:999px!important;top:calc(100% - 1px)!important;box-shadow:0 2px 6px #0002!important}
+}
+</style>
+<style id="kandorty-button-and-image-edge-fix">
+/* Keep the image's frame filled when the product is opened. */
+#productModal .product-gallery-mainwrap,
+#productModal .product-gallery-stage { background:#171717 !important; }
+#productModal .product-gallery-mainimg {
+  width:100% !important; height:100% !important;
+  object-fit:cover !important; object-position:center !important;
+  background:#171717 !important; border:0 !important;
+}
+/* Move only the purchase button down slightly. */
+#productModal #modalAddSelectedBtn { margin-top:17px !important; }
+/* Opened photo: no white viewer/card gutters; keep a modest viewing size. */
+#imageViewerModal { background:rgba(0,0,0,.94) !important; }
+#imageViewerModal .image-viewer-card { background:#111 !important; border:0 !important; padding:0 !important; }
+#imageViewerModal #imageViewerImg { background:#111 !important; border:0 !important; border-radius:0 !important; }
+@media(max-width:700px){
+  #productModal #modalAddSelectedBtn { margin-top:17px !important; }
+  #imageViewerModal { padding:0 !important; }
+  #imageViewerModal .image-viewer-card { width:92vw !important; height:78dvh !important; max-width:92vw !important; max-height:78dvh !important; }
+}
+</style>
+<style id="kandorty-viewer-only-safe-update">
+#imageViewerModal{padding:0 !important;background:#080808 !important;align-items:flex-start !important;}
+#imageViewerModal .image-viewer-card{box-sizing:border-box !important;width:100vw !important;max-width:100vw !important;height:calc(100dvh - 54px) !important;max-height:calc(100dvh - 54px) !important;margin:0 !important;padding:0 !important;border:0 !important;border-radius:0 !important;background:#080808 !important;overflow:hidden !important;touch-action:pan-y !important;}
+#imageViewerModal #imageViewerImg{display:block !important;width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;object-fit:cover !important;object-position:center !important;border-radius:0 !important;background:#080808 !important;touch-action:pan-y !important;}
+#imageViewerModal .image-viewer-hint{display:none !important;}
+</style>
+<style id="kandorty-viewer-dots-light-bottom">
+#productModal #modalPublicDescription:not([hidden]){display:block!important;visibility:visible!important;color:#50474a!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+#imageViewerModal{background:#fff!important;}
+#imageViewerModal .image-viewer-card{background:#fff!important;}
+#imageViewerModal #imageViewerImg{background:#fff!important;}
+#kandortyViewerDots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:8;display:flex;align-items:center;justify-content:center;gap:9px;max-width:90vw;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.88);direction:ltr;box-shadow:0 2px 12px #0002}
+#kandortyViewerDots .viewer-dot{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:#a7a7a7;cursor:pointer;flex:none}
+#kandortyViewerDots .viewer-dot.active{background:#b40018;width:12px;height:12px}
+#kandortyViewerDots[hidden]{display:none!important}
+</style>
+<style id="kandorty-vertical-photo-viewer">
+#imageViewerModal{background:#fff!important;overflow:hidden!important;align-items:stretch!important}
+#imageViewerModal .image-viewer-card{display:block!important;position:relative!important;width:100%!important;max-width:100%!important;height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;background:#fff!important}
+#imageViewerModal #imageViewerImg,#imageViewerModal .image-viewer-nav,#imageViewerModal .image-viewer-hint{display:none!important}
+#imageViewerModal #kandortyVerticalPhotos{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#fff;padding:54px 0 76px;scrollbar-width:thin}
+#kandortyVerticalPhotos .vertical-photo{display:block;width:100%;height:auto;object-fit:contain;background:#fff;margin:0 auto 10px;max-width:900px}
+#imageViewerModal .image-viewer-close{position:absolute!important;top:max(10px,env(safe-area-inset-top))!important;left:12px!important;z-index:30!important;background:#fff!important;box-shadow:0 2px 12px #0003}
+#imageViewerModal #kandortyViewerDots{z-index:25!important}
+</style>
+<style id="kandorty-product-scroll-20261008">
+#productModal .modal-card{overflow-y:auto!important;overscroll-behavior:contain!important;max-height:96dvh!important;background:#fff!important;scroll-behavior:smooth}
+#productModal #modalAddSelectedBtn{position:relative!important;inset:auto!important;display:block!important;pointer-events:auto!important;z-index:5!important;width:calc(100% - 28px)!important;margin:12px 14px!important;min-height:52px!important}
+#productModal #kandortyMorePhotos{padding:8px 14px 25px;background:#fff}
+#productModal #kandortyMorePhotos h3{font-size:16px;margin:14px 0;color:#171214}
+#productModal #kandortyMorePhotos img{display:block;width:100%;max-width:700px;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:10px;background:#fff}
+#productModal #kandortyMorePhotos .photo-position{font-size:12px;color:#71666a;text-align:center;margin:0 0 8px}
+#productModal #kandortyCartFeedback{margin:8px 14px;color:#146b2f;font-size:14px;font-weight:700;min-height:18px}
+</style>
+<style id="kandorty-empty-cart-visibility-css">
+  #cartBtn.kandorty-empty-cart, #cartFloatingGroup.kandorty-empty-cart {display:none!important;visibility:hidden!important;pointer-events:none!important;}
+</style>
+<style id="kandorty-horizontal-viewer-only">
+#kandortyMorePhotos{display:none!important}
+#imageViewerModal .image-viewer-card{touch-action:none!important;overscroll-behavior:contain!important}
+#imageViewerModal #imageViewerImg{display:block!important;touch-action:none!important}
+#imageViewerModal #kandortyVerticalPhotos{display:none!important}
+#imageViewerModal .image-viewer-nav{display:none!important}
+
+</style>
+<style id="kandorty-swipe-ultimate-style">
+#imageViewerModal .image-viewer-card,
+#imageViewerModal #imageViewerImg {touch-action:none!important;overscroll-behavior:none!important}
+#imageViewerModal #kandortyVerticalPhotos{display:none!important}
+#imageViewerModal #imageViewerImg{display:block!important}
+</style>
+<style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style>
+<style id="kandorty-unified-carousel-css">
+#productModal .product-gallery-stage,#imageViewerModal .image-viewer-card{position:relative!important;overflow:hidden!important;touch-action:pan-y!important}
+#productModal #modalMainImage,#imageViewerModal #imageViewerImg{transition:none;animation:none!important;backface-visibility:hidden!important}
+.kandorty-swipe-next{position:absolute!important;pointer-events:none!important;z-index:6!important;max-width:none!important;max-height:none!important;transition:none;animation:none!important;backface-visibility:hidden!important}
+</style>
+<style id="kandorty-no-entry-image-jump">#productModal #modalMainImage,#imageViewerModal #imageViewerImg{animation:none!important;transform-origin:center center!important}#productModal:not(.hidden) .product-gallery-stage{contain:paint}#imageViewerModal:not(.hidden) .image-viewer-card{overflow:hidden!important}</style>
+<style id="kandorty-header-hamburger-final">
+/* Overrule the old two-row and five-column header strip without touching the product/gallery layout. */
+.top .nav.kandorty-menu-header{
+  position:relative!important; display:flex!important; flex-direction:row!important;
+  align-items:center!important; justify-content:space-between!important;
+  min-height:70px!important; height:70px!important; gap:0!important;
+  padding:5px 0!important; overflow:visible!important;
+}
+.top .nav.kandorty-menu-header > #profileBtn{
+  position:absolute!important;right:0!important;left:auto!important;top:50%!important;
+  transform:translateY(-50%)!important;z-index:2!important;
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex-direction:row!important;gap:6px!important;width:auto!important;
+  padding:9px 11px!important;max-width:34%!important;white-space:nowrap!important;
+  font-size:13px!important;font-weight:800!important;border-radius:12px!important;
+  border:1px solid #efd4d9!important;background:#fff!important;color:#7f0920!important;
+  box-shadow:none!important;order:0!important;margin:0!important;
+}
+.top .nav.kandorty-menu-header > #profileBtn .nav-icon{font-size:18px!important}
+.top .nav.kandorty-menu-header > .logo{
+  position:absolute!important;top:50%!important;left:50%!important;right:auto!important;
+  transform:translate(-50%,-50%)!important;margin:0!important;order:0!important;
+  width:clamp(112px,35vw,165px)!important;height:60px!important;
+  max-width:40vw!important;object-fit:contain!important;z-index:1!important;
+}
+#kandortyMenuToggle{
+  position:absolute!important;left:0!important;right:auto!important;top:50%!important;
+  transform:translateY(-50%)!important;width:45px!important;height:43px!important;
+  border:1px solid #efd4d9!important;background:#fff!important;border-radius:12px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  cursor:pointer!important;z-index:4!important;padding:0!important;
+}
+.kandorty-menu-bars{display:flex;flex-direction:column;gap:5px;width:21px;pointer-events:none}
+.kandorty-menu-bars>span{display:block;width:21px;height:2.4px;background:#88001c;border-radius:9px;transition:transform .19s ease,opacity .19s ease}
+#kandortyMenuToggle[aria-expanded="true"] .kandorty-menu-bars>span:first-child{transform:translateY(7.4px) rotate(45deg)}
+#kandortyMenuToggle[aria-expanded="true"] .kandorty-menu-bars>span:nth-child(2){opacity:0}
+#kandortyMenuToggle[aria-expanded="true"] .kandorty-menu-bars>span:last-child{transform:translateY(-7.4px) rotate(-45deg)}
+.top .nav.kandorty-menu-header > #kandortyMenuItems{
+  position:absolute!important;left:0!important;right:auto!important;top:calc(100% + 2px)!important;
+  width:min(320px,calc(100vw - 18px))!important;max-height:min(78dvh,590px)!important;
+  overflow-x:hidden!important;overflow-y:auto!important;z-index:100!important;
+  display:flex!important;flex-direction:column!important;grid-template-columns:none!important;
+  align-items:stretch!important;justify-content:flex-start!important;
+  flex-wrap:nowrap!important;gap:3px!important;
+  padding:11px!important;margin:0!important;direction:rtl!important;
+  border:1px solid #ead6da!important;border-radius:17px!important;
+  background:#fff!important;box-shadow:0 17px 46px #23030a38!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.top .nav.kandorty-menu-header > #kandortyMenuItems[hidden]{display:none!important}
+.top .nav.kandorty-menu-header #kandortyMenuItems .kandorty-menu-heading{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  width:100%!important;padding:4px 8px 10px!important;margin:0 0 4px!important;
+  border-bottom:1px solid #f1e7e8!important;color:#89001a!important;font-size:16px!important;
+}
+#kandortyMenuClose{width:31px;height:31px;border:0;background:#f9f0f1;border-radius:9px;font-size:26px;line-height:1;cursor:pointer;color:#6c1026}
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn{
+  display:flex!important;flex-direction:row!important;align-items:center!important;
+  justify-content:flex-start!important;flex:0 0 auto!important;gap:12px!important;
+  width:100%!important;min-width:0!important;max-width:none!important;min-height:45px!important;
+  margin:0!important;padding:11px 12px!important;
+  background:#fff!important;border:0!important;border-radius:10px!important;
+  box-shadow:none!important;color:#282024!important;font-size:14px!important;
+  font-weight:700!important;line-height:1.5!important;white-space:nowrap!important;
+  text-align:right!important;letter-spacing:normal!important;overflow:visible!important;
+}
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn:hover,
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn:focus-visible{background:#fff4f5!important;transform:none!important}
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn[hidden]{display:none!important}
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn .nav-icon{font-size:19px!important;line-height:1.2!important;flex:0 0 24px!important;text-align:center!important}
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn span{font-size:inherit!important;white-space:nowrap!important;overflow:visible!important}
+.top .nav.kandorty-menu-header #kandortyMenuItems > .btn .header-count{margin-inline-start:auto!important;font-size:11px!important;color:white!important}
+.top .nav.kandorty-menu-header #kandortyMenuItems > #adminBtn{display:none!important}
+/* The website's existing draggable cart stays attached to the viewport when a customer adds a product. */
+.top .nav.kandorty-menu-header #kandortyMenuItems > #cartFloatingGroup{display:none!important}
+/* Sharing is now inside the three-line menu rather than floating over its corner. */
+.top .nav.kandorty-menu-header > #shareSiteBtn{display:none!important}
+@media(max-width:440px){
+  .top .nav.kandorty-menu-header{height:64px!important;min-height:64px!important}
+  .top .nav.kandorty-menu-header > .logo{height:52px!important;width:clamp(108px,35vw,141px)!important}
+  .top .nav.kandorty-menu-header > #profileBtn{font-size:12px!important;padding:8px 8px!important;gap:3px!important}
+  #kandortyMenuToggle{width:42px!important;height:41px!important}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -6001,26 +6419,7 @@ function touchDistance(touches){
 })();
 </script>
 
-<style id="kandorty-product-mobile-approved-layout">
-/* Approved mobile product view: large image (~60%), compact details below. */
-@media (max-width:700px){
-  #productModal{padding:0!important;place-items:start stretch!important;overflow:hidden!important;background:rgba(0,0,0,.55)!important;}
-  #productModal .modal-card{width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;padding:0 0 calc(10px + env(safe-area-inset-bottom))!important;border-radius:0!important;overflow-y:auto!important;overflow-x:hidden!important;background:#fff!important;}
-  #productModal .modal-head{position:absolute!important;inset:0 0 auto 0!important;height:64px!important;z-index:20!important;padding:10px 14px!important;pointer-events:none!important;}
-  #productModal .modal-head #modalName{display:none!important;}
-  #productModal .modal-head .x{pointer-events:auto!important;width:44px!important;height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.92)!important;display:grid!important;place-items:center!important;line-height:1!important;box-shadow:0 2px 10px rgba(0,0,0,.12)!important;}
-  #productModal .product-gallery-mainwrap{width:100vw!important;height:60dvh!important;min-height:52dvh!important;max-height:62dvh!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#f5f3f3!important;flex:0 0 auto!important;}
-  #productModal .product-gallery-stage{width:100%!important;height:100%!important;margin:0!important;padding:0!important;}
-  #productModal .product-gallery-mainimg{width:100%!important;height:100%!important;aspect-ratio:auto!important;object-fit:cover!important;object-position:center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#f5f3f3!important;}
-  #productModal #modalProductVideo{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:0!important;}
-  #productModal #modalCode{margin:12px 16px 3px!important;padding:0!important;font-size:13px!important;color:#71666a!important;}
-  #productModal #modalCode::before{content:"الكود: ";}
-  #productModal #modalPrice{margin:2px 16px 8px!important;padding:0!important;font-size:25px!important;line-height:1.2!important;}
-  #productModal #modalSelectedVariant{margin:4px 16px!important;}
-  #productModal #modalAddSelectedBtn{position:static!important;display:block!important;width:calc(100% - 32px)!important;max-width:none!important;min-height:54px!important;margin:8px 16px 0!important;border-radius:14px!important;box-shadow:none!important;font-size:17px!important;}
-  #productModal .product-gallery-nav{background:rgba(255,255,255,.72)!important;}
-}
-</style>
+
 <script id="kandorty-product-mobile-approved-layout-js">
 (function(){
   function ensureProductInfo(){
@@ -6052,62 +6451,11 @@ function touchDistance(touches){
 </script>
 
 
-<style id="kandorty-product-final-70-30">
-/* FINAL: image 3.5/5 of phone, details 1.5/5; never crop the product image. */
-@media (max-width:700px){
-  #productModal .product-gallery-mainwrap{
-    width:100vw!important; height:70dvh!important; min-height:70dvh!important; max-height:70dvh!important;
-    margin:0!important; padding:0!important; background:#fff!important; overflow:hidden!important;
-  }
-  #productModal .product-gallery-stage{width:100%!important;height:100%!important;background:#fff!important;}
-  #productModal .product-gallery-mainimg{
-    width:100%!important; height:100%!important; max-width:100%!important; max-height:100%!important;
-    aspect-ratio:auto!important; object-fit:contain!important; object-position:center!important;
-    margin:0!important; padding:0!important; border:0!important; border-radius:0!important; background:#fff!important;
-  }
-  #productModal #modalProductVideo{width:100%!important;height:100%!important;object-fit:contain!important;background:#000!important;}
-  #productModal #modalInfoName{margin:7px 14px 0!important;font-size:18px!important;line-height:1.2!important;}
-  #productModal #modalCode{margin:3px 14px 1px!important;font-size:12px!important;line-height:1.2!important;}
-  #productModal #modalPrice{margin:1px 14px 4px!important;font-size:23px!important;line-height:1.15!important;}
-  #productModal #modalAddSelectedBtn{width:calc(100% - 28px)!important;min-height:50px!important;margin:5px 14px 0!important;font-size:17px!important;}
-}
-</style>
 
 
 
-<style id="kandorty-final-requested-controls">
-@media (max-width:700px){
-  /* Product view stays fixed vertically; only horizontal gallery swipes are allowed. */
-  #productModal{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important;}
-  #productModal .modal-card{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;overscroll-behavior:none!important;}
-  #productModal .product-gallery-mainwrap,
-  #productModal .product-gallery-stage{touch-action:pan-x!important;overscroll-behavior:none!important;}
-  #productModal .product-gallery-mainimg{
-    width:100vw!important;height:70dvh!important;max-width:100vw!important;max-height:70dvh!important;
-    object-fit:contain!important;object-position:center center!important;transform:none;
-  }
-  /* Keep video as the last item of the same gallery, never below the image. */
-  #productModal #modalProductVideo{
-    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
-    object-fit:contain!important;background:#000!important;
-  }
-  /* Close button on the upper-left of the image. */
-  #productModal .modal-head{left:0!important;right:0!important;direction:ltr!important;justify-content:flex-start!important;}
-  #productModal .modal-head .x{position:absolute!important;left:14px!important;right:auto!important;top:12px!important;z-index:50!important;}
 
-  /* Floating draggable cart. */
-  #cartBtn{
-    position:fixed!important;right:12px;left:auto;top:52%;z-index:95!important;
-    width:56px!important;height:56px!important;min-width:56px!important;padding:0!important;margin:0!important;
-    border-radius:50%!important;background:#15803d!important;color:#fff!important;border:3px solid #fff!important;
-    box-shadow:0 5px 18px rgba(0,0,0,.28)!important;display:flex!important;align-items:center!important;justify-content:center!important;
-    touch-action:none!important;user-select:none!important;-webkit-user-select:none!important;
-  }
-  #cartBtn>span:not(.nav-icon):not(#cartCount):not(#cartCustomNote){display:none!important;}
-  #cartBtn .nav-icon{font-size:24px!important;line-height:1!important;}
-  #cartBtn #cartCount{position:absolute!important;top:-7px!important;right:-5px!important;background:#fff!important;color:#15803d!important;border:2px solid #15803d!important;border-radius:999px!important;min-width:22px!important;height:22px!important;display:grid!important;place-items:center!important;font-size:11px!important;font-weight:900!important;padding:0 4px!important;}
-}
-</style>
+
 <script id="kandorty-final-requested-controls-js">
 (function(){
   function lockProductVerticalTouch(){
@@ -6157,29 +6505,7 @@ function touchDistance(touches){
 
 
 
-<style id="kandorty-edge-fast-cart-final">
-@media (max-width:700px){
-  /* Fill the complete gallery area from edge to edge: no empty side strip. */
-  #productModal .product-gallery-mainwrap,
-  #productModal .product-gallery-stage{background:#000!important;}
-  #productModal .product-gallery-mainimg{
-    width:100vw!important;height:70dvh!important;
-    object-fit:cover!important;object-position:center center!important;
-    background:#000!important;
-  }
-  #productModal #modalProductVideo{
-    width:100vw!important;height:70dvh!important;
-    object-fit:cover!important;object-position:center center!important;
-  }
-  /* Cart always belongs to the phone viewport and has zero drag lag. */
-  body>#cartBtn{
-    position:fixed!important;z-index:2147483000!important;
-    transition:none!important;animation:none!important;
-    will-change:left,top,transform!important;
-    touch-action:none!important;
-  }
-}
-</style>
+
 <script id="kandorty-edge-fast-cart-final-js">
 (function(){
   function viewportCart(){
@@ -6219,15 +6545,7 @@ function touchDistance(touches){
 </script>
 
 
-<style id="kandorty-cart-dots-animation-fix">
-/* Hide side gallery arrows; use dots at the bottom of the photo instead. */
-#productModal #galleryPrevBtn,#productModal #galleryNextBtn{display:none!important}
-#productGalleryDots{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:45;display:flex;gap:7px;align-items:center;justify-content:center;direction:ltr;pointer-events:none}
-#productGalleryDots .pg-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55);border:1px solid rgba(0,0,0,.28);box-shadow:0 1px 3px #0005}
-#productGalleryDots .pg-dot.active{width:9px;height:9px;background:#fff;border-color:#fff}
-#productModal .product-gallery-stage{position:relative!important}
-.cart-fly-item{position:fixed;z-index:2147483646;pointer-events:none;border-radius:14px;object-fit:cover;box-shadow:0 8px 24px #0005;transition:left .52s cubic-bezier(.2,.75,.25,1),top .52s cubic-bezier(.2,.75,.25,1),width .52s,height .52s,opacity .52s,transform .52s}
-</style>
+
 <script id="kandorty-cart-dots-animation-fix-js">
 (function(){
   function openCartNow(){
@@ -6286,71 +6604,10 @@ function touchDistance(touches){
 
 
 
-<style id="kandorty-dots-visibility-final">
-#productModal #galleryPrevBtn,
-#productModal #galleryNextBtn{display:none!important}
-#productModal .product-gallery-stage{position:relative!important}
-#productGalleryDots{
-  display:flex!important;
-  position:absolute!important;
-  left:50%!important;
-  bottom:14px!important;
-  transform:translateX(-50%)!important;
-  z-index:999!important;
-  gap:8px!important;
-  padding:6px 10px!important;
-  border-radius:999px!important;
-  background:rgba(0,0,0,.34)!important;
-  pointer-events:none!important;
-}
-#productGalleryDots:empty{display:none!important}
-#productGalleryDots .pg-dot{
-  display:block!important;
-  width:9px!important;
-  height:9px!important;
-  min-width:9px!important;
-  min-height:9px!important;
-  border-radius:50%!important;
-  background:#fff!important;
-  opacity:.62!important;
-  border:1px solid rgba(0,0,0,.35)!important;
-  box-shadow:0 1px 4px rgba(0,0,0,.55)!important;
-}
-#productGalleryDots .pg-dot.active{
-  width:11px!important;
-  height:11px!important;
-  min-width:11px!important;
-  min-height:11px!important;
-  opacity:1!important;
-  background:#b40018!important;
-  border:2px solid #fff!important;
-}
-</style>
 
 
-<style id="single-dot-row-final">
-/* There must be exactly ONE pagination-dot row. */
-#productGalleryDots,
-.product-gallery-dots:not(#productGalleryDotsNative),
-.gallery-dots:not(#productGalleryDotsNative),
-.product-dots:not(#productGalleryDotsNative){
-  display:none!important;
-}
-#productGalleryDotsNative{
-  display:flex;
-  flex-direction:row!important;
-  flex-wrap:nowrap!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:8px!important;
-}
-#productGalleryDotsNative .native-gallery-dot{
-  position:static!important;
-  transform:none!important;
-  margin:0!important;
-  flex:0 0 auto!important;
-}
-</style>
+
+
 <script id="remove-old-gallery-dots">
 (function(){
  function clean(){
@@ -6362,15 +6619,7 @@ function touchDistance(touches){
 </script>
 
 
-<style id="kandorty-single-button-fly-final">
-#kandortyButtonFly{
- position:fixed!important;z-index:2147483647!important;pointer-events:none!important;
- width:42px!important;height:42px!important;border-radius:12px!important;
- object-fit:cover!important;box-shadow:0 6px 18px rgba(0,0,0,.30)!important;
- transition:left .58s cubic-bezier(.2,.8,.25,1),top .58s cubic-bezier(.2,.8,.25,1),
- width .58s,height .58s,opacity .58s,transform .58s!important;
-}
-</style>
+
 <script id="kandorty-single-button-fly-final-js">
 (function(){
   /* Final behavior: Add button adds only; it NEVER opens the cart.
@@ -6416,12 +6665,7 @@ function touchDistance(touches){
 </script>
 
 
-<style id="hide-floating-cart-while-cart-open">
-/* While the cart/checkout modal is open, hide the floating cart icon. */
-body.kandorty-cart-open #cartBtn{
-  display:none!important;
-}
-</style>
+
 
 <script id="hide-floating-cart-while-cart-open-js">
 (function(){
@@ -6446,25 +6690,7 @@ body.kandorty-cart-open #cartBtn{
 </script>
 
 
-<style id="smooth-product-fly-v2-css">
-#kandortyButtonFly{
-  position:fixed!important;
-  z-index:2147483647!important;
-  pointer-events:none!important;
-  object-fit:cover!important;
-  border-radius:14px!important;
-  box-shadow:0 10px 28px rgba(0,0,0,.28)!important;
-  will-change:transform,opacity!important;
-}
-#cartBtn.kandorty-cart-catch{
-  animation:kandortyCartCatch .34s ease!important;
-}
-@keyframes kandortyCartCatch{
-  0%{transform:scale(1)}
-  48%{transform:scale(1.18)}
-  100%{transform:scale(1)}
-}
-</style>
+
 <script id="smooth-product-fly-v2-js">
 (function(){
   /* Replace the previous fly animation with one clean curved flight. */
@@ -6524,32 +6750,7 @@ body.kandorty-cart-open #cartBtn{
 </script>
 
 
-<style id="kandorty-payment-choice-cards-css">
-.payment-choice-wrap{width:100%;margin:4px 0 2px}
-.payment-choice-title{font-weight:800;font-size:14px;margin:0 0 9px;color:#2a2225}
-.payment-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.payment-choice-card{
-  position:relative;min-height:108px;border:2px solid #eadfe1;border-radius:16px;
-  background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:7px;padding:14px 10px;cursor:pointer;transition:.18s ease;text-align:center;
-}
-.payment-choice-card input{position:absolute;opacity:0;pointer-events:none}
-.payment-choice-card .payment-radio{
-  position:absolute;top:10px;right:10px;width:21px;height:21px;border-radius:50%;
-  border:2px solid #b9afb2;background:#fff;box-shadow:inset 0 0 0 4px #fff;
-}
-.payment-choice-card.selected{border-color:#b40018;background:#fff7f8;box-shadow:0 7px 20px rgba(180,0,24,.10)}
-.payment-choice-card.selected .payment-radio{border-color:#b40018;background:#b40018}
-.payment-choice-card .payment-icon{font-size:31px;line-height:1}
-.payment-choice-card .payment-label{font-size:14px;font-weight:800;color:#211a1c}
-#paymentMethod{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
-@media(max-width:420px){
-  .payment-choice-grid{gap:8px}
-  .payment-choice-card{min-height:100px;padding:12px 6px}
-  .payment-choice-card .payment-label{font-size:12.5px}
-  .payment-choice-card .payment-icon{font-size:28px}
-}
-</style>
+
 <script id="kandorty-payment-choice-cards-js">
 (function(){
   function syncPaymentCards(value){
@@ -6583,23 +6784,7 @@ body.kandorty-cart-open #cartBtn{
 </script>
 
 
-<style id="kandorty-cart-small-note-css">
-/* The cart note is a child of the actual draggable button, not a separate floating element. */
-#cartBtn{overflow:visible!important;isolation:isolate!important}
-#cartBtn > #cartCustomNote:not([hidden]){
- display:block!important;visibility:visible!important;opacity:1!important;
- position:absolute!important;top:calc(100% - 1px)!important;left:50%!important;
- right:auto!important;bottom:auto!important;transform:translateX(-50%)!important;
- z-index:100!important;min-width:60px!important;max-width:125px!important;width:max-content!important;
- padding:4px 8px!important;margin:0!important;box-sizing:border-box!important;
- border-radius:999px!important;background:#08ad08!important;color:white!important;
- font:700 11px/1.3 Arial,Tahoma,sans-serif!important;text-align:center!important;
- white-space:normal!important;pointer-events:none!important;
- box-shadow:0 3px 9px #0003!important;animation:none!important;transition:none!important;
-}
-#cartBtn > #cartCustomNote[hidden]{display:none!important}
-#cartFloatingGroup{display:contents}
-</style>
+
 <script id="kandorty-cart-small-note-js">
 (function(){
  let lastNote='';
@@ -6643,58 +6828,17 @@ body.kandorty-cart-open #cartBtn{
 </script>
 
 <!-- Kandorty: compact green cart; keep the admin note attached to the draggable button -->
-<style id="kandorty-compact-red-cart-final">
-@media(max-width:760px){
- #cartBtn{width:47px!important;height:47px!important;min-width:47px!important;border:2px solid #fff!important;background:#15803d!important;color:#fff!important;box-shadow:0 3px 12px #0003!important}
- #cartBtn .nav-icon{font-size:20px!important}
- #cartBtn #cartCount{min-width:18px!important;height:18px!important;top:-6px!important;right:-5px!important;padding:0 3px!important;font-size:9px!important;border:1.5px solid #fff!important;background:#15803d!important;color:#fff!important}
- #cartBtn > #cartCustomNote:not([hidden]){min-width:45px!important;max-width:94px!important;padding:2px 5px!important;font:700 8px/1.2 Arial,Tahoma,sans-serif!important;background:#15803d!important;color:#fff!important;border-radius:999px!important;top:calc(100% - 1px)!important;box-shadow:0 2px 6px #0002!important}
-}
-</style>
+
 
 <!-- Kandorty: lower purchase button and remove white image margins -->
-<style id="kandorty-button-and-image-edge-fix">
-/* Keep the image's frame filled when the product is opened. */
-#productModal .product-gallery-mainwrap,
-#productModal .product-gallery-stage { background:#171717 !important; }
-#productModal .product-gallery-mainimg {
-  width:100% !important; height:100% !important;
-  object-fit:cover !important; object-position:center !important;
-  background:#171717 !important; border:0 !important;
-}
-/* Move only the purchase button down slightly. */
-#productModal #modalAddSelectedBtn { margin-top:17px !important; }
-/* Opened photo: no white viewer/card gutters; keep a modest viewing size. */
-#imageViewerModal { background:rgba(0,0,0,.94) !important; }
-#imageViewerModal .image-viewer-card { background:#111 !important; border:0 !important; padding:0 !important; }
-#imageViewerModal #imageViewerImg { background:#111 !important; border:0 !important; border-radius:0 !important; }
-@media(max-width:700px){
-  #productModal #modalAddSelectedBtn { margin-top:17px !important; }
-  #imageViewerModal { padding:0 !important; }
-  #imageViewerModal .image-viewer-card { width:92vw !important; height:78dvh !important; max-width:92vw !important; max-height:78dvh !important; }
-}
-</style>
+
 
 <!-- Only fullscreen viewer: taller photo and horizontal swipe. -->
-<style id="kandorty-viewer-only-safe-update">
-#imageViewerModal{padding:0 !important;background:#080808 !important;align-items:flex-start !important;}
-#imageViewerModal .image-viewer-card{box-sizing:border-box !important;width:100vw !important;max-width:100vw !important;height:calc(100dvh - 54px) !important;max-height:calc(100dvh - 54px) !important;margin:0 !important;padding:0 !important;border:0 !important;border-radius:0 !important;background:#080808 !important;overflow:hidden !important;touch-action:pan-y !important;}
-#imageViewerModal #imageViewerImg{display:block !important;width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;object-fit:cover !important;object-position:center !important;border-radius:0 !important;background:#080808 !important;touch-action:pan-y !important;}
-#imageViewerModal .image-viewer-hint{display:none !important;}
-</style>
+
 
 
 <!-- Kandorty: visible product description label, viewer dots, white lower background -->
-<style id="kandorty-viewer-dots-light-bottom">
-#productModal #modalPublicDescription:not([hidden]){display:block!important;visibility:visible!important;color:#50474a!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
-#imageViewerModal{background:#fff!important;}
-#imageViewerModal .image-viewer-card{background:#fff!important;}
-#imageViewerModal #imageViewerImg{background:#fff!important;}
-#kandortyViewerDots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:8;display:flex;align-items:center;justify-content:center;gap:9px;max-width:90vw;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.88);direction:ltr;box-shadow:0 2px 12px #0002}
-#kandortyViewerDots .viewer-dot{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:#a7a7a7;cursor:pointer;flex:none}
-#kandortyViewerDots .viewer-dot.active{background:#b40018;width:12px;height:12px}
-#kandortyViewerDots[hidden]{display:none!important}
-</style>
+
 <script id="kandorty-viewer-dots-script">
 function renderKandortyViewerDots(){
   const holder=document.getElementById('kandortyViewerDots');
@@ -6721,27 +6865,11 @@ function renderKandortyViewerDots(){
 </script>
 
 <!-- Kandorty: tap product photo to see every photo in a vertical scroll -->
-<style id="kandorty-vertical-photo-viewer">
-#imageViewerModal{background:#fff!important;overflow:hidden!important;align-items:stretch!important}
-#imageViewerModal .image-viewer-card{display:block!important;position:relative!important;width:100%!important;max-width:100%!important;height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;background:#fff!important}
-#imageViewerModal #imageViewerImg,#imageViewerModal .image-viewer-nav,#imageViewerModal .image-viewer-hint{display:none!important}
-#imageViewerModal #kandortyVerticalPhotos{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#fff;padding:54px 0 76px;scrollbar-width:thin}
-#kandortyVerticalPhotos .vertical-photo{display:block;width:100%;height:auto;object-fit:contain;background:#fff;margin:0 auto 10px;max-width:900px}
-#imageViewerModal .image-viewer-close{position:absolute!important;top:max(10px,env(safe-area-inset-top))!important;left:12px!important;z-index:30!important;background:#fff!important;box-shadow:0 2px 12px #0003}
-#imageViewerModal #kandortyViewerDots{z-index:25!important}
-</style>
+
 
 
 <!-- Kandorty product-page scroll gallery and reliable cart action -->
-<style id="kandorty-product-scroll-20261008">
-#productModal .modal-card{overflow-y:auto!important;overscroll-behavior:contain!important;max-height:96dvh!important;background:#fff!important;scroll-behavior:smooth}
-#productModal #modalAddSelectedBtn{position:relative!important;inset:auto!important;display:block!important;pointer-events:auto!important;z-index:5!important;width:calc(100% - 28px)!important;margin:12px 14px!important;min-height:52px!important}
-#productModal #kandortyMorePhotos{padding:8px 14px 25px;background:#fff}
-#productModal #kandortyMorePhotos h3{font-size:16px;margin:14px 0;color:#171214}
-#productModal #kandortyMorePhotos img{display:block;width:100%;max-width:700px;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:10px;background:#fff}
-#productModal #kandortyMorePhotos .photo-position{font-size:12px;color:#71666a;text-align:center;margin:0 0 8px}
-#productModal #kandortyCartFeedback{margin:8px 14px;color:#146b2f;font-size:14px;font-weight:700;min-height:18px}
-</style>
+
 <script id="kandorty-product-scroll-20261008-js">
 (function(){
   var modal=document.getElementById('productModal');
@@ -6835,9 +6963,7 @@ function renderKandortyViewerDots(){
 </script>
 
 <!-- Kandorty: hide floating cart whenever the cart is empty, including when moved to body -->
-<style id="kandorty-empty-cart-visibility-css">
-  #cartBtn.kandorty-empty-cart, #cartFloatingGroup.kandorty-empty-cart {display:none!important;visibility:hidden!important;pointer-events:none!important;}
-</style>
+
 <script id="kandorty-empty-cart-visibility-js">
 (function(){
   function syncCartVisibility(){
@@ -6857,29 +6983,13 @@ function renderKandortyViewerDots(){
 })();
 </script>
 
-<style id="kandorty-horizontal-viewer-only">
-#kandortyMorePhotos{display:none!important}
-#imageViewerModal .image-viewer-card{touch-action:none!important;overscroll-behavior:contain!important}
-#imageViewerModal #imageViewerImg{display:block!important;touch-action:none!important}
-#imageViewerModal #kandortyVerticalPhotos{display:none!important}
-#imageViewerModal .image-viewer-nav{display:none!important}
-
-</style>
 
 
 
-<style id="kandorty-swipe-ultimate-style">
-#imageViewerModal .image-viewer-card,
-#imageViewerModal #imageViewerImg {touch-action:none!important;overscroll-behavior:none!important}
-#imageViewerModal #kandortyVerticalPhotos{display:none!important}
-#imageViewerModal #imageViewerImg{display:block!important}
-</style>
 
-<style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style><style id="kandorty-unified-carousel-css">
-#productModal .product-gallery-stage,#imageViewerModal .image-viewer-card{position:relative!important;overflow:hidden!important;touch-action:pan-y!important}
-#productModal #modalMainImage,#imageViewerModal #imageViewerImg{transition:none;animation:none!important;backface-visibility:hidden!important}
-.kandorty-swipe-next{position:absolute!important;pointer-events:none!important;z-index:6!important;max-width:none!important;max-height:none!important;transition:none;animation:none!important;backface-visibility:hidden!important}
-</style>
+
+
+
 <script id="kandorty-unified-carousel-js">
 (function(){
  function bind(stage,img,fullscreen){
@@ -6948,7 +7058,7 @@ function renderKandortyViewerDots(){
  bind(document.querySelector('#imageViewerModal .image-viewer-card'),document.getElementById('imageViewerImg'),true);
 })();
 </script>
-<style id="kandorty-no-entry-image-jump">#productModal #modalMainImage,#imageViewerModal #imageViewerImg{animation:none!important;transform-origin:center center!important}#productModal:not(.hidden) .product-gallery-stage{contain:paint}#imageViewerModal:not(.hidden) .image-viewer-card{overflow:hidden!important}</style>
+
 <script id="kandorty-customer-my-orders-feature">
 // My Orders displays purchased product items only. It never does an unverified
 // phone-number lookup; receipts come from this browser or the signed-in account.
@@ -7028,90 +7138,7 @@ function openMyOrders(){
 </script>
 
 <!-- Kandorty: compact account + hamburger menu header. All original destination buttons retain their IDs. -->
-<style id="kandorty-header-hamburger-final">
-/* Overrule the old two-row and five-column header strip without touching the product/gallery layout. */
-.top .nav.kandorty-menu-header{
-  position:relative!important; display:flex!important; flex-direction:row!important;
-  align-items:center!important; justify-content:space-between!important;
-  min-height:70px!important; height:70px!important; gap:0!important;
-  padding:5px 0!important; overflow:visible!important;
-}
-.top .nav.kandorty-menu-header > #profileBtn{
-  position:absolute!important;right:0!important;left:auto!important;top:50%!important;
-  transform:translateY(-50%)!important;z-index:2!important;
-  display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  flex-direction:row!important;gap:6px!important;width:auto!important;
-  padding:9px 11px!important;max-width:34%!important;white-space:nowrap!important;
-  font-size:13px!important;font-weight:800!important;border-radius:12px!important;
-  border:1px solid #efd4d9!important;background:#fff!important;color:#7f0920!important;
-  box-shadow:none!important;order:0!important;margin:0!important;
-}
-.top .nav.kandorty-menu-header > #profileBtn .nav-icon{font-size:18px!important}
-.top .nav.kandorty-menu-header > .logo{
-  position:absolute!important;top:50%!important;left:50%!important;right:auto!important;
-  transform:translate(-50%,-50%)!important;margin:0!important;order:0!important;
-  width:clamp(112px,35vw,165px)!important;height:60px!important;
-  max-width:40vw!important;object-fit:contain!important;z-index:1!important;
-}
-#kandortyMenuToggle{
-  position:absolute!important;left:0!important;right:auto!important;top:50%!important;
-  transform:translateY(-50%)!important;width:45px!important;height:43px!important;
-  border:1px solid #efd4d9!important;background:#fff!important;border-radius:12px!important;
-  display:flex!important;align-items:center!important;justify-content:center!important;
-  cursor:pointer!important;z-index:4!important;padding:0!important;
-}
-.kandorty-menu-bars{display:flex;flex-direction:column;gap:5px;width:21px;pointer-events:none}
-.kandorty-menu-bars>span{display:block;width:21px;height:2.4px;background:#88001c;border-radius:9px;transition:transform .19s ease,opacity .19s ease}
-#kandortyMenuToggle[aria-expanded="true"] .kandorty-menu-bars>span:first-child{transform:translateY(7.4px) rotate(45deg)}
-#kandortyMenuToggle[aria-expanded="true"] .kandorty-menu-bars>span:nth-child(2){opacity:0}
-#kandortyMenuToggle[aria-expanded="true"] .kandorty-menu-bars>span:last-child{transform:translateY(-7.4px) rotate(-45deg)}
-.top .nav.kandorty-menu-header > #kandortyMenuItems{
-  position:absolute!important;left:0!important;right:auto!important;top:calc(100% + 2px)!important;
-  width:min(320px,calc(100vw - 18px))!important;max-height:min(78dvh,590px)!important;
-  overflow-x:hidden!important;overflow-y:auto!important;z-index:100!important;
-  display:flex!important;flex-direction:column!important;grid-template-columns:none!important;
-  align-items:stretch!important;justify-content:flex-start!important;
-  flex-wrap:nowrap!important;gap:3px!important;
-  padding:11px!important;margin:0!important;direction:rtl!important;
-  border:1px solid #ead6da!important;border-radius:17px!important;
-  background:#fff!important;box-shadow:0 17px 46px #23030a38!important;
-  -webkit-overflow-scrolling:touch!important;
-}
-.top .nav.kandorty-menu-header > #kandortyMenuItems[hidden]{display:none!important}
-.top .nav.kandorty-menu-header #kandortyMenuItems .kandorty-menu-heading{
-  display:flex!important;align-items:center!important;justify-content:space-between!important;
-  width:100%!important;padding:4px 8px 10px!important;margin:0 0 4px!important;
-  border-bottom:1px solid #f1e7e8!important;color:#89001a!important;font-size:16px!important;
-}
-#kandortyMenuClose{width:31px;height:31px;border:0;background:#f9f0f1;border-radius:9px;font-size:26px;line-height:1;cursor:pointer;color:#6c1026}
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn{
-  display:flex!important;flex-direction:row!important;align-items:center!important;
-  justify-content:flex-start!important;flex:0 0 auto!important;gap:12px!important;
-  width:100%!important;min-width:0!important;max-width:none!important;min-height:45px!important;
-  margin:0!important;padding:11px 12px!important;
-  background:#fff!important;border:0!important;border-radius:10px!important;
-  box-shadow:none!important;color:#282024!important;font-size:14px!important;
-  font-weight:700!important;line-height:1.5!important;white-space:nowrap!important;
-  text-align:right!important;letter-spacing:normal!important;overflow:visible!important;
-}
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn:hover,
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn:focus-visible{background:#fff4f5!important;transform:none!important}
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn[hidden]{display:none!important}
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn .nav-icon{font-size:19px!important;line-height:1.2!important;flex:0 0 24px!important;text-align:center!important}
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn span{font-size:inherit!important;white-space:nowrap!important;overflow:visible!important}
-.top .nav.kandorty-menu-header #kandortyMenuItems > .btn .header-count{margin-inline-start:auto!important;font-size:11px!important;color:white!important}
-.top .nav.kandorty-menu-header #kandortyMenuItems > #adminBtn{display:none!important}
-/* The website's existing draggable cart stays attached to the viewport when a customer adds a product. */
-.top .nav.kandorty-menu-header #kandortyMenuItems > #cartFloatingGroup{display:none!important}
-/* Sharing is now inside the three-line menu rather than floating over its corner. */
-.top .nav.kandorty-menu-header > #shareSiteBtn{display:none!important}
-@media(max-width:440px){
-  .top .nav.kandorty-menu-header{height:64px!important;min-height:64px!important}
-  .top .nav.kandorty-menu-header > .logo{height:52px!important;width:clamp(108px,35vw,141px)!important}
-  .top .nav.kandorty-menu-header > #profileBtn{font-size:12px!important;padding:8px 8px!important;gap:3px!important}
-  #kandortyMenuToggle{width:42px!important;height:41px!important}
-}
-</style>
+
 <script id="kandorty-header-hamburger-behavior">
 (function(){
   const toggle=document.getElementById('kandortyMenuToggle');
