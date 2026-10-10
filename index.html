@@ -5456,57 +5456,63 @@ function removeCustomerEditItem(itemId){
 
 let cancellationSubmitting=false;
 async function requestOrderCancellation(){
-  if(cancellationSubmitting||!activeEditableOrder)return;
-  const edit=activeEditableOrder,orderId=String(edit.orderId||''),token=String(edit.editToken||'');
-  if(!orderId||!token||edit.cancelRequestedAt)return;
-  if(!confirm('هل تريدين إلغاء الطلب '+orderId+'؟ إذا كان مدفوعاً بالبطاقة، تتم مراجعة استرداد المبلغ بشكل منفصل.'))return;
+  if(cancellationSubmitting||!activeEditableOrder)return false;
+  const edit=activeEditableOrder;
+  const orderId=String(edit.orderId||'');
+  const token=String(edit.editToken||'');
+  if(!orderId||!token||edit.cancelRequestedAt)return false;
+  if(!confirm('هل تريدين إلغاء الطلب '+orderId+'؟ إذا كان مدفوعاً بالبطاقة، تتم مراجعة استرداد المبلغ بشكل منفصل.'))return false;
+
   cancellationSubmitting=true;
   const trackRef=db.collection('tracking').doc(orderId);
   const editRef=db.collection('order_edits').doc(token);
   const orderRef=db.collection('orders').doc(orderId);
-  const now=new Date().toISOString();
   try{
-    const makeEdit=async(get)=>{
-      const [tracking,proof]=await Promise.all([get(trackRef),get(editRef)]);
-      if(!tracking.exists||tracking.data()?.status!=='new'||tracking.data()?.cancellationLockedAt)
-        throw Object.assign(new Error('بدأ تجهيز الطلب أو توصيله، ولا يمكن إلغاؤه.'),{code:'order/locked'});
-      if(!proof.exists||String(proof.data()?.orderId||'')!==orderId||
-         normalizeOrderPhone(proof.data()?.customer?.phone||'')!==normalizeOrderPhone(edit.verifiedPhone||edit.customer?.phone||''))
-        throw Object.assign(new Error('تعذر التحقق من رقم الطلب والهاتف.'),{code:'order/unverified'});
-      if(proof.data()?.cancelRequestedAt)
-        throw Object.assign(new Error('الطلب ملغي بالفعل.'),{code:'order/already-cancelled'});
-      return {customer:proof.data().customer||edit.customer||{},notes:proof.data().notes||'',quantities:proof.data().quantities||quantitiesFromOrderItems(edit.items),editProof:token,updatedAt:now,cancelRequestedAt:now};
+    // Public Firestore rules allow customers to GET tracking and their
+    // unguessable edit proof, but not to change tracking or order.status.
+    const [tracking,proof]=await Promise.all([trackRef.get(),editRef.get()]);
+    if(!tracking.exists||tracking.data()?.status!=='new'||tracking.data()?.cancellationLockedAt)
+      throw Object.assign(new Error('بدأ تجهيز الطلب أو توصيله، ولا يمكن إلغاؤه.'),{code:'order/locked'});
+    const data=proof.exists?(proof.data()||{}):null;
+    if(!data||String(data.orderId||'')!==orderId||
+       (data.editToken&&String(data.editToken)!==token)||
+       normalizeOrderPhone(data.customer?.phone||'')!==normalizeOrderPhone(edit.verifiedPhone||edit.customer?.phone||''))
+      throw Object.assign(new Error('تعذر التحقق من رقم الطلب والهاتف.'),{code:'order/unverified'});
+    if(data.cancelRequestedAt)throw Object.assign(new Error('الطلب ملغي بالفعل.'),{code:'order/already-cancelled'});
+    const now=new Date().toISOString();
+    const customerEdit={
+      customer:data.customer||edit.customer||{},
+      notes:String(data.notes||''),
+      quantities:data.quantities||quantitiesFromOrderItems(edit.items||[]),
+      editProof:token,
+      updatedAt:now,
+      cancelRequestedAt:now
     };
-    try{
-      // Tracking and admin status updates share a Firestore transaction so a
-      // simultaneous change to preparing/shipping/delivered blocks cancellation.
-      await db.runTransaction(async tx=>{
-        const customerEdit=await makeEdit(ref=>tx.get(ref));
-        tx.update(orderRef,{status:'cancelled',cancelledBy:'customer',cancelledAt:now,customerEdit,customerModifiedAt:now});
-        tx.update(editRef,{status:'cancelled',cancelRequestedAt:now,updatedAt:now});
-        tx.set(trackRef,{id:orderId,status:'cancelled',cancelledAt:now},{merge:true});
-      });
-    }catch(error){
-      if(error?.code!=='permission-denied'&&error?.code!=='unauthenticated')throw error;
-      // Older customer-edit rules can restrict direct status/tracking updates.
-      // Persist verified cancellation without requiring admin approval; admin
-      // automatically finalizes canonical status when online.
-      await db.runTransaction(async tx=>{
-        const customerEdit=await makeEdit(ref=>tx.get(ref));
-        tx.update(orderRef,{customerEdit,customerModifiedAt:now});
-        tx.update(editRef,{cancelRequestedAt:now,updatedAt:now});
-      });
-    }
-    activeEditableOrder={...edit,status:'cancelled',cancelRequestedAt:now};
-    saveCustomerOwnOrders(readCustomerOwnOrders().map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o));
-    customerCloudOrders=customerCloudOrders.map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o);
-    orders=orders.map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o);
-    renderTrackingResult({...edit,id:orderId,status:'cancelled',customer:edit.customer||{},items:edit.items||[]},activeEditableOrder);
+
+    // Match the established customer-edit Firestore security rules:
+    // only customerEdit/customerModifiedAt may change on /orders/{id}.
+    // Admin's live listener recognizes this cancellation and sets the
+    // canonical status and tracking atomically using admin permissions.
+    await orderRef.update({customerEdit,customerModifiedAt:now});
+
+    activeEditableOrder={...edit,customerEdit,status:'cancelled',cancelRequestedAt:now};
+    saveCustomerOwnOrders(readCustomerOwnOrders().map(o=>
+      String(o.id)===orderId?{...o,status:'cancelled',cancelRequestedAt:now}:o));
+    customerCloudOrders=customerCloudOrders.map(o=>
+      String(o.id)===orderId?{...o,status:'cancelled',customerEdit}:o);
+    orders=orders.map(o=>String(o.id)===orderId?{...o,status:'cancelled',customerEdit}:o);
+    renderTrackingResult({...edit,id:orderId,status:'cancelled',customer:data.customer||{},items:edit.items||[],customerEdit},activeEditableOrder);
     renderMyOrders();renderProfileOrders();
-    alert('✅ تم إلغاء طلبك بنجاح!\n\nرقم الطلب: '+orderId+'\n\n'+(edit.payment==='card'?'إذا دُفع الطلب بالبطاقة، تتم متابعة استرداد المبلغ بشكل منفصل.':'تم إبلاغ إدارة المتجر بإلغاء الطلب.'));
+    alert('✅ تم إلغاء طلبك بنجاح!\n\nرقم الطلب: '+orderId+'\n\n'+
+      (edit.payment==='card'?'إذا دُفع الطلب بالبطاقة، تتم متابعة استرداد المبلغ بشكل منفصل.':'تم إبلاغ إدارة المتجر بإلغاء الطلب.'));
+    return true;
   }catch(error){
     console.error('Customer cancellation failed:',error);
-    alert('تعذر إلغاء الطلب. '+(error?.message||'حاولي مرة أخرى.'));
+    const reason=error?.code==='permission-denied'
+      ?'قواعد Firebase لا تسمح بتسجيل الإلغاء لهذا الطلب. يلزم تحديث قواعد Firestore أو التحقق من بيانات الطلب.'
+      :(error?.message||'حاولي مرة أخرى.');
+    alert('تعذر إلغاء الطلب. '+reason);
+    return false;
   }finally{cancellationSubmitting=false;}
 }
 function openCustomerOrderEdit(){
