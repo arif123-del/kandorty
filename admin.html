@@ -2538,7 +2538,8 @@ async function sha256Hex(value){
 
 async function makeOrderAccessKey(orderId,phone){
   const normalized=normalizeOrderPhone(phone);
-  if(normalized.length<7)throw new Error('invalid-phone');
+  // Checkout accepts short test/legacy numbers; keep the access key tied to both order ID and exact stored phone.
+  if(normalized.length<6)throw new Error('invalid-phone');
   return sha256Hex(String(orderId||'').toUpperCase()+'|'+normalized);
 }
 
