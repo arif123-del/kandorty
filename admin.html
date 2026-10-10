@@ -3127,16 +3127,6 @@ function renderOpenedOrdersCustomer(){
       <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
     </div>
     <section class="customer-file-panel">
-      <h3>بيانات العميل</h3>
-      <div class="customer-file-data">
-        <div><small>الاسم</small><b>${esc(group.name||'-')}</b></div>
-        <div><small>رقم الهاتف</small><b dir="ltr">${esc(group.phone||'-')}</b></div>
-        <div><small>الإمارة</small><b>${esc(group.city||'-')}</b></div>
-        <div><small>العنوان / المنطقة</small><b>${esc(group.location||'-')}</b></div>
-        <div><small>مجموع مبالغ الطلبات</small><b>${money(group.total)}</b></div>
-      </div>
-    </section>
-    <section class="customer-file-panel">
       <h3>طلبات العميل (${group.history.length})</h3>
       <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل">
         ${group.history.map(raw=>{
