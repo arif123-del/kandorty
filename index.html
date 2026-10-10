@@ -3439,6 +3439,8 @@ function rememberCustomerOwnOrder(order){
   const receipt={
     id:String(order.id),status:order.status||'new',createdAt:order.createdAt||'',
     total:Number(order.total)||0,payment:order.payment||'cod',
+    // Save this device's unguessable editing capability for one-tap order cancellation.
+    editToken:/^[a-f0-9]{48}$/i.test(String(order.editToken||''))?String(order.editToken):'',
     items:(Array.isArray(order.items)?order.items:[]).map(i=>({
       id:String(i.id||''),code:String(i.code||''),name:String(i.name||''),
       qty:Number(i.qty)||1,price:Number(i.price)||0,
@@ -3887,7 +3889,8 @@ async function sha256Hex(value){
 
 async function makeOrderAccessKey(orderId,phone){
   const normalized=normalizeOrderPhone(phone);
-  if(normalized.length<7)throw new Error('invalid-phone');
+  // Allow legacy/test orders saved with six digits while still requiring exact order ID and phone for verification.
+  if(normalized.length<6)throw new Error('invalid-phone');
   return sha256Hex(String(orderId||'').toUpperCase()+'|'+normalized);
 }
 
@@ -7443,6 +7446,72 @@ function openMyOrders(){
   renderMyOrders();
   refreshMyOrders();
 }
+// Cancel directly from "طلباتي": do not redirect customers to order tracking.
+async function cancelOrderFromMyOrders(orderId,button){
+  const code=String(orderId||'').trim().toUpperCase();
+  if(!/^KD-[A-Za-z0-9_-]{4,40}$/.test(code)||button.disabled)return;
+  button.disabled=true;
+  const oldLabel=button.textContent;
+  button.textContent='جارٍ التحقق من الطلب...';
+  try{
+    const ownOrder=customerVisibleOrders().find(order=>String(order.id||'').toUpperCase()===code);
+    if(!ownOrder)throw new Error('لم يتم العثور على هذا الطلب في مشترياتك.');
+    const trackSnap=await db.collection('tracking').doc(code).get();
+    if(!trackSnap.exists)throw new Error('تعذر التحقق من حالة الطلب. حاولي مرة أخرى.');
+    const current=trackSnap.data()||{};
+    if(current.status!=='new'||current.cancellationLockedAt){
+      if(current.status==='cancelled'){
+        saveCustomerOwnOrders(readCustomerOwnOrders().map(order=>String(order.id||'').toUpperCase()===code?{...order,status:'cancelled'}:order));
+        renderMyOrders();
+        throw new Error('تم إلغاء هذا الطلب مسبقاً.');
+      }
+      throw new Error('بدأ تجهيز الطلب أو توصيله، ولم يعد الإلغاء متاحاً.');
+    }
+    let verifiedEdit=null;
+    // New orders have a random per-order editing capability, saved on the
+    // original purchasing device. Never accept a receipt alone as authorization.
+    const token=String(ownOrder.editToken||'');
+    if(/^[a-f0-9]{48}$/i.test(token)){
+      try{
+        const proof=await db.collection('order_edits').doc(token).get();
+        if(proof.exists&&String(proof.data()?.orderId||'').toUpperCase()===code){
+          const data=proof.data();
+          verifiedEdit={...data,editToken:token,
+            verifiedPhone:normalizeOrderPhone(data.customer?.phone||'')};
+        }
+      }catch(error){console.warn('Stored order proof unavailable:',error);}
+    }
+    // Legacy orders: verify the original order phone against the hashed access record.
+    if(!verifiedEdit){
+      const possiblePhones=[customerProfile?.phone,customerAuthUser?.phoneNumber]
+        .map(x=>String(x||'').trim()).filter(Boolean);
+      for(const phone of [...new Set(possiblePhones)]){
+        try{
+          verifiedEdit=await loadEditableOrder(code,phone);
+          if(verifiedEdit)break;
+        }catch(error){console.warn('Saved phone verification unavailable:',error);}
+      }
+    }
+    if(!verifiedEdit){
+      const phone=prompt('أدخلي رقم الهاتف الذي استُخدم عند إنشاء الطلب '+code+' للتحقق من ملكيته:',String(customerProfile?.phone||''));
+      if(phone===null)return;
+      if(normalizeOrderPhone(phone).length<6)throw new Error('أدخلي رقم الهاتف المسجل في الطلب (6 أرقام على الأقل).');
+      verifiedEdit=await loadEditableOrder(code,phone);
+    }
+    if(!verifiedEdit)throw new Error('لم نتمكن من تأكيد ملكية هذا الطلب. استخدمي رقم الهاتف الأصلي، وإذا كان الطلب قديماً افتحي إدارة الطلبات لتفعيل التحقق.');
+    if(verifiedEdit.cancelRequestedAt)throw new Error('تم إلغاء هذا الطلب سابقاً.');
+    activeEditableOrder=verifiedEdit;
+    activeOrderAccessKey=verifiedEdit.accessKey||'';
+    // This function verifies the current status again and only shows success
+    // after Firestore confirms the change.
+    await requestOrderCancellation();
+  }catch(error){
+    console.warn('My orders cancellation failed:',error);
+    alert('تعذر إلغاء الطلب. '+(error?.message||'يرجى المحاولة مرة أخرى.'));
+  }finally{
+    if(button.isConnected){button.disabled=false;button.textContent=oldLabel;}
+  }
+}
 (function initMyOrders(){
   const btn=document.getElementById('myOrdersBtn');
   const modal=document.getElementById('myOrdersModal');
@@ -7453,13 +7522,7 @@ function openMyOrders(){
     const button=event.target.closest('.my-order-cancel-link');
     if(!button)return;
     const code=button.dataset.orderCode||'';
-    if(!code)return;
-    closeMyOrders();
-    const trackButton=document.getElementById('trackBtn');
-    if(trackButton)trackButton.click();
-    document.getElementById('trackingNumber').value=code;
-    if(customerProfile?.phone)document.getElementById('trackingPhone').value=customerProfile.phone;
-    trackOrder();
+    if(code)cancelOrderFromMyOrders(code,button);
   });
 })();
 </script>
