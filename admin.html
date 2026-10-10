@@ -2353,6 +2353,48 @@ async function finalizeCustomerCancellation(order){
   }catch(error){console.warn('Auto-finalize customer cancellation failed for '+id,error);}
   finally{customerCancelFinalizing.delete(id);}
 }
+const cancelStockRestoreInProgress=new Set();
+// Returning canceled items to stock must use the admin's product permissions.
+// A transaction marker on the order prevents double restoration across admin tabs.
+async function restoreCustomerCancelledStock(order){
+  const id=String(order?.id||'');
+  if(!id||cancelStockRestoreInProgress.has(id)||order?.status!=='cancelled'||
+     !(order?.cancelledBy==='customer'||isPendingCustomerCancellation(order))||
+     order?.cancelStockRestoredAt)return;
+  cancelStockRestoreInProgress.add(id);
+  try{
+    const orderRef=db.collection('orders').doc(id);
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(orderRef);
+      if(!snap.exists)return;
+      const latest=snap.data()||{};
+      if(latest.status!=='cancelled'||latest.cancelStockRestoredAt||
+         !(latest.cancelledBy==='customer'||isPendingCustomerCancellation({...latest,id})))return;
+      const qtyById=new Map();
+      (Array.isArray(latest.items)?latest.items:[]).forEach(item=>{
+        const productId=String(item?.id||'');
+        const qty=Math.max(0,Math.floor(Number(item?.qty)||0));
+        if(productId&&qty)qtyById.set(productId,(qtyById.get(productId)||0)+qty);
+      });
+      if(!qtyById.size)return;
+      const rows=[];
+      for(const [productId,qty] of qtyById){
+        const ref=db.collection('products').doc(productId);
+        const productSnap=await tx.get(ref);
+        rows.push({ref,qty,productSnap});
+      }
+      for(const {ref,qty,productSnap} of rows){
+        if(!productSnap.exists)continue;
+        const p=productSnap.data()||{};
+        if(p.stock===null||p.stock===undefined||p.stock===''||!Number.isFinite(Number(p.stock)))continue;
+        const next=Math.max(0,Math.floor(Number(p.stock)))+qty;
+        tx.update(ref,{stock:next,totalStock:Math.max(Number(p.totalStock)||0,next)});
+      }
+      tx.update(orderRef,{cancelStockRestoredAt:new Date().toISOString()});
+    });
+  }catch(error){console.warn('Cancelled order stock restoration failed:',id,error);}
+  finally{cancelStockRestoreInProgress.delete(id);}
+}
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
 
@@ -2393,6 +2435,7 @@ function startAdminOrdersListener(){
       // Alert even on the next admin login if the customer requested cancellation while away.
       alertNewCustomerCancellationRequests(docs);
       docs.filter(o=>o.status==='new'&&isPendingCustomerCancellation(o)).forEach(o=>finalizeCustomerCancellation(o));
+      docs.filter(o=>o.status==='cancelled'&&(o.cancelledBy==='customer'||isPendingCustomerCancellation(o))).forEach(o=>restoreCustomerCancelledStock(o));
       try{localStorage.removeItem(ORDERS_KEY);}catch(error){console.warn('Old order cache cleanup skipped:',error);}
       ensureCustomerEditForOldOrders(orders).catch(console.warn);
       renderOrders();
@@ -2502,7 +2545,8 @@ function effectiveOrderView(order){
     return {...i,qty};
   }).filter(i=>i.qty>0);
 
-  const total=items.reduce((s,i)=>s+(Number(i.price)||0)*(Number(i.qty)||0),0);
+  const subtotal=items.reduce((s,i)=>s+(Number(i.price)||0)*(Number(i.qty)||0),0);
+  const total=subtotal+(items.length?Number(o.deliveryFee)||0:0);
   const customer={
     ...(o.customer||{}),
     ...((edit.customer&&typeof edit.customer==='object')?edit.customer:{})
