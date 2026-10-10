@@ -135,6 +135,14 @@ exports.handler = async function(event) {
       }));
     });
 
+    // Fixed delivery fee: charge once per order, never once per item.
+    const deliveryIndex = normalized.length;
+    params.set(`line_items[${deliveryIndex}][price_data][currency]`, 'aed');
+    params.set(`line_items[${deliveryIndex}][price_data][unit_amount]`, '2500');
+    params.set(`line_items[${deliveryIndex}][price_data][product_data][name]`, 'Delivery fee (AED 25)');
+    params.set(`line_items[${deliveryIndex}][quantity]`, '1');
+    params.set('metadata[delivery_fee_aed]', '25');
+
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
