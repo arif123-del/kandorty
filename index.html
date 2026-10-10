@@ -5243,7 +5243,7 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
   const idx=flow.indexOf(shown.status);
   const cancelPending=Boolean(shown.customerEdit?.cancelRequestedAt||editable?.cancelRequestedAt);
   if(shown.status==='new'&&cancelPending)shown.status='cancelled';
-  const canEdit=shown.status==='new'&&editable&&!cancelPending;
+  const canEdit=shown.status==='new'&&editable&&!cancelPending&&!shown.cancellationLockedAt;
   $('trackingResult').innerHTML=`<div class="track-box">
     <b>${esc(shown.id||'')}</b>
     <div class="track-steps">
@@ -5417,7 +5417,7 @@ async function requestOrderCancellation(){
   try{
     const makeEdit=async(get)=>{
       const [tracking,proof]=await Promise.all([get(trackRef),get(editRef)]);
-      if(!tracking.exists||tracking.data()?.status!=='new')
+      if(!tracking.exists||tracking.data()?.status!=='new'||tracking.data()?.cancellationLockedAt)
         throw Object.assign(new Error('بدأ تجهيز الطلب أو توصيله، ولا يمكن إلغاؤه.'),{code:'order/locked'});
       if(!proof.exists||String(proof.data()?.orderId||'')!==orderId||
          normalizeOrderPhone(proof.data()?.customer?.phone||'')!==normalizeOrderPhone(edit.verifiedPhone||edit.customer?.phone||''))
@@ -5440,11 +5440,11 @@ async function requestOrderCancellation(){
       // Older customer-edit rules can restrict direct status/tracking updates.
       // Persist verified cancellation without requiring admin approval; admin
       // automatically finalizes canonical status when online.
-      const customerEdit=await makeEdit(ref=>ref.get());
-      const batch=db.batch();
-      batch.update(orderRef,{customerEdit,customerModifiedAt:now});
-      batch.update(editRef,{cancelRequestedAt:now,updatedAt:now});
-      await batch.commit();
+      await db.runTransaction(async tx=>{
+        const customerEdit=await makeEdit(ref=>tx.get(ref));
+        tx.update(orderRef,{customerEdit,customerModifiedAt:now});
+        tx.update(editRef,{cancelRequestedAt:now,updatedAt:now});
+      });
     }
     activeEditableOrder={...edit,status:'cancelled',cancelRequestedAt:now};
     saveCustomerOwnOrders(readCustomerOwnOrders().map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o));
@@ -7319,7 +7319,7 @@ function renderMyOrders(){
   // Group purchased products by their original order so every order code is visible.
   const purchasedOrders=orders.map(order=>({
     code:String(order.id||'').trim(),
-    canRequestCancel:order.status==='new'&&!order.customerEdit?.cancelRequestedAt,
+    canRequestCancel:order.status==='new'&&!order.customerEdit?.cancelRequestedAt&&!order.cancellationLockedAt,
     items:(Array.isArray(order.items)?order.items:[]).map(item=>({
       item,qty:Math.floor(Number(item.qty)||0)
     })).filter(row=>row.qty>0)
