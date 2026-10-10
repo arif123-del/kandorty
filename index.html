@@ -6866,7 +6866,7 @@ function renderKandortyViewerDots(){
  function loaded(src){const img=preload(src);return !!(img&&img.complete&&img.naturalWidth);}
  function wait(src){const img=preload(src);if(!img)return Promise.reject();if(loaded(src))return Promise.resolve();return new Promise((resolve,reject)=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',reject,{once:true});});}
  function position(px,ms=0){track.style.transition=ms?'transform '+ms+'ms cubic-bezier(.22,.68,.2,1)':'none';track.style.transform='translate3d('+px+'px,0,0)';}
- function render(){const a=photos(),n=a.length;if(!n)return;const j=((currentProductImageIndex%n)+n)%n;[(j-1+n)%n,j,(j+1)%n].forEach((idx,k)=>{const src=a[idx];preload(src);if(slides[k].getAttribute('src')!==src)slides[k].src=src;});position(center());}
+ function render(){const a=photos(),n=a.length;if(!n)return;const j=((currentProductImageIndex%n)+n)%n;[j>0?j-1:-1,j,j<n-1?j+1:-1].forEach((idx,k)=>{const src=idx>=0?a[idx]:'';if(src)preload(src);if(src){if(slides[k].getAttribute('src')!==src)slides[k].src=src;slides[k].style.visibility='visible';}else{slides[k].removeAttribute('src');slides[k].style.visibility='hidden';}});position(center());}
  function sync(){if(modal.classList.contains('hidden')){gesture=null;busy=false;token++;return;}if(!gesture&&!busy)render();}
  new MutationObserver(sync).observe(modal,{attributes:true,attributeFilter:['class']});
  new MutationObserver(()=>{if(!gesture&&!busy&&!modal.classList.contains('hidden'))render();}).observe(main,{attributes:true,attributeFilter:['src']});
@@ -6878,7 +6878,7 @@ function renderKandortyViewerDots(){
    if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
    const g=gesture;g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
    if(!g.horizontal&&Math.abs(g.dx)>8&&Math.abs(g.dx)>Math.abs(g.dy)*1.15)g.horizontal=true;
-   if(g.horizontal){e.preventDefault();position(center()+Math.max(-stage.clientWidth,Math.min(stage.clientWidth,g.dx)));lastSwipe=Date.now();}
+   if(g.horizontal){e.preventDefault();const j=currentProductImageIndex,n=photos().length;const edge=(g.dx>0&&j<=0)||(g.dx<0&&j>=n-1);const dx=edge?g.dx*.12:g.dx;position(center()+Math.max(-stage.clientWidth,Math.min(stage.clientWidth,dx)));lastSwipe=Date.now();}
    e.stopPropagation();
  },{passive:false});
  surface.addEventListener('touchend',async e=>{
@@ -6886,9 +6886,10 @@ function renderKandortyViewerDots(){
    const t=Array.from(e.changedTouches).find(t=>t.identifier===g.id);if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
    e.stopPropagation();
    const width=stage.clientWidth;
-   const dir=g.horizontal&&Math.abs(g.dx)>Math.max(42,width*.17)?(g.dx<0?1:-1):0;
+   let dir=g.horizontal&&Math.abs(g.dx)>Math.max(42,width*.17)?(g.dx<0?1:-1):0;
+   if(currentProductImageIndex+dir<0||currentProductImageIndex+dir>=photos().length)dir=0;
    if(!dir){position(center(),200);return;}
-   busy=true;const n=photos().length,next=(currentProductImageIndex+dir+n)%n,src=photos()[next],id=++token;
+   busy=true;const next=currentProductImageIndex+dir,src=photos()[next],id=++token;
    try{
      await wait(src);
      if(id!==token||modal.classList.contains('hidden'))return;
