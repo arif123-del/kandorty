@@ -847,6 +847,15 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminOrdersTab #ordersCustomerSelectedOrder>.customer-file-order{margin:0}
 @media(max-width:600px){#adminOrdersTab .customer-only-file-shell{padding:12px}#adminOrdersTab .customer-file-order-tab{min-width:132px}}
 </style>
+
+<style id="kandorty-admin-one-customer-fields-only">
+/* One compact customer details card in each file. The selected order does not repeat it. */
+#adminOrdersTab .customer-file-mini-profile{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 14px;padding:10px;border:1px solid #e8d5dc;border-radius:13px;background:#fff9fa}
+#adminOrdersTab .customer-file-mini-profile>div{min-width:0;padding:5px 9px}
+#adminOrdersTab .customer-file-mini-profile small{display:block;font-size:12px;line-height:1.7;color:#71666a}
+#adminOrdersTab .customer-file-mini-profile b{display:block;font-size:15px;font-weight:800;overflow-wrap:anywhere;line-height:1.6}
+@media(max-width:560px){#adminOrdersTab .customer-file-mini-profile{grid-template-columns:1fr;gap:4px}#adminOrdersTab .customer-file-mini-profile>div{padding:6px 8px;border-bottom:1px solid #eee1e5}#adminOrdersTab .customer-file-mini-profile>div:last-child{border-bottom:0}}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -2974,14 +2983,17 @@ function normalizeOrderShape(raw){
   };
 }
 
+// In each customer's file, show one compact set of customer details only.
+// City and street/address share one location field to avoid apparent duplicates.
 function renderOrderCustomerHtml(order){
-  const o=normalizeOrderShape(order);
-  const c=o.customer||{};
-  return `<div class="order-customer-details">
-    <div><b>اسم العميل:</b> ${esc(c.name||'-')}</div>
-    <div><b>رقم الهاتف:</b> ${esc(c.phone||'-')}</div>
-    <div><b>الإمارة:</b> ${esc(c.city||'-')}</div>
-    <div><b>العنوان:</b> ${esc(c.location||'-')}</div>
+  const c=normalizeOrderShape(order).customer||{};
+  const locations=[c.city,c.location].map(v=>String(v||'').trim()).filter(Boolean);
+  const uniqueLocations=locations.filter((v,i)=>locations.findIndex(x=>x.toLocaleLowerCase()===v.toLocaleLowerCase())===i);
+  const locationText=uniqueLocations.join(' - ')||'-';
+  return `<div class="customer-file-mini-profile" aria-label="معلومات العميل">
+    <div><small>الاسم</small><b>${esc(c.name||'-')}</b></div>
+    <div><small>رقم الهاتف</small><b dir="ltr">${esc(c.phone||'-')}</b></div>
+    <div><small>الموقع</small><b>${esc(locationText)}</b></div>
   </div>`;
 }
 
@@ -3125,17 +3137,9 @@ function renderOpenedOrdersCustomer(){
       <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
       <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
     </div>
-    <section class="customer-file-panel customer-file-primary-details" aria-label="بيانات العميل">
-      <h3>بيانات العميل</h3>
-      <div class="customer-file-data">
-        <div><small>الاسم</small><b>${esc(group.name||'غير مسجل')}</b></div>
-        <div><small>رقم الهاتف</small><b dir="ltr">${esc(group.phone||'-')}</b></div>
-        <div><small>الإمارة</small><b>${esc(group.city||'-')}</b></div>
-        <div><small>العنوان / المنطقة</small><b>${esc(group.location||'-')}</b></div>
-      </div>
-    </section>
+    ${selectedOrder?renderOrderCustomerHtml(effectiveOrderView(selectedOrder)):''}
     <section class="customer-file-panel">
-      <h3>طلبات العميل (${group.history.length})</h3>
+      <h3>الطلبات</h3>
       <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل" style="display:${group.history.length>1?'flex':'none'}">
         ${group.history.map((raw,index)=>{
           const o=effectiveOrderView(raw);
