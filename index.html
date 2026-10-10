@@ -2983,7 +2983,10 @@ let unreadNewOrders=0;
 let orderAudioContext=null;
 
 function loadCommerce(){
-  try{cart=JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch(e){cart=[]}
+  try{
+    const saved=JSON.parse(localStorage.getItem(CART_KEY)||'[]');
+    cart=Array.isArray(saved)?saved.filter(item=>item&&item.id&&Number(item.qty)>0).map(item=>({...item,qty:Math.max(1,Math.floor(Number(item.qty)))})):[];
+  }catch(e){cart=[]}
   try{orders=JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]')}catch(e){orders=[]}
   updateCartCount(); renderProfileOrders();
 }
@@ -3235,7 +3238,12 @@ function startAdminOrdersListener(){
     if(btn)btn.textContent='🔊 صوت الطلبات مُفعّل';
   }
 }
-function saveCart(){localStorage.setItem(CART_KEY,JSON.stringify(cart));updateCartCount();renderCart()}
+function saveCart(){
+  try{localStorage.setItem(CART_KEY,JSON.stringify(cart));}
+  catch(error){console.warn('Cart storage unavailable:',error);}
+  updateCartCount();
+  renderCart();
+}
 async function saveOrders(){
   if(!auth.currentUser) throw new Error('Admin authentication required');
   const batch=db.batch();
@@ -3487,6 +3495,7 @@ async function submitCustomerOrder(order){
   if(orderBytes>700*1024){
     throw Object.assign(new Error('Order data is unexpectedly too large.'),{code:'order/too-large'});
   }
+  // The server-side Firestore transaction below is the authoritative stock guard.
   await saveOrderWithStock(order);
   // This happens for both cash-on-delivery and verified Stripe payments.
   rememberCustomerOwnOrder(order);
@@ -3553,7 +3562,26 @@ function addToCart(id,imageIndex=0,keepProductOpen=false){
     $('cartModal').classList.remove('hidden');
   }
 }
-function updateCartCount(){const n=cart.reduce((s,x)=>s+(Number(x.qty)||0),0); if($('cartCount'))$('cartCount').textContent=n; const group=$('cartFloatingGroup');if(group)group.style.setProperty('display',n>0?'':'none',n>0?'':'important');}
+function updateCartCount(){
+  // Count units, not rows; always synchronize the menu shortcut too.
+  const n=Array.isArray(cart)?cart.reduce((sum,item)=>sum+Math.max(0,Math.floor(Number(item?.qty)||0)),0):0;
+  const badge=$('cartCount');
+  if(badge)badge.textContent=String(n);
+  const group=$('cartFloatingGroup');
+  if(group){
+    group.hidden=n===0;
+    group.style.setProperty('display',n>0?'flex':'none','important');
+  }
+  const button=$('cartBtn');
+  if(button){
+    button.hidden=n===0;
+    button.style.setProperty('display',n>0?'flex':'none','important');
+  }
+  const menuCount=$('kandortyMenuCartCount');
+  const menuBtn=$('kandortyMenuCartBtn');
+  if(menuCount)menuCount.textContent=String(n);
+  if(menuBtn)menuBtn.hidden=n===0;
+}
 function cartData(){
   return cart.map((i,cartIndex)=>({
     item:i,
