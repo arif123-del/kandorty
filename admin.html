@@ -3091,9 +3091,8 @@ function orderCustomerHistoryCard(raw){
         ${['new','preparing','shipping','delivered','cancelled'].map(status=>`<option value="${status}" ${o.status===status?'selected':''}>${statusText(status)}</option>`).join('')}
       </select>
     </div>
-    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب رقم ${esc(o.id||'')} ${o.cancelledBy==='customer'||o.customerEdit?.cancelRequestedAt?'بواسطة العميل':''}</div>`:''}
+    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب ${o.cancelledBy==='customer'||o.customerEdit?.cancelRequestedAt?'بواسطة العميل':''}</div>`:''}
     ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">✎ تم تعديل الطلب من العميل</div>':''}
-    ${renderOrderCustomerHtml(o)}
     <div class="order-products-title">المنتجات المطلوبة وصورها</div>
     ${renderOrderItemsHtml(o)}
     <div class="customer-file-meta" style="margin-top:12px">
@@ -3126,14 +3125,23 @@ function renderOpenedOrdersCustomer(){
       <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
       <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
     </div>
+    <section class="customer-file-panel customer-file-primary-details" aria-label="بيانات العميل">
+      <h3>بيانات العميل</h3>
+      <div class="customer-file-data">
+        <div><small>الاسم</small><b>${esc(group.name||'غير مسجل')}</b></div>
+        <div><small>رقم الهاتف</small><b dir="ltr">${esc(group.phone||'-')}</b></div>
+        <div><small>الإمارة</small><b>${esc(group.city||'-')}</b></div>
+        <div><small>العنوان / المنطقة</small><b>${esc(group.location||'-')}</b></div>
+      </div>
+    </section>
     <section class="customer-file-panel">
       <h3>طلبات العميل (${group.history.length})</h3>
-      <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل">
-        ${group.history.map(raw=>{
+      <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل" ${group.history.length===1?'hidden':''}>
+        ${group.history.map((raw,index)=>{
           const o=effectiveOrderView(raw);
           const active=String(o.id||'')===String(selectedOrdersOrderId||'');
           return `<button type="button" class="customer-file-order-tab" role="tab" aria-selected="${active}" data-order-switch-id="${esc(o.id||'')}">
-            <b>${esc(o.id||'طلب')}</b><small>${esc(statusText(o.status))}</small>
+            <b>الطلب ${index+1}</b><small>${esc(statusText(o.status))}</small>
           </button>`;
         }).join('')}
       </div>
