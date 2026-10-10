@@ -6762,10 +6762,17 @@ const card=img.parentElement;let active=false,animating=false,sx=0,sy=0,dx=0,dir
 const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
 const wrap=i=>(i+photos().length)%photos().length;
 function clean(){if(neighbor){neighbor.remove();neighbor=null}img.style.transition='none';img.style.transform='translate3d(0,0,0)';active=false;gesture=false;dir=0;dx=0;animating=false;}
-function adjacent(d){if(neighbor)neighbor.remove();neighbor=null;dir=d;if(photos().length<2)return;neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-neighbor';neighbor.src=photos()[wrap(currentProductImageIndex+d)];neighbor.style.transition='none';neighbor.style.transform='translate3d('+(d*card.clientWidth)+'px,0,0)';img.insertAdjacentElement('afterend',neighbor);}
+function adjacent(d){if(neighbor)neighbor.remove();neighbor=null;dir=d;if(photos().length<2)return;neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-neighbor';neighbor.src=photos()[wrap(currentProductImageIndex+d)];neighbor.decoding='sync';neighbor.style.transition='none';neighbor.style.transform='translate3d('+(d*card.clientWidth)+'px,0,0)';img.insertAdjacentElement('afterend',neighbor);
+const rect=img.getBoundingClientRect(),parentRect=card.getBoundingClientRect();
+neighbor.style.setProperty('width',rect.width+'px','important');
+neighbor.style.setProperty('height',rect.height+'px','important');
+neighbor.style.setProperty('left',(rect.left-parentRect.left)+'px','important');
+neighbor.style.setProperty('top',(rect.top-parentRect.top)+'px','important');
+neighbor.style.setProperty('object-fit',getComputedStyle(img).objectFit,'important');
+}
 modal.addEventListener('touchstart',e=>{if(animating||e.touches.length!==1||e.target.closest('button')||!card.contains(e.target)||typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01)return;clean();sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;},{capture:true,passive:true});
 modal.addEventListener('touchmove',e=>{if(!active||e.touches.length!==1)return;let x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;if(!gesture&&Math.abs(x)<6)return;if(!gesture&&Math.abs(y)>Math.abs(x))return;gesture=true;e.preventDefault();e.stopImmediatePropagation();let d=x<0?1:-1;if(d!==dir)adjacent(d);dx=x;img.style.transition='none';img.style.transform='translate3d('+dx+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(dx+d*card.clientWidth)+'px,0,0)';},{capture:true,passive:false});
-modal.addEventListener('touchend',e=>{if(!active)return;active=false;if(!gesture)return;e.preventDefault();e.stopImmediatePropagation();animating=true;const d=dir,w=card.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(70,w*.18),target=commit?-d*w:0;const ms=commit?240:180;img.style.transition='transform '+ms+'ms cubic-bezier(.2,.75,.25,1)';if(neighbor)neighbor.style.transition=img.style.transition;requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)';});setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);img.src=photos()[currentProductImageIndex];if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();if(typeof renderProductGallery==='function')renderProductGallery();}clean();},ms+20);},{capture:true,passive:false});
+modal.addEventListener('touchend',e=>{if(!active)return;active=false;if(!gesture)return;e.preventDefault();e.stopImmediatePropagation();animating=true;const d=dir,w=card.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(70,w*.18),target=commit?-d*w:0;const ms=commit?240:180;img.style.transition='transform '+ms+'ms cubic-bezier(.2,.75,.25,1)';if(neighbor)neighbor.style.transition=img.style.transition;requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)';});setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);img.style.visibility='hidden';img.src=photos()[currentProductImageIndex];if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();if(typeof renderProductGallery==='function')renderProductGallery();}clean();img.style.visibility='visible';},ms+20);},{capture:true,passive:false});
 modal.addEventListener('touchcancel',clean,{capture:true,passive:true});
 })();
 </script>
@@ -6821,23 +6828,7 @@ modal.addEventListener('touchcancel',clean,{capture:true,passive:true});
  },{capture:true,passive:false});
  stage.addEventListener('touchcancel',clear,{capture:true});
  }
- // Keep fullscreen incoming slide exactly the same rendered size as the current slide.
- const modal=document.getElementById('imageViewerModal');
- if(modal){
- const obs=new MutationObserver(()=>{
-  const main=document.getElementById('imageViewerImg');
-  const next=modal.querySelector('.kandorty-neighbor');
-  if(!main||!next)return;
-  const cs=getComputedStyle(main),r=main.getBoundingClientRect(),parent=main.offsetParent||main.parentElement,pr=parent.getBoundingClientRect();
-  next.style.setProperty('width',cs.width,'important');
-  next.style.setProperty('height',cs.height,'important');
-  next.style.setProperty('object-fit',cs.objectFit,'important');
-  next.style.setProperty('object-position',cs.objectPosition,'important');
-  next.style.setProperty('top',(r.top-pr.top)+'px','important');
-  next.style.setProperty('left',(r.left-pr.left)+'px','important');
- });
- obs.observe(modal,{childList:true,subtree:true});
- }
+
 })();
 </script>
 </body></html>
