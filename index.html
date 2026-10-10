@@ -5288,9 +5288,9 @@ let activeOrderAccessKey='';
 function renderTrackingResult(o,editable=null,verificationMessage=''){
   const shown=normalizeOrderShape(o);
   const flow=['new','preparing','shipping','delivered'];
-  const idx=flow.indexOf(shown.status);
   const cancelPending=Boolean(shown.customerEdit?.cancelRequestedAt||editable?.cancelRequestedAt);
   if(shown.status==='new'&&cancelPending)shown.status='cancelled';
+  const idx=flow.indexOf(shown.status);
   const canEdit=shown.status==='new'&&editable&&!cancelPending&&!shown.cancellationLockedAt;
   $('trackingResult').innerHTML=`<div class="track-box">
     <b>${esc(shown.id||'')}</b>
@@ -7403,6 +7403,23 @@ function renderMyOrders(){
     </section>`;
   }).join('');
 }
+async function refreshCustomerOwnOrderStatuses(){
+  const own=readCustomerOwnOrders();
+  if(!own.length)return;
+  const updated=await Promise.all(own.map(async o=>{
+    try{
+      const snap=await db.collection('tracking').doc(String(o.id)).get();
+      if(!snap.exists)return o;
+      const tracking=snap.data()||{};
+      const statuses=['new','preparing','shipping','delivered','cancelled'];
+      return {...o,
+        status:statuses.includes(tracking.status)?tracking.status:o.status,
+        ...(tracking.cancellationLockedAt?{cancellationLockedAt:tracking.cancellationLockedAt}:{})
+      };
+    }catch(error){return o;}
+  }));
+  saveCustomerOwnOrders(updated);
+}
 async function refreshMyOrders(){
   const modal=document.getElementById('myOrdersModal');
   if(!modal||modal.classList.contains('hidden'))return;
@@ -7412,7 +7429,7 @@ async function refreshMyOrders(){
       await Promise.race([authInitialStatePromise,new Promise(r=>setTimeout(r,4000))]);
     }
     if(seq!==myOrdersRefreshSeq)return;
-    if(customerAuthUser?.uid)await loadCustomerCloudOrders();
+    await Promise.all([refreshCustomerOwnOrderStatuses(),customerAuthUser?.uid?loadCustomerCloudOrders():Promise.resolve()]);
   }catch(error){
     console.warn('My purchased products refresh failed:',error);
   }finally{
