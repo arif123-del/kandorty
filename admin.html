@@ -1737,7 +1737,7 @@ auth.onAuthStateChanged(user=>{
     sessionAlertedOrderIds.clear();
   }
 });
-function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Categories','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='categories')loadCategoryAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
+function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Categories','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){selectedOrdersCustomer=null;renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='categories')loadCategoryAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
@@ -2956,35 +2956,168 @@ function orderItemsText(order){
 }
 
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
-function renderOrders(){
-  if(!$('ordersList'))return;
-  renderAdminCancellationRequests();
-
-  const q=($('adminOrderSearch')?.value||'').trim().toUpperCase();
-  const visibleOrders=q
-    ? orders.filter(o=>String(o.id||'').toUpperCase().includes(q))
-    : [...orders].sort((a,b)=>Number(isPendingCustomerCancellation(b))-Number(isPendingCustomerCancellation(a)));
-
-  $('ordersList').innerHTML=visibleOrders.length?visibleOrders.map(raw=>{
-    const o=effectiveOrderView(raw);
-    return `<div class="order-card">
-      <div class="order-head"><div><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small>
-      ${isPendingCustomerCancellation(raw)?'<br><span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;padding:5px 9px;border-radius:9px;font-weight:800">🔔 تم إلغاء الطلب رقم ${esc(o.id)} بواسطة العميل</span>':o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
-      </div>
-      <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
-        ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
-      </select></div>
-      ${renderOrderCustomerHtml(o)}
-      <div class="order-products-title">المنتجات المطلوبة</div>
-      ${renderOrderItemsHtml(o)}
-      ${o.notes?`<p><small>ملاحظات: ${esc(o.notes)}</small></p>`:''}
-      <div class="price">${money(o.total)}</div>
-      <small>${o.payment==='cod'?'الدفع عند الاستلام':'الدفع بالبطاقة'}</small>
-    </div>`;
-  }).join(''):(q
-    ?'<div class="empty">لا يوجد طلب بهذا الكود</div>'
-    :'<div class="empty">لا توجد طلبات بعد</div>');
+let orderCustomerGroups=new Map();
+let selectedOrdersCustomer=null;
+let ordersFolderSavedScroll=0;
+function buildOrderCustomerGroups(){
+  const groups=new Map();
+  const profiles=new Map();
+  registeredCustomers.forEach(p=>{const key=normalizeOrderPhone(p.phone||'');if(key)profiles.set(key,p);});
+  orders.forEach(raw=>{
+    const o=effectiveOrderView(raw),customer=o.customer||{};
+    const phone=String(customer.phone||'').trim(),normalized=normalizeOrderPhone(phone);
+    const key=normalized?'phone:'+normalized:'order:'+String(o.id||'');
+    if(!groups.has(key)){
+      const p=profiles.get(normalized)||{};
+      groups.set(key,{key,name:String(customer.name||p.name||''),
+        phone:phone||p.phone||'',city:String(customer.city||''),
+        location:String(customer.location||p.location||''),
+        registered:!!profiles.get(normalized),history:[],total:0,
+        cancelled:0,latest:''});
+    }
+    const group=groups.get(key);
+    if(!group.name&&customer.name)group.name=customer.name;
+    if(!group.phone&&phone)group.phone=phone;
+    if(!group.city&&customer.city)group.city=customer.city;
+    if(!group.location&&customer.location)group.location=customer.location;
+    group.history.push(raw);
+    group.total+=Number(o.total)||0;
+    if(o.status==='cancelled'||isPendingCustomerCancellation(raw))group.cancelled++;
+    if(String(o.createdAt||'')>group.latest)group.latest=String(o.createdAt||'');
+  });
+  for(const g of groups.values())g.history.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  return groups;
 }
+
+function orderCustomerFolderCard(g){
+  return `<button type="button" class="customer-folder-card" data-orders-customer="${esc(g.key)}" aria-label="فتح ملف طلبات ${esc(g.name||'العميل')}">
+    <span class="customer-folder-icon" aria-hidden="true">📁</span>
+    <span class="customer-folder-info"><strong>${esc(g.name||'عميل')}</strong>
+      <small>${esc(g.phone||'بدون رقم هاتف')}${g.city?' · '+esc(g.city):''}</small>
+      <small>عدد الطلبات: ${g.history.length} · المجموع: ${money(g.total)}</small>
+      ${g.cancelled?`<small style="color:#97192a;font-weight:800">🔔 طلبات ملغاة: ${g.cancelled}</small>`:''}
+    </span>
+    <span class="customer-folder-chevron" aria-hidden="true">‹</span>
+  </button>`;
+}
+
+function orderCustomerHistoryCard(raw){
+  const o=effectiveOrderView(raw),cancelled=o.status==='cancelled'||isPendingCustomerCancellation(raw);
+  const note=String(o.notes||'');
+  const cancelledAt=o.customerEdit?.cancelRequestedAt||o.cancelledAt||'';
+  const date=o.createdAt?new Date(o.createdAt).toLocaleString('ar-AE'):'-';
+  return `<article class="customer-file-order">
+    <div class="customer-file-order-head">
+      <div><strong>رقم الطلب: <span dir="ltr">${esc(o.id||'')}</span></strong>
+      <div style="color:#74646a;font-size:12px">${esc(date)}</div></div>
+      <select class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="حالة الطلب ${esc(o.id||'')}">
+        ${['new','preparing','shipping','delivered','cancelled'].map(status=>`<option value="${status}" ${o.status===status?'selected':''}>${statusText(status)}</option>`).join('')}
+      </select>
+    </div>
+    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب رقم ${esc(o.id||'')} ${o.cancelledBy==='customer'||o.customerEdit?.cancelRequestedAt?'بواسطة العميل':''}</div>`:''}
+    ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">✎ تم تعديل الطلب من العميل</div>':''}
+    ${renderOrderCustomerHtml(o)}
+    <div class="order-products-title">المنتجات المطلوبة وصورها</div>
+    ${renderOrderItemsHtml(o)}
+    <div class="customer-file-meta" style="margin-top:12px">
+      <div><b>طريقة الدفع:</b> ${o.payment==='card'?'الدفع بالبطاقة':'الدفع عند الاستلام'}${o.paymentStatus==='paid'?' · مدفوع':''}</div>
+      ${Number(o.deliveryFee)>0?`<div><b>رسوم التوصيل:</b> ${money(Number(o.deliveryFee))}</div>`:''}
+      <div><b>الإجمالي:</b> ${money(o.total||0)}</div>
+      ${note?`<div><b>ملاحظات:</b> ${esc(note)}</div>`:''}
+      ${cancelledAt?`<div><b>تاريخ الإلغاء:</b> ${esc(new Date(cancelledAt).toLocaleString('ar-AE'))}</div>`:''}
+    </div>
+  </article>`;
+}
+
+function renderOpenedOrdersCustomer(){
+  const file=$('ordersCustomerFileView'),content=$('ordersCustomerContents');
+  if(!file||!content)return;
+  const group=orderCustomerGroups.get(selectedOrdersCustomer);
+  if(!group){selectedOrdersCustomer=null;file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');return;}
+  $('ordersFoldersView')?.classList.add('hidden');
+  file.classList.remove('hidden');
+  $('ordersCustomerHeading').textContent='📁 ملف '+(group.name||'العميل');
+  content.innerHTML=`
+    <div class="customer-file-summary">
+      <div><b>${group.history.length}</b><small>عدد الطلبات</small></div>
+      <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
+      <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
+    </div>
+    <section class="customer-file-panel">
+      <h3>بيانات العميل</h3>
+      <div class="customer-file-data">
+        <div><small>الاسم</small><b>${esc(group.name||'-')}</b></div>
+        <div><small>رقم الهاتف</small><b dir="ltr">${esc(group.phone||'-')}</b></div>
+        <div><small>الإمارة</small><b>${esc(group.city||'-')}</b></div>
+        <div><small>العنوان / المنطقة</small><b>${esc(group.location||'-')}</b></div>
+        <div><small>مجموع مبالغ الطلبات</small><b>${money(group.total)}</b></div>
+      </div>
+    </section>
+    <section class="customer-file-panel">
+      <h3>طلبات العميل (${group.history.length})</h3>
+      ${group.history.map(orderCustomerHistoryCard).join('')}
+    </section>`;
+}
+
+function renderOrders(){
+  const list=$('ordersList');
+  if(!list)return;
+  renderAdminCancellationRequests();
+  orderCustomerGroups=buildOrderCustomerGroups();
+  if(selectedOrdersCustomer){renderOpenedOrdersCustomer();return;}
+  $('ordersCustomerFileView')?.classList.add('hidden');
+  $('ordersFoldersView')?.classList.remove('hidden');
+  const q=String($('adminOrderSearch')?.value||'').trim().toUpperCase();
+  const visible=[...orderCustomerGroups.values()].filter(g=>
+    !q||[g.name,g.phone,g.city,...g.history.map(o=>o.id)]
+      .some(v=>String(v||'').toUpperCase().includes(q)));
+  visible.sort((a,b)=>Number(b.cancelled>0)-Number(a.cancelled>0)||String(b.latest).localeCompare(String(a.latest)));
+  list.innerHTML=visible.length?visible.map(orderCustomerFolderCard).join('')
+    :(q?'<div class="empty">لا يوجد طلب أو عميل مطابق للبحث</div>':'<div class="empty">لا توجد طلبات بعد</div>');
+}
+
+function openOrdersCustomer(key){
+  if(!orderCustomerGroups.has(key))return;
+  const card=$('adminModal')?.querySelector('.modal-card');
+  ordersFolderSavedScroll=card?.scrollTop||0;
+  selectedOrdersCustomer=key;
+  try{history.pushState({...history.state,kandortyOrdersCustomer:key},'',location.href);}
+  catch(e){console.warn('History for customer order file unavailable',e);}
+  renderOpenedOrdersCustomer();
+  if(card)card.scrollTop=0;
+}
+
+function returnToOrdersList(){
+  selectedOrdersCustomer=null;
+  renderOrders();
+  const card=$('adminModal')?.querySelector('.modal-card');
+  if(card)card.scrollTop=ordersFolderSavedScroll;
+}
+
+function backToOrderFolders(){
+  if(!selectedOrdersCustomer)return;
+  if(history.state?.kandortyOrdersCustomer===selectedOrdersCustomer)history.back();
+  else returnToOrdersList();
+}
+(function initOrdersCustomerFolders(){
+  $('ordersList')?.addEventListener('click',e=>{
+    const node=e.target.closest('[data-orders-customer]');
+    if(node)openOrdersCustomer(node.dataset.ordersCustomer);
+  });
+  $('ordersCustomerContents')?.addEventListener('change',e=>{
+    const node=e.target.closest('[data-order-status-id]');
+    if(node)updateOrderStatus(node.dataset.orderStatusId,node.value);
+  });
+  window.addEventListener('popstate',e=>{
+    if($('adminOrdersTab')?.classList.contains('hidden'))return;
+    const key=String(e.state?.kandortyOrdersCustomer||'');
+    selectedOrdersCustomer=key&&orderCustomerGroups.has(key)?key:null;
+    renderOrders();
+    const card=$('adminModal')?.querySelector('.modal-card');
+    if(card)card.scrollTop=selectedOrdersCustomer?0:ordersFolderSavedScroll;
+  });
+})();
+
 async function updateOrderStatus(id,status){
   const current=orders.find(o=>String(o.id)===String(id));
   if(!current||!auth.currentUser)return;
