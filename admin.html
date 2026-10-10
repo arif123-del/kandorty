@@ -2293,12 +2293,25 @@ function pendingCancellationOrders(){
 function renderAdminCancellationRequests(){
   const box=$('adminCancellationRequests');
   if(!box)return;
-  const pending=pendingCancellationOrders();
-  box.innerHTML=pending.length?
-    '<div style="border:2px solid #dc2626;border-radius:14px;padding:14px;background:#fff3f3;color:#991b1b;margin:12px 0;font-size:16px;font-weight:700">'+
-    '🔔 طلبات ألغاها العملاء: '+pending.length+
-    '<div style="font-size:13px;margin-top:6px;color:#6b2020">الطلبات الملغاة معلّمة أدناه. إذا دُفعت بالبطاقة، تابعي استرداد المبلغ في Stripe.</div>'+
-    '</div>':'';
+  const canceled=pendingCancellationOrders().sort((a,b)=>
+    String(b.customerEdit?.cancelRequestedAt||b.cancelledAt||'').localeCompare(String(a.customerEdit?.cancelRequestedAt||a.cancelledAt||'')));
+  if(!canceled.length){box.innerHTML='';return;}
+  box.innerHTML=`<section aria-label="الطلبات التي ألغاها العملاء" role="status"
+    style="border:2px solid #dc2626;border-radius:14px;padding:14px;background:#fff3f3;color:#991b1b;margin:12px 0">
+    <div style="font-size:18px;font-weight:800">🔔 الطلبات التي ألغاها العملاء: ${canceled.length}</div>
+    <div style="font-size:13px;margin:5px 0 10px">أُلغيت هذه الطلبات بواسطة العملاء. راجعي استرداد الدفع بالبطاقة في Stripe إن لزم.</div>
+    ${canceled.slice(0,20).map(order=>{
+      const name=order.customerEdit?.customer?.name||order.customer?.name||order.customerName||'العميل';
+      const date=order.customerEdit?.cancelRequestedAt||order.cancelledAt||'';
+      return `<div style="background:white;padding:10px;margin-top:7px;border:1px solid #fecaca;border-radius:10px;overflow-wrap:anywhere">
+        <b>تم إلغاء الطلب رقم ${esc(order.id||'-')}</b>
+        <div>العميل: ${esc(name)}</div>
+        ${date?`<small>وقت الإلغاء: ${esc(new Date(date).toLocaleString('ar-AE'))}</small>`:''}
+        ${order.payment==='card'?'<div style="font-size:12px;font-weight:700">⚠️ طلب مدفوع بالبطاقة — راجعي الاسترداد</div>':''}
+      </div>`;
+    }).join('')}
+    ${canceled.length>20?'<small>بقية الطلبات الملغاة تظهر في قائمة الطلبات.</small>':''}
+    </section>`;
 }
 function notifiedCancellationRequests(){
   try{return new Set(JSON.parse(localStorage.getItem(ADMIN_CANCEL_ALERTS_KEY)||'[]'));}
@@ -2306,15 +2319,21 @@ function notifiedCancellationRequests(){
 }
 function notifyAdminCustomerCancellation(order,count){
   const customer=order?.customerEdit?.customer||order?.customer||{};
-  const note=(order.payment==='card'?' (مدفوع بالبطاقة: راجعي الاسترداد)':'');
+  const orderId=String(order?.id||'-');
+  const name=String(customer.name||order?.customerName||'-');
+  const phone=String(customer.phone||order?.customerPhone||'-');
+  const cardNote=order.payment==='card'?'\n⚠️ تم الدفع بالبطاقة: يجب مراجعة الاسترداد في Stripe.':'';
   playNewOrderSound();
   if(typeof showBrowserOrderNotification==='function'){
-    showBrowserOrderNotification('🔔 العميل ألغى طلباً','رقم الطلب: '+(order.id||'-')+' — '+(customer.name||'-')+note,'cancel-'+(order.id||''));
+    showBrowserOrderNotification(
+      '🔔 تم إلغاء الطلب رقم '+orderId,
+      'ألغى العميل '+name+' طلبه'+(order.payment==='card'?' — يلزم مراجعة الاسترداد':''),
+      'cancel-'+orderId
+    );
   }
-  alert('🔔 ألغى العميل الطلب!\\n\\nرقم الطلب: '+(order.id||'-')+
-    '\\nالعميل: '+(customer.name||'-')+'\\nالهاتف: '+(customer.phone||'-')+
-    '\\nالحالة: ملغي من العميل'+note+
-    (count>1?'\\nطلبات إلغاء جديدة أخرى: '+(count-1):''));
+  alert('🔔 تم إلغاء الطلب رقم '+orderId+' بواسطة العميل!\n\n'+
+        'العميل: '+name+'\nالهاتف: '+phone+'\nالحالة: ملغي'+cardNote+
+        (count>1?'\nطلبات ملغاة أخرى: '+(count-1):''));
 }
 function alertNewCustomerCancellationRequests(docs){
   const pending=(Array.isArray(docs)?docs:[]).filter(isPendingCustomerCancellation);
@@ -2912,7 +2931,7 @@ function renderOrders(){
     const o=effectiveOrderView(raw);
     return `<div class="order-card">
       <div class="order-head"><div><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small>
-      ${isPendingCustomerCancellation(raw)?'<br><span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;padding:5px 9px;border-radius:9px;font-weight:800">🔔 تم إلغاء الطلب بواسطة العميل</span>':o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
+      ${isPendingCustomerCancellation(raw)?'<br><span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;padding:5px 9px;border-radius:9px;font-weight:800">🔔 تم إلغاء الطلب رقم ${esc(o.id)} بواسطة العميل</span>':o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
       </div>
       <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
         ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
