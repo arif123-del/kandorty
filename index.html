@@ -6737,7 +6737,7 @@ function renderKandortyViewerDots(){
 #imageViewerModal .image-viewer-card{touch-action:none!important;overscroll-behavior:contain!important}
 #imageViewerModal #imageViewerImg{display:block!important;touch-action:none!important}
 #imageViewerModal #kandortyVerticalPhotos{display:none!important}
-#imageViewerModal .image-viewer-nav{display:flex!important}
+#imageViewerModal .image-viewer-nav{display:none!important}
 
 </style>
 
@@ -6791,4 +6791,4 @@ function renderKandortyViewerDots(){
  viewer.addEventListener('touchcancel',function(){started=false;swiping=false;img.style.transform='translateX(0)'},{capture:true,passive:true});
 })();
 </script>
-</body></html>
+<style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style></body></html>
