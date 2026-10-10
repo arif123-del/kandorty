@@ -6851,53 +6851,59 @@ function renderKandortyViewerDots(){
 </style>
 <script id="kd-detail-carousel-script">
 (function(){
- const modal=document.getElementById('productModal'),main=document.getElementById('modalMainImage');
- const stage=modal&&modal.querySelector('.product-gallery-stage');if(!modal||!main||!stage)return;
- const surface=document.createElement('div');surface.className='kd-detail-carousel';
- const track=document.createElement('div');track.className='kd-detail-track';surface.appendChild(track);
- main.insertAdjacentElement('afterend',surface);
- const slides=Array.from({length:3},()=>{const el=document.createElement('img');el.draggable=false;track.appendChild(el);return el;});
- const cache=new Map();let gesture=null,animating=false,suppressClick=false,revision=0;
+ const modal=document.getElementById('productModal');
+ const main=document.getElementById('modalMainImage');
+ const stage=modal&&modal.querySelector('.product-gallery-stage');
+ if(!modal||!main||!stage)return;
+ const surface=stage.querySelector('.kd-detail-carousel');
+ if(!surface)return;
+ const track=surface.querySelector('.kd-detail-track');
+ const slides=Array.from(track.querySelectorAll('img'));
+ const cache=new Map();let gesture=null,busy=false,token=0,lastSwipe=0;
  const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
- function preload(url){if(!url)return null;let im=cache.get(url);if(!im){im=new Image();im.src=url;cache.set(url,im);}return im;}
- function awaitPhoto(url){const im=preload(url);if(!im)return Promise.reject(new Error('No photo'));if(im.complete)return im.naturalWidth?Promise.resolve():Promise.reject(new Error('Photo failed'));return new Promise((ok,bad)=>{im.addEventListener('load',ok,{once:true});im.addEventListener('error',bad,{once:true});});}
- function resetPosition(){track.style.transition='none';track.style.transform='translate3d(-33.333333%,0,0)';}
- function render(){const a=photos(),n=a.length;if(!n)return;const j=((currentProductImageIndex%n)+n)%n;const ids=[(j-1+n)%n,j,(j+1)%n];ids.forEach((id,k)=>{if(slides[k].getAttribute('src')!==a[id])slides[k].src=a[id];preload(a[id]);});resetPosition();}
- function sync(){if(modal.classList.contains('hidden')){gesture=null;animating=false;revision++;return;}photos().forEach(preload);if(!gesture&&!animating)render();}
+ const center=()=>-stage.clientWidth;
+ function preload(src){if(!src)return null;let img=cache.get(src);if(!img){img=new Image();img.decoding='async';img.src=src;cache.set(src,img);}return img;}
+ function loaded(src){const img=preload(src);return !!(img&&img.complete&&img.naturalWidth);}
+ function wait(src){const img=preload(src);if(!img)return Promise.reject();if(loaded(src))return Promise.resolve();return new Promise((resolve,reject)=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',reject,{once:true});});}
+ function position(px,ms=0){track.style.transition=ms?'transform '+ms+'ms cubic-bezier(.22,.68,.2,1)':'none';track.style.transform='translate3d('+px+'px,0,0)';}
+ function render(){const a=photos(),n=a.length;if(!n)return;const j=((currentProductImageIndex%n)+n)%n;[(j-1+n)%n,j,(j+1)%n].forEach((idx,k)=>{const src=a[idx];preload(src);if(slides[k].getAttribute('src')!==src)slides[k].src=src;});position(center());}
+ function sync(){if(modal.classList.contains('hidden')){gesture=null;busy=false;token++;return;}if(!gesture&&!busy)render();}
  new MutationObserver(sync).observe(modal,{attributes:true,attributeFilter:['class']});
- new MutationObserver(()=>{if(!gesture&&!animating&&!modal.classList.contains('hidden'))render();}).observe(main,{attributes:true,attributeFilter:['src']});
+ new MutationObserver(()=>{if(!gesture&&!busy&&!modal.classList.contains('hidden'))render();}).observe(main,{attributes:true,attributeFilter:['src']});
  surface.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1||animating||photos().length<2)return;
-  render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false};suppressClick=false;
-  e.stopPropagation();
+   if(e.touches.length!==1||busy||photos().length<2)return;
+   render();const t=e.touches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY,dx:0,dy:0,horizontal:false};e.stopPropagation();
  },{passive:true});
  surface.addEventListener('touchmove',e=>{
-  if(!gesture)return;const t=Array.from(e.touches).find(v=>v.identifier===gesture.id);if(!t)return;
-  const g=gesture;g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
-  if(!g.horizontal&&Math.abs(g.dx)>9&&Math.abs(g.dx)>Math.abs(g.dy)*1.2)g.horizontal=true;
-  if(g.horizontal){e.preventDefault();suppressClick=true;track.style.transition='none';track.style.transform='translate3d(calc(-33.333333% + '+Math.max(-stage.clientWidth,Math.min(stage.clientWidth,g.dx))+'px),0,0)';}
-  e.stopPropagation();
+   if(!gesture)return;const t=Array.from(e.touches).find(t=>t.identifier===gesture.id);if(!t)return;
+   const g=gesture;g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;
+   if(!g.horizontal&&Math.abs(g.dx)>8&&Math.abs(g.dx)>Math.abs(g.dy)*1.15)g.horizontal=true;
+   if(g.horizontal){e.preventDefault();position(center()+Math.max(-stage.clientWidth,Math.min(stage.clientWidth,g.dx)));lastSwipe=Date.now();}
+   e.stopPropagation();
  },{passive:false});
  surface.addEventListener('touchend',async e=>{
-  if(!gesture)return;const g=gesture;gesture=null;
-  const t=Array.from(e.changedTouches).find(v=>v.identifier===g.id);if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
-  e.stopPropagation();const dir=g.horizontal&&Math.abs(g.dx)>Math.max(48,stage.clientWidth*.16)?(g.dx<0?1:-1):0;
-  if(!dir){track.style.transition='transform 200ms ease-out';track.style.transform='translate3d(-33.333333%,0,0)';return;}
-  animating=true;const a=photos(),n=a.length,next=(currentProductImageIndex+dir+n)%n,src=a[next],token=++revision;
-  try{
-   await awaitPhoto(src);
-   if(token!==revision||modal.classList.contains('hidden'))return;
-   track.style.transition='transform 240ms cubic-bezier(.2,.7,.2,1)';
-   track.style.transform=dir>0?'translate3d(-66.666666%,0,0)':'translate3d(0%,0,0)';
-   await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;track.removeEventListener('transitionend',finish);resolve();};track.addEventListener('transitionend',finish);setTimeout(finish,350);});
-   if(token!==revision||modal.classList.contains('hidden'))return;
-   currentProductImageIndex=next;main.src=src;
-   if(typeof renderProductGallery==='function')renderProductGallery();
-  }catch(err){/* keep the current photo on network errors */}
-  finally{animating=false;if(!modal.classList.contains('hidden'))render();}
+   if(!gesture)return;const g=gesture;gesture=null;
+   const t=Array.from(e.changedTouches).find(t=>t.identifier===g.id);if(t){g.dx=t.clientX-g.x;g.dy=t.clientY-g.y;}
+   e.stopPropagation();
+   const width=stage.clientWidth;
+   const dir=g.horizontal&&Math.abs(g.dx)>Math.max(42,width*.17)?(g.dx<0?1:-1):0;
+   if(!dir){position(center(),200);return;}
+   busy=true;const n=photos().length,next=(currentProductImageIndex+dir+n)%n,src=photos()[next],id=++token;
+   try{
+     await wait(src);
+     if(id!==token||modal.classList.contains('hidden'))return;
+     // Continue from the finger's last position, identically in either direction.
+     position(center()+(dir>0?-width:width),230);
+     await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;track.removeEventListener('transitionend',finish);resolve();};track.addEventListener('transitionend',finish);setTimeout(finish,330);});
+     if(id!==token||modal.classList.contains('hidden'))return;
+     currentProductImageIndex=next;
+     main.src=src;
+     if(typeof renderProductGallery==='function')renderProductGallery();
+   }catch(_){position(center(),200);}
+   finally{busy=false;if(!modal.classList.contains('hidden'))render();}
  },{passive:true});
- surface.addEventListener('touchcancel',()=>{gesture=null;render();},{passive:true});
- surface.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(suppressClick){suppressClick=false;return;}if(!animating&&typeof openFullscreenProductImage==='function')openFullscreenProductImage();});
+ surface.addEventListener('touchcancel',()=>{gesture=null;position(center(),180);},{passive:true});
+ surface.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(Date.now()-lastSwipe<450)return;if(!busy&&typeof openFullscreenProductImage==='function')openFullscreenProductImage();});
  sync();
 })();
 </script>
