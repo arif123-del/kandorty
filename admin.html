@@ -1054,7 +1054,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div><div id="adminCancellationRequests" role="status" aria-live="polite"></div></div>
 <section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل"><div class="customer-file-header">
 <button type="button" class="customer-file-back" onclick="backToOrderFolders()">➜ رجوع إلى الطلبات</button>
-<div class="customer-file-heading" id="ordersCustomerHeading">ملف العميل</div></div>
+<div class="customer-file-heading" id="ordersCustomerHeading">طلب جديد</div></div>
 <div id="ordersCustomerContents"></div></section>
 </div>
 <div id="adminCustomersTab" class="hidden">
@@ -3204,7 +3204,7 @@ function renderOpenedOrdersCustomer(){
   const priorScroll=card?.scrollTop||0;
   $('ordersFoldersView')?.classList.add('hidden');
   file.classList.remove('hidden');
-  $('ordersCustomerHeading').textContent='📁 ملف العميل';
+  $('ordersCustomerHeading').textContent='طلب جديد';
   const selectedOrder=group.history.find(o=>String(o.id||'')===String(selectedOrdersOrderId||''))||group.history[0]||null;
   selectedOrdersOrderId=selectedOrder?.id||null;
   content.innerHTML=`<div class="customer-only-file-shell">
