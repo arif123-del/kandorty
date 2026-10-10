@@ -3724,6 +3724,9 @@ function startAdminOrdersListener(){
 
         const oldStamp=String(previous.customerModifiedAt||'');
         const newStamp=String(current.customerModifiedAt||'');
+        // A cancellation has its own prominent alert; don't also alert as a normal edit.
+        if(current.customerEdit?.cancelRequestedAt &&
+           String(current.customerEdit.cancelRequestedAt)!==String(previous.customerEdit?.cancelRequestedAt||''))return false;
 
         return Boolean(
           adminOrdersInitialLoaded &&
