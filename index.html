@@ -6920,4 +6920,32 @@ function renderKandortyViewerDots(){
  window.addEventListener('pageshow',sync);sync();
 })();
 </script>
+
+<!-- Kandorty: product close button only; no gallery or cart changes -->
+<style id="kd-product-close-only">
+#productModal .modal-head{pointer-events:none!important;z-index:2147483000!important}
+#productModal .modal-head > button.x{pointer-events:auto!important;position:fixed!important;top:calc(12px + env(safe-area-inset-top, 0px))!important;left:14px!important;right:auto!important;z-index:2147483640!important;touch-action:manipulation!important;cursor:pointer!important}
+</style>
+<script id="kd-product-close-only-script">
+(function(){
+  const modal=document.getElementById('productModal');
+  const button=modal&&modal.querySelector('.modal-head > button.x');
+  if(!button)return;
+  // Avoid the old pointerup handler: a single click is reliable on touch and mouse.
+  const fresh=button.cloneNode(true);
+  fresh.removeAttribute('onclick');
+  button.replaceWith(fresh);
+  fresh.addEventListener('click',function(event){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const viewer=document.getElementById('imageViewerModal');
+    if(viewer)viewer.classList.add('hidden');
+    modal.classList.add('hidden');
+    const video=document.getElementById('modalProductVideo');
+    if(video){try{video.pause();video.removeAttribute('src');video.load();video.dataset.src='';}catch(_){}}
+    if(typeof window.resetImageZoom==='function')try{window.resetImageZoom();}catch(_){}
+    document.body.style.overflow='';
+  },true);
+})();
+</script>
 </body></html>
