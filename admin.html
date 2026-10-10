@@ -833,6 +833,20 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminOrdersTab .admin-cancel-history-list{margin-top:12px;max-height:55vh;overflow:auto}
 @media(max-width:560px){#adminModal>.modal-card{padding:10px 12px max(22px,env(safe-area-inset-bottom))!important}}
 </style>
+<style id="kandorty-one-customer-scroll-stability">
+/* Keep the admin occupying the full screen while allowing the order pane to scroll independently. */
+#adminModal>.modal-card{overflow-anchor:auto!important;scroll-behavior:auto!important}
+#adminOrdersTab .customer-only-file-shell{border:1px solid #e8d5dc;border-radius:18px;background:#fff;box-shadow:0 6px 25px #30101b0c;padding:16px;max-width:100%;min-width:0}
+#adminOrdersTab .customer-only-file-shell>.customer-file-panel{border:0;border-top:1px solid #f0e8eb;border-radius:0;margin:14px 0 0;padding:18px 0 0;box-shadow:none;background:transparent}
+#adminOrdersTab .customer-file-order-tabs{display:flex;gap:8px;overflow-x:auto;padding:5px 2px 12px;scrollbar-width:thin;overscroll-behavior-x:contain}
+#adminOrdersTab .customer-file-order-tab{flex:0 0 auto;min-width:140px;padding:10px 12px;border:1px solid #e4d7da;border-radius:12px;background:#fff;color:#292124;cursor:pointer;text-align:right;line-height:1.5}
+#adminOrdersTab .customer-file-order-tab b,#adminOrdersTab .customer-file-order-tab small{display:block}
+#adminOrdersTab .customer-file-order-tab small{font-size:12px;color:#75696c}
+#adminOrdersTab .customer-file-order-tab[aria-selected="true"]{background:#92162f;color:#fff;border-color:#92162f}
+#adminOrdersTab .customer-file-order-tab[aria-selected="true"] small{color:#ffe1e6}
+#adminOrdersTab #ordersCustomerSelectedOrder>.customer-file-order{margin:0}
+@media(max-width:600px){#adminOrdersTab .customer-only-file-shell{padding:12px}#adminOrdersTab .customer-file-order-tab{min-width:132px}}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1753,13 +1767,24 @@ auth.onAuthStateChanged(user=>{
 const adminTabPositions=Object.create(null);
 let activeAdminTab='form';
 try{history.scrollRestoration='manual';}catch(_){}
+function adminContentAnchorTop(){
+  const card=$('adminModal')?.querySelector('.modal-card');
+  const tabs=$('adminView')?.querySelector('.admin-tabs');
+  if(!card||!tabs)return 0;
+  return Math.max(0,Math.round(card.scrollTop+tabs.getBoundingClientRect().bottom-card.getBoundingClientRect().top+12));
+}
 function restoreAdminTabPosition(tabName){
-  const destination=Number(adminTabPositions[tabName]||0);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  // First visits start at the tab content, not at the top of the whole admin page.
+  const remembered=adminTabPositions[tabName];
+  const destination=Number.isFinite(remembered)?Math.max(0,remembered):adminContentAnchorTop();
+  const restore=()=>{
     if(activeAdminTab!==tabName)return;
     const card=$('adminModal')?.querySelector('.modal-card');
-    if(card)card.scrollTop=Math.max(0,destination);
-  }));
+    if(card)card.scrollTop=destination;
+  };
+  restore();
+  requestAnimationFrame(()=>requestAnimationFrame(restore));
+  setTimeout(restore,80);
 }
 function showAdminTab(name,btn){
   const card=$('adminModal')?.querySelector('.modal-card');
@@ -1774,7 +1799,7 @@ function showAdminTab(name,btn){
   document.querySelectorAll('.admin-tabs .tab').forEach(x=>x.classList.remove('active'));
   if(btn)btn.classList.add('active');
   if(name==='list')renderAdminList();
-  if(name==='orders'){selectedOrdersCustomer=null;renderOrders();clearNewOrderBadges();}
+  if(name==='orders'){selectedOrdersCustomer=null;selectedOrdersOrderId=null;renderOrders();clearNewOrderBadges();}
   if(name==='customers')renderCustomers();
   if(name==='banner')loadBannerAdmin();
   if(name==='categories')loadCategoryAdmin();
@@ -3004,6 +3029,7 @@ function orderItemsText(order){
 function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 let orderCustomerGroups=new Map();
 let selectedOrdersCustomer=null;
+let selectedOrdersOrderId=null;
 let ordersFolderSavedScroll=0;
 function buildOrderCustomerGroups(){
   const groups=new Map();
@@ -3084,13 +3110,17 @@ function renderOpenedOrdersCustomer(){
   const file=$('ordersCustomerFileView'),content=$('ordersCustomerContents');
   if(!file||!content)return;
   const group=orderCustomerGroups.get(selectedOrdersCustomer);
-  if(!group){selectedOrdersCustomer=null;file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');return;}
+  if(!group){selectedOrdersCustomer=null;selectedOrdersOrderId=null;file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');return;}
+  // Only the selected customer's file is visible: never show the other customers underneath.
+  const card=ordersAdminScroll();
+  const wasVisible=!file.classList.contains('hidden');
+  const priorScroll=card?.scrollTop||0;
   $('ordersFoldersView')?.classList.add('hidden');
   file.classList.remove('hidden');
   $('ordersCustomerHeading').textContent='📁 ملف '+(group.name||'العميل');
-  const card=ordersAdminScroll();
-  const restoreScroll=file.classList.contains('hidden')?0:(card?.scrollTop||0);
-  content.innerHTML=`
+  const selectedOrder=group.history.find(o=>String(o.id||'')===String(selectedOrdersOrderId||''))||group.history[0]||null;
+  selectedOrdersOrderId=selectedOrder?.id||null;
+  content.innerHTML=`<div class="customer-only-file-shell">
     <div class="customer-file-summary">
       <div><b>${group.history.length}</b><small>عدد الطلبات</small></div>
       <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
@@ -3108,11 +3138,24 @@ function renderOpenedOrdersCustomer(){
     </section>
     <section class="customer-file-panel">
       <h3>طلبات العميل (${group.history.length})</h3>
-      ${group.history.map(orderCustomerHistoryCard).join('')}
-    </section>`;
-  if(restoreScroll>0&&card)requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)card.scrollTop=restoreScroll;});
+      <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل">
+        ${group.history.map(raw=>{
+          const o=effectiveOrderView(raw);
+          const active=String(o.id||'')===String(selectedOrdersOrderId||'');
+          return `<button type="button" class="customer-file-order-tab" role="tab" aria-selected="${active}" data-order-switch-id="${esc(o.id||'')}">
+            <b>${esc(o.id||'طلب')}</b><small>${esc(statusText(o.status))}</small>
+          </button>`;
+        }).join('')}
+      </div>
+      <div id="ordersCustomerSelectedOrder" role="tabpanel">${selectedOrder?orderCustomerHistoryCard(selectedOrder):'<div class="empty">لا توجد طلبات</div>'}</div>
+    </section>
+  </div>`;
+  // Live updates (e.g. a status changed) should never throw the user to page top.
+  if(wasVisible&&card){
+    card.scrollTop=priorScroll;
+    requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)card.scrollTop=priorScroll;});
+  }
 }
-
 function renderOrders(){
   const list=$('ordersList');
   if(!list)return;
@@ -3164,13 +3207,20 @@ function openOrdersCustomer(key){
   ordersFolderSavedOffset=card&&node
     ?node.getBoundingClientRect().top-card.getBoundingClientRect().top:0;
   selectedOrdersCustomer=key;
+  selectedOrdersOrderId=null;
   try{history.pushState({...history.state,kandortyOrdersCustomer:key},'',location.href);}
   catch(e){console.warn('History for customer order file unavailable',e);}
   renderOpenedOrdersCustomer();
-  if(card)card.scrollTop=0;
+  // Show the selected file heading, rather than the top of the entire admin page.
+  const heading=$('ordersCustomerFileView')?.querySelector('.customer-file-header');
+  if(card&&heading){
+    const top=heading.getBoundingClientRect().top-card.getBoundingClientRect().top;
+    card.scrollTop=Math.max(0,card.scrollTop+top-12);
+  }
 }
 function returnToOrdersList(){
   selectedOrdersCustomer=null;
+  selectedOrdersOrderId=null;
   renderOrders();
   restoreOrderFolderPosition();
 }
@@ -3189,6 +3239,15 @@ function backToOrderFolders(){
     const node=e.target.closest('[data-orders-customer]');
     if(node)openOrdersCustomer(node.dataset.ordersCustomer);
   });
+  $('ordersCustomerContents')?.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-order-switch-id]');
+    if(!btn||!selectedOrdersCustomer)return;
+    const group=orderCustomerGroups.get(selectedOrdersCustomer);
+    if(!group||!group.history.some(o=>String(o.id||'')===String(btn.dataset.orderSwitchId)))return;
+    if(String(selectedOrdersOrderId)===String(btn.dataset.orderSwitchId))return;
+    selectedOrdersOrderId=btn.dataset.orderSwitchId;
+    renderOpenedOrdersCustomer();
+  });
   $('ordersCustomerContents')?.addEventListener('change',e=>{
     const node=e.target.closest('[data-order-status-id]');
     if(node)updateOrderStatus(node.dataset.orderStatusId,node.value);
@@ -3197,6 +3256,7 @@ function backToOrderFolders(){
     if($('adminOrdersTab')?.classList.contains('hidden'))return;
     const key=String(e.state?.kandortyOrdersCustomer||'');
     selectedOrdersCustomer=key&&orderCustomerGroups.has(key)?key:null;
+    if(!selectedOrdersCustomer)selectedOrdersOrderId=null;
     renderOrders();
     if(selectedOrdersCustomer){const card=ordersAdminScroll();if(card)card.scrollTop=0;}
     else restoreOrderFolderPosition();
