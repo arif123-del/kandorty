@@ -2153,16 +2153,10 @@ function preloadNearbyProductGalleries(){
 
 function animateImageSwap(img,newSrc,direction=0){
   if(!img || !newSrc)return;
-  const outX=direction===0?0:(direction>0?-12:12);
-  img.style.opacity='0.55';
-  img.style.transform=`translateX(${outX}px)`;
-  requestAnimationFrame(()=>{
-    img.src=newSrc;
-    requestAnimationFrame(()=>{
-      img.style.opacity='1';
-      img.style.transform='translateX(0)';
-    });
-  });
+  img.style.transition='none';
+  img.style.opacity='1';
+  img.style.transform='translate3d(0,0,0)';
+  if(img.getAttribute('src')!==newSrc)img.src=newSrc;
 }
 
 function bindHorizontalSwipe(el,onLeft,onRight){
@@ -2302,7 +2296,7 @@ function renderProductGallery(direction=0){
   if(prevBtn)prevBtn.disabled=total<=1;
   if(nextBtn)nextBtn.disabled=total<=1;
 
-  bindKandortyStableSwipe(gallery);
+  // Swipe handled exclusively by the seamless carousel below.
 
   /* Native gallery dots: created directly by the real gallery renderer. */
   {
@@ -6750,85 +6744,77 @@ function renderKandortyViewerDots(){
 #imageViewerModal #imageViewerImg{display:block!important}
 </style>
 
-<style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style><style id="kandorty-smooth-carousel-style">
-#imageViewerModal .image-viewer-card{touch-action:none!important}
-#imageViewerModal #imageViewerImg{will-change:transform;backface-visibility:hidden}
-#imageViewerModal .kandorty-neighbor{position:absolute!important;left:0;top:0;width:100%;height:100%;object-fit:contain;pointer-events:none;will-change:transform;background:#fff;z-index:2}
+<style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style><style id="kandorty-unified-carousel-css">
+#productModal .product-gallery-stage,#imageViewerModal .image-viewer-card{position:relative!important;overflow:hidden!important;touch-action:pan-y!important}
+#productModal #modalMainImage,#imageViewerModal #imageViewerImg{transition:none!important;animation:none!important;backface-visibility:hidden!important}
+.kandorty-swipe-next{position:absolute!important;pointer-events:none!important;z-index:6!important;max-width:none!important;max-height:none!important;transition:none!important;animation:none!important;backface-visibility:hidden!important}
 </style>
-<script id="kandorty-seamless-loop-carousel">
+<script id="kandorty-unified-carousel-js">
 (function(){
-const modal=document.getElementById('imageViewerModal'),img=document.getElementById('imageViewerImg');if(!modal||!img)return;
-const card=img.parentElement;let active=false,animating=false,sx=0,sy=0,dx=0,dir=0,neighbor=null,gesture=false;
-const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
-const wrap=i=>(i+photos().length)%photos().length;
-function clean(){if(neighbor){neighbor.remove();neighbor=null}img.style.transition='none';img.style.transform='translate3d(0,0,0)';active=false;gesture=false;dir=0;dx=0;animating=false;}
-function adjacent(d){if(neighbor)neighbor.remove();neighbor=null;dir=d;if(photos().length<2)return;neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-neighbor';neighbor.src=photos()[wrap(currentProductImageIndex+d)];neighbor.decoding='sync';neighbor.style.transition='none';neighbor.style.transform='translate3d('+(d*card.clientWidth)+'px,0,0)';img.insertAdjacentElement('afterend',neighbor);
-const rect=img.getBoundingClientRect(),parentRect=card.getBoundingClientRect();
-neighbor.style.setProperty('width',rect.width+'px','important');
-neighbor.style.setProperty('height',rect.height+'px','important');
-neighbor.style.setProperty('left',(rect.left-parentRect.left)+'px','important');
-neighbor.style.setProperty('top',(rect.top-parentRect.top)+'px','important');
-neighbor.style.setProperty('object-fit',getComputedStyle(img).objectFit,'important');
-}
-modal.addEventListener('touchstart',e=>{if(animating||e.touches.length!==1||e.target.closest('button')||!card.contains(e.target)||typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01)return;clean();sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;},{capture:true,passive:true});
-modal.addEventListener('touchmove',e=>{if(!active||e.touches.length!==1)return;let x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;if(!gesture&&Math.abs(x)<6)return;if(!gesture&&Math.abs(y)>Math.abs(x))return;gesture=true;e.preventDefault();e.stopImmediatePropagation();let d=x<0?1:-1;if(d!==dir)adjacent(d);dx=x;img.style.transition='none';img.style.transform='translate3d('+dx+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(dx+d*card.clientWidth)+'px,0,0)';},{capture:true,passive:false});
-modal.addEventListener('touchend',e=>{if(!active)return;active=false;if(!gesture)return;e.preventDefault();e.stopImmediatePropagation();animating=true;const d=dir,w=card.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(70,w*.18),target=commit?-d*w:0;const ms=commit?240:180;img.style.transition='transform '+ms+'ms cubic-bezier(.2,.75,.25,1)';if(neighbor)neighbor.style.transition=img.style.transition;requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)';});setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);img.style.transition='none';img.style.visibility='hidden';img.style.transform='translate3d(0,0,0)';img.src=photos()[currentProductImageIndex];if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();if(typeof renderProductGallery==='function')renderProductGallery();const reveal=()=>{requestAnimationFrame(()=>{img.style.visibility='visible';clean();});};if(img.complete)reveal();else{img.addEventListener('load',reveal,{once:true});setTimeout(reveal,650);}}else clean();},ms+20);},{capture:true,passive:false});
-modal.addEventListener('touchcancel',clean,{capture:true,passive:true});
-})();
-</script>
-<style id="kandorty-primary-loop-style">
-#productModal .product-gallery-stage{position:relative!important;overflow:hidden!important;touch-action:none!important}
-#productModal .product-gallery-stage #modalMainImage{transition:none!important;animation:none!important}
-#productModal .kandorty-primary-neighbor{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;pointer-events:none!important;z-index:5!important}
-#imageViewerModal .kandorty-neighbor{object-fit:contain!important;object-position:center!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important}
-</style>
-<script id="kandorty-primary-loop-and-size-fix">
-(function(){
- const stage=document.querySelector('#productModal .product-gallery-stage');
- const img=document.getElementById('modalMainImage');
- if(stage&&img){
- let sx=0,sy=0,dx=0,active=false,drag=false,neighbor=null,dir=0,busy=false;
- const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
- const wrap=i=>(i+photos().length)%photos().length;
- function clear(){if(neighbor){neighbor.remove();neighbor=null;}img.style.transition='none';img.style.transform='translate3d(0,0,0)';active=false;drag=false;dx=0;dir=0;busy=false;}
- function setNeighbor(d){
-  if(neighbor)neighbor.remove();neighbor=null;dir=d;
-  if(photos().length<2)return;
-  neighbor=img.cloneNode(false);neighbor.removeAttribute('id');neighbor.className='kandorty-primary-neighbor';
-  neighbor.src=photos()[wrap(currentProductImageIndex+d)];
-  const r=img.getBoundingClientRect(),pr=stage.getBoundingClientRect();
-  neighbor.style.cssText+=';left:'+(r.left-pr.left)+'px!important;top:'+(r.top-pr.top)+'px!important;width:'+r.width+'px!important;height:'+r.height+'px!important;object-fit:'+getComputedStyle(img).objectFit+'!important;';
-  neighbor.style.transform='translate3d('+(d*stage.clientWidth)+'px,0,0)';
-  img.insertAdjacentElement('afterend',neighbor);
+ function bind(stage,img,fullscreen){
+  if(!stage||!img)return;
+  let startX=0,startY=0,delta=0,drag=false,active=false,busy=false,dir=0,ghost=null,token=0;
+  const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
+  const wrap=n=>(n+photos().length)%photos().length;
+  function reset(){if(ghost){ghost.remove();ghost=null}img.style.transition='none';img.style.transform='translate3d(0,0,0)';img.style.opacity='1';img.style.visibility='visible';active=false;drag=false;dir=0;delta=0;busy=false;}
+  function adjacent(d){
+   if(ghost)ghost.remove();ghost=null;dir=d;
+   if(photos().length<2)return;
+   const r=img.getBoundingClientRect(),sr=stage.getBoundingClientRect();
+   ghost=img.cloneNode(false);ghost.removeAttribute('id');ghost.className='kandorty-swipe-next';
+   ghost.src=photos()[wrap(currentProductImageIndex+d)];ghost.decoding='async';
+   const style=getComputedStyle(img);
+   ghost.style.cssText='left:'+(r.left-sr.left)+'px!important;top:'+(r.top-sr.top)+'px!important;width:'+r.width+'px!important;height:'+r.height+'px!important;object-fit:'+style.objectFit+'!important;object-position:'+style.objectPosition+'!important;';
+   ghost.style.transform='translate3d('+(d*stage.clientWidth)+'px,0,0)';
+   stage.appendChild(ghost);
+  }
+  stage.addEventListener('touchstart',e=>{
+   if(busy||e.touches.length!==1||e.target.closest('button'))return;
+   if(fullscreen&&typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01)return;
+   reset();startX=e.touches[0].clientX;startY=e.touches[0].clientY;active=true;
+  },{capture:true,passive:true});
+  stage.addEventListener('touchmove',e=>{
+   if(!active||e.touches.length!==1)return;
+   const x=e.touches[0].clientX-startX,y=e.touches[0].clientY-startY;
+   if(!drag&&(Math.abs(x)<7||Math.abs(y)>Math.abs(x)))return;
+   if(!drag&&photos().length<2)return;
+   drag=true;e.preventDefault();e.stopImmediatePropagation();
+   const d=x<0?1:-1;if(d!==dir)adjacent(d);
+   delta=x;img.style.transition='none';img.style.transform='translate3d('+x+'px,0,0)';
+   if(ghost)ghost.style.transform='translate3d('+(x+d*stage.clientWidth)+'px,0,0)';
+  },{capture:true,passive:false});
+  stage.addEventListener('touchend',e=>{
+   if(!active)return;active=false;
+   if(!drag){reset();return}
+   e.preventDefault();e.stopImmediatePropagation();busy=true;
+   const d=dir,w=stage.clientWidth,commit=Math.abs(delta)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
+   const transition='transform '+ms+'ms cubic-bezier(.22,.7,.2,1)';
+   img.style.transition=transition;if(ghost)ghost.style.transition=transition;
+   requestAnimationFrame(()=>{
+    img.style.transform='translate3d('+target+'px,0,0)';
+    if(ghost)ghost.style.transform='translate3d('+(target+d*w)+'px,0,0)';
+   });
+   const thisToken=++token;
+   setTimeout(async()=>{
+    if(thisToken!==token)return;
+    if(!commit){reset();return}
+    const nextIndex=wrap(currentProductImageIndex+d),url=photos()[nextIndex];
+    // Keep the incoming image visible while the original changes behind it.
+    // This prevents a blank frame, size flash or abrupt jump after lifting the finger.
+    if(ghost){ghost.style.transition='none';ghost.style.transform='translate3d(0,0,0)'}
+    img.style.transition='none';img.style.transform='translate3d(0,0,0)';
+    img.style.visibility='hidden';currentProductImageIndex=nextIndex;
+    if(fullscreen){img.src=url;if(typeof renderKandortyViewerDots==='function')renderKandortyViewerDots();}
+    else if(typeof renderProductGallery==='function')renderProductGallery();
+    try{if(img.decode)await Promise.race([img.decode().catch(()=>{}),new Promise(r=>setTimeout(r,800))]);}catch(e){}
+    if(thisToken!==token)return;
+    requestAnimationFrame(()=>{img.style.visibility='visible';requestAnimationFrame(reset)});
+   },ms+25);
+  },{capture:true,passive:false});
+  stage.addEventListener('touchcancel',reset,{capture:true,passive:true});
  }
- stage.addEventListener('touchstart',function(e){
-  if(busy||e.touches.length!==1||e.target.closest('button'))return;
-  clear();sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;
-  e.stopImmediatePropagation();
- },{capture:true,passive:true});
- stage.addEventListener('touchmove',function(e){
-  if(!active||e.touches.length!==1)return;
-  let x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;
-  if(!drag&&Math.abs(x)<7)return;
-  if(!drag&&Math.abs(y)>Math.abs(x))return;
-  drag=true;e.preventDefault();e.stopImmediatePropagation();
-  let d=x<0?1:-1;if(d!==dir)setNeighbor(d);
-  dx=x;img.style.transition='none';img.style.transform='translate3d('+dx+'px,0,0)';
-  if(neighbor)neighbor.style.transform='translate3d('+(dx+d*stage.clientWidth)+'px,0,0)';
- },{capture:true,passive:false});
- stage.addEventListener('touchend',function(e){
-  if(!active)return;active=false;e.stopImmediatePropagation();
-  if(!drag){clear();return}
-  e.preventDefault();busy=true;
-  let d=dir,w=stage.clientWidth,commit=photos().length>1&&Math.abs(dx)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
-  img.style.transition='transform '+ms+'ms cubic-bezier(.22,.7,.2,1)';
-  if(neighbor)neighbor.style.transition=img.style.transition;
-  requestAnimationFrame(()=>{img.style.transform='translate3d('+target+'px,0,0)';if(neighbor)neighbor.style.transform='translate3d('+(target+d*w)+'px,0,0)'});
-  setTimeout(()=>{if(commit){currentProductImageIndex=wrap(currentProductImageIndex+d);img.style.visibility='hidden';img.style.transition='none';img.style.transform='translate3d(0,0,0)';if(typeof renderProductGallery==='function')renderProductGallery();const reveal=()=>requestAnimationFrame(()=>{img.style.visibility='visible';clear();});if(img.complete)reveal();else{img.addEventListener('load',reveal,{once:true});setTimeout(reveal,650);}}else clear();},ms+35);
- },{capture:true,passive:false});
- stage.addEventListener('touchcancel',clear,{capture:true});
- }
-
+ bind(document.querySelector('#productModal .product-gallery-stage'),document.getElementById('modalMainImage'),false);
+ bind(document.querySelector('#imageViewerModal .image-viewer-card'),document.getElementById('imageViewerImg'),true);
 })();
 </script>
 <style id="kandorty-no-entry-image-jump">#productModal #modalMainImage,#imageViewerModal #imageViewerImg{animation:none!important;transform-origin:center center!important}#productModal:not(.hidden) .product-gallery-stage{contain:paint}#imageViewerModal:not(.hidden) .image-viewer-card{overflow:hidden!important}</style></body></html>
