@@ -856,6 +856,30 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminOrdersTab .customer-file-mini-profile b{display:block;font-size:15px;font-weight:800;overflow-wrap:anywhere;line-height:1.6}
 @media(max-width:560px){#adminOrdersTab .customer-file-mini-profile{grid-template-columns:1fr;gap:4px}#adminOrdersTab .customer-file-mini-profile>div{padding:6px 8px;border-bottom:1px solid #eee1e5}#adminOrdersTab .customer-file-mini-profile>div:last-child{border-bottom:0}}
 </style>
+<style id="kandorty-admin-hamburger-menu-20261010">
+/* Only the three-line button stays in the administrator header. */
+#adminModal .admin-modal-head{position:sticky;top:-16px;z-index:10005;display:flex;align-items:center;gap:12px;background:#fff;border-bottom:1px solid #eadfe1;padding:10px 2px;margin-bottom:12px}
+#adminModal .admin-modal-head h2{font-size:clamp(17px,3.1vw,24px);line-height:1.35;margin:0;flex:1}
+#adminModal .admin-head-controls{display:flex;align-items:center;gap:8px}
+#adminModal .admin-menu-toggle{height:45px;min-width:48px;display:grid;place-items:center;border:1px solid #e1cdd3;border-radius:12px;background:#fff5f6;color:#91132d;font-size:28px;cursor:pointer;line-height:1}
+#adminModal .admin-menu-toggle[aria-expanded="true"]{background:#91132d;color:#fff}
+#adminModal .admin-menu-toggle:focus-visible,#adminModal .admin-nav-drawer button:focus-visible{outline:3px solid #c91532;outline-offset:2px}
+#adminModal .admin-menu-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.36);z-index:10010}
+#adminModal .admin-nav-drawer{position:fixed;z-index:10011;inset:0 auto 0 0;right:0;left:auto;width:min(375px,calc(100vw - 32px));height:100vh;height:100dvh;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;background:#fff;box-shadow:-15px 0 38px #18030a33;padding:16px 16px max(22px,env(safe-area-inset-bottom));direction:rtl}
+#adminModal .admin-nav-heading{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e7d9dd;padding:0 0 14px;margin-bottom:12px;font-size:19px}
+#adminModal .admin-nav-dismiss{font-size:28px;background:transparent;border:0;min-width:42px;height:42px;cursor:pointer}
+#adminModal .admin-nav-sound{width:100%;white-space:normal;text-align:right;margin:2px 0 8px!important}
+#adminModal .admin-nav-drawer .admin-tabs{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;margin:8px 0!important;overflow:visible!important}
+#adminModal .admin-nav-drawer .admin-tabs .tab,#adminModal .admin-nav-bottom .tab{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:right;padding:13px 14px;min-height:45px;font-size:15px;border-radius:10px;cursor:pointer}
+#adminModal .admin-nav-drawer .admin-tabs .tab.active{background:#91132d;color:#fff;border-color:#91132d}
+#adminModal .admin-menu-search{border-top:1px solid #eadfe1;padding:16px 0 10px;display:grid;gap:9px}
+#adminModal .admin-menu-search label{font-size:14px;font-weight:800}
+#adminModal .admin-menu-search input{box-sizing:border-box;width:100%;max-width:100%;padding:12px;border:1px solid #dfcdd2;border-radius:10px;font-size:14px;background:#fff;color:#211b1e;direction:ltr;text-align:right}
+#adminModal .admin-menu-search-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#adminModal .admin-nav-bottom{display:grid;gap:6px;border-top:1px solid #eadfe1;padding-top:12px;margin-top:8px}
+#adminModal .admin-current-section{font-size:21px;font-weight:800;margin:14px 0;color:#7c142a}
+@media(max-width:560px){#adminModal .admin-modal-head{top:-10px;padding:8px 2px 10px}#adminModal .admin-nav-drawer{width:min(360px,calc(100vw - 28px))}}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -943,14 +967,47 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
-<div class="modal-head"><h2>لوحة إدارة Kandorty</h2><button class="x" onclick="closeAdmin()">×</button></div>
+<div class="modal-head admin-modal-head">
+  <h2>لوحة إدارة Kandorty</h2>
+  <div class="admin-head-controls">
+    <button type="button" id="adminMenuButton" class="admin-menu-toggle hidden" aria-label="فتح قائمة الإدارة" aria-controls="adminNavDrawer" aria-expanded="false" onclick="toggleAdminMenu()"><span aria-hidden="true">☰</span></button>
+    <button class="x" id="adminCloseButton" type="button" onclick="closeAdmin()">×</button>
+  </div>
+</div>
 <div id="loginView" class="login-box"><p>تسجيل دخول الإدارة</p><input id="adminEmail" type="email" autocomplete="username" placeholder="البريد الإلكتروني"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')loginAdmin()"><button id="adminLoginButton" class="btn dark" style="width:100%" onclick="loginAdmin()">دخول آمن</button>
 <button id="googleAdminLoginButton" class="btn ghost" style="width:100%;margin-top:8px" onclick="loginAdminGoogle()">الدخول باستخدام Google</button>
 <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetAdminPassword()">إرسال رابط تغيير كلمة المرور</button><p id="loginError" style="font-size:13px;color:#b00020;line-height:1.7"></p><p id="authDebug" style="font-size:12px;color:#777;direction:ltr;text-align:left;word-break:break-word"></p><p style="font-size:13px;color:#777">استخدمي حساب الإدارة الموجود في Firebase Authentication.</p></div>
 <div id="adminView" class="hidden">
+<div id="adminMenuBackdrop" class="admin-menu-backdrop hidden" aria-hidden="true" onclick="closeAdminMenu()"></div>
+<aside id="adminNavDrawer" class="admin-nav-drawer hidden" role="navigation" aria-label="قائمة الإدارة" aria-hidden="true">
+  <div class="admin-nav-heading"><strong>☰ قائمة الإدارة</strong><button type="button" class="admin-nav-dismiss" aria-label="إغلاق القائمة" onclick="closeAdminMenu()">×</button></div>
+  <button id="orderSoundBtn" class="btn ghost admin-nav-sound" type="button" onclick="enableOrderSound()">🔊 تفعيل صوت الطلبات</button>
+  <div class="admin-tabs" aria-label="أقسام الإدارة">
+    <button type="button" class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button>
+    <button type="button" class="tab" onclick="showAdminTab('list',this)">المنتجات</button>
+    <button type="button" id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button>
+    <button type="button" id="customersTabBtn" class="tab" onclick="showAdminTab('customers',this)">العملاء <span id="customersTabCount" class="header-count" style="display:none">0</span></button>
+    <button type="button" class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button>
+    <button type="button" class="tab" onclick="showAdminTab('categories',this)">صور الأقسام</button>
+    <button type="button" class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button>
+    <button type="button" class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button>
+    <button type="button" class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button>
+  </div>
+  <form class="admin-menu-search" role="search" onsubmit="event.preventDefault();openOrdersSearchFromMenu()">
+    <label for="adminOrderSearch">البحث في الطلبات</label>
+    <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
+    <div class="admin-menu-search-actions">
+      <button type="submit" class="btn primary">بحث</button>
+      <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
+    </div>
+  </form>
+  <div class="admin-nav-bottom">
+    <button type="button" class="tab" onclick="closeAdminMenu();logoutAdmin()">تسجيل الخروج</button>
+    <button type="button" class="tab" onclick="closeAdmin()">✕ إغلاق الإدارة</button>
+  </div>
+</aside>
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
-<button id="orderSoundBtn" class="btn ghost" type="button" onclick="enableOrderSound()" style="margin:10px 0">🔊 تفعيل صوت الطلبات</button>
-<div class="admin-tabs"><button class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button><button class="tab" onclick="showAdminTab('list',this)">المنتجات</button><button id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button><button id="customersTabBtn" class="tab" onclick="showAdminTab('customers',this)">العملاء <span id="customersTabCount" class="header-count" style="display:none">0</span></button><button class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button><button class="tab" onclick="showAdminTab('categories',this)">صور الأقسام</button><button class="tab" onclick="showAdminTab('video',this)">فيديو الرئيسية</button><button class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button><button class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button><button class="tab" onclick="logoutAdmin()">تسجيل الخروج</button></div>
+<div id="adminCurrentSection" class="admin-current-section">إضافة منتج</div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -994,10 +1051,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </form></div>
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
 <div id="adminOrdersTab" class="hidden">
-<div class="admin-order-search">
-  <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
-  <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
-</div>
 <div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div><div id="adminCancellationRequests" role="status" aria-live="polite"></div></div>
 <section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل"><div class="customer-file-header">
 <button type="button" class="customer-file-back" onclick="backToOrderFolders()">➜ رجوع إلى الطلبات</button>
@@ -1497,9 +1550,28 @@ function openProduct(id){
 }
 function closeProduct(){$('productModal').classList.add('hidden')}
 
-$('adminBtn').onclick=()=>{$('adminModal').classList.remove('hidden'); syncAdminView(auth.currentUser)};function closeAdmin(){
+$('adminBtn').onclick=()=>{$('adminModal').classList.remove('hidden'); syncAdminView(auth.currentUser)};
+function toggleAdminMenu(force){
+  const drawer=$('adminNavDrawer'),backdrop=$('adminMenuBackdrop'),btn=$('adminMenuButton');
+  if(!drawer||!backdrop||!btn||$('adminView').classList.contains('hidden'))return;
+  const open=(typeof force==='boolean')?force:drawer.classList.contains('hidden');
+  drawer.classList.toggle('hidden',!open);
+  backdrop.classList.toggle('hidden',!open);
+  drawer.setAttribute('aria-hidden',String(!open));
+  btn.setAttribute('aria-expanded',String(open));
+  btn.setAttribute('aria-label',open?'إغلاق قائمة الإدارة':'فتح قائمة الإدارة');
+  if(open)drawer.scrollTop=0;
+}
+function closeAdminMenu(){toggleAdminMenu(false);}
+function openOrdersSearchFromMenu(){showAdminTab('orders',$('ordersTabBtn'));}
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('adminNavDrawer')?.classList.contains('hidden')){
+    event.preventDefault();closeAdminMenu();$('adminMenuButton')?.focus();
+  }
+});
+function closeAdmin(){
+  closeAdminMenu();
   $('adminModal').classList.add('hidden');
-  setTimeout(()=>$('adminModal').classList.remove('hidden'),120);
 }
 function authErrorMessage(error){
   const code=error?.code||'auth/unknown';
@@ -1738,6 +1810,9 @@ function syncAdminView(user){
 
   $('loginView').classList.toggle('hidden',loggedIn);
   $('adminView').classList.toggle('hidden',!loggedIn);
+  $('adminMenuButton')?.classList.toggle('hidden',!loggedIn);
+  $('adminCloseButton')?.classList.toggle('hidden',loggedIn);
+  if(!loggedIn)closeAdminMenu();
 
   if(user && !loggedIn){
     auth.signOut().catch(console.error);
@@ -1777,10 +1852,8 @@ const adminTabPositions=Object.create(null);
 let activeAdminTab='form';
 try{history.scrollRestoration='manual';}catch(_){}
 function adminContentAnchorTop(){
-  const card=$('adminModal')?.querySelector('.modal-card');
-  const tabs=$('adminView')?.querySelector('.admin-tabs');
-  if(!card||!tabs)return 0;
-  return Math.max(0,Math.round(card.scrollTop+tabs.getBoundingClientRect().bottom-card.getBoundingClientRect().top+12));
+  // The tab buttons now live in an off-canvas drawer, so their geometry must not scroll the page.
+  return 0;
 }
 function restoreAdminTabPosition(tabName){
   // First visits start at the tab content, not at the top of the whole admin page.
@@ -1807,6 +1880,9 @@ function showAdminTab(name,btn){
   $('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');
   document.querySelectorAll('.admin-tabs .tab').forEach(x=>x.classList.remove('active'));
   if(btn)btn.classList.add('active');
+  const labels={form:'إضافة منتج',list:'المنتجات',orders:'الطلبات',customers:'العملاء',banner:'بانر الرئيسية',categories:'صور الأقسام',video:'فيديو الرئيسية',settings:'الإعدادات',backup:'نسخة احتياطية'};
+  if($('adminCurrentSection'))$('adminCurrentSection').textContent=labels[name]||'';
+  closeAdminMenu();
   if(name==='list')renderAdminList();
   if(name==='orders'){selectedOrdersCustomer=null;selectedOrdersOrderId=null;renderOrders();clearNewOrderBadges();}
   if(name==='customers')renderCustomers();
