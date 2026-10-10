@@ -6789,4 +6789,27 @@ function renderKandortyViewerDots(){
   },true);
 })();
 </script>
+
+<!-- Kandorty: hide floating cart whenever the cart is empty, including when moved to body -->
+<style id="kandorty-empty-cart-visibility-css">
+  #cartBtn.kandorty-empty-cart, #cartFloatingGroup.kandorty-empty-cart {display:none!important;visibility:hidden!important;pointer-events:none!important;}
+</style>
+<script id="kandorty-empty-cart-visibility-js">
+(function(){
+  function syncCartVisibility(){
+    var btn=document.getElementById('cartBtn');
+    var group=document.getElementById('cartFloatingGroup');
+    var count=0;
+    try { if(typeof cart!=='undefined' && Array.isArray(cart)) count=cart.reduce(function(n,item){return n+Math.max(0,Number(item.qty)||0)},0); }
+    catch(e) {count=0;}
+    var empty=count<=0;
+    if(btn){btn.classList.toggle('kandorty-empty-cart',empty);btn.style.setProperty('display',empty?'none':'','important');}
+    if(group){group.classList.toggle('kandorty-empty-cart',empty);group.style.setProperty('display',empty?'none':'','important');}
+  }
+  document.addEventListener('DOMContentLoaded',syncCartVisibility);
+  window.addEventListener('load',syncCartVisibility);
+  setInterval(syncCartVisibility,400);
+  syncCartVisibility();
+})();
+</script>
 </body></html>
