@@ -7276,6 +7276,7 @@ function renderMyOrders(){
   // Group purchased products by their original order so every order code is visible.
   const purchasedOrders=orders.map(order=>({
     code:String(order.id||'').trim(),
+    canRequestCancel:order.status==='new'&&!order.customerEdit?.cancelRequestedAt,
     items:(Array.isArray(order.items)?order.items:[]).map(item=>({
       item,qty:Math.floor(Number(item.qty)||0)
     })).filter(row=>row.qty>0)
@@ -7306,6 +7307,7 @@ function renderMyOrders(){
     return `<section class="my-purchased-order" dir="rtl">
       <div class="my-purchased-order-code">رقم الطلب: <b dir="ltr">${code||'—'}</b></div>
       ${itemsHtml}
+      ${order.canRequestCancel?`<button type="button" class="btn ghost my-order-cancel-link" data-order-code="${code}" style="width:100%;margin-top:9px;color:#991b1b;border-color:#dc2626">طلب إلغاء الطلب</button>`:''}
     </section>`;
   }).join('');
 }
@@ -7337,6 +7339,19 @@ function openMyOrders(){
   const modal=document.getElementById('myOrdersModal');
   if(!btn||!modal)return;
   btn.addEventListener('click',openMyOrders);
+  const list=document.getElementById('myOrdersList');
+  list?.addEventListener('click',event=>{
+    const button=event.target.closest('.my-order-cancel-link');
+    if(!button)return;
+    const code=button.dataset.orderCode||'';
+    if(!code)return;
+    closeMyOrders();
+    const trackButton=document.getElementById('trackBtn');
+    if(trackButton)trackButton.click();
+    document.getElementById('trackingNumber').value=code;
+    if(customerProfile?.phone)document.getElementById('trackingPhone').value=customerProfile.phone;
+    trackOrder();
+  });
 })();
 </script>
 
