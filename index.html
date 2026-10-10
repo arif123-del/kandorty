@@ -5222,6 +5222,7 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
   const flow=['new','preparing','shipping','delivered'];
   const idx=flow.indexOf(shown.status);
   const cancelPending=Boolean(shown.customerEdit?.cancelRequestedAt||editable?.cancelRequestedAt);
+  if(shown.status==='new'&&cancelPending)shown.status='cancelled';
   const canEdit=shown.status==='new'&&editable&&!cancelPending;
   $('trackingResult').innerHTML=`<div class="track-box">
     <b>${esc(shown.id||'')}</b>
@@ -5233,11 +5234,11 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
     <div class="order-products-title">المنتجات المطلوبة</div>
     ${renderOrderItemsHtml(shown)}
     <div class="price" style="margin-top:8px">${moneyHtml(shown.total||0)}</div>
-    ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button><button class="btn ghost" style="width:100%;margin-top:9px;border-color:#b91c1c;color:#b91c1c" onclick="requestOrderCancellation()">طلب إلغاء الطلب</button>`:''}
-    ${cancelPending&&shown.status==='new'?'<div class="customer-edit-note" style="color:#9a3412;font-weight:700">⏳ تم إرسال طلب الإلغاء إلى إدارة المتجر، بانتظار المراجعة.</div>':''}
+    ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button><button class="btn ghost" style="width:100%;margin-top:9px;border-color:#b91c1c;color:#b91c1c" onclick="requestOrderCancellation()">إلغاء الطلب</button>`:''}
+    ${shown.status==='cancelled'?'<div class="customer-edit-note" style="color:#991b1b;font-weight:700">✓ تم إلغاء هذا الطلب. استرداد الدفع بالبطاقة يحتاج متابعة منفصلة.</div>':''}
     ${shown.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
-    ${shown.status!=='new'?'<div class="customer-edit-note">التعديل غير متاح بعد بدء تجهيز أو توصيل الطلب.</div>':''}
+    ${['preparing','shipping','delivered'].includes(shown.status)?'<div class="customer-edit-note">لا يمكن إلغاء الطلب أو تعديله بعد بدء التجهيز أو التوصيل.</div>':''}
   </div>`;
 }
 
@@ -5385,34 +5386,56 @@ function removeCustomerEditItem(itemId){
 let cancellationSubmitting=false;
 async function requestOrderCancellation(){
   if(cancellationSubmitting||!activeEditableOrder)return;
-  const edit=activeEditableOrder;
-  const orderId=String(edit.orderId||'');
-  if(!orderId||!edit.editToken||edit.cancelRequestedAt)return;
-  if(!confirm('هل تريدين طلب إلغاء الطلب رقم '+orderId+'؟ سيتم إخطار الإدارة، وقد يتطلب الدفع بالبطاقة مراجعة الاسترداد.'))return;
+  const edit=activeEditableOrder,orderId=String(edit.orderId||''),token=String(edit.editToken||'');
+  if(!orderId||!token||edit.cancelRequestedAt)return;
+  if(!confirm('هل تريدين إلغاء الطلب '+orderId+'؟ إذا كان مدفوعاً بالبطاقة، تتم مراجعة استرداد المبلغ بشكل منفصل.'))return;
   cancellationSubmitting=true;
+  const trackRef=db.collection('tracking').doc(orderId);
+  const editRef=db.collection('order_edits').doc(token);
+  const orderRef=db.collection('orders').doc(orderId);
+  const now=new Date().toISOString();
   try{
-    const trackingSnap=await db.collection('tracking').doc(orderId).get();
-    if(!trackingSnap.exists||trackingSnap.data()?.status!=='new')throw new Error('بدأ تجهيز الطلب أو تغيّرت حالته، ولا يمكن طلب الإلغاء الآن.');
-    const currentEdit=await db.collection('order_edits').doc(edit.editToken).get();
-    if(!currentEdit.exists||String(currentEdit.data()?.orderId||'')!==orderId)throw new Error('تعذر التحقق من ملكية الطلب.');
-    if(currentEdit.data()?.cancelRequestedAt)throw new Error('تم إرسال طلب الإلغاء مسبقاً.');
-    const now=new Date().toISOString();
-    const customer=currentEdit.data()?.customer||edit.customer||{};
-    const notes=String(currentEdit.data()?.notes||'');
-    const quantities=currentEdit.data()?.quantities||quantitiesFromOrderItems(edit.items);
-    const batch=db.batch();
-    batch.update(db.collection('orders').doc(orderId),{
-      customerEdit:{customer,notes,quantities,editProof:edit.editToken,updatedAt:now,cancelRequestedAt:now},
-      customerModifiedAt:now
-    });
-    batch.update(db.collection('order_edits').doc(edit.editToken),{cancelRequestedAt:now,updatedAt:now});
-    await batch.commit();
-    activeEditableOrder={...edit,customer,notes,quantities,cancelRequestedAt:now,updatedAt:now};
-    renderTrackingResult({id:orderId,status:'new',customer,items:edit.items||[],customerEdit:{cancelRequestedAt:now}},activeEditableOrder);
-    alert('✅ تم إرسال طلب الإلغاء إلى الإدارة. سيتم مراجعته، ولا يُعدّ الطلب ملغياً حتى تؤكد الإدارة الإلغاء.');
+    const makeEdit=async(get)=>{
+      const [tracking,proof]=await Promise.all([get(trackRef),get(editRef)]);
+      if(!tracking.exists||tracking.data()?.status!=='new')
+        throw Object.assign(new Error('بدأ تجهيز الطلب أو توصيله، ولا يمكن إلغاؤه.'),{code:'order/locked'});
+      if(!proof.exists||String(proof.data()?.orderId||'')!==orderId||
+         normalizeOrderPhone(proof.data()?.customer?.phone||'')!==normalizeOrderPhone(edit.verifiedPhone||edit.customer?.phone||''))
+        throw Object.assign(new Error('تعذر التحقق من رقم الطلب والهاتف.'),{code:'order/unverified'});
+      if(proof.data()?.cancelRequestedAt)
+        throw Object.assign(new Error('الطلب ملغي بالفعل.'),{code:'order/already-cancelled'});
+      return {customer:proof.data().customer||edit.customer||{},notes:proof.data().notes||'',quantities:proof.data().quantities||quantitiesFromOrderItems(edit.items),editProof:token,updatedAt:now,cancelRequestedAt:now};
+    };
+    try{
+      // Tracking and admin status updates share a Firestore transaction so a
+      // simultaneous change to preparing/shipping/delivered blocks cancellation.
+      await db.runTransaction(async tx=>{
+        const customerEdit=await makeEdit(ref=>tx.get(ref));
+        tx.update(orderRef,{status:'cancelled',cancelledBy:'customer',cancelledAt:now,customerEdit,customerModifiedAt:now});
+        tx.update(editRef,{status:'cancelled',cancelRequestedAt:now,updatedAt:now});
+        tx.set(trackRef,{id:orderId,status:'cancelled',cancelledAt:now},{merge:true});
+      });
+    }catch(error){
+      if(error?.code!=='permission-denied'&&error?.code!=='unauthenticated')throw error;
+      // Older customer-edit rules can restrict direct status/tracking updates.
+      // Persist verified cancellation without requiring admin approval; admin
+      // automatically finalizes canonical status when online.
+      const customerEdit=await makeEdit(ref=>ref.get());
+      const batch=db.batch();
+      batch.update(orderRef,{customerEdit,customerModifiedAt:now});
+      batch.update(editRef,{cancelRequestedAt:now,updatedAt:now});
+      await batch.commit();
+    }
+    activeEditableOrder={...edit,status:'cancelled',cancelRequestedAt:now};
+    saveCustomerOwnOrders(readCustomerOwnOrders().map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o));
+    customerCloudOrders=customerCloudOrders.map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o);
+    orders=orders.map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o);
+    renderTrackingResult({...edit,id:orderId,status:'cancelled',customer:edit.customer||{},items:edit.items||[]},activeEditableOrder);
+    renderMyOrders();renderProfileOrders();
+    alert('✅ تم إلغاء الطلب '+orderId+' بنجاح. الدفع بالبطاقة يستلزم مراجعة الاسترداد.');
   }catch(error){
-    console.error('Cancellation request failed:',error);
-    alert('تعذر إرسال طلب الإلغاء. '+(error?.message||'يرجى المحاولة لاحقاً.'));
+    console.error('Customer cancellation failed:',error);
+    alert('تعذر إلغاء الطلب. '+(error?.message||'حاولي مرة أخرى.'));
   }finally{cancellationSubmitting=false;}
 }
 function openCustomerOrderEdit(){
@@ -7306,8 +7329,9 @@ function renderMyOrders(){
     }).join('');
     return `<section class="my-purchased-order" dir="rtl">
       <div class="my-purchased-order-code">رقم الطلب: <b dir="ltr">${code||'—'}</b></div>
+      ${!order.canRequestCancel&&orders.some(o=>String(o.id)===order.code&&o.status==='cancelled')?'<div style="color:#991b1b;font-weight:800;padding:4px 3px">✓ تم إلغاء الطلب</div>':''}
       ${itemsHtml}
-      ${order.canRequestCancel?`<button type="button" class="btn ghost my-order-cancel-link" data-order-code="${code}" style="width:100%;margin-top:9px;color:#991b1b;border-color:#dc2626">طلب إلغاء الطلب</button>`:''}
+      ${order.canRequestCancel?`<button type="button" class="btn ghost my-order-cancel-link" data-order-code="${code}" style="width:100%;margin-top:9px;color:#991b1b;border-color:#dc2626">إلغاء الطلب</button>`:''}
     </section>`;
   }).join('');
 }
