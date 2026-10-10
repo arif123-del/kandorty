@@ -6763,6 +6763,13 @@ function renderKandortyViewerDots(){
       if(after>before){
         feedback.textContent='✓ تمت إضافة المنتج إلى السلة';
         if(typeof window.updateCartCount==='function')window.updateCartCount();
+        // Reveal the cart before calculating the flight destination, including the first addition.
+        var visibleCart=document.getElementById('cartBtn');
+        if(visibleCart){
+          visibleCart.classList.remove('kandorty-empty-cart');
+          visibleCart.style.setProperty('display','flex','important');
+          visibleCart.style.setProperty('visibility','visible','important');
+        }
         // Run the flight only after the cart quantity has really increased.
         var cartIcon=document.getElementById('cartBtn');
         var mainPhoto=document.getElementById('modalMainImage');
@@ -6810,6 +6817,45 @@ function renderKandortyViewerDots(){
   window.addEventListener('load',syncCartVisibility);
   setInterval(syncCartVisibility,400);
   syncCartVisibility();
+})();
+</script>
+
+<style id="kandorty-horizontal-viewer-only">
+#kandortyMorePhotos{display:none!important}
+#imageViewerModal .image-viewer-card,#imageViewerImg{
+  touch-action:pan-x!important;overscroll-behavior:contain!important;
+}
+</style>
+<script id="kandorty-horizontal-viewer-swipe">
+(function(){
+  var viewer=document.getElementById('imageViewerModal');
+  var img=document.getElementById('imageViewerImg');
+  if(!viewer||!img)return;
+  var sx=0,sy=0,dx=0,tracking=false;
+  viewer.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return;
+    var t=e.touches[0];sx=t.clientX;sy=t.clientY;dx=0;tracking=true;
+  },{passive:true,capture:true});
+  viewer.addEventListener('touchmove',function(e){
+    if(!tracking||e.touches.length!==1)return;
+    var t=e.touches[0],dy=t.clientY-sy;dx=t.clientX-sx;
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>8){
+      e.preventDefault();
+      img.style.transition='none';
+      img.style.transform='translateX('+Math.max(-100,Math.min(100,dx))+'px)';
+    }
+  },{passive:false,capture:true});
+  viewer.addEventListener('touchend',function(e){
+    if(!tracking)return;tracking=false;
+    var t=e.changedTouches[0],x=t.clientX-sx,y=t.clientY-sy;
+    img.style.transition='transform .2s ease';
+    img.style.transform='translateX(0)';
+    if(Math.abs(x)>45&&Math.abs(x)>Math.abs(y)*1.2){
+      e.stopImmediatePropagation();
+      if(typeof stepProductImage==='function')stepProductImage(x<0?1:-1,true);
+    }
+  },{passive:true,capture:true});
+  viewer.addEventListener('touchcancel',function(){tracking=false;img.style.transform='translateX(0)'},{passive:true});
 })();
 </script>
 </body></html>
