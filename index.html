@@ -2232,7 +2232,7 @@ body.kandorty-cart-open #cartBtn{
 <div style="display:flex;justify-content:space-between"><span>المنتجات</span><strong id="checkoutSubtotal">0 د.إ</strong></div>
 <div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><strong id="checkoutDeliveryFee">25 د.إ</strong></div>
 <div style="display:flex;justify-content:space-between"><span>الإجمالي مع التوصيل</span><strong id="checkoutGrandTotal">0 د.إ</strong></div>
-<div id="stripeDeliveryNotice" style="font-size:12px;color:#8b311e" hidden>عند الدفع بالبطاقة، رسوم التوصيل 25 د.إ تُدفع عند الاستلام، ولا تُحصّل بواسطة البطاقة.</div>
+<div id="stripeDeliveryNotice" style="font-size:12px;color:#8b311e" hidden>عند الدفع بالبطاقة، رسوم التوصيل 25 د.إ مشمولة في المبلغ المدفوع بالبطاقة.</div>
 </div>
 <div id="checkoutStatus" class="full" style="min-height:22px;font-size:13px;font-weight:700"></div>
 <button id="confirmOrderBtn" class="btn primary full" type="button">تأكيد الطلب</button>
@@ -4227,7 +4227,7 @@ async function submitCheckoutOrder(){
     payment:$('paymentMethod').value,
     notes:$('orderNotes').value.trim(),
     status:'new',
-    subtotal,deliveryFee,deliveryPayment: $('paymentMethod').value==='card'?'on_delivery':'with_order',
+    subtotal,deliveryFee,deliveryPayment: $('paymentMethod').value==='card'?'with_card':'with_order',
     total,
     items:rows.map(x=>({
       id:x.product.id,
@@ -4333,6 +4333,7 @@ async function completeStripeCheckoutReturn(){
     if(!verifyResponse.ok)throw new Error(verified.error||'تعذر التحقق من الدفع.');
     if(verified.payment_status!=='paid')throw new Error('لم يتم تأكيد الدفع بعد.');
     if(String(verified.orderId||'')!==String(order.id))throw new Error('رقم الطلب لا يطابق عملية الدفع.');
+    if(String(verified.currency||'').toLowerCase()!=='aed'||Number(verified.amount_total)!==Math.round(Number(order.total)*100))throw new Error('المبلغ المدفوع لا يطابق إجمالي الطلب مع رسوم التوصيل. يرجى التواصل مع المتجر.');
 
     order.payment='card';
     order.stripeSessionId=sessionId;
