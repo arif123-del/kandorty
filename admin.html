@@ -3116,7 +3116,7 @@ function renderOpenedOrdersCustomer(){
   const priorScroll=card?.scrollTop||0;
   $('ordersFoldersView')?.classList.add('hidden');
   file.classList.remove('hidden');
-  $('ordersCustomerHeading').textContent='📁 ملف '+(group.name||'العميل');
+  $('ordersCustomerHeading').textContent='📁 ملف العميل';
   const selectedOrder=group.history.find(o=>String(o.id||'')===String(selectedOrdersOrderId||''))||group.history[0]||null;
   selectedOrdersOrderId=selectedOrder?.id||null;
   content.innerHTML=`<div class="customer-only-file-shell">
@@ -3136,7 +3136,7 @@ function renderOpenedOrdersCustomer(){
     </section>
     <section class="customer-file-panel">
       <h3>طلبات العميل (${group.history.length})</h3>
-      <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل" ${group.history.length===1?'hidden':''}>
+      <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل" style="display:${group.history.length>1?'flex':'none'}">
         ${group.history.map((raw,index)=>{
           const o=effectiveOrderView(raw);
           const active=String(o.id||'')===String(selectedOrdersOrderId||'');
