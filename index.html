@@ -5303,7 +5303,7 @@ function renderTrackingResult(o,editable=null,verificationMessage=''){
     ${renderOrderItemsHtml(shown)}
     <div class="price" style="margin-top:8px">${moneyHtml(shown.total||0)}</div>
     ${canEdit?`<button class="btn primary" style="width:100%;margin-top:14px" onclick="openCustomerOrderEdit()">✎ تعديل الطلب</button><button class="btn ghost" style="width:100%;margin-top:9px;border-color:#b91c1c;color:#b91c1c" onclick="requestOrderCancellation()">إلغاء الطلب</button>`:''}
-    ${shown.status==='cancelled'?'<div class="customer-edit-note" style="color:#991b1b;font-weight:700">✓ تم إلغاء هذا الطلب. استرداد الدفع بالبطاقة يحتاج متابعة منفصلة.</div>':''}
+    ${shown.status==='cancelled'?'<div class="customer-edit-note" role="status" style="color:#166534;font-weight:800;border:1px solid #bbf7d0;background:#f0fdf4;padding:12px;border-radius:12px">✅ تم إلغاء طلبك بنجاح</div>':''}
     ${shown.status==='new'&&!editable?'<div class="customer-edit-note">للتعديل: اكتبي رقم الهاتف المستخدم عند إنشاء الطلب ثم اضغطي «بحث».</div>':''}
     ${verificationMessage?`<div class="customer-edit-error">${esc(verificationMessage)}</div>`:''}
     ${['preparing','shipping','delivered'].includes(shown.status)?'<div class="customer-edit-note">لا يمكن إلغاء الطلب أو تعديله بعد بدء التجهيز أو التوصيل.</div>':''}
@@ -5500,7 +5500,7 @@ async function requestOrderCancellation(){
     orders=orders.map(o=>String(o.id)===orderId?{...o,status:'cancelled'}:o);
     renderTrackingResult({...edit,id:orderId,status:'cancelled',customer:edit.customer||{},items:edit.items||[]},activeEditableOrder);
     renderMyOrders();renderProfileOrders();
-    alert('✅ تم إلغاء الطلب '+orderId+' بنجاح. الدفع بالبطاقة يستلزم مراجعة الاسترداد.');
+    alert('✅ تم إلغاء طلبك بنجاح!\n\nرقم الطلب: '+orderId+'\n\n'+(edit.payment==='card'?'إذا دُفع الطلب بالبطاقة، تتم متابعة استرداد المبلغ بشكل منفصل.':'تم إبلاغ إدارة المتجر بإلغاء الطلب.'));
   }catch(error){
     console.error('Customer cancellation failed:',error);
     alert('تعذر إلغاء الطلب. '+(error?.message||'حاولي مرة أخرى.'));
@@ -7397,7 +7397,7 @@ function renderMyOrders(){
     }).join('');
     return `<section class="my-purchased-order" dir="rtl">
       <div class="my-purchased-order-code">رقم الطلب: <b dir="ltr">${code||'—'}</b></div>
-      ${!order.canRequestCancel&&orders.some(o=>String(o.id)===order.code&&o.status==='cancelled')?'<div style="color:#991b1b;font-weight:800;padding:4px 3px">✓ تم إلغاء الطلب</div>':''}
+      ${!order.canRequestCancel&&orders.some(o=>String(o.id)===order.code&&o.status==='cancelled')?'<div style="color:#991b1b;font-weight:800;padding:4px 3px">✅ تم إلغاء طلبك بنجاح</div>':''}
       ${itemsHtml}
       ${order.canRequestCancel?`<button type="button" class="btn ghost my-order-cancel-link" data-order-code="${code}" style="width:100%;margin-top:9px;color:#991b1b;border-color:#dc2626">إلغاء الطلب</button>`:''}
     </section>`;
