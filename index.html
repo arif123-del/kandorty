@@ -1900,6 +1900,7 @@ body.kandorty-cart-open #cartBtn{
 </form></div>
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
 <div id="adminOrdersTab" class="hidden">
+<div id="adminCancellationRequests" role="status" aria-live="polite"></div>
 <div class="admin-order-search">
   <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
   <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
@@ -3647,6 +3648,59 @@ function notifyAdminCustomerOrderEdit(beforeRaw,afterRaw){
   }
 }
 
+const ADMIN_CANCEL_ALERTS_KEY='kandorty_admin_seen_cancel_requests_v1';
+const adminCancelAlertsSession=new Set();
+function isPendingCustomerCancellation(order){
+  const edit=order?.customerEdit;
+  return order?.status==='new'&&Boolean(edit?.cancelRequestedAt)&&edit?.editProof===order?.editToken;
+}
+function pendingCancellationOrders(){
+  return (Array.isArray(orders)?orders:[]).filter(isPendingCustomerCancellation);
+}
+function renderAdminCancellationRequests(){
+  const box=$('adminCancellationRequests');
+  if(!box)return;
+  const pending=pendingCancellationOrders();
+  box.innerHTML=pending.length?
+    '<div style="border:2px solid #dc2626;border-radius:14px;padding:14px;background:#fff3f3;color:#991b1b;margin:12px 0;font-size:16px;font-weight:700">'+
+    '🔔 طلبات إلغاء تنتظر مراجعتك: '+pending.length+
+    '<div style="font-size:13px;margin-top:6px;color:#6b2020">راجعي الطلبات المعلّمة أدناه، ثم حدّثي حالتها. للطلبات المدفوعة بالبطاقة، تحققي من استرداد المبلغ يدوياً.</div>'+
+    '</div>':'';
+}
+function notifiedCancellationRequests(){
+  try{return new Set(JSON.parse(localStorage.getItem(ADMIN_CANCEL_ALERTS_KEY)||'[]'));}
+  catch(error){return new Set();}
+}
+function notifyAdminCustomerCancellation(order,count){
+  const customer=order?.customerEdit?.customer||order?.customer||{};
+  const note=(order.payment==='card'?' (مدفوع بالبطاقة: راجعي الاسترداد)':'');
+  playNewOrderSound();
+  if(typeof showBrowserOrderNotification==='function'){
+    showBrowserOrderNotification('🔔 طلب إلغاء من العميل','رقم الطلب: '+(order.id||'-')+' — '+(customer.name||'-')+note,'cancel-'+(order.id||''));
+  }
+  alert('🔔 طلب إلغاء من العميل!\\n\\nرقم الطلب: '+(order.id||'-')+
+    '\\nالعميل: '+(customer.name||'-')+'\\nالهاتف: '+(customer.phone||'-')+
+    '\\nالحالة: في انتظار موافقة الإدارة'+note+
+    (count>1?'\\nطلبات إلغاء جديدة أخرى: '+(count-1):''));
+}
+function alertNewCustomerCancellationRequests(docs){
+  const pending=(Array.isArray(docs)?docs:[]).filter(isPendingCustomerCancellation);
+  const seen=notifiedCancellationRequests();
+  const newRequests=pending.filter(order=>{
+    const key=String(order.id)+'|'+String(order.customerEdit.cancelRequestedAt);
+    return !seen.has(key)&&!adminCancelAlertsSession.has(key);
+  });
+  if(!newRequests.length)return;
+  newRequests.forEach(order=>{
+    const key=String(order.id)+'|'+String(order.customerEdit.cancelRequestedAt);
+    seen.add(key);
+    adminCancelAlertsSession.add(key);
+  });
+  try{localStorage.setItem(ADMIN_CANCEL_ALERTS_KEY,JSON.stringify([...seen].slice(-250)));}
+  catch(error){console.warn('Cancellation alert history not stored:',error);}
+  notifyAdminCustomerCancellation(newRequests[0],newRequests.length);
+}
+
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
 
@@ -3681,6 +3735,8 @@ function startAdminOrdersListener(){
       });
 
       orders=docs;
+      // Alert even on the next admin login if the customer requested cancellation while away.
+      alertNewCustomerCancellationRequests(docs);
       discardLegacyOrdersCache();
       ensureCustomerEditForOldOrders(orders).catch(console.warn);
       renderOrders();
@@ -4460,17 +4516,18 @@ function orderItemsText(order){
 function statusText(s){const ar={new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'};const en={new:'New order',preparing:'Preparing',shipping:'Out for delivery',delivered:'Delivered',cancelled:'Cancelled'};return (lang==='ar'?ar:en)[s]||s}
 function renderOrders(){
   if(!$('ordersList'))return;
+  renderAdminCancellationRequests();
 
   const q=($('adminOrderSearch')?.value||'').trim().toUpperCase();
   const visibleOrders=q
     ? orders.filter(o=>String(o.id||'').toUpperCase().includes(q))
-    : orders;
+    : [...orders].sort((a,b)=>Number(isPendingCustomerCancellation(b))-Number(isPendingCustomerCancellation(a)));
 
   $('ordersList').innerHTML=visibleOrders.length?visibleOrders.map(raw=>{
     const o=effectiveOrderView(raw);
     return `<div class="order-card">
       <div class="order-head"><div><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString('ar-AE')}</small>
-      ${o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
+      ${isPendingCustomerCancellation(raw)?'<br><span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #ef4444;padding:5px 9px;border-radius:9px;font-weight:800">🔔 العميل طلب إلغاء هذا الطلب — بانتظار مراجعتك</span>':o._customerEdited?'<br><span class="customer-edit-badge">✎ تم تعديل الطلب من العميل</span>':''}
       </div>
       <select class="status-select" onchange="updateOrderStatus('${o.id}',this.value)">
         ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusText(s)}</option>`).join('')}
@@ -4489,6 +4546,11 @@ function renderOrders(){
 async function updateOrderStatus(id,status){
   const current=orders.find(o=>o.id===id);
   if(!current||!auth.currentUser)return;
+  if(status==='cancelled'&&current.payment==='card'&&current.paymentStatus==='paid'){
+    if(!confirm('هذا الطلب مدفوع بالبطاقة. تغيير الحالة إلى ملغي لا يعيد المال تلقائياً؛ يجب مراجعة الاسترداد في Stripe. هل تودين المتابعة؟')){
+      renderOrders();return;
+    }
+  }
 
   try{
     // PRIMARY: update the real private order first.
