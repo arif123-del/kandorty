@@ -1960,10 +1960,38 @@ function removePendingFile(index){
 }
 $('imageUrls').addEventListener('input',previewImages);
 $('imageFiles').addEventListener('change',e=>{
-  const room=Math.max(0,MAX_DIRECT_IMAGES-pendingImages.length-getImageUrls().length);
-  pendingImageFiles=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type)).slice(0,room);
-  previewImages();
-  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة من أصل ${MAX_DIRECT_IMAGES}. ستُضغط تلقائياً عند الحفظ.`:'لم يتم اختيار صور صالحة.');
+  // Mobile galleries return only the photos from the latest picker visit.
+  // Append them to the unsaved product photos instead of replacing earlier picks.
+  const chosen=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type));
+  e.target.value=''; // Let the customer select the same file again on another visit.
+  const totalBefore=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
+  if(!chosen.length){
+    if(totalBefore)setUploadProgress(0,`الصور المختارة محفوظة في النموذج: ${totalBefore} من ${MAX_DIRECT_IMAGES}.`);
+    return;
+  }
+  const room=Math.max(0,MAX_DIRECT_IMAGES-totalBefore);
+  if(!room){
+    setUploadProgress(0,`تم الوصول إلى الحد الأقصى (${MAX_DIRECT_IMAGES} صور). احذفي صورة قبل إضافة أخرى.`);
+    return;
+  }
+  const imageKey=file=>[file.name,file.size,file.lastModified].join('|');
+  const seen=new Set(pendingImageFiles.map(imageKey));
+  let added=0;
+  for(const file of chosen){
+    if(added>=room)break;
+    const key=imageKey(file);
+    if(seen.has(key))continue;
+    pendingImageFiles.push(file);
+    seen.add(key);
+    added++;
+  }
+  if(added)previewImages();
+  const count=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
+  const skipped=chosen.length-added;
+  const message=added
+    ? `تمت إضافة ${added} صورة. المجموع: ${count}/${MAX_DIRECT_IMAGES}. الصور السابقة ما زالت موجودة.`
+    : `الصور المحددة موجودة مسبقاً. المجموع: ${count}/${MAX_DIRECT_IMAGES}.`;
+  setUploadProgress(0,skipped&&count>=MAX_DIRECT_IMAGES?message+' اكتمل الحد المسموح.':message);
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
