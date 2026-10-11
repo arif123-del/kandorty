@@ -1775,6 +1775,21 @@ body.kandorty-cart-open #cartBtn{
 #myOrdersModal .my-purchased-order-code b{font-size:14px;color:#171214;unicode-bidi:isolate}
 #myOrdersModal .my-purchased-order .my-purchased-product:last-child{margin-bottom:0}
 </style>
+
+<style id="kandorty-cancel-identity-style">
+/* Require a fresh order code and checkout phone entry before every cancellation. */
+#customerCancelIdentityModal{z-index:2500}
+#customerCancelIdentityModal .cancel-identity-card{width:min(440px,100%);padding:23px}
+#customerCancelIdentityModal .cancel-identity-card h2{margin:0}
+#customerCancelIdentityModal .cancel-identity-card p{color:#71666a;line-height:1.7;font-size:14px}
+#customerCancelIdentityModal .cancel-identity-form{display:grid;gap:12px}
+#customerCancelIdentityModal .cancel-identity-form label{font-size:14px;font-weight:800;display:grid;gap:6px}
+#customerCancelIdentityModal .cancel-identity-form input{display:block;width:100%;min-height:46px;border:1px solid #d9c5cb;border-radius:11px;padding:12px;font-size:16px;background:#fff;color:#181215;direction:ltr;text-align:left}
+#customerCancelIdentityModal .cancel-identity-actions{display:flex;gap:8px}
+#customerCancelIdentityModal .cancel-identity-actions button{flex:1}
+#customerCancelIdentityModal .cancel-identity-error{color:#991b1b;font-size:13px;min-height:0;line-height:1.5}
+@media(max-width:400px){#customerCancelIdentityModal .cancel-identity-card{padding:16px}}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -2153,6 +2168,28 @@ body.kandorty-cart-open #cartBtn{
 </div>
 <div id="trackingResult" style="margin-top:16px"></div>
 </div></div>
+
+
+<div id="customerCancelIdentityModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="customerCancelIdentityTitle" dir="rtl">
+  <div class="modal-card cancel-identity-card">
+    <div class="modal-head"><h2 id="customerCancelIdentityTitle">التحقق قبل إلغاء الطلب</h2>
+      <button type="button" class="x" onclick="completeOrderCancellationIdentity(null)" aria-label="إغلاق">×</button></div>
+    <p>للحفاظ على طلبك، أدخلي <b>رقم الطلب (KD)</b> و<b>رقم الهاتف المستخدم عند الشراء</b> قبل الإلغاء.</p>
+    <form id="customerCancelIdentityForm" class="cancel-identity-form" onsubmit="return submitOrderCancellationIdentity(event)">
+      <label>رقم الطلب
+        <input id="customerCancelIdentityCode" name="orderCode" placeholder="KD-12345678" autocapitalize="characters" autocomplete="off" spellcheck="false" required>
+      </label>
+      <label>رقم الهاتف
+        <input id="customerCancelIdentityPhone" name="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="05XXXXXXXX" required>
+      </label>
+      <div id="customerCancelIdentityError" class="cancel-identity-error" role="alert" aria-live="polite"></div>
+      <div class="cancel-identity-actions">
+        <button class="btn primary" type="submit">تحقق ومتابعة الإلغاء</button>
+        <button class="btn ghost" type="button" onclick="completeOrderCancellationIdentity(null)">رجوع</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div id="myOrdersModal" class="modal hidden" dir="rtl"><div class="modal-card my-orders-card">
   <div class="modal-head"><h2>📦 طلباتي</h2><button class="x" type="button" onclick="closeMyOrders()" aria-label="إغلاق">×</button></div>
@@ -5454,13 +5491,67 @@ function removeCustomerEditItem(itemId){
   renderCustomerOrderEditItems();
 }
 
+
+// Ask for both values every time, even when this browser has a saved order receipt.
+// A stored capability is not a reason to bypass explicit cancellation verification.
+let pendingOrderCancellationIdentity=null;
+function askOrderCancellationIdentity(expectedOrderId){
+  const dialog=$('customerCancelIdentityModal');
+  if(!dialog||pendingOrderCancellationIdentity)return Promise.resolve(null);
+  const form=$('customerCancelIdentityForm'),error=$('customerCancelIdentityError');
+  if(form)form.reset();
+  if(error)error.textContent='';
+  dialog.classList.remove('hidden');
+  return new Promise(resolve=>{
+    pendingOrderCancellationIdentity={resolve,expected:String(expectedOrderId||'').trim().toUpperCase()};
+    // Avoid leaving focus inside the older modal.
+    requestAnimationFrame(()=>$('customerCancelIdentityCode')?.focus({preventScroll:true}));
+  });
+}
+function completeOrderCancellationIdentity(result){
+  $('customerCancelIdentityModal')?.classList.add('hidden');
+  const pending=pendingOrderCancellationIdentity;
+  pendingOrderCancellationIdentity=null;
+  if(pending)pending.resolve(result);
+}
+function submitOrderCancellationIdentity(event){
+  event.preventDefault();
+  if(!pendingOrderCancellationIdentity)return false;
+  const code=String($('customerCancelIdentityCode')?.value||'').trim().toUpperCase();
+  const phone=String($('customerCancelIdentityPhone')?.value||'').trim();
+  const error=$('customerCancelIdentityError');
+  if(code!==pendingOrderCancellationIdentity.expected){
+    if(error)error.textContent='رقم الطلب غير مطابق للطلب المحدد. تأكدي من رقم KD.';
+    return false;
+  }
+  if(normalizeOrderPhone(phone).length<6){
+    if(error)error.textContent='أدخلي رقم الهاتف المستخدم عند إنشاء الطلب (6 أرقام على الأقل).';
+    return false;
+  }
+  completeOrderCancellationIdentity({orderCode:code,phone});
+  return false;
+}
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&pendingOrderCancellationIdentity){
+    event.preventDefault();
+    completeOrderCancellationIdentity(null);
+  }
+});
+
 let cancellationSubmitting=false;
-async function requestOrderCancellation(){
+async function requestOrderCancellation(credentials=null){
   if(cancellationSubmitting||!activeEditableOrder)return false;
   const edit=activeEditableOrder;
   const orderId=String(edit.orderId||'');
   const token=String(edit.editToken||'');
   if(!orderId||!token||edit.cancelRequestedAt)return false;
+  const proofOfIdentity=credentials||await askOrderCancellationIdentity(orderId);
+  if(!proofOfIdentity)return false; // Customer closed the verification form.
+  if(String(proofOfIdentity.orderCode||'').toUpperCase()!==orderId||
+     normalizeOrderPhone(proofOfIdentity.phone).length<6){
+    alert('تحققي من رقم الطلب ورقم الهاتف قبل الإلغاء.');
+    return false;
+  }
   if(!confirm('هل تريدين إلغاء الطلب '+orderId+'؟ إذا كان مدفوعاً بالبطاقة، تتم مراجعة استرداد المبلغ بشكل منفصل.'))return false;
 
   cancellationSubmitting=true;
@@ -5476,7 +5567,7 @@ async function requestOrderCancellation(){
     const data=proof.exists?(proof.data()||{}):null;
     if(!data||String(data.orderId||'')!==orderId||
        (data.editToken&&String(data.editToken)!==token)||
-       normalizeOrderPhone(data.customer?.phone||'')!==normalizeOrderPhone(edit.verifiedPhone||edit.customer?.phone||''))
+       normalizeOrderPhone(data.customer?.phone||'')!==normalizeOrderPhone(proofOfIdentity.phone))
       throw Object.assign(new Error('تعذر التحقق من رقم الطلب والهاتف.'),{code:'order/unverified'});
     if(data.cancelRequestedAt)throw Object.assign(new Error('الطلب ملغي بالفعل.'),{code:'order/already-cancelled'});
     const now=new Date().toISOString();
@@ -7473,36 +7564,25 @@ async function cancelOrderFromMyOrders(orderId,button){
       }
       throw new Error('بدأ تجهيز الطلب أو توصيله، ولم يعد الإلغاء متاحاً.');
     }
+    // Do not silently accept the phone saved on the device: require both numbers.
+    const identity=await askOrderCancellationIdentity(code);
+    if(!identity)return;
     let verifiedEdit=null;
-    // New orders have a random per-order editing capability, saved on the
-    // original purchasing device. Never accept a receipt alone as authorization.
+    // First verify the typed order number and phone against the hashed access record.
+    try{verifiedEdit=await loadEditableOrder(code,identity.phone);}
+    catch(error){console.warn('Cancellation phone record unavailable:',error);}
+    // Some previously saved orders have only a random per-order capability.
+    // It is usable only when the freshly entered phone also matches the proof.
     const token=String(ownOrder.editToken||'');
-    if(/^[a-f0-9]{48}$/i.test(token)){
+    if(!verifiedEdit&&/^[a-f0-9]{48}$/i.test(token)){
       try{
         const proof=await db.collection('order_edits').doc(token).get();
-        if(proof.exists&&String(proof.data()?.orderId||'').toUpperCase()===code){
-          const data=proof.data();
-          verifiedEdit={...data,editToken:token,
-            verifiedPhone:normalizeOrderPhone(data.customer?.phone||'')};
+        const data=proof.exists?(proof.data()||{}):null;
+        if(data&&String(data.orderId||'').toUpperCase()===code&&
+           normalizeOrderPhone(data.customer?.phone||'')===normalizeOrderPhone(identity.phone)){
+          verifiedEdit={...data,editToken:token,verifiedPhone:normalizeOrderPhone(identity.phone)};
         }
-      }catch(error){console.warn('Stored order proof unavailable:',error);}
-    }
-    // Legacy orders: verify the original order phone against the hashed access record.
-    if(!verifiedEdit){
-      const possiblePhones=[customerProfile?.phone,customerAuthUser?.phoneNumber]
-        .map(x=>String(x||'').trim()).filter(Boolean);
-      for(const phone of [...new Set(possiblePhones)]){
-        try{
-          verifiedEdit=await loadEditableOrder(code,phone);
-          if(verifiedEdit)break;
-        }catch(error){console.warn('Saved phone verification unavailable:',error);}
-      }
-    }
-    if(!verifiedEdit){
-      const phone=prompt('أدخلي رقم الهاتف الذي استُخدم عند إنشاء الطلب '+code+' للتحقق من ملكيته:',String(customerProfile?.phone||''));
-      if(phone===null)return;
-      if(normalizeOrderPhone(phone).length<6)throw new Error('أدخلي رقم الهاتف المسجل في الطلب (6 أرقام على الأقل).');
-      verifiedEdit=await loadEditableOrder(code,phone);
+      }catch(error){console.warn('Saved order proof unavailable:',error);}
     }
     if(!verifiedEdit)throw new Error('لم نتمكن من تأكيد ملكية هذا الطلب. تأكدي من رقم الهاتف المستخدم عند الشراء، أو تواصلي مع المتجر للمساعدة.');
     if(verifiedEdit.cancelRequestedAt)throw new Error('تم إلغاء هذا الطلب سابقاً.');
@@ -7510,7 +7590,7 @@ async function cancelOrderFromMyOrders(orderId,button){
     activeOrderAccessKey=verifiedEdit.accessKey||'';
     // This function verifies the current status again and only shows success
     // after Firestore confirms the change.
-    await requestOrderCancellation();
+    await requestOrderCancellation(identity);
   }catch(error){
     console.warn('My orders cancellation failed:',error);
     alert('تعذر إلغاء الطلب. '+(error?.message||'يرجى المحاولة مرة أخرى.'));
