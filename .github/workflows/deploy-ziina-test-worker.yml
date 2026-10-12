@@ -1,0 +1,27 @@
+name: Deploy Kandorty Ziina TEST Worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy isolated TEST Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated Ziina branch
+        uses: actions/checkout@v4
+        with:
+          ref: ziina-worker-test
+          persist-credentials: false
+
+      - name: Deploy Ziina Worker (TEST MODE only)
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ziina-worker
+          command: deploy
