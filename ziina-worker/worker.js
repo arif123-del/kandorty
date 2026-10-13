@@ -148,7 +148,7 @@ export default {
         }
         if (!Number.isSafeInteger(totalFils) || totalFils < 200 || totalFils > 100000000) throw new Error('Invalid order amount.');
         const returnPath = String(body.returnPath || '/');
-        if (!['/', '/ziina-test.html'].includes(returnPath)) {
+        if (!['/', '/ziina-test.html', '/ziina-embedded-test.html'].includes(returnPath)) {
           throw new Error('Invalid return path.');
         }
         const callbackBase = SHOP + returnPath;
@@ -175,7 +175,20 @@ export default {
           id: String(intent.id), orderId, amount: totalFils, currency: 'AED',
           created: Date.now()
         }, env.ZIINA_API_KEY);
-        return respond({ url: intent.redirect_url, paymentIntentId: intent.id, receipt, test: true }, 200, origin);
+        // Expose ONLY Ziina's approved iframe URL, never an arbitrary user-provided URL.
+        // Embedded checkout requires Ziina domain verification + support approval.
+        let embeddedUrl = null;
+        if (typeof intent.embedded_url === 'string' && intent.embedded_url.length < 2100) {
+          try {
+            const e = new URL(intent.embedded_url);
+            if (e.protocol === 'https:' &&
+                (e.hostname === 'ziina.com' || e.hostname.endsWith('.ziina.com'))) {
+              embeddedUrl = e.href;
+            }
+          } catch (_) {}
+        }
+        return respond({ url: intent.redirect_url, embeddedUrl,
+          paymentIntentId: intent.id, receipt, test: true }, 200, origin);
       }
       if (url.pathname === '/verify-checkout-session') {
         const expected = await readReceipt(body.receipt, env.ZIINA_API_KEY);
