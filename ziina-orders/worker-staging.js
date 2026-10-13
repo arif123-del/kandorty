@@ -14,7 +14,8 @@ const PROJECT = 'kandorty-9378a';
 const DATABASE = `projects/${PROJECT}/databases/(default)`;
 const FS = `https://firestore.googleapis.com/v1/${DATABASE}/documents`;
 const ZIINA = 'https://api-v2.ziina.com/api/payment_intent';
-const IS_TEST = true;
+const IS_TEST = true; // IMPORTANT: remains true on staging. DO NOT enable LIVE yet.
+const MODE = IS_TEST ? 'test' : 'live';
 const DELIVERY_FILS = 2500;
 let cachedToken = null;
 let cachedExpiry = 0;
@@ -50,7 +51,7 @@ async function readReceipt(token, secret) {
   try { ok=await crypto.subtle.verify('HMAC',key,unb64(parts[1]),new TextEncoder().encode(parts[0])); } catch(_) {}
   if(!ok) bad('Unverified receipt',403);
   const data=JSON.parse(new TextDecoder().decode(unb64(parts[0])));
-  if(!data || data.mode!=='test' || !Number.isFinite(data.created) || data.created>Date.now()+60000 || Date.now()-data.created>7*24*3600e3) bad('Expired receipt',403);
+  if(!data || data.mode!==MODE || !Number.isFinite(data.created) || data.created>Date.now()+60000 || Date.now()-data.created>7*24*3600e3) bad('Expired receipt',403);
   return data;
 }
 function val(x) {
@@ -174,40 +175,102 @@ async function createCheckout(env,input){
   const snapshots=await fsRead(env,productNames);
   const products=new Map(ids.map(id=>[id,unpack(snapshots.get(docName('products/'+id)))]));
   const cart=extractCart(items,products);
-  const callback=SHOP+'/ziina-test.html';
+  const callback=SHOP+(IS_TEST?'/ziina-test.html':'/');
   const created=await fetch(ZIINA,{method:'POST',headers:{Authorization:'Bearer '+env.ZIINA_API_KEY,'Content-Type':'application/json'},
     body:JSON.stringify({amount:cart.total,currency_code:'AED',message:'Kandorty TEST Order '+orderId,
-      test:true,allow_tips:false,success_url:callback+'?ziina=success',cancel_url:callback+'?ziina=cancel',failure_url:callback+'?ziina=failed'})});
+      test:IS_TEST,allow_tips:false,success_url:callback+'?ziina=success',cancel_url:callback+'?ziina=cancel',failure_url:callback+'?ziina=failed'})});
   const intent=await created.json().catch(()=>({}));
   if(!created.ok||!intent.id||!intent.redirect_url)bad('Ziina TEST checkout unavailable',502);
-  const session={orderId,paymentIntentId:String(intent.id),mode:'test',amount:cart.total,currency:'AED',customer,
+  const session={orderId,paymentIntentId:String(intent.id),mode:MODE,amount:cart.total,currency:'AED',customer,
     items:cart.items,quantities:cart.quantities,subtotal:cart.subtotal/100,deliveryFee:DELIVERY_FILS/100,notes:note,
     createdAt:new Date().toISOString(),status:'pending'};
   // Immutable server-side order snapshot. A failure here never returns the payment URL.
   await fsPost(env,':commit',{writes:[{update:document(docName('ziina_checkout_sessions/'+intent.id),session),currentDocument:{exists:false}}]});
-  const receipt=await signReceipt({id:String(intent.id),orderId,mode:'test',amount:cart.total,created:Date.now()},env.ZIINA_RECEIPT_SECRET);
-  return {url:intent.redirect_url,receipt,paymentIntentId:intent.id,test:true};
+  const receipt=await signReceipt({id:String(intent.id),orderId,mode:MODE,amount:cart.total,created:Date.now()},env.ZIINA_RECEIPT_SECRET);
+  return {url:intent.redirect_url,receipt,paymentIntentId:intent.id,test:IS_TEST};
 }
+
+/**
+ * LIVE-ONLY DORMANT CODE: prepares atomic Firestore writes; never called while
+ * IS_TEST=true. All product reads occur within the same Firestore transaction.
+ * Fail closed if quantity is unknown or sold out. Saved payment session rather
+ * than browser-supplied order data is authoritative.
+ * Before future live launch: secure Firestore rules, protect new-order endpoint
+ * against bots, arrange webhook/cron recovery, and reconcile partial failures.
+ */
+async function paidOrderWrites(env,session,orderName,tx,now) {
+  const entries=Object.entries(session.quantities||{});
+  if(!entries.length||entries.length>20)bad('Invalid stored order items',409);
+  const productNames=entries.map(([id])=>docName('products/'+id));
+  const docs=await fsRead(env,productNames,tx);
+  const writes=[];
+  for(const [id,need] of entries){
+    const name=docName('products/'+id),doc=docs.get(name),p=unpack(doc);
+    const stock=p&&Number(p.stock);
+    if(!p || p.active===false || !Number.isInteger(need) || need<1 || !Number.isInteger(stock) || stock<need)bad('Stock is unavailable after payment - manual reconciliation needed',409);
+    writes.push({
+      update:document(name,{stock:stock-need,updatedAt:now}),
+      updateMask:{fieldPaths:['stock','updatedAt']},
+      currentDocument:{updateTime:doc.updateTime}
+    });
+  }
+  const token=b64(crypto.getRandomValues(new Uint8Array(24)));
+  const phone=String(session.customer?.phone||'').replace(/\D/g,'');
+  if(phone.length<6)bad('Stored customer phone invalid',409);
+  const accessInput=new TextEncoder().encode(session.orderId.toUpperCase()+'|'+phone);
+  const hash=await crypto.subtle.digest('SHA-256',accessInput);
+  const accessKey=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
+  const order={
+    id:session.orderId,status:'new',createdAt:session.createdAt,editToken:token,
+    payment:'card',paymentStatus:'paid',paidAt:now,ziinaPaymentIntentId:session.paymentIntentId,
+    customer:session.customer,
+    customerName:session.customer.name,customerPhone:session.customer.phone,
+    customerCity:session.customer.city,customerLocation:session.customer.location,
+    notes:session.notes||'',items:session.items,subtotal:session.subtotal,
+    deliveryFee:session.deliveryFee,deliveryPayment:'with_card',total:session.amount/100
+  };
+  const editQuantities=Object.fromEntries(session.items.map(i=>[i.variantKey,i.qty]));
+  const docsToCreate=[
+    [orderName,order],
+    [docName('tracking/'+session.orderId),{id:session.orderId,status:'new',createdAt:session.createdAt}],
+    [docName('order_edits/'+token),{
+      orderId:session.orderId,editToken:token,status:'new',createdAt:session.createdAt,
+      customer:session.customer,payment:'card',notes:session.notes||'',items:session.items,
+      quantities:editQuantities,updatedAt:now
+    }],
+    [docName('order_access/'+accessKey),{orderId:session.orderId,editToken:token,active:true,createdAt:now}]
+  ];
+  for(const [name,data] of docsToCreate)writes.push({update:document(name,data),currentDocument:{exists:false}});
+  return writes;
+}
+
 async function finalizeCheckout(env,receipt){
   const claims=await readReceipt(receipt,env.ZIINA_RECEIPT_SECRET);
   if(!/^[\w-]{10,160}$/.test(String(claims.id||''))||!/^KD-[0-9]{8}$/.test(String(claims.orderId||'')))bad('Invalid checkout receipt',403);
   const intent=await ziinaGet(env,claims.id);
   if(String(intent.id)!==String(claims.id)||intent.status!=='completed'||intent.currency_code!=='AED'||Number(intent.amount)!==Number(claims.amount))bad('Payment not verified',409);
-  if(intent.test===false)bad('TEST worker cannot accept a LIVE payment',403);
+  if(IS_TEST && intent.test===false)bad('TEST worker cannot accept a LIVE payment',403);
+  if(!IS_TEST && intent.test===true)bad('LIVE worker cannot accept a TEST payment',403);
   const sessionName=docName('ziina_checkout_sessions/'+claims.id);
-  const orderName=docName('ziina_test_orders/'+claims.orderId);
+  const orderName=docName((IS_TEST?'ziina_test_orders/':'orders/')+claims.orderId);
   for(let attempt=0;attempt<3;attempt++){
     const begin=await fsPost(env,':beginTransaction',{options:{readWrite:{}}});
     const tx=begin.transaction;
     try{
       const snapshot=await fsRead(env,[sessionName,orderName],tx);
       const session=unpack(snapshot.get(sessionName)),existing=unpack(snapshot.get(orderName));
-      if(!session||session.mode!=='test'||session.paymentIntentId!==claims.id||session.orderId!==claims.orderId||Number(session.amount)!==Number(claims.amount))bad('Payment session mismatch',403);
+      if(!session||session.mode!==MODE||session.paymentIntentId!==claims.id||session.orderId!==claims.orderId||Number(session.amount)!==Number(claims.amount))bad('Payment session mismatch',403);
       if(existing){
         if(existing.ziinaPaymentIntentId!==claims.id)bad('Order ID used by another payment',409);
         return {orderId:session.orderId,alreadySaved:true,test:true};
       }
       const now=new Date().toISOString();
+      if(!IS_TEST){
+        const extra=await paidOrderWrites(env,session,orderName,tx,now);
+        const writes=[...extra,{update:document(sessionName,{status:'finalized',finalizedAt:now}),updateMask:{fieldPaths:['status','finalizedAt']},currentDocument:{exists:true}}];
+        await fsPost(env,':commit',{transaction:tx,writes});
+        return {orderId:session.orderId,alreadySaved:false,test:false};
+      }
       const result={
         id:session.orderId,status:'test_paid',payment:'card',paymentStatus:'test_paid',
         ziinaPaymentIntentId:claims.id,createdAt:session.createdAt,paidAt:now,
@@ -238,6 +301,7 @@ export default {
       'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Vary':'Origin'}});
     if(request.method!=='POST')return reply({error:'Method not allowed'},405,origin);
     if(!env.ZIINA_API_KEY||!env.FIREBASE_SERVICE_ACCOUNT_JSON||!env.ZIINA_RECEIPT_SECRET) return reply({error:'Staging credentials are not configured'},503,origin);
+    if(!IS_TEST && env.KANDORTY_LIVE_RELEASE_APPROVED!=='YES_AFTER_SECURITY_REVIEW')return reply({error:'Live checkout is locked'},503,origin);
     try{
       const raw=await request.text();
       if(raw.length>20000)bad('Request too large',413);
