@@ -1,0 +1,33 @@
+name: Deploy Kandorty Ziina Orders TEST
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy isolated orders TEST Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated orders branch
+        uses: actions/checkout@v4
+        with:
+          ref: ziina-orders-preparation
+          persist-credentials: false
+
+      - name: Check TEST MODE remains enabled
+        working-directory: ziina-orders
+        run: |
+          grep -q "const IS_TEST = true;" worker-staging.js
+          grep -q '"name": "kandorty-ziina-orders"' wrangler.jsonc
+
+      - name: Deploy Kandorty orders staging Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ziina-orders
+          command: deploy
