@@ -9,13 +9,15 @@
  * DO NOT enable real money / modify IS_TEST without separate security review.
  */
 const SHOP = 'https://kandorty.online';
-const ORIGINS = new Set([SHOP, 'https://www.kandorty.online']);
+const STAGING = 'https://kandorty-ziina-orders.aliyajan200011.workers.dev';
+const ORIGINS = new Set([SHOP, 'https://www.kandorty.online', STAGING]);
 const PROJECT = 'kandorty-9378a';
 const DATABASE = `projects/${PROJECT}/databases/(default)`;
 const FS = `https://firestore.googleapis.com/v1/${DATABASE}/documents`;
 const ZIINA = 'https://api-v2.ziina.com/api/payment_intent';
 const IS_TEST = true; // IMPORTANT: remains true on staging. DO NOT enable LIVE yet.
-const MODE = IS_TEST ? 'test' : 'live';
+const MODE = 'test';
+const SESSION_COLLECTION = 'ziina_test_checkout_sessions';
 const DELIVERY_FILS = 2500;
 let cachedToken = null;
 let cachedExpiry = 0;
@@ -99,6 +101,18 @@ async function firebaseToken(env) {
   return cachedToken;
 }
 async function fsPost(env, suffix, body) {
+  // Enforce the write boundary independently of route logic and configuration.
+  if (IS_TEST !== true) bad('This Worker is TEST only',503);
+  if (suffix === ':commit') {
+    if (!Array.isArray(body.writes) || !body.writes.length) bad('Empty staging write',503);
+    for (const write of body.writes) {
+      const name = write.update?.name;
+      const prefix = DATABASE + '/documents/';
+      const path = typeof name === 'string' && name.startsWith(prefix) ? name.slice(prefix.length) : '';
+      if (!/^(ziina_test_checkout_sessions|ziina_test_orders)\/[\w-]{1,160}$/.test(path) || write.delete || write.transform)
+        bad('Staging write outside test collections blocked',503);
+    }
+  }
   const token=await firebaseToken(env);
   const response=await fetch(FS+suffix,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
   const raw=await response.text();
@@ -163,85 +177,39 @@ async function ziinaGet(env,id){
   return res.json();
 }
 async function createCheckout(env,input){
+  if(!input || typeof input!=='object' || Array.isArray(input))bad('Invalid request');
   const orderId=String(input.orderId||'');
   if(!/^KD-[0-9]{8}$/.test(orderId))bad('Invalid order ID');
   const customer=customerFrom(input.customer);
   const note=String(input.notes||'').slice(0,1000);
   const items=input.items;
-  if(!Array.isArray(items))bad('Invalid items');
+  if(!Array.isArray(items)||items.length<1||items.length>20)bad('Invalid items');
+  for(const item of items){
+    if(!item || !/^[\w-]{1,100}$/.test(String(item.id||'')) || !Number.isInteger(Number(item.qty)) || Number(item.qty)<1 || Number(item.qty)>99 || !Number.isInteger(Number(item.imageIndex??0)) || Number(item.imageIndex??0)<0 || Number(item.imageIndex??0)>7)bad('Invalid item');
+  }
   const ids=[...new Set(items.map(x=>String(x?.id||'')))];
   if(ids.length<1||ids.length>20)bad('Invalid cart');
   const productNames=ids.map(id=>docName('products/'+id));
   const snapshots=await fsRead(env,productNames);
   const products=new Map(ids.map(id=>[id,unpack(snapshots.get(docName('products/'+id)))]));
   const cart=extractCart(items,products);
-  const callback=SHOP+(IS_TEST?'/ziina-test.html':'/');
+  const callback=STAGING+'/test';
   const created=await fetch(ZIINA,{method:'POST',headers:{Authorization:'Bearer '+env.ZIINA_API_KEY,'Content-Type':'application/json'},
     body:JSON.stringify({amount:cart.total,currency_code:'AED',message:'Kandorty TEST Order '+orderId,
       test:IS_TEST,allow_tips:false,success_url:callback+'?ziina=success',cancel_url:callback+'?ziina=cancel',failure_url:callback+'?ziina=failed'})});
   const intent=await created.json().catch(()=>({}));
   if(!created.ok||!intent.id||!intent.redirect_url)bad('Ziina TEST checkout unavailable',502);
+  const redirect=new URL(intent.redirect_url);
+  if(redirect.protocol!=='https:' || !(redirect.hostname==='ziina.com'||redirect.hostname.endsWith('.ziina.com')) || redirect.username || redirect.password)bad('Invalid Ziina checkout URL',502);
+  if(!/^[\w-]{10,160}$/.test(String(intent.id)))bad('Invalid Ziina intent ID',502);
+  if(intent.test===false)bad('TEST worker rejected LIVE checkout',502);
   const session={orderId,paymentIntentId:String(intent.id),mode:MODE,amount:cart.total,currency:'AED',customer,
     items:cart.items,quantities:cart.quantities,subtotal:cart.subtotal/100,deliveryFee:DELIVERY_FILS/100,notes:note,
     createdAt:new Date().toISOString(),status:'pending'};
   // Immutable server-side order snapshot. A failure here never returns the payment URL.
-  await fsPost(env,':commit',{writes:[{update:document(docName('ziina_checkout_sessions/'+intent.id),session),currentDocument:{exists:false}}]});
+  await fsPost(env,':commit',{writes:[{update:document(docName(SESSION_COLLECTION+'/'+intent.id),session),currentDocument:{exists:false}}]});
   const receipt=await signReceipt({id:String(intent.id),orderId,mode:MODE,amount:cart.total,created:Date.now()},env.ZIINA_RECEIPT_SECRET);
   return {url:intent.redirect_url,receipt,paymentIntentId:intent.id,test:IS_TEST};
-}
-
-/**
- * LIVE-ONLY DORMANT CODE: prepares atomic Firestore writes; never called while
- * IS_TEST=true. All product reads occur within the same Firestore transaction.
- * Fail closed if quantity is unknown or sold out. Saved payment session rather
- * than browser-supplied order data is authoritative.
- * Before future live launch: secure Firestore rules, protect new-order endpoint
- * against bots, arrange webhook/cron recovery, and reconcile partial failures.
- */
-async function paidOrderWrites(env,session,orderName,tx,now) {
-  const entries=Object.entries(session.quantities||{});
-  if(!entries.length||entries.length>20)bad('Invalid stored order items',409);
-  const productNames=entries.map(([id])=>docName('products/'+id));
-  const docs=await fsRead(env,productNames,tx);
-  const writes=[];
-  for(const [id,need] of entries){
-    const name=docName('products/'+id),doc=docs.get(name),p=unpack(doc);
-    const stock=p&&Number(p.stock);
-    if(!p || p.active===false || !Number.isInteger(need) || need<1 || !Number.isInteger(stock) || stock<need)bad('Stock is unavailable after payment - manual reconciliation needed',409);
-    writes.push({
-      update:document(name,{stock:stock-need,updatedAt:now}),
-      updateMask:{fieldPaths:['stock','updatedAt']},
-      currentDocument:{updateTime:doc.updateTime}
-    });
-  }
-  const token=b64(crypto.getRandomValues(new Uint8Array(24)));
-  const phone=String(session.customer?.phone||'').replace(/\D/g,'');
-  if(phone.length<6)bad('Stored customer phone invalid',409);
-  const accessInput=new TextEncoder().encode(session.orderId.toUpperCase()+'|'+phone);
-  const hash=await crypto.subtle.digest('SHA-256',accessInput);
-  const accessKey=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
-  const order={
-    id:session.orderId,status:'new',createdAt:session.createdAt,editToken:token,
-    payment:'card',paymentStatus:'paid',paidAt:now,ziinaPaymentIntentId:session.paymentIntentId,
-    customer:session.customer,
-    customerName:session.customer.name,customerPhone:session.customer.phone,
-    customerCity:session.customer.city,customerLocation:session.customer.location,
-    notes:session.notes||'',items:session.items,subtotal:session.subtotal,
-    deliveryFee:session.deliveryFee,deliveryPayment:'with_card',total:session.amount/100
-  };
-  const editQuantities=Object.fromEntries(session.items.map(i=>[i.variantKey,i.qty]));
-  const docsToCreate=[
-    [orderName,order],
-    [docName('tracking/'+session.orderId),{id:session.orderId,status:'new',createdAt:session.createdAt}],
-    [docName('order_edits/'+token),{
-      orderId:session.orderId,editToken:token,status:'new',createdAt:session.createdAt,
-      customer:session.customer,payment:'card',notes:session.notes||'',items:session.items,
-      quantities:editQuantities,updatedAt:now
-    }],
-    [docName('order_access/'+accessKey),{orderId:session.orderId,editToken:token,active:true,createdAt:now}]
-  ];
-  for(const [name,data] of docsToCreate)writes.push({update:document(name,data),currentDocument:{exists:false}});
-  return writes;
 }
 
 async function finalizeCheckout(env,receipt){
@@ -250,9 +218,8 @@ async function finalizeCheckout(env,receipt){
   const intent=await ziinaGet(env,claims.id);
   if(String(intent.id)!==String(claims.id)||intent.status!=='completed'||intent.currency_code!=='AED'||Number(intent.amount)!==Number(claims.amount))bad('Payment not verified',409);
   if(IS_TEST && intent.test===false)bad('TEST worker cannot accept a LIVE payment',403);
-  if(!IS_TEST && intent.test===true)bad('LIVE worker cannot accept a TEST payment',403);
-  const sessionName=docName('ziina_checkout_sessions/'+claims.id);
-  const orderName=docName((IS_TEST?'ziina_test_orders/':'orders/')+claims.orderId);
+  const sessionName=docName(SESSION_COLLECTION+'/'+claims.id);
+  const orderName=docName('ziina_test_orders/'+claims.orderId);
   for(let attempt=0;attempt<3;attempt++){
     const begin=await fsPost(env,':beginTransaction',{options:{readWrite:{}}});
     const tx=begin.transaction;
@@ -262,15 +229,10 @@ async function finalizeCheckout(env,receipt){
       if(!session||session.mode!==MODE||session.paymentIntentId!==claims.id||session.orderId!==claims.orderId||Number(session.amount)!==Number(claims.amount))bad('Payment session mismatch',403);
       if(existing){
         if(existing.ziinaPaymentIntentId!==claims.id)bad('Order ID used by another payment',409);
+        await fsPost(env,':rollback',{transaction:tx});
         return {orderId:session.orderId,alreadySaved:true,test:true};
       }
       const now=new Date().toISOString();
-      if(!IS_TEST){
-        const extra=await paidOrderWrites(env,session,orderName,tx,now);
-        const writes=[...extra,{update:document(sessionName,{status:'finalized',finalizedAt:now}),updateMask:{fieldPaths:['status','finalizedAt']},currentDocument:{exists:true}}];
-        await fsPost(env,':commit',{transaction:tx,writes});
-        return {orderId:session.orderId,alreadySaved:false,test:false};
-      }
       const result={
         id:session.orderId,status:'test_paid',payment:'card',paymentStatus:'test_paid',
         ziinaPaymentIntentId:claims.id,createdAt:session.createdAt,paidAt:now,
@@ -285,6 +247,7 @@ async function finalizeCheckout(env,receipt){
       await fsPost(env,':commit',{transaction:tx,writes});
       return {orderId:session.orderId,alreadySaved:false,test:true};
     }catch(error){
+      await fsPost(env,':rollback',{transaction:tx}).catch(()=>{});
       if(error.status===409 && attempt<2)continue;
       throw error;
     }
@@ -295,20 +258,43 @@ async function finalizeCheckout(env,receipt){
 export default {
   async fetch(request,env){
     const url=new URL(request.url),origin=request.headers.get('Origin')||'';
+    if(IS_TEST!==true)return reply({error:'This Worker is TEST only'},503,origin);
+    if(request.method==='GET'&&url.pathname==='/test')return testPage();
     if(request.method==='GET'&&url.pathname==='/')return new Response('Kandorty Ziina ORDER STAGING (TEST only, no stock writes)');
     if(!ORIGINS.has(origin))return reply({error:'Origin forbidden'},403,origin);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{
       'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Vary':'Origin'}});
     if(request.method!=='POST')return reply({error:'Method not allowed'},405,origin);
     if(!env.ZIINA_API_KEY||!env.FIREBASE_SERVICE_ACCOUNT_JSON||!env.ZIINA_RECEIPT_SECRET) return reply({error:'Staging credentials are not configured'},503,origin);
-    if(!IS_TEST && env.KANDORTY_LIVE_RELEASE_APPROVED!=='YES_AFTER_SECURITY_REVIEW')return reply({error:'Live checkout is locked'},503,origin);
+    if(!['/create-checkout-session','/finalize-checkout-session'].includes(url.pathname))return reply({error:'Not found'},404,origin);
+    if(!(request.headers.get('Content-Type')||'').toLowerCase().startsWith('application/json'))return reply({error:'Expected application/json'},415,origin);
     try{
       const raw=await request.text();
       if(raw.length>20000)bad('Request too large',413);
-      const data=JSON.parse(raw);
+      let data;
+      try{data=JSON.parse(raw);}catch(_){bad('Invalid JSON');}
+      if(!data || typeof data!=='object' || Array.isArray(data))bad('Invalid request');
       if(url.pathname==='/create-checkout-session')return reply(await createCheckout(env,data),200,origin);
       if(url.pathname==='/finalize-checkout-session')return reply(await finalizeCheckout(env,data.receipt),200,origin);
       return reply({error:'Not found'},404,origin);
-    }catch(e){return reply({error:e?.message||'Request failed'},e?.status||400,origin);}
+    }catch(e){return reply({error:e?.status ? e.message : 'Staging request failed'},e?.status||500,origin);}
   }
 };
+
+
+function testPage(){
+  return new Response(String.raw`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kandorty Ziina TEST</title>
+<style>body{font:18px system-ui;max-width:600px;margin:40px auto;padding:20px;line-height:1.7}input,button{font:inherit;padding:12px;box-sizing:border-box;width:100%;margin:8px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{display:block}</style>
+<h1>Kandorty — اختبار Ziina</h1><p>TEST فقط. رسوم التوصيل 25 د.إ. لا يتم تعديل الطلبات الحقيقية أو المخزون.</p>
+<form id="checkout"><label>معرّف منتج موجود (Product ID)<input name="product" required pattern="[A-Za-z0-9_-]{1,100}"></label><label>الكمية<input name="qty" type="number" min="1" max="99" value="1" required></label><label>رقم الصورة (0–7)<input name="image" type="number" min="0" max="7" value="0" required></label><button>فتح دفع تجريبي</button></form>
+<button id="retry" hidden>إعادة التحقق</button><pre id="result" role="status"></pre><small>تُستخدم بيانات عميل تجريبية فقط. تبقى السلة الأصلية كما هي.</small>
+<script>
+const form=document.getElementById('checkout'),result=document.getElementById('result'),retry=document.getElementById('retry');
+const key='kandorty_orders_staging_receipt';
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.error||'فشل الاختبار');if(d.test!==true)throw new Error('نتيجة ليست TEST');return d;}
+async function finalize(){retry.disabled=true;result.textContent='جارٍ التحقق من الدفع التجريبي...';try{const receipt=sessionStorage.getItem(key);if(!receipt)throw new Error('لا يوجد إيصال اختبار في هذا المتصفح. ابدئي تجربة جديدة من هذه الصفحة.');const d=await post('/finalize-checkout-session',{receipt});result.textContent='تم حفظ الطلب التجريبي: '+d.orderId+(d.alreadySaved?' (محفوظ مسبقاً)':'')+'\nلم تتغير الطلبات الحقيقية أو المخزون.';sessionStorage.removeItem(key);retry.hidden=true;}catch(e){result.textContent=e.message;retry.hidden=false;}finally{retry.disabled=false;}}
+retry.onclick=finalize;
+form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const f=new FormData(form),n=new Uint32Array(1);crypto.getRandomValues(n);const d=await post('/create-checkout-session',{orderId:'KD-'+String(n[0]%100000000).padStart(8,'0'),customer:{name:'TEST Customer',phone:'0000000000',city:'TEST',location:'TEST — no delivery'},items:[{id:f.get('product'),qty:Number(f.get('qty')),imageIndex:Number(f.get('image'))}]});sessionStorage.setItem(key,d.receipt);location.assign(d.url);}catch(e){result.textContent=e.message;}finally{button.disabled=false;}};
+const state=new URLSearchParams(location.search).get('ziina');if(state){history.replaceState(null,'','/test');if(state==='success')finalize();else{result.textContent='لم يكتمل الدفع التجريبي.';retry.hidden=!sessionStorage.getItem(key);}}else retry.hidden=!sessionStorage.getItem(key);
+</script></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"}});
+}
