@@ -189,9 +189,17 @@ async function createCheckout(env,input){
   }
   const ids=[...new Set(items.map(x=>String(x?.id||'')))];
   if(ids.length<1||ids.length>20)bad('Invalid cart');
-  const productNames=ids.map(id=>docName('products/'+id));
-  const snapshots=await fsRead(env,productNames);
-  const products=new Map(ids.map(id=>[id,unpack(snapshots.get(docName('products/'+id)))]));
+  const demoId='kandorty-staging-demo';
+  let products;
+  if(ids.includes(demoId)){
+    if(IS_TEST!==true || items.length!==1 || Number(items[0].qty)!==1 || Number(items[0].imageIndex??0)!==0)bad('Demo requires one item, quantity 1 and image 0');
+    // In-memory fixture only: never insert a product or change live inventory.
+    products=new Map([[demoId,{active:true,stock:1,price:1,nameAr:'منتج وهمي لاختبار Ziina فقط',code:'TEST-DEMO',images:[]}]]);
+  }else{
+    const productNames=ids.map(id=>docName('products/'+id));
+    const snapshots=await fsRead(env,productNames);
+    products=new Map(ids.map(id=>[id,unpack(snapshots.get(docName('products/'+id)))]));
+  }
   const cart=extractCart(items,products);
   const callback=STAGING+'/test';
   const created=await fetch(ZIINA,{method:'POST',headers:{Authorization:'Bearer '+env.ZIINA_API_KEY,'Content-Type':'application/json'},
@@ -286,7 +294,8 @@ function testPage(){
   return new Response(String.raw`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kandorty Ziina TEST</title>
 <style>body{font:18px system-ui;max-width:600px;margin:40px auto;padding:20px;line-height:1.7}input,button{font:inherit;padding:12px;box-sizing:border-box;width:100%;margin:8px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{display:block}</style>
 <h1>Kandorty — اختبار Ziina</h1><p>TEST فقط. رسوم التوصيل 25 د.إ. لا يتم تعديل الطلبات الحقيقية أو المخزون.</p>
-<form id="checkout"><label>معرّف منتج موجود (Product ID)<input name="product" required pattern="[A-Za-z0-9_-]{1,100}"></label><label>الكمية<input name="qty" type="number" min="1" max="99" value="1" required></label><label>رقم الصورة (0–7)<input name="image" type="number" min="0" max="7" value="0" required></label><button>فتح دفع تجريبي</button></form>
+<p>المنتج الافتراضي وهمي: 1 د.إ + 25 د.إ توصيل = 26 د.إ تجريبية. لا يُضاف إلى متجر المنتجات.</p>
+<form id="checkout"><label>معرّف المنتج التجريبي (Product ID)<input name="product" value="kandorty-staging-demo" required pattern="[A-Za-z0-9_-]{1,100}"></label><label>الكمية<input name="qty" type="number" min="1" max="99" value="1" required></label><label>رقم الصورة (0–7)<input name="image" type="number" min="0" max="7" value="0" required></label><button>فتح دفع تجريبي</button></form>
 <button id="retry" hidden>إعادة التحقق</button><pre id="result" role="status"></pre><small>تُستخدم بيانات عميل تجريبية فقط. تبقى السلة الأصلية كما هي.</small>
 <script>
 const form=document.getElementById('checkout'),result=document.getElementById('result'),retry=document.getElementById('retry');
