@@ -129,7 +129,7 @@ async function fsRead(env, names, transaction) {
   for(const name of names)if(!rows.has(name))bad('Firestore read incomplete',503);
   return rows;
 }
-function extractCart(input, rows) {
+function extractCart(input, rows, allowUnmanagedTestStock=false) {
   if(!Array.isArray(input)||input.length<1||input.length>20)bad('Invalid cart');
   const counts=new Map();
   const variants=[];
@@ -146,8 +146,11 @@ function extractCart(input, rows) {
   for(const i of variants){
     const p=rows.get(i.id);
     if(!p||p.active===false)bad('Product unavailable',409);
+    const unmanaged=p.stock===null||p.stock===undefined||p.stock==='';
     const stock=Number(p.stock);
-    if(!Number.isInteger(stock)||stock<0||counts.get(i.id)>stock)bad('Not enough stock for item',409);
+    if(unmanaged){
+      if(!(IS_TEST===true && allowUnmanagedTestStock===true))bad('Stock quantity is not configured',409);
+    }else if(!Number.isInteger(stock)||stock<0||counts.get(i.id)>stock)bad('Not enough stock for item',409);
     const cost=Number(p.salePrice||p.price);
     const fils=Math.round(cost*100);
     if(!Number.isSafeInteger(fils)||fils<1||fils>10000000)bad('Invalid price',409);
@@ -176,7 +179,7 @@ async function ziinaGet(env,id){
   if(!res.ok)bad('Ziina payment verification unavailable',503);
   return res.json();
 }
-async function createCheckout(env,input){
+async function createCheckout(env,input,cartTest=false){
   if(!input || typeof input!=='object' || Array.isArray(input))bad('Invalid request');
   const orderId=String(input.orderId||'');
   if(!/^KD-[0-9]{8}$/.test(orderId))bad('Invalid order ID');
@@ -200,8 +203,8 @@ async function createCheckout(env,input){
     const snapshots=await fsRead(env,productNames);
     products=new Map(ids.map(id=>[id,unpack(snapshots.get(docName('products/'+id)))]));
   }
-  const cart=extractCart(items,products);
-  const callback=STAGING+'/test';
+  const cart=extractCart(items,products,cartTest);
+  const callback=STAGING+(cartTest?'/cart-test':'/test');
   const created=await fetch(ZIINA,{method:'POST',headers:{Authorization:'Bearer '+env.ZIINA_API_KEY,'Content-Type':'application/json'},
     body:JSON.stringify({amount:cart.total,currency_code:'AED',message:'Kandorty TEST Order '+orderId,
       test:IS_TEST,allow_tips:false,success_url:callback+'?ziina=success',cancel_url:callback+'?ziina=cancel',failure_url:callback+'?ziina=failed'})});
@@ -213,11 +216,11 @@ async function createCheckout(env,input){
   if(intent.test===false)bad('TEST worker rejected LIVE checkout',502);
   const session={orderId,paymentIntentId:String(intent.id),mode:MODE,amount:cart.total,currency:'AED',customer,
     items:cart.items,quantities:cart.quantities,subtotal:cart.subtotal/100,deliveryFee:DELIVERY_FILS/100,notes:note,
-    createdAt:new Date().toISOString(),status:'pending'};
+    createdAt:new Date().toISOString(),status:'pending',cartTest:cartTest===true};
   // Immutable server-side order snapshot. A failure here never returns the payment URL.
   await fsPost(env,':commit',{writes:[{update:document(docName(SESSION_COLLECTION+'/'+intent.id),session),currentDocument:{exists:false}}]});
   const receipt=await signReceipt({id:String(intent.id),orderId,mode:MODE,amount:cart.total,created:Date.now()},env.ZIINA_RECEIPT_SECRET);
-  return {url:intent.redirect_url,receipt,paymentIntentId:intent.id,test:IS_TEST};
+  return {url:intent.redirect_url,receipt,paymentIntentId:intent.id,test:IS_TEST,amount_total:cart.total,currency:'AED',deliveryFee:DELIVERY_FILS/100};
 }
 
 async function finalizeCheckout(env,receipt){
@@ -268,13 +271,14 @@ export default {
     const url=new URL(request.url),origin=request.headers.get('Origin')||'';
     if(IS_TEST!==true)return reply({error:'This Worker is TEST only'},503,origin);
     if(request.method==='GET'&&url.pathname==='/test')return testPage();
+    if(request.method==='GET'&&url.pathname==='/cart-test')return cartTestPage();
     if(request.method==='GET'&&url.pathname==='/')return new Response('Kandorty Ziina ORDER STAGING (TEST only, no stock writes)');
     if(!ORIGINS.has(origin))return reply({error:'Origin forbidden'},403,origin);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{
       'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Vary':'Origin'}});
     if(request.method!=='POST')return reply({error:'Method not allowed'},405,origin);
     if(!env.ZIINA_API_KEY||!env.FIREBASE_SERVICE_ACCOUNT_JSON||!env.ZIINA_RECEIPT_SECRET) return reply({error:'Staging credentials are not configured'},503,origin);
-    if(!['/create-checkout-session','/finalize-checkout-session'].includes(url.pathname))return reply({error:'Not found'},404,origin);
+    if(!['/create-checkout-session','/finalize-checkout-session','/test-products','/create-cart-test-checkout'].includes(url.pathname))return reply({error:'Not found'},404,origin);
     if(!(request.headers.get('Content-Type')||'').toLowerCase().startsWith('application/json'))return reply({error:'Expected application/json'},415,origin);
     try{
       const raw=await request.text();
@@ -282,6 +286,8 @@ export default {
       let data;
       try{data=JSON.parse(raw);}catch(_){bad('Invalid JSON');}
       if(!data || typeof data!=='object' || Array.isArray(data))bad('Invalid request');
+      if(url.pathname==='/test-products')return reply(await testProducts(env),200,origin);
+      if(url.pathname==='/create-cart-test-checkout')return reply(await createCheckout(env,data,true),200,origin);
       if(url.pathname==='/create-checkout-session')return reply(await createCheckout(env,data),200,origin);
       if(url.pathname==='/finalize-checkout-session')return reply(await finalizeCheckout(env,data.receipt),200,origin);
       return reply({error:'Not found'},404,origin);
@@ -306,4 +312,49 @@ retry.onclick=finalize;
 form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const f=new FormData(form),n=new Uint32Array(1);crypto.getRandomValues(n);const d=await post('/create-checkout-session',{orderId:'KD-'+String(n[0]%100000000).padStart(8,'0'),customer:{name:'TEST Customer',phone:'0000000000',city:'TEST',location:'TEST — no delivery'},items:[{id:f.get('product'),qty:Number(f.get('qty')),imageIndex:Number(f.get('image'))}]});sessionStorage.setItem(key,d.receipt);location.assign(d.url);}catch(e){result.textContent=e.message;}finally{button.disabled=false;}};
 const state=new URLSearchParams(location.search).get('ziina');if(state){history.replaceState(null,'','/test');if(state==='success')finalize();else{result.textContent='لم يكتمل الدفع التجريبي.';retry.hidden=!sessionStorage.getItem(key);}}else retry.hidden=!sessionStorage.getItem(key);
 </script></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"}});
+}
+
+
+async function testProducts(env){
+  // Read only public catalog fields. No customer, order, auth or settings reads.
+  const rows=await fsPost(env,':runQuery',{structuredQuery:{from:[{collectionId:'products'}],select:{fields:['nameAr','name','code','price','salePrice','stock','active','images'].map(fieldPath=>({fieldPath}))},limit:100}});
+  const products=[];
+  for(const row of (Array.isArray(rows)?rows:[rows])){
+    if(!row.document)continue;
+    const p=unpack(row.document),id=row.document.name.split('/').pop();
+    const price=Number(p.salePrice||p.price),fils=Math.round(price*100);
+    if(p.active===false||!Number.isSafeInteger(fils)||fils<1||fils>10000000)continue;
+    const unknown=p.stock===null||p.stock===undefined||p.stock==='';
+    const stock=unknown?null:Number(p.stock);
+    if(!unknown&&(!Number.isInteger(stock)||stock<0))continue;
+    const image=String(p.images?.[0]||'');
+    products.push({id,name:String(p.nameAr||p.name||p.code||id).slice(0,160),price:fils/100,stock,
+      image:/^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(image)?image:''});
+  }
+  return {products,test:true,deliveryFee:DELIVERY_FILS/100};
+}
+
+function cartTestPage(){
+  return new Response(String.raw`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kandorty | سلة تجريبية</title><style>
+:root{font-family:system-ui,sans-serif;color:#20352d;background:#f7f6f2}*{box-sizing:border-box}body{margin:0}header{background:#174b37;color:white;padding:24px 20px}header div,main{max-width:1100px;margin:auto}h1{margin:0;font-size:28px}header p{margin:8px 0 0;font-size:15px}.badge{display:inline-block;background:#f4d581;color:#34280d;padding:4px 12px;border-radius:20px;font-size:13px}main{padding:22px 16px}.notice{padding:15px;border:1px solid #d8dfd6;border-radius:12px;background:#fff;line-height:1.8}.layout{display:grid;grid-template-columns:1fr 340px;gap:24px;margin-top:24px}.catalog{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card,.basket{background:white;border:1px solid #e1e4db;border-radius:14px;overflow:hidden}.card img{width:100%;height:230px;object-fit:cover;background:#f0eee8}.card .info{padding:14px}.card h3{font-size:16px;overflow-wrap:anywhere;min-height:24px;margin:0 0 8px}.card p{margin:8px 0}.card small{display:block;min-height:35px;color:#716b5c;line-height:1.6}button{font:inherit;border:0;border-radius:9px;background:#1d6248;color:white;padding:11px 14px;cursor:pointer}button:disabled{opacity:.5;cursor:default}.card button,#pay{width:100%}.basket{padding:20px;align-self:start;position:sticky;top:16px}.basket h2{margin:0 0 16px;font-size:22px}.row{border-bottom:1px solid #eee;padding:12px 0}.row strong{display:block;font-size:15px;overflow-wrap:anywhere}.controls{display:flex;align-items:center;gap:12px;margin-top:10px}.controls button{padding:5px 12px}.line{display:flex;justify-content:space-between;margin:15px 0}.total{font-weight:800;font-size:21px;border-top:1px solid #ddd;padding-top:14px}#status{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;margin:16px 0}#retry,#replay{margin-top:10px;width:100%;background:#735c2e}.muted{color:#657267;font-size:14px;line-height:1.7}.actions{display:flex;gap:10px;align-items:center;margin:18px 0}#reload{background:white;color:#174b37;border:1px solid #b5c8bc}@media(max-width:850px){.layout{grid-template-columns:1fr}.catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.basket{position:static}.card img{height:230px}}@media(max-width:380px){.card img{height:190px}}
+</style><header><div><span class="badge">TEST — تجربة فقط</span><h1>Kandorty · سلة تجريبية</h1><p>اختاري المنتجات وجرّبي الدفع بالبطاقة</p></div></header><main><div class="notice">هذه نسخة تجريبية منفصلة. لا تُخصم أموال حقيقية ولا تتغير كميات المنتجات أو السلة الأصلية. تُستخدم بيانات عميل وهمية فقط.</div><div id="status" role="status" aria-live="polite"></div><button id="retry" hidden>إعادة التحقق من الدفع السابق</button><button id="replay" hidden>تأكيد عدم تكرار الطلب</button><div class="actions"><h2>منتجات المتجر</h2><button id="reload">تحديث المنتجات</button></div><div class="layout"><section id="catalog" class="catalog" aria-label="المنتجات"></section><aside class="basket"><h2>سلّتك التجريبية <span id="count">0</span></h2><div id="items"></div><div class="line"><span>المنتجات</span><span id="subtotal">0 د.إ</span></div><div class="line"><span>رسوم التوصيل</span><span>25 د.إ</span></div><div class="line total"><span>الإجمالي</span><span id="total">25 د.إ</span></div><button id="pay" disabled>الدفع التجريبي بالبطاقة</button><p class="muted">الأسعار تُراجع من الخادم. المنتجات ذات الكمية غير المحددة متاحة هنا للاختبار فقط؛ لا يجري حجزها أو تعديلها.</p></aside></div></main><script>
+const $=id=>document.getElementById(id),cartKey='kandorty_cart_staging_v1',pendingKey='kandorty_cart_staging_pending_v1',lastKey='kandorty_cart_staging_last_v1';
+let products=[],cart={},busy=false,loaded=false;try{cart=JSON.parse(localStorage.getItem(cartKey)||'{}');if(!cart||typeof cart!=='object'||Array.isArray(cart))cart={};}catch{}
+const money=n=>Number(n).toFixed(2)+' د.إ';
+function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
+function message(text){$('status').textContent=text;}
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.error||'تعذر إكمال الاختبار');if(d.test!==true)throw new Error('النتيجة ليست TEST');return d;}
+function rows(){return products.filter(p=>Number.isInteger(cart[p.id])&&cart[p.id]>0).map(p=>({p,qty:cart[p.id]}));}
+function cents(){return rows().reduce((sum,x)=>sum+Math.round(x.p.price*100)*x.qty,0);}
+function change(id,delta){if(busy)return;const p=products.find(p=>p.id===id);if(!p)return;const limit=p.stock===null?99:Math.min(99,p.stock);const qty=Math.max(0,Math.min(limit,(cart[id]||0)+delta));if(qty)cart[id]=qty;else delete cart[id];localStorage.setItem(cartKey,JSON.stringify(cart));renderCart();}
+function renderCart(){const box=$('items');box.replaceChildren();let count=0;for(const {p,qty} of rows()){count+=qty;const row=el('div',undefined,'row');row.append(el('strong',p.name),el('span',money(p.price*qty)));const controls=el('div',undefined,'controls'),minus=el('button','−'),plus=el('button','+');minus.setAttribute('aria-label','تقليل كمية '+p.name);plus.setAttribute('aria-label','زيادة كمية '+p.name);minus.onclick=()=>change(p.id,-1);plus.onclick=()=>change(p.id,1);minus.disabled=busy;plus.disabled=busy||qty>=Math.min(99,p.stock??99);controls.append(minus,el('span',qty),plus);row.append(controls);box.append(row);}if(!count)box.append(el('p','السلة فارغة. أضيفي منتجاً للتجربة.','muted'));$('count').textContent=count;$('subtotal').textContent=money(cents()/100);$('total').textContent=money((cents()+2500)/100);$('pay').disabled=busy||!loaded||!count;$('pay').textContent=busy?'جارٍ إكمال الاختبار...':'الدفع التجريبي بالبطاقة';}
+function renderCatalog(){const box=$('catalog');box.replaceChildren();for(const p of products){const card=el('article',undefined,'card');if(p.image){const image=el('img');image.src=p.image;image.alt=p.name;image.loading='lazy';card.append(image);}const info=el('div',undefined,'info'),add=el('button',p.stock===0?'نفد المنتج':'أضف إلى السلة');add.disabled=p.stock===0;add.onclick=()=>change(p.id,1);info.append(el('h3',p.name),el('p',money(p.price)),el('small',p.stock===null?'اختبار فقط · الكمية غير محددة':p.stock===0?'غير متوفر':'متوفر: '+p.stock),add);card.append(info);box.append(card);}if(!products.length)box.append(el('p','لا توجد منتجات متاحة للعرض.'));}
+async function load(){if(busy)return;$('reload').disabled=true;try{const d=await post('/test-products',{});products=d.products;loaded=true;for(const id of Object.keys(cart)){const p=products.find(p=>p.id===id);if(!p||!Number.isInteger(cart[id])||cart[id]<1)delete cart[id];else{cart[id]=Math.min(cart[id],99,p.stock??99);if(!cart[id])delete cart[id];}}localStorage.setItem(cartKey,JSON.stringify(cart));renderCatalog();renderCart();}catch(e){message('تعذر تحميل المنتجات: '+e.message);}finally{$('reload').disabled=false;}}
+$('reload').onclick=load;
+$('pay').onclick=async()=>{if(busy||!rows().length)return;busy=true;renderCart();message('جارٍ فتح Ziina TEST...');try{const n=new Uint32Array(1);crypto.getRandomValues(n);const orderId='KD-'+String(n[0]%100000000).padStart(8,'0'),expected=cents()+2500;const d=await post('/create-cart-test-checkout',{orderId,customer:{name:'TEST Customer',phone:'0000000000',city:'TEST',location:'TEST — no delivery'},items:rows().map(x=>({id:x.p.id,qty:x.qty,imageIndex:0}))});if(d.amount_total!==expected||d.currency!=='AED'||d.deliveryFee!==25)throw new Error('تغيّر السعر. حدّثي المنتجات قبل إعادة المحاولة.');const url=new URL(d.url);if(url.protocol!=='https:'||!(url.hostname==='ziina.com'||url.hostname.endsWith('.ziina.com'))||url.username||url.password)throw new Error('رابط دفع غير متوقع');sessionStorage.setItem(pendingKey,JSON.stringify({receipt:d.receipt,orderId,amount:expected}));location.assign(url.href);}catch(e){message('لم يُفتح الدفع: '+e.message);}finally{busy=false;renderCart();}};
+async function finalize(replay=false){if(busy)return;let pending;try{pending=JSON.parse(sessionStorage.getItem(replay?lastKey:pendingKey)||'null');}catch{}if(!pending?.receipt){message('لا يوجد إيصال محفوظ في هذا التبويب.');return;}busy=true;renderCart();$('retry').disabled=true;$('replay').disabled=true;message('جارٍ التحقق من الدفع عبر الخادم...');try{const d=await post('/finalize-checkout-session',{receipt:pending.receipt});if(d.orderId!==pending.orderId)throw new Error('مرجع الطلب غير مطابق');sessionStorage.setItem(lastKey,JSON.stringify(pending));sessionStorage.removeItem(pendingKey);$('retry').hidden=true;$('replay').hidden=false;message((d.alreadySaved?'الطلب محفوظ مسبقاً ولم يتكرر ✓':'تم حفظ الطلب التجريبي بنجاح ✓')+'\nرقم الطلب: '+d.orderId+'\nالمبلغ: '+money(pending.amount/100)+' (يشمل 25 د.إ توصيلاً)\nلا أموال حقيقية ولا تغيير في المخزون. السلة التجريبية محفوظة.');}catch(e){message('التحقق لم يكتمل: '+e.message+'\nلا تدفعي مرة أخرى؛ استخدمي إعادة التحقق.');$('retry').hidden=false;}finally{busy=false;$('retry').disabled=false;$('replay').disabled=false;renderCart();}}
+$('retry').onclick=()=>finalize();$('replay').onclick=()=>finalize(true);
+const state=new URLSearchParams(location.search).get('ziina');if(state)history.replaceState(null,'','/cart-test');$('retry').hidden=!sessionStorage.getItem(pendingKey);$('replay').hidden=!sessionStorage.getItem(lastKey);load().then(()=>{if(state==='success')finalize();else if(state==='cancel'||state==='failed')message('لم يكتمل الدفع التجريبي. السلة محفوظة. يمكنك التحقق من العملية السابقة دون دفع جديد.');});
+</script></html>
+`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; img-src https: data:; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"}});
 }
