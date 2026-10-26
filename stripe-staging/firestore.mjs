@@ -5,6 +5,10 @@ export function pack(v){if(v===null)return {nullValue:null};if(typeof v==='strin
 export function unpack(v){if('stringValue'in v)return v.stringValue;if('integerValue'in v)return Number(v.integerValue);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if('nullValue'in v)return null;if('arrayValue'in v)return(v.arrayValue.values||[]).map(unpack);return Object.fromEntries(Object.entries(v.mapValue?.fields||{}).map(([k,x])=>[k,unpack(x)]));}
 export function createStore(env,net=fetch){
  let account;try{account=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);}catch{throw new Fault('database_not_configured',503);}
+ // Validate the staged JSON structure without ever logging or returning its secret fields.
+ if(typeof account.private_key!=='string'||!account.private_key.includes('-----BEGIN PRIVATE KEY-----')||
+    typeof account.client_email!=='string'||!account.client_email.endsWith('.iam.gserviceaccount.com'))
+   throw new Fault('invalid_staging_service_account_json',503);
  // This candidate deliberately refuses the real store project, even with admin credentials.
  if(!/^[a-z][a-z0-9-]{4,60}$/.test(env.STRIPE_TEST_PROJECT_ID||'')||env.STRIPE_TEST_PROJECT_ID==='kandorty-9378a'||account.project_id!==env.STRIPE_TEST_PROJECT_ID)throw new Fault('isolated_test_project_required',503);
  const root=`projects/${env.STRIPE_TEST_PROJECT_ID}/databases/(default)/documents`;
@@ -14,8 +18,13 @@ export function createStore(env,net=fetch){
   if(cachedToken&&expiry>Date.now()+60000)return cachedToken;
   const now=Math.floor(Date.now()/1000);
   const input=b64(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})))+'.'+b64(enc.encode(JSON.stringify({iss:account.client_email,scope:'https://www.googleapis.com/auth/datastore',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600})));
-  const der=Uint8Array.from(atob(account.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'')),x=>x.charCodeAt(0));
-  const key=await crypto.subtle.importKey('pkcs8',der,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+  let key;
+  try {
+   const der=Uint8Array.from(atob(account.private_key.replace(/-----[^-]+-----/g,'').replace(/\\s/g,'')),x=>x.charCodeAt(0));
+   key=await crypto.subtle.importKey('pkcs8',der,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+  } catch {
+   throw new Fault('invalid_staging_private_key',503);
+  }
   const assertion=input+'.'+b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,enc.encode(input)));
   const r=await net('https://oauth2.googleapis.com/token',{method:'POST',redirect:'error',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}),signal:AbortSignal.timeout(15000)});
   if(!r.ok)throw new Fault('database_auth_failed',503);const result=await r.json();if(!result.access_token)throw new Fault('database_auth_failed',503);
