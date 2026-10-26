@@ -32,11 +32,11 @@ jobs:
               return e.code,e.read(60000)
           status,html=call('/test')
           if status!=200 or b'Sandbox Test' not in html:
-            sys.exit('Staging HTML unreachable or incorrect. HTTP '+str(status))
+            sys.exit('Staging HTML unreachable or incorrect. HTTP '+str(status)+', response='+html[:200].decode('utf-8',errors='replace'))
           print('Isolated staging /test page responds HTTP 200.')
           status,js=call('/test.js')
           if status!=200 or b'create-checkout-session' not in js:
-            sys.exit('Staging JS missing. HTTP '+str(status))
+            sys.exit('Staging JS missing. HTTP '+str(status)+', response='+js[:200].decode('utf-8',errors='replace'))
           print('Staging UI script is available.')
           token=secrets.token_hex(32)
           checkout={'checkoutToken':token,'customer':{'name':'TEST ONLY','phone':'+971500000000','city':'Dubai','location':'TEST ADDRESS'},'items':[{'id':'test-product','qty':1,'imageIndex':0}],'note':''}
