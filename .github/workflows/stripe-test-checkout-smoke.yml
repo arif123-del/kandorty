@@ -1,3 +1,4 @@
+# Verify workaround for Cloudflare redirect:error incompatibility in staging only.
 # Isolated TEST retry after network-stage classification; never creates a paid order.
 # TEST-only rerun after non-sensitive failure-phase instrumentation. No charges.
 # Repeat after staging credential validation hardening (TEST only).
