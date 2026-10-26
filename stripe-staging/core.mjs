@@ -43,12 +43,15 @@ export async function verifySignature(raw,header,secret,now=Date.now()){
 }
 export function createService({store,stripe,clock=()=>Date.now()}){
  async function create(body){
+  let phase='normalize';
+  try {
   const normalized=normalize(body),id=await hash(body.checkoutToken),fingerprint=await hash(JSON.stringify(normalized));
+  phase='snapshot_read';
   let snapshot=await store.getSnapshot(id);
   if(!snapshot){
    const products=new Map(),quantities=new Map();const items=[];let subtotal=0;
    for(const i of normalized.items){
-    let p=products.get(i.id);if(!p){p=await store.getProduct(i.id);requireThat(p&&p.active!==false,'unavailable_product');products.set(i.id,p);}
+    let p=products.get(i.id);if(!p){phase='product_read';p=await store.getProduct(i.id);requireThat(p&&p.active!==false,'unavailable_product');products.set(i.id,p);}
     const images=Array.isArray(p.images)?p.images:[];
     requireThat(i.imageIndex===0||i.imageIndex<images.length,'invalid_variant');
     const amount=money(p.salePrice||p.price);subtotal+=amount*i.qty;
@@ -59,15 +62,19 @@ export function createService({store,stripe,clock=()=>Date.now()}){
    }
    requireThat(Number.isSafeInteger(subtotal)&&subtotal+DELIVERY<=100000000,'invalid_total');
    const proposed={id,orderId:'KD-TEST-'+id.slice(0,24),fingerprint,...normalized,items,subtotal,delivery:DELIVERY,total:subtotal+DELIVERY,currency:'aed',livemode:false,createdAt:new Date(clock()).toISOString(),expiresAt:clock()+3600000};
-   snapshot=await store.createSnapshot(id,proposed); // create-if-absent, return winning snapshot
+   phase='snapshot_create';snapshot=await store.createSnapshot(id,proposed); // create-if-absent, return winning snapshot
   }
   requireThat(snapshot.fingerprint===fingerprint,'checkout_conflict',409);
   requireThat(snapshot.expiresAt>clock(),'checkout_expired',409); // Never reuse Stripe keys after its retention window.
-  const session=await stripe.create(snapshot); // Stable params + stable Stripe idempotency key.
+  phase='stripe_checkout';const session=await stripe.create(snapshot); // Stable params + stable Stripe idempotency key.
   requireThat(session.livemode===false&&/^cs_test_[A-Za-z0-9]+$/.test(session.id||''),'mode_mismatch',502);
   requireThat(typeof session.url==='string'&&new URL(session.url).origin==='https://checkout.stripe.com','invalid_checkout_url',502);
-  await store.bindSession(id,session.id);
+  phase='session_bind';await store.bindSession(id,session.id);
   return {id:session.id,url:session.url,orderId:snapshot.orderId,test:true};
+  } catch(e) {
+   if(e instanceof Fault)throw e;
+   throw new Fault('staging_unexpected_'+phase,503);
+  }
  }
  async function fulfill(sessionId,token){
   requireThat(/^cs_test_[A-Za-z0-9]+$/.test(sessionId||''),'invalid_session');
