@@ -31,7 +31,7 @@ export function createHandler(factory){return async(request,env)=>{
   if(env.STRIPE_MODE!=='test'||!/^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||''))throw new Fault('test_key_required',503);
   // Default only to THIS isolated Workers.dev hostname; never accept a production/custom domain.
   const host=new URL(request.url);
-  const standalone=/^kandorty-stripe-orders-test\\.[a-z0-9-]+\\.workers\\.dev$/.test(host.hostname);
+  const standalone=/^kandorty-stripe-orders-test\.[a-z0-9-]+\.workers\.dev$/.test(host.hostname);
   const testSite=env.STRIPE_TEST_SITE_URL||(standalone?host.origin:'');
   let base;try{base=new URL(testSite);}catch{throw new Fault('isolated_test_site_required',503);}
   if(base.protocol!=='https:'||base.origin!==testSite||['https://kandorty.online','https://www.kandorty.online'].includes(base.origin))throw new Fault('isolated_test_site_required',503);
