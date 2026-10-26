@@ -1,0 +1,45 @@
+name: Inspect isolated Stripe TEST fixture schema (read only)
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/stripe-fixture-check.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-test-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STAGING_SERVICE_ACCOUNT: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - name: Report safe test-product field types, never contents or credentials
+        run: |
+          node <<'JS'
+          const crypto=require('node:crypto');
+          const raw=process.env.STAGING_SERVICE_ACCOUNT;
+          let a;try{a=JSON.parse(raw)}catch{console.log('No compatible GitHub test credential; cannot inspect fixture.');process.exit(0)}
+          if(a.project_id!=='kandorty-stripe-test-5f8af'||!a.private_key||!a.client_email){console.log('GitHub service credential is not this isolated test project.');process.exit(0)}
+          const b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+          const now=Math.floor(Date.now()/1000);
+          const head=b64({alg:'RS256',typ:'JWT'});
+          const payload=b64({iss:a.client_email,scope:'https://www.googleapis.com/auth/datastore',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+900});
+          const input=head+'.'+payload;
+          const sig=crypto.sign('RSA-SHA256',Buffer.from(input),a.private_key).toString('base64url');
+          const form=new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:input+'.'+sig});
+          const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form});
+          if(!response.ok){console.log('Test identity token exchange unavailable: HTTP',response.status);process.exit(0)}
+          const t=await response.json();if(!t.access_token){console.log('No test token');process.exit(0)}
+          const u='https://firestore.googleapis.com/v1/projects/kandorty-stripe-test-5f8af/databases/(default)/documents/products/test-product';
+          const r=await fetch(u,{redirect:'manual',headers:{Authorization:'Bearer '+t.access_token}});
+          if(!r.ok){console.log('Test product not readable from GitHub test credential; status:',r.status);process.exit(0)}
+          const d=await r.json();const f=d.fields||{};
+          for(const k of ['price','Price','salePrice','nameAr','stock','active']){
+            const v=f[k]||null;
+            const type=v?Object.keys(v)[0]:'absent';
+            console.log('Synthetic product field '+k+': '+type);
+          }
+          console.log('Read-only diagnostics complete. No raw field values or secrets output.');
+          JS
