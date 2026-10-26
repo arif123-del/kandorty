@@ -1,5 +1,6 @@
 import {createService,Fault} from './core.mjs';
 import {createStore} from './firestore.mjs';
+import {TEST_HTML,TEST_JS} from './test-page.mjs';
 function stripeClient(key,net=fetch){
  async function api(path,params,idempotency){
   const r=await net('https://api.stripe.com/v1/checkout/sessions'+path,{method:params?'POST':'GET',redirect:'error',headers:{Authorization:'Bearer '+key,'Stripe-Version':'2024-06-20',...(params?{'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':idempotency}:{})},...(params?{body:params}:{}),signal:AbortSignal.timeout(15000)});
@@ -29,6 +30,16 @@ export function createHandler(factory){return async(request,env)=>{
   // Hard fail closed: this implementation cannot switch to Live via an environment toggle.
   if(env.STRIPE_MODE!=='test'||!/^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||''))throw new Fault('test_key_required',503);
   const base=new URL(env.STRIPE_TEST_SITE_URL);if(base.protocol!=='https:'||base.origin!==env.STRIPE_TEST_SITE_URL||['https://kandorty.online','https://www.kandorty.online'].includes(base.origin))throw new Fault('isolated_test_site_required',503);
+  // A standalone TEST-only payment page; never served on the production store.
+  if(request.method==='GET' && new URL(request.url).origin===base.origin){
+   if(path==='/'||path==='/test')return new Response(TEST_HTML,{
+    headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
+     'Content-Security-Policy':"default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'","X-Content-Type-Options":"nosniff"}
+   });
+   if(path==='/test.js')return new Response(TEST_JS,{
+    headers:{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
+   });
+  }
   if(path!=='/webhook'){
    if(origin!==base.origin)throw new Fault('origin_denied',403);
    headers['Access-Control-Allow-Origin']=origin;headers['Access-Control-Allow-Methods']='POST, OPTIONS';headers['Access-Control-Allow-Headers']='Content-Type';
