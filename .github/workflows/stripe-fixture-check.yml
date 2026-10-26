@@ -42,6 +42,15 @@ jobs:
             const type=v?Object.keys(v)[0]:'absent';
             console.log('Synthetic product field '+k+': '+type);
           }
+          const col='https://firestore.googleapis.com/v1/projects/kandorty-stripe-test-5f8af/databases/(default)/documents/';
+          for(const collection of ['stripe_test_orders','stripe_test_checkout_sessions']){
+            const res=await fetch(col+collection+'?pageSize=100',{redirect:'manual',headers:{Authorization:'Bearer '+t.access_token}});
+            if(!res.ok){console.log(collection+': could not read TEST collection (HTTP '+res.status+')');continue;}
+            const result=await res.json();const docs=result.documents||[];
+            const paid=docs.filter(x=>x.fields?.paymentStatus?.stringValue==='paid').length;
+            const fulfilled=docs.filter(x=>x.fields?.fulfilled?.booleanValue===true).length;
+            console.log(collection+': '+docs.length+' TEST documents (first 100), paid='+paid+', fulfilled='+fulfilled);
+          }
           console.log('Read-only diagnostics complete. No raw field values or secrets output.');
           })().catch(()=>{console.error('Test-only fixture inspection failed without exposing details.');process.exit(1)});
           JS
