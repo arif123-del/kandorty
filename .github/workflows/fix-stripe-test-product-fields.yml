@@ -1,0 +1,54 @@
+name: Repair only absent Stripe TEST product fields
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fix-stripe-test-product-fields.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  repair-isolated-product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - name: Add only missing price and active fields to single TEST document
+        run: |
+          node <<'JS'
+          (async()=>{
+          const crypto=require('node:crypto');
+          let a;
+          try{a=JSON.parse(process.env.TEST_SERVICE_ACCOUNT_JSON||'')}catch{throw new Error('Test service credential JSON unavailable')}
+          if(a.project_id!=='kandorty-stripe-test-5f8af'||!a.private_key||!a.client_email)throw Error('Refusing non-test project');
+          const url='https://firestore.googleapis.com/v1/projects/kandorty-stripe-test-5f8af/databases/(default)/documents/products/test-product';
+          const b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+          const now=Math.floor(Date.now()/1000);
+          const unsigned=b64({alg:'RS256',typ:'JWT'})+'.'+b64({iss:a.client_email,scope:'https://www.googleapis.com/auth/datastore',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+900});
+          const sig=crypto.sign('RSA-SHA256',Buffer.from(unsigned),a.private_key).toString('base64url');
+          const auth=await fetch('https://oauth2.googleapis.com/token',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:unsigned+'.'+sig})});
+          if(!auth.ok)throw Error('Isolated Firebase authentication failed');
+          const token=(await auth.json()).access_token;
+          if(!token)throw Error('Missing isolated token');
+          const h={Authorization:'Bearer '+token};
+          const read=await fetch(url,{headers:h,redirect:'manual'});
+          if(!read.ok)throw Error('Isolated fixture document missing');
+          const doc=await read.json(), f=doc.fields||{};
+          if(!f.nameAr?.stringValue||!f.stock?.integerValue)throw Error('Unexpected TEST fixture; refusing write');
+          const missing=[];
+          if(!Object.prototype.hasOwnProperty.call(f,'price'))missing.push('price');
+          if(!Object.prototype.hasOwnProperty.call(f,'active'))missing.push('active');
+          if(missing.length===0){console.log('TEST fixture already has both fields; no changes.');return}
+          if(missing.length!==2)throw Error('Fixture partly populated; refusing partial update');
+          const body={fields:{price:{integerValue:'10'},active:{booleanValue:true}}};
+          const patch=url+'?'+new URLSearchParams([['updateMask.fieldPaths','price'],['updateMask.fieldPaths','active'],['currentDocument.updateTime',doc.updateTime]]).toString();
+          const result=await fetch(patch,{method:'PATCH',redirect:'manual',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify(body)});
+          if(!result.ok)throw Error('TEST-only fixture patch rejected HTTP '+result.status);
+          const data=await result.json(), n=data.fields||{};
+          if(n.price?.integerValue!=='10'||n.active?.booleanValue!==true)throw Error('TEST-only fixture update could not be verified');
+          console.log('Added absent price=10 AED and active=true to isolated products/test-product only.');
+          console.log('Original test product stock/name and all production files/orders untouched.');
+          })().catch(e=>{console.error(e.message);process.exit(1)})
+          JS
