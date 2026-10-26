@@ -21,3 +21,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: python3 stripe-audit/preflight.py
+      - name: Save encrypted source for private review
+        uses: actions/upload-artifact@v4
+        with:
+          name: stripe-review-encrypted
+          path: stripe-review-encrypted/source.json
+          retention-days: 1
+          if-no-files-found: error

@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import urllib.request
 import urllib.error
 
@@ -50,6 +51,11 @@ def main():
                 print('BLOCKED: source exceeds review size limit. No changes made.')
                 return 1
             report = summarize(source)
+            # Transport source + MIME type only; never headers or environment secrets.
+            envelope = json.dumps({'content_type': response.headers.get('Content-Type', ''),
+                                   'source': source.decode('utf-8', errors='replace')}).encode()
+            subprocess.run(['node', 'stripe-audit/encrypt-review.cjs'], input=envelope,
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except urllib.error.HTTPError as exc:
         # Do not print exception bodies, headers, request URLs, credentials or source.
         print(f'BLOCKED: Cloudflare source read returned HTTP {exc.code}. No changes made.')
