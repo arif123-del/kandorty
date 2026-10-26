@@ -1,0 +1,71 @@
+name: Stripe isolated TEST real-service checkout smoke test
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/stripe-test-checkout-smoke.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+    steps:
+      - name: Check separate TEST Worker with real Firebase and Stripe Sandbox (no payment)
+        run: |
+          python3 - <<'PY'
+          import os,sys,json,secrets,urllib.request,urllib.error,urllib.parse
+          origin='https://kandorty-stripe-orders-test.aliyajan200011.workers.dev'
+          key=os.environ.get('STRIPE_SANDBOX_SECRET_KEY','').strip()
+          if not key.startswith('sk_test_'): sys.exit('STOP: no Sandbox key')
+          def req(url,method='GET',body=None,headers=None):
+              raw=None if body is None else json.dumps(body).encode()
+              h={'User-Agent':'Kandorty-staging-smoke/1.0',**(headers or {})}
+              if body is not None:h['Content-Type']='application/json'
+              q=urllib.request.Request(url,data=raw,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(q,timeout=25) as r:
+                      out=r.read(150000)
+                      return r.status, out
+              except urllib.error.HTTPError as e:
+                  # Errors are limited and never include request headers/keys.
+                  err=e.read(2048)
+                  try: reason=json.loads(err).get('error','error')
+                  except: reason='http_'+str(e.code)
+                  sys.exit('TEST FAILED: HTTP '+str(e.code)+' ('+str(reason)[:120]+')')
+          status,html=req(origin+'/test')
+          assert status==200 and b'Kandorty' in html and b'TEST ONLY' in html, 'test page unavailable'
+          print('1/5: isolated TEST page available')
+          token=secrets.token_hex(32)
+          data={'checkoutToken':token,'customer':{'name':'TEST ONLY','phone':'+971500000000','city':'Dubai','location':'TEST ADDRESS'},'items':[{'id':'test-product','qty':1,'imageIndex':0}],'note':''}
+          headers={'Origin':origin}
+          _,r=req(origin+'/create-checkout-session','POST',data,headers)
+          result=json.loads(r)
+          assert result.get('test') is True and result.get('id','').startswith('cs_test_'), 'checkout mismatch'
+          assert result.get('url','').startswith('https://checkout.stripe.com/'), 'unsafe checkout URL'
+          print('2/5: real Stripe Sandbox checkout session created')
+          _,r2=req(origin+'/create-checkout-session','POST',data,headers)
+          repeated=json.loads(r2)
+          assert repeated.get('id')==result['id'], 'same request created a duplicate payable session'
+          print('3/5: duplicate request returned identical session')
+          _,pending=req(origin+'/verify-checkout-session','POST',{'session_id':result['id'],'checkoutToken':token},headers)
+          check=json.loads(pending)
+          assert check.get('paid') is False and check.get('registered') is False,'unpaid checkout was registered'
+          print('4/5: unpaid session correctly NOT registered as paid')
+          stripe_req=urllib.request.Request(
+              'https://api.stripe.com/v1/checkout/sessions/'+urllib.parse.quote(result['id']),
+              headers={'Authorization':'Bearer '+key}
+          )
+          try:
+              with urllib.request.urlopen(stripe_req,timeout=25) as r:
+                  stripe=json.loads(r.read(120000))
+          except urllib.error.HTTPError as e:
+              sys.exit('TEST FAILED: Stripe read rejected (HTTP '+str(e.code)+')')
+          assert stripe.get('livemode') is False and stripe.get('amount_total')==3500 and stripe.get('currency')=='aed','Stripe total or mode incorrect'
+          print('5/5: Stripe confirms TEST mode, AED 35.00, no live charge')
+          print('Real payment completion, signed webhook and persisted paid order still require test card.')
+          PY
