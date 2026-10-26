@@ -1,0 +1,44 @@
+name: Verify Stripe TEST webhook delivery after Sandbox checkout
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/stripe-webhook-delivery-check.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+    steps:
+      - name: Verify matching Sandbox event and isolated webhook endpoint status
+        run: |
+          node <<'JS'
+          (async()=>{
+          const key=process.env.STRIPE_SANDBOX_SECRET_KEY?.trim()||'';
+          if(!key.startsWith('sk_test_'))throw Error('TEST-only key missing');
+          async function stripe(path){
+            const r=await fetch('https://api.stripe.com/v1/'+path,{redirect:'manual',headers:{Authorization:'Bearer '+key}});
+            if(!r.ok)throw Error('Stripe TEST read failed HTTP '+r.status);
+            return r.json();
+          }
+          const ep=await stripe('webhook_endpoints?limit=100');
+          const expected='https://kandorty-stripe-orders-test.aliyajan200011.workers.dev/webhook';
+          const match=(ep.data||[]).find(e=>e.url===expected);
+          console.log('Isolated TEST webhook endpoint:',match?'found':'not found');
+          if(!match)throw Error('TEST webhook endpoint missing');
+          console.log('Webhook configuration: Sandbox='+String(match.livemode===false)+', status='+match.status);
+          const events=await stripe('events?type=checkout.session.completed&limit=100');
+          const orderId='KD-TEST-81e4fc01bdbc3460a622d8e5';
+          const event=(events.data||[]).find(e=>e.data?.object?.client_reference_id===orderId);
+          console.log('Matching Stripe TEST checkout completion event:',event?'found':'not found');
+          if(!event)throw Error('TEST Checkout completed event not found');
+          console.log('Stripe Sandbox event:',event.livemode===false?'test':'unexpected live');
+          console.log('Pending webhook destinations for this event:',event.pending_webhooks);
+          console.log('Event ID and customer fields withheld from logs.');
+          })().catch(e=>{console.error(e.message);process.exit(1)});
+          JS
