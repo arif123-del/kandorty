@@ -15,9 +15,12 @@ export function createStore(env,net=fetch){
  const snapPath=id=>`stripe_test_checkout_sessions/${id}`,orderPath=id=>`stripe_test_orders/${id}`;
  let cachedToken='',expiry=0;
  async function token(){
+  let phase='start';try{
   if(cachedToken&&expiry>Date.now()+60000)return cachedToken;
+  phase='jwt_claims';
   const now=Math.floor(Date.now()/1000);
   const input=b64(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})))+'.'+b64(enc.encode(JSON.stringify({iss:account.client_email,scope:'https://www.googleapis.com/auth/datastore',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600})));
+  phase='jwt_import';
   let key;
   try {
    const der=Uint8Array.from(atob(account.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'')),x=>x.charCodeAt(0));
@@ -25,16 +28,22 @@ export function createStore(env,net=fetch){
   } catch {
    throw new Fault('invalid_staging_private_key',503);
   }
+  phase='jwt_sign';
   const assertion=input+'.'+b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,enc.encode(input)));
+  phase='oauth_fetch';
   const r=await net('https://oauth2.googleapis.com/token',{method:'POST',redirect:'error',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}),signal:AbortSignal.timeout(15000)});
-  if(!r.ok)throw new Fault('database_auth_failed',503);const result=await r.json();if(!result.access_token)throw new Fault('database_auth_failed',503);
+  if(!r.ok)throw new Fault('database_auth_failed',503);phase='oauth_parse';const result=await r.json();if(!result.access_token)throw new Fault('database_auth_failed',503);
   cachedToken=result.access_token;expiry=Date.now()+Number(result.expires_in||3600)*1000;return cachedToken;
+  }catch(e){if(e instanceof Fault)throw e;throw new Fault('database_token_'+phase,503);}
  }
  async function call(path,method='GET',body){
-  const r=await net('https://firestore.googleapis.com/v1/'+root+path,{method,redirect:'error',headers:{Authorization:'Bearer '+await token(),'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000)});
+  let phase='get_token';try{
+  const access=await token();phase='firestore_fetch';
+  const r=await net('https://firestore.googleapis.com/v1/'+root+path,{method,redirect:'error',headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000)});
   if(method==='GET'&&r.status===404)return null;
   if(!r.ok){const data=await r.json().catch(()=>({}));if(['ALREADY_EXISTS','FAILED_PRECONDITION','ABORTED'].includes(data.error?.status))throw new Fault('write_conflict',409);throw new Fault('database_unavailable',503);}
-  return r.json();
+  phase='firestore_parse';return r.json();
+  }catch(e){if(e instanceof Fault)throw e;throw new Fault('database_'+phase,503);}
  }
  async function get(path){const d=await call('/'+path);return d?{data:unpack({mapValue:{fields:d.fields||{}}}),version:d.updateTime}:null;}
  function write(path,data,condition){return {update:{name:root+'/'+path,fields:pack(data).mapValue.fields},currentDocument:condition};}
