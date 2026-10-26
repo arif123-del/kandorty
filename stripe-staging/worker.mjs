@@ -29,7 +29,12 @@ export function createHandler(factory){return async(request,env)=>{
  try{
   // Hard fail closed: this implementation cannot switch to Live via an environment toggle.
   if(env.STRIPE_MODE!=='test'||!/^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||''))throw new Fault('test_key_required',503);
-  const base=new URL(env.STRIPE_TEST_SITE_URL);if(base.protocol!=='https:'||base.origin!==env.STRIPE_TEST_SITE_URL||['https://kandorty.online','https://www.kandorty.online'].includes(base.origin))throw new Fault('isolated_test_site_required',503);
+  // Default only to THIS isolated Workers.dev hostname; never accept a production/custom domain.
+  const host=new URL(request.url);
+  const standalone=/^kandorty-stripe-orders-test\\.[a-z0-9-]+\\.workers\\.dev$/.test(host.hostname);
+  const testSite=env.STRIPE_TEST_SITE_URL||(standalone?host.origin:'');
+  let base;try{base=new URL(testSite);}catch{throw new Fault('isolated_test_site_required',503);}
+  if(base.protocol!=='https:'||base.origin!==testSite||['https://kandorty.online','https://www.kandorty.online'].includes(base.origin))throw new Fault('isolated_test_site_required',503);
   // A standalone TEST-only payment page; never served on the production store.
   if(request.method==='GET' && new URL(request.url).origin===base.origin){
    if(path==='/'||path==='/test')return new Response(TEST_HTML,{
@@ -47,7 +52,7 @@ export function createHandler(factory){return async(request,env)=>{
   }
   if(request.method!=='POST')throw new Fault('method_not_allowed',405);
   if(!['/create-checkout-session','/verify-checkout-session','/webhook'].includes(path))throw new Fault('not_found',404);
-  const service=factory(env),raw=await boundedBody(request);
+  const service=factory({...env,STRIPE_TEST_SITE_URL:testSite}),raw=await boundedBody(request);
   if(path==='/webhook')return respond(await service.webhook(raw,request.headers.get('Stripe-Signature'),env.STRIPE_WEBHOOK_SECRET));
   let body;try{body=JSON.parse(raw);}catch{throw new Fault('invalid_json');}
   if(!body||typeof body!=='object'||Array.isArray(body))throw new Fault('invalid_json');
