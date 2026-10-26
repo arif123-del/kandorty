@@ -5,12 +5,12 @@ export function pack(v){if(v===null)return {nullValue:null};if(typeof v==='strin
 export function unpack(v){if('stringValue'in v)return v.stringValue;if('integerValue'in v)return Number(v.integerValue);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if('nullValue'in v)return null;if('arrayValue'in v)return(v.arrayValue.values||[]).map(unpack);return Object.fromEntries(Object.entries(v.mapValue?.fields||{}).map(([k,x])=>[k,unpack(x)]));}
 export function createStore(env,net=fetch){
  let account;try{account=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);}catch{throw new Fault('database_not_configured',503);}
+ // This candidate deliberately refuses the real store project, even with admin credentials.
+ if(!/^[a-z][a-z0-9-]{4,60}$/.test(env.STRIPE_TEST_PROJECT_ID||'')||env.STRIPE_TEST_PROJECT_ID==='kandorty-9378a'||account.project_id!==env.STRIPE_TEST_PROJECT_ID)throw new Fault('isolated_test_project_required',503);
  // Validate the staged JSON structure without ever logging or returning its secret fields.
  if(typeof account.private_key!=='string'||!account.private_key.includes('-----BEGIN PRIVATE KEY-----')||
     typeof account.client_email!=='string'||!account.client_email.endsWith('.iam.gserviceaccount.com'))
    throw new Fault('invalid_staging_service_account_json',503);
- // This candidate deliberately refuses the real store project, even with admin credentials.
- if(!/^[a-z][a-z0-9-]{4,60}$/.test(env.STRIPE_TEST_PROJECT_ID||'')||env.STRIPE_TEST_PROJECT_ID==='kandorty-9378a'||account.project_id!==env.STRIPE_TEST_PROJECT_ID)throw new Fault('isolated_test_project_required',503);
  const root=`projects/${env.STRIPE_TEST_PROJECT_ID}/databases/(default)/documents`;
  const snapPath=id=>`stripe_test_checkout_sessions/${id}`,orderPath=id=>`stripe_test_orders/${id}`;
  let cachedToken='',expiry=0;
