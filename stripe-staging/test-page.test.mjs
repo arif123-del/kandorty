@@ -30,3 +30,14 @@ test('staging UI cannot be served with Live Stripe key or production Firebase or
  assert.equal((await handler(req(),{...env,STRIPE_MODE:'live'})).status,503);
  assert.equal((await handler(req(),{...env,STRIPE_TEST_SITE_URL:'https://kandorty.online'})).status,503);
 });
+
+test('self-hosted Workers.dev test page works without optional site URL var',async()=>{
+ const origin='https://kandorty-stripe-orders-test.aliyajan200011.workers.dev';
+ const result=await handler(new Request(origin+'/test'),{STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_FAKEonly'});
+ assert.equal(result.status,200);
+ assert.match(await result.text(),/Sandbox Test/);
+ const bad=await handler(new Request('https://unrelated.workers.dev/test'),{STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_FAKEonly'});
+ assert.equal(bad.status,503);
+ const live=await handler(new Request('https://kandorty.online/test'),{STRIPE_MODE:'test',STRIPE_SECRET_KEY:'sk_test_FAKEonly'});
+ assert.equal(live.status,503);
+});
