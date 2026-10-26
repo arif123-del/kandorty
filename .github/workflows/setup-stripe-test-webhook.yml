@@ -26,9 +26,9 @@ jobs:
         run: |
           python3 - <<'PY'
           import os,json,re,urllib.request,urllib.parse,urllib.error,subprocess,sys
-          cf_key=os.environ.get('CLOUDFLARE_API_TOKEN','')
-          cf_account=os.environ.get('CLOUDFLARE_ACCOUNT_ID','')
-          stripe_key=os.environ.get('STRIPE_SANDBOX_SECRET_KEY','')
+          cf_key=os.environ.get('CLOUDFLARE_API_TOKEN','').strip()
+          cf_account=os.environ.get('CLOUDFLARE_ACCOUNT_ID','').strip()
+          stripe_key=os.environ.get('STRIPE_SANDBOX_SECRET_KEY','').strip()
           worker='kandorty-stripe-orders-test'
           if not stripe_key.startswith('sk_test_') or len(stripe_key)<16 or not cf_key or not cf_account:
               sys.exit('Missing test-only API permissions. No webhook attempted.')
