@@ -1,9 +1,10 @@
 import {createService,Fault} from './core.mjs';
 import {createStore} from './firestore.mjs';
 import {TEST_HTML,TEST_JS} from './test-page.mjs';
+// Stripe API requests use manual redirect handling; 3xx never follow with credentials.
 function stripeClient(key,net=fetch){
  async function api(path,params,idempotency){
-  const r=await net('https://api.stripe.com/v1/checkout/sessions'+path,{method:params?'POST':'GET',redirect:'error',headers:{Authorization:'Bearer '+key,'Stripe-Version':'2024-06-20',...(params?{'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':idempotency}:{})},...(params?{body:params}:{}),signal:AbortSignal.timeout(15000)});
+  const r=await net('https://api.stripe.com/v1/checkout/sessions'+path,{method:params?'POST':'GET',redirect:'manual',headers:{Authorization:'Bearer '+key,'Stripe-Version':'2024-06-20',...(params?{'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':idempotency}:{})},...(params?{body:params}:{}),signal:AbortSignal.timeout(15000)});
   if(!r.ok)throw new Fault('stripe_unavailable',502);return r.json();
  }
  return {
