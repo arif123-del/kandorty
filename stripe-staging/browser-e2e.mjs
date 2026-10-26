@@ -53,6 +53,14 @@ try {
   console.log('Visible field metadata (no values):',JSON.stringify(await visibleInputTypes()));
   throw Error('Stripe hosted TEST form fields could not be completed automatically');
  }
+ // Checkout may require both billing postal code and telephone, even for a fake TEST buyer.
+ for(const frame of page.frames()){
+  const country=frame.locator('select[name="billingCountry"], select[autocomplete="country"]').first();
+  try{if(await country.count()&&await country.isVisible())await country.selectOption('AE',{timeout:3000});}catch{}
+ }
+ const phone=await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]','input[type="tel"]'],'+971501234567',4000);
+ const postal=await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]','input[placeholder*="ZIP" i]'],'00000',4000);
+ console.log('TEST additional checkout phone / postal fields found:',phone,postal);
  const pay=page.locator('button[type="submit"]').filter({visible:true}).last();
  if(!(await pay.count()))throw Error('Stripe Sandbox Pay button unavailable');
  await pay.click({timeout:12000});
