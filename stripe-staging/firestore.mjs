@@ -20,7 +20,7 @@ export function createStore(env,net=fetch){
   const input=b64(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})))+'.'+b64(enc.encode(JSON.stringify({iss:account.client_email,scope:'https://www.googleapis.com/auth/datastore',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600})));
   let key;
   try {
-   const der=Uint8Array.from(atob(account.private_key.replace(/-----[^-]+-----/g,'').replace(/\\s/g,'')),x=>x.charCodeAt(0));
+   const der=Uint8Array.from(atob(account.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'')),x=>x.charCodeAt(0));
    key=await crypto.subtle.importKey('pkcs8',der,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
   } catch {
    throw new Fault('invalid_staging_private_key',503);
