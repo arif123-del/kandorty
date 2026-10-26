@@ -1,3 +1,4 @@
+# Repeat TEST browser checkout with redacted payment-form diagnostics.
 name: Stripe TEST browser end-to-end payment (Sandbox only)
 
 on:
