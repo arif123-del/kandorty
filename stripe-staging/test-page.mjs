@@ -1,5 +1,5 @@
 // Public isolated test page: only fake products and fake customer details; no live checkout.
-export const TEST_HTML = String.raw\`<!doctype html>
+export const TEST_HTML = String.raw`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kandorty Stripe TEST only</title>
 <style>body{font-family:system-ui,sans-serif;max-width:620px;margin:32px auto;padding:18px;color:#152234;line-height:1.5}
@@ -12,8 +12,8 @@ button:disabled{opacity:.55}p{margin:12px 0}.notice{border:2px solid #ba7b00;pad
 <button id="start" type="button">Open Sandbox checkout</button>
 <p id="status" role="status" aria-live="polite">Ready for a simulated payment.</p>
 <p>The store at kandorty.online is not connected to this staging page.</p>
-<script src="/test.js" defer></script></body></html>\`;
-export const TEST_JS = String.raw\`(() => {
+<script src="/test.js" defer></script></body></html>`;
+export const TEST_JS = String.raw`(() => {
   'use strict';
   const button = document.getElementById('start');
   const status = document.getElementById('status');
@@ -77,4 +77,4 @@ export const TEST_JS = String.raw\`(() => {
         .finally(() => {button.disabled = false;});
     }
   }
-})();\`;
+})();`;
