@@ -1,3 +1,4 @@
+# Repeat after staging credential validation hardening (TEST only).
 name: Stripe isolated TEST real-service checkout smoke test
 
 on:
