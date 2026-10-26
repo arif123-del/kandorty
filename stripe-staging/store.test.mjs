@@ -8,6 +8,7 @@ function fixture(){
  const docs=new Map(),commits=[];let version=0,conflict=false;
  const env={STRIPE_TEST_PROJECT_ID:'kandorty-test-fixture',FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({project_id:'kandorty-test-fixture',client_email:'test@kandorty-test-fixture.iam.gserviceaccount.com',private_key:privateKey})};
  const net=async(url,o)=>{
+  assert.equal(o.redirect,'manual','Workerd must never follow credential-bearing OAuth or Firestore redirects');
   if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'fake-test-only',expires_in:3600});
   assert.match(url,/projects\/kandorty-test-fixture\/databases\/\(default\)\/documents/);
   if(o.method==='GET'){const path=url.split('/documents/')[1],d=docs.get(path);return d?Response.json({fields:pack(d.data).mapValue.fields,updateTime:d.version}):new Response('',{status:404});}
