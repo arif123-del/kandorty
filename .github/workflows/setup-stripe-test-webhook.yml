@@ -1,0 +1,100 @@
+name: Configure Stripe Sandbox webhook on isolated TEST Worker (one-off)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/setup-stripe-test-webhook.yml
+
+permissions:
+  contents: read
+
+jobs:
+  create-test-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Create Stripe TEST webhook and save secret into isolated TEST Worker only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,re,urllib.request,urllib.parse,urllib.error,subprocess,sys
+          cf_key=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          cf_account=os.environ.get('CLOUDFLARE_ACCOUNT_ID','')
+          stripe_key=os.environ.get('STRIPE_SANDBOX_SECRET_KEY','')
+          worker='kandorty-stripe-orders-test'
+          if not stripe_key.startswith('sk_test_') or len(stripe_key)<16 or not cf_key or not cf_account:
+              sys.exit('Missing test-only API permissions. No webhook attempted.')
+          def query(url,method='GET',payload=None,headers=None):
+              body=urllib.parse.urlencode(payload,doseq=True).encode() if payload is not None else None
+              req=urllib.request.Request(url,data=body,method=method,headers=headers or {})
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as resp:
+                      return json.loads(resp.read(300000))
+              except urllib.error.HTTPError as e:
+                  raise RuntimeError('Provider rejected request (HTTP '+str(e.code)+')') from None
+          cf_headers={'Authorization':'Bearer '+cf_key}
+          stripe_headers={'Authorization':'Bearer '+stripe_key}
+          root='https://api.cloudflare.com/client/v4/accounts/'+cf_account
+          try:
+              sub=query(root+'/workers/subdomain',headers=cf_headers)
+              domain=sub.get('result',{}).get('subdomain','')
+              if not re.fullmatch(r'[a-z0-9-]{1,63}',domain):
+                  raise RuntimeError('Cloudflare account Workers subdomain unavailable.')
+              # Ensure this separate staging Worker actually exists before creating any endpoint.
+              check=query(root+'/workers/scripts',headers=cf_headers)
+              names=[w.get('id') for w in (check.get('result') or []) if isinstance(w,dict)]
+              if worker not in names:
+                  raise RuntimeError('Isolated test Worker not found in authorized Cloudflare account.')
+              url='https://'+worker+'.'+domain+'.workers.dev/webhook'
+              # Fail closed on an existing endpoint; its signing secret is only shown when created.
+              matching=[]
+              starting_after=None
+              for _ in range(10):
+                  path='https://api.stripe.com/v1/webhook_endpoints?limit=100'
+                  if starting_after:
+                      path+='&starting_after='+urllib.parse.quote(starting_after)
+                  listing=query(path,headers=stripe_headers)
+                  matching += [x for x in listing.get('data',[]) if x.get('url')==url]
+                  data=listing.get('data',[])
+                  if not listing.get('has_more') or not data: break
+                  starting_after=data[-1]['id']
+              if matching:
+                  raise RuntimeError('Matching Sandbox webhook already exists. Refusing to create a duplicate.')
+              created=query('https://api.stripe.com/v1/webhook_endpoints',method='POST',headers=stripe_headers,payload=[
+                  ('url',url),
+                  ('enabled_events[]','checkout.session.completed'),
+                  ('enabled_events[]','checkout.session.async_payment_succeeded'),
+                  ('description','Kandorty isolated Stripe TEST orders webhook')
+              ])
+              endpoint_id=created.get('id','')
+              secret=created.get('secret','')
+              if created.get('livemode') is not False or created.get('url')!=url or not secret.startswith('whsec_'):
+                  raise RuntimeError('Stripe did not return an expected TEST-only endpoint.')
+              # Pipe secret directly to Wrangler; never print, log, or commit the value.
+              result=subprocess.run(
+                  ['npx','--yes','wrangler@4','secret','put','STRIPE_WEBHOOK_SECRET','--name',worker],
+                  input=secret,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=150,
+                  env={**os.environ,'WRANGLER_SEND_METRICS':'false'}
+              )
+              if result.returncode != 0:
+                  # Stop the unused endpoint so it will not receive events without valid signature checking.
+                  try:
+                      req=urllib.request.Request('https://api.stripe.com/v1/webhook_endpoints/'+endpoint_id,method='DELETE',headers=stripe_headers)
+                      urllib.request.urlopen(req,timeout=25).close()
+                  except Exception:
+                      pass
+                  raise RuntimeError('Webhook secret installation failed; inspect Cloudflare access or clean up endpoint.')
+              print('Stripe TEST webhook configured for:',url)
+              print('TEST webhook signing secret installed on Cloudflare Worker:',worker)
+              print('Production, Kandorty website, Ziina and Live Stripe are unchanged.')
+          except Exception as e:
+              sys.exit(str(e))
+          PY
