@@ -6,7 +6,7 @@ if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const {privateKey}=generateKeyPairSync('rsa',{modulusLength:2048,privateKeyEncoding:{type:'pkcs8',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}});
 function fixture(){
  const docs=new Map(),commits=[];let version=0,conflict=false;
- const env={STRIPE_TEST_PROJECT_ID:'kandorty-test-fixture',FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({project_id:'kandorty-test-fixture',client_email:'test@example.invalid',private_key:privateKey})};
+ const env={STRIPE_TEST_PROJECT_ID:'kandorty-test-fixture',FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({project_id:'kandorty-test-fixture',client_email:'test@kandorty-test-fixture.iam.gserviceaccount.com',private_key:privateKey})};
  const net=async(url,o)=>{
   if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'fake-test-only',expires_in:3600});
   assert.match(url,/projects\/kandorty-test-fixture\/databases\/\(default\)\/documents/);
