@@ -18,6 +18,7 @@ jobs:
       - name: Report safe test-product field types, never contents or credentials
         run: |
           node <<'JS'
+          (async()=>{
           const crypto=require('node:crypto');
           const raw=process.env.STAGING_SERVICE_ACCOUNT;
           let a;try{a=JSON.parse(raw)}catch{console.log('No compatible GitHub test credential; cannot inspect fixture.');process.exit(0)}
@@ -42,4 +43,5 @@ jobs:
             console.log('Synthetic product field '+k+': '+type);
           }
           console.log('Read-only diagnostics complete. No raw field values or secrets output.');
+          })().catch(()=>{console.error('Test-only fixture inspection failed without exposing details.');process.exit(1)});
           JS
