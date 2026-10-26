@@ -3,7 +3,7 @@ import {createHash, sign} from 'node:crypto';
 
 const origin='https://kandorty-stripe-orders-test.aliyajan200011.workers.dev';
 if(!origin.includes('kandorty-stripe-orders-test.')||origin.includes('kandorty.online'))throw new Error('Not isolated');
-const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const browser=await chromium.launch({channel:'chrome',headless:true,args:['--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:840},locale:'en-US'});
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const cards=['4242 4242 4242 4242'];
