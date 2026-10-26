@@ -57,7 +57,21 @@ try {
  if(!(await pay.count()))throw Error('Stripe Sandbox Pay button unavailable');
  await pay.click({timeout:12000});
  console.log('Submitted Stripe TEST card, awaiting order confirmation...');
- await page.waitForURL(u=>u.origin===origin,{timeout:60000});
+ try{
+  await page.waitForURL(u=>u.origin===origin,{timeout:20000});
+ }catch{
+  console.log('Still on TEST payment provider host:',new URL(page.url()).hostname);
+  const alerts=[];
+  for(const frame of page.frames()){
+   const a=await frame.locator('[role="alert"],[aria-invalid="true"],.InputError,[data-testid*="error"]').evaluateAll(xs=>xs.map(x=>({kind:x.tagName,message:(x.textContent||'').slice(0,180),name:x.getAttribute('name'),invalid:x.getAttribute('aria-invalid')}))).catch(()=>[]);
+   alerts.push(...a);
+  }
+  console.log('Form alerts / invalid field names (no entered values):',JSON.stringify(alerts.slice(0,20)));
+  console.log('Visible Stripe button labels:',JSON.stringify((await page.locator('button').allTextContents()).map(x=>x.trim().slice(0,100)).filter(Boolean).slice(0,20)));
+  const text=(await page.locator('body').innerText().catch(()=>'')).replace(/4242(?:[ -]?4242){3}/g,'[TEST_CARD]').replace(/stripe-sandbox-test@example.com/g,'[TEST_EMAIL]');
+  console.log('Visible TEST checkout text (redacted):',text.slice(0,2200));
+  throw Error('TEST card checkout did not redirect, inspect safe form feedback');
+ }
  const status=page.locator('#status');
  await status.waitFor({timeout:30000});
  await page.waitForFunction(()=>document.querySelector('#status')?.textContent?.includes('order registered'),{timeout:45000});
