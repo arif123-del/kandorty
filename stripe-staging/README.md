@@ -39,7 +39,7 @@ Worker secrets:
 Worker vars:
 - `STRIPE_MODE=test` (required and hard guarded).
 - `STRIPE_TEST_PROJECT_ID`: isolated test project identifier.
-- `STRIPE_TEST_SITE_URL`: exact HTTPS origin of a separate test checkout page, no trailing slash/path. Production storefront origins are explicitly rejected.
+- `STRIPE_TEST_SITE_URL`: optional exact HTTPS origin for a separate test checkout page. If omitted, the Worker uses **only** its own `https://kandorty-stripe-orders-test.<account>.workers.dev` origin, where `<account>` is its actual deployed Cloudflare account subdomain. Production storefront origins and unrelated domains are rejected.
 
 The non-deploying CI reports presence only of optional repository secrets `STRIPE_SANDBOX_SECRET_KEY`, `STRIPE_SANDBOX_WEBHOOK_SECRET`, `STRIPE_TEST_SERVICE_ACCOUNT_JSON`. Do not paste secrets into code, logs, pull requests or chat. Presence is not proof of validity.
 
@@ -54,3 +54,13 @@ All Stripe/OAuth/Firestore calls in these tests are mocked. They do NOT replace 
 This candidate intentionally makes no stock writes or reservations, and writes no production `orders`, `tracking`, `order_edits` or `order_access`. It must not be enabled on the live storefront. Complete isolated real Sandbox checkout/webhook/Firestore tests first. Then review production Firestore rules, design and test atomic stock reservation/release and production order/tracking/account compatibility, and migrate the storefront card flow away from client order writes. COD and Ziina must stay compatible. Account UID is not accepted from the test client; production authenticated ownership needs verified Firebase ID tokens. Add abuse/rate limiting and operational reconciliation before release.
 
 Live remains blocked until those integration, authorization and inventory gates pass. Merely changing a key or mode variable cannot enable Live in this candidate.
+
+## October 27 continuation: isolated self-hosted Sandbox test page and deployment guard
+
+- Added `GET /test` (also `GET /`) plus `GET /test.js` on the isolated Workers.dev test origin. The page uses synthetic customer details, `test-product`, AED 10 + AED 25 delivery, random browser checkout token, Checkout redirect, server-side receipt verification, and no real payments. It must never be bound to `kandorty.online`.
+- Added `secrets.required` to `wrangler.jsonc`: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `FIREBASE_SERVICE_ACCOUNT_JSON`. Wrangler should refuse deploy if any is absent on the isolated Worker. Its public vars pin `STRIPE_MODE=test` and project ID `kandorty-stripe-test-5f8af`.
+- Created a separate manually triggered GitHub Actions workflow on main: `.github/workflows/deploy-stripe-orders-test.yml`. It checks out this draft branch, checks exact Worker name / test-only config, runs mocked tests, then deploys **only** the named test Worker with Cloudflare credentials in GitHub repository secrets. There is no automatic deployment and the main shop code remains unchanged.
+- Before manually deploying, securely configure secrets **on the isolated Cloudflare Worker**, not in chat or GitHub code. `FIREBASE_SERVICE_ACCOUNT_JSON` must contain the entire JSON downloaded from the dedicated staging service account with `project_id: kandorty-stripe-test-5f8af`. The Stripe API key must belong to the same Stripe Sandbox and start `sk_test_`.
+- On Stripe **Sandbox**, create an event destination pointing to `https://<actual staging Worker host>/webhook`. Subscribe to `checkout.session.completed` and `checkout.session.async_payment_succeeded`, then save that destination's signing secret as `STRIPE_WEBHOOK_SECRET` on the isolated Worker. Do not place a live webhook secret there.
+- Once configured, manually run the GitHub Actions workflow and visit the *actual* staging Worker `/test` URL. Complete only a Stripe Sandbox test payment. Verify **exactly one** document in `stripe_test_orders` and the associated `stripe_test_checkout_sessions` snapshot, check webhook delivery 2xx, repeat webhook delivery, and test completing without browser return. No production orders or stock changes.
+- The successful GitHub mocked unit tests do not prove a real Stripe/Firebase integration; do not merge this PR into production or switch Live keys before true end-to-end verification and final production security work.
