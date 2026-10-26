@@ -24,6 +24,6 @@ jobs:
       - name: Install browser automation for a TEST card only
         run: |
           npm install --no-save playwright@1.58.2
-          npx playwright install --with-deps chromium
+          google-chrome --version
       - name: Complete Sandbox checkout without live charges
         run: node stripe-staging/browser-e2e.mjs
