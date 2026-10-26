@@ -1,0 +1,48 @@
+name: Deploy Kandorty Stripe orders TEST (manual only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-stripe-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout draft staging code (never main storefront)
+        uses: actions/checkout@v4
+        with:
+          ref: stripe-security-audit
+          persist-credentials: false
+
+      - name: Refuse production project or mode, run full mock test suite
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const cfg = JSON.parse(fs.readFileSync('stripe-staging/wrangler.jsonc','utf8'));
+          assert.equal(cfg.name,'kandorty-stripe-orders-test');
+          assert.equal(cfg.main,'worker.mjs');
+          assert.equal(cfg.vars.STRIPE_MODE,'test');
+          assert.equal(cfg.vars.STRIPE_TEST_PROJECT_ID,'kandorty-stripe-test-5f8af');
+          assert.deepEqual([...cfg.secrets.required].sort(),
+            ['FIREBASE_SERVICE_ACCOUNT_JSON','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'].sort());
+          const w=fs.readFileSync('stripe-staging/worker.mjs','utf8');
+          const store=fs.readFileSync('stripe-staging/firestore.mjs','utf8');
+          assert.ok(w.includes("test_key_required"));
+          assert.ok(w.includes("sk_test_"));
+          assert.ok(store.includes("account.project_id!==env.STRIPE_TEST_PROJECT_ID"));
+          assert.ok(store.includes("env.STRIPE_TEST_PROJECT_ID==='kandorty-9378a'"));
+          console.log('TEST-ONLY fail-closed config verified, no keys printed.');
+          JS
+          node --test stripe-staging/*.test.mjs
+
+      - name: Deploy ONLY the existing isolated Stripe TEST Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: stripe-staging
+          command: deploy
