@@ -1,0 +1,70 @@
+name: Stripe staging backend smoke test (TEST only)
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/stripe-staging-smoke.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check staging UI, create Stripe TEST session and retry
+        env:
+          STRIPE_TEST_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os,sys,json,secrets,urllib.request,urllib.parse,urllib.error
+          base='https://kandorty-stripe-orders-test.aliyajan200011.workers.dev'
+          def call(path,body=None,headers=None):
+            method='POST' if body is not None else 'GET'
+            data=json.dumps(body).encode('utf-8') if body is not None else None
+            request=urllib.request.Request(base+path,method=method,data=data,headers={'Origin':base,**({'Content-Type':'application/json'} if body is not None else {}),**(headers or {})})
+            try:
+              with urllib.request.urlopen(request,timeout=25) as resp:
+                return resp.status,resp.read(60000)
+            except urllib.error.HTTPError as e:
+              return e.code,e.read(60000)
+          status,html=call('/test')
+          if status!=200 or b'Sandbox Test' not in html:
+            sys.exit('Staging HTML unreachable or incorrect. HTTP '+str(status))
+          print('Isolated staging /test page responds HTTP 200.')
+          status,js=call('/test.js')
+          if status!=200 or b'create-checkout-session' not in js:
+            sys.exit('Staging JS missing. HTTP '+str(status))
+          print('Staging UI script is available.')
+          token=secrets.token_hex(32)
+          checkout={'checkoutToken':token,'customer':{'name':'TEST ONLY','phone':'+971500000000','city':'Dubai','location':'TEST ADDRESS'},'items':[{'id':'test-product','qty':1,'imageIndex':0}],'note':''}
+          status,data=call('/create-checkout-session',checkout)
+          try: answer=json.loads(data)
+          except Exception: sys.exit('Checkout response is not JSON. HTTP '+str(status))
+          if status!=200:
+            error=answer.get('error','unknown') if isinstance(answer,dict) else 'unknown'
+            sys.exit('TEST checkout could not be created: HTTP '+str(status)+', error='+str(error)[:100])
+          sid=answer.get('id','')
+          url=answer.get('url','')
+          if not sid.startswith('cs_test_') or not url.startswith('https://checkout.stripe.com/') or answer.get('test') is not True:
+            sys.exit('Staging did not return a Stripe Sandbox Checkout session.')
+          print('Created a Stripe TEST Checkout session via the isolated Firestore product.')
+          status,again=call('/create-checkout-session',checkout)
+          try: retry=json.loads(again)
+          except Exception:sys.exit('Idempotency retry is not JSON.')
+          if status!=200 or retry.get('id')!=sid:
+            sys.exit('Duplicate prevention failed: retry returned different Checkout session.')
+          print('Retry reused the same TEST Stripe Checkout Session (idempotency confirmed).')
+          key=os.environ.get('STRIPE_TEST_KEY','').strip()
+          if not key.startswith('sk_test_'):sys.exit('GitHub Sandbox key missing for independent verification.')
+          req=urllib.request.Request('https://api.stripe.com/v1/checkout/sessions/'+urllib.parse.quote(sid),headers={'Authorization':'Bearer '+key})
+          try:
+            with urllib.request.urlopen(req,timeout=25) as response: session=json.load(response)
+          except Exception:sys.exit('Independent Stripe Sandbox Session verification failed.')
+          if session.get('livemode') is not False or session.get('currency')!='aed' or session.get('amount_total')!=3500 or session.get('payment_status')!='unpaid':
+            sys.exit('Stripe TEST Session amount, currency, mode or unpaid status incorrect.')
+          print('Stripe API confirmed Sandbox session: AED 35.00, unpaid, with delivery.')
+          print('No card charged, no live payment, no production orders.')
+          PY
