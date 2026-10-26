@@ -1,3 +1,4 @@
+# Confirm TEST order persistence after successful Sandbox card payment.
 name: Inspect isolated Stripe TEST fixture schema (read only)
 
 on:
