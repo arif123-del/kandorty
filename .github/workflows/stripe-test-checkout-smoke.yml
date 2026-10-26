@@ -1,3 +1,4 @@
+# TEST-only rerun after non-sensitive failure-phase instrumentation. No charges.
 # Repeat after staging credential validation hardening (TEST only).
 name: Stripe isolated TEST real-service checkout smoke test
 
