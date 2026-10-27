@@ -36,3 +36,17 @@ node --test stripe-live-candidate/*.test.mjs
 ```
 
 Do not create an automatic deploy for this branch.
+
+## Firestore rule review and Emulator results (2026-10-27)
+
+The user supplied the **complete current production Firestore Rules text**, which confirms that unauthenticated clients can decrease arbitrary product stock and anonymous users can create client-controlled `card` orders, including a forged `paymentStatus: 'paid'`. See `firestore-production-rules-audit.md`.
+
+A **future-state-only** comprehensive draft exists at `firestore.rules`, and `firestore.rules.test.mjs` tests it with the real Firestore Emulator using the fake project `demo-kandorty-stripe-rules-only`.
+
+- GitHub Actions run [40522126580](https://github.com/arif123-del/kandorty/actions/runs/40522126580): **23 passing Firestore Emulator tests, 0 failures**. No Firebase production project, Cloudflare credentials, secrets or LIVE Stripe keys were accessed.
+- This draft allows public catalog reads, denies all untrusted stock mutations, denies client card/COD order writes and privileged payment state changes, permits self-service verified-phone customer profiles, restricts order reads to admin/verified owners, and protects tracking/edit/access bearer documents.
+- **Compatibility warning:** this ruleset deliberately denies existing guest/COD order writes and guest tracking/edit access; it must NOT be published until server-side COD, Stripe, Ziina, app/site guest receipt access, and admin claim migration are implemented. Current administrator authentication is email-based; the new draft uses `request.auth.token.admin == true`, which requires an intentional Firebase custom claim provisioning and safe rollback.
+- This is an **isolated Emulator rules test**, not an end-to-end checkout/production authorization test. It does NOT authorize production rollout.
+- Run locally with Java 21 and Node 22, then `cd stripe-live-candidate`, `npm install --no-save firebase@13 @firebase/rules-unit-testing@6 firebase-tools@14`, and `./node_modules/.bin/firebase emulators:exec --project demo-kandorty-stripe-rules-only --only firestore 'node --test firestore.rules.test.mjs'`.
+
+**Next engineering gate:** Implement a secure COD server route and guest receipt/tracking endpoint (with per-order signed/bound receipt tokens and rate limiting), then test Stripe Sandbox, Ziina, Android and the storefront together against these rules in a separate production-shaped Firebase test project. Only after that should anyone consider publishing rules and moving Stripe to LIVE.
