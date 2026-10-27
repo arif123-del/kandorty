@@ -27,12 +27,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
       - name: Install emulator and isolated rules testing libraries
-        run: npm install --no-save firebase@12 @firebase/rules-unit-testing@6 firebase-tools@14
+        run: npm install --no-save firebase@13 @firebase/rules-unit-testing@6 firebase-tools@14
       - name: Run actual Firebase Rules emulator with fake project
         env:
           CI: 'true'
