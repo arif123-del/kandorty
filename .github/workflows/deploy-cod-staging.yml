@@ -1,0 +1,76 @@
+name: Isolated COD staging deploy and integration tests
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths: ['cod-staging/**', '.github/workflows/deploy-cod-staging.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kandorty-cod-isolated-staging
+  cancel-in-progress: false
+jobs:
+  cod-test-only:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      STRIPE_TEST_PROJECT_ID: kandorty-stripe-test-5f8af
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test candidate and staging endpoints before deployment
+        run: node --test cod-staging/*.test.mjs stripe-live-candidate/fulfillment.test.mjs stripe-live-candidate/cancellation.test.mjs stripe-live-candidate/atomic-commit.test.mjs stripe-live-candidate/cod.test.mjs stripe-live-candidate/cod-race.test.mjs
+      - name: Validate isolated destination and credentials without printing secrets
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          import {random} from './cod-staging/security.mjs';
+          const cfg=JSON.parse(fs.readFileSync('cod-staging/wrangler.jsonc','utf8'));
+          assert.equal(cfg.name,'kandorty-cod-orders-test');
+          assert.equal(cfg.vars.COD_MODE,'test');
+          assert.equal(cfg.vars.STRIPE_TEST_PROJECT_ID,'kandorty-stripe-test-5f8af');
+          assert.deepEqual(cfg.routes,[]);
+          assert.ok(process.env.CF_TOKEN&&process.env.CF_ACCOUNT,'Cloudflare repository authorization missing');
+          const sa=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON||'{}');
+          assert.equal(sa.project_id,'kandorty-stripe-test-5f8af','Isolated Firebase credential required');
+          assert.equal(sa.type,'service_account');assert.ok(sa.private_key);
+          for(const name of ['STAGING_ACCESS_SECRET','GUEST_RECEIPT_SECRET']){
+            const value=random(32);console.log('::add-mask::'+value);
+            fs.appendFileSync(process.env.GITHUB_ENV,name+'='+value+'\n');
+          }
+          console.log('Destination and credentials verified. Only COD TEST Worker will deploy.');
+          JS
+      - name: Record Stripe and Ziina TEST page baseline (read only)
+        run: node cod-staging/regression.mjs before
+      - name: Deploy only the new COD TEST Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cod-staging
+          command: deploy
+          secrets: |
+            FIREBASE_SERVICE_ACCOUNT_JSON
+            STAGING_ACCESS_SECRET
+            GUEST_RECEIPT_SECRET
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+          STAGING_ACCESS_SECRET: ${{ env.STAGING_ACCESS_SECRET }}
+          GUEST_RECEIPT_SECRET: ${{ env.GUEST_RECEIPT_SECRET }}
+      - name: Real COD and guest tracking integration against isolated Firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: node cod-staging/smoke.mjs
+      - name: Confirm Stripe and Ziina TEST pages unchanged (read only)
+        if: always()
+        run: node cod-staging/regression.mjs after

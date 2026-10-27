@@ -88,11 +88,11 @@ export function normalizeCodRequest(input){
  */
 export async function prepareCodOrder({
  request,projectId,orderId,editToken,accessKey,products,
- nowISO,existingIntent=null,existingOrder=null,verifiedIdentity=null
+ nowISO,testOnly=false,existingIntent=null,existingOrder=null,verifiedIdentity=null
 }){
  const normalized=normalizeCodRequest(request);
  check(/^[a-z][a-z0-9-]{4,60}$/.test(projectId||'')&&
-       projectId!=='kandorty-stripe-test-5f8af','invalid_project');
+       (testOnly ? projectId==='kandorty-stripe-test-5f8af' : projectId!=='kandorty-stripe-test-5f8af'),'invalid_project');
  check(/^KD-[0-9]{8}$/.test(orderId||''),'invalid_order_id');
  check(/^[a-f0-9]{48}$/.test(editToken||''),'invalid_server_edit_token');
  check(typeof nowISO==='string'&&!Number.isNaN(Date.parse(nowISO)),'invalid_timestamp');
