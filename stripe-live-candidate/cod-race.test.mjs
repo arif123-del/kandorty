@@ -71,7 +71,7 @@ test('concurrent distinct COD orders competing for the last stock unit cannot ov
   return prepareCodOrder({
    request:{checkoutToken:token,customer,items:[{id:'dressA',qty:1}]},
    orderId,projectId:'kandorty-production-shape',
-   editToken:'c'.repeat(48),accessKey:await sha(orderId+'|'+customer.phone.replace(/\D/g,'')),
+   editToken:orderId.endsWith('78')?'c'.repeat(48):'d'.repeat(48),accessKey:await sha(orderId+'|'+customer.phone.replace(/\D/g,'')),
    nowISO:'2026-10-27T15:01:00.000Z',
    products:{dressA:{data:p.data,updateTime:p.updateTime}}
   });
