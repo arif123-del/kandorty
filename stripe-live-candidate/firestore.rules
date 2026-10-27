@@ -1,0 +1,87 @@
+rules_version = '2';
+
+// Kandorty FUTURE STATE. DO NOT PUBLISH TO LIVE FIREBASE.
+// Requires: server-side COD and Stripe order writes, authenticated admin custom claim,
+// server-owned tracking and guest receipt/edit APIs, Ziina and Android compatibility.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.admin == true;
+    }
+    function isPhoneOwner(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.phone_number is string;
+    }
+    function validCustomerProfile(uid) {
+      return isPhoneOwner(uid)
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'location', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['name', 'phone', 'location', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.location is string
+        && request.resource.data.updatedAt is string
+        && request.resource.data.phone == request.auth.token.phone_number;
+    }
+    function validNewsletter() {
+      return request.resource.data.keys().hasOnly(['email', 'createdAt', 'source'])
+        && request.resource.data.keys().hasAll(['email', 'createdAt', 'source'])
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.createdAt is string
+        && request.resource.data.source == 'website';
+    }
+    function ownsOrder() {
+      return request.auth != null
+        && resource.data.keys().hasAny(['customerUid'])
+        && resource.data.customerUid == request.auth.uid;
+    }
+
+    match /products/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /customers/{uid} {
+      allow get: if isAdmin() || isPhoneOwner(uid);
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() || validCustomerProfile(uid);
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow get, list: if isAdmin() || ownsOrder();
+      // Server-created card and COD orders: never allow client-paid flags/stock changes.
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /tracking/{orderId} {
+      // Do not expose status/PII by guessing a public order ID.
+      // Guest tracking must go through an authenticated server-held receipt token.
+      allow get, list, create, update, delete: if isAdmin();
+    }
+
+    match /order_edits/{editToken} {
+      // Bearer-token documents contain customer PII. Server will mediate guest access.
+      allow get, list, create, update, delete: if isAdmin();
+    }
+
+    match /order_access/{accessKey} {
+      allow get, list, create, update, delete: if isAdmin();
+    }
+
+    match /newsletter_subscribers/{id} {
+      allow create: if validNewsletter();
+      allow get, list, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
