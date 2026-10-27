@@ -1,0 +1,38 @@
+# Kandorty Stripe LIVE server-side fulfillment candidate — NOT DEPLOYABLE
+
+**Status:** draft review only. This branch does not include a production Worker entrypoint, Wrangler config, Firebase credential, payment-mode switch, GitHub deploy workflow or change to `index.html`/`admin.html`. It must not be deployed or merged until every release gate below is met. The existing Stripe Sandbox Worker in `stripe-security-audit` remains isolated.
+
+## Findings from production storefront read-only audit
+
+1. `index.html` currently creates Checkout from browser items then stores a complete client-authored order in `localStorage`. After redirect to `?stripe=success`, the browser verifies payment and calls `submitCustomerOrder`; no browser return means no guaranteed creation of a Firestore `orders` document or inventory decrement.
+2. `saveOrderWithStock` is a client-side Firestore transaction that reads products, decrements stock and **uses `tx.set(orderRef, order)` without an exists=false check**. Repeated submission under the same order ID can double-decrement inventory.
+3. The client currently determines `order.paymentStatus='paid'` and populates `order.customerUid` without a dedicated server-side signed-Stripe webhook fulfillment path. Production Firestore security rules are **not present in this repository** and MUST be independently inspected before relying on any client-write restrictions.
+4. `tracking`, `order_edits` and `order_access` are separate follow-up writes after the stock/order commit, creating partially registered orders on intermittent failures.
+5. Stock restoration on customer cancellation in the existing storefront/admin uses the order item quantities and could erroneously increment stock for an already-paid order that never debited inventory. It must be migrated to use server-recorded `stockDebits` before any switch.
+6. Cash-on-delivery also uses the browser stock transaction. Tightening Firestore product/order write rules to protect Stripe MUST NOT break COD. The separate Ziina flows must be regression-tested.
+
+## Implemented in this branch (pure mock-tested functions only)
+
+- `fulfillment.mjs` validates server-retrieved LIVE Stripe Checkout Session and immutable Firestore snapshot (mode, status, currency, amount, metadata, ID binding), then builds **a single atomic Firestore `documents:commit` plan** for order, tracking, order_edits, order_access, checkout marker and managed-stock decrements. No browser price/paid flag is trusted. Each write has create-only or document updateTime preconditions.
+- The order includes `stockDebits` (exact inventory actually reduced), `inventoryStatus` and a server-generated edit token, and only includes `customerUid` if backed by verified server-issued auth. Paid but no-longer-in-stock orders are recorded as `needs_review` without any stock change; they need explicit refund/backorder operations.
+- `cancellation.mjs` plans an atomic, exactly-once cancellation stock restore using *only* `stockDebits`. Do not wire it to public clients; the real production cancellation flow and authorizations must be reviewed.
+- 24 mocked/unit tests cover exact charge binding, atomic preconditions, duplicate webhook replay, concurrent webhook race, inventory shortage, untracked stock, and cancellation replay. **These are not live-service integration tests**.
+
+## Production release blockers — ALL must be closed
+
+1. **Server-only checkout and signed webhook:** deploy a separately reviewed production Worker supporting test-to-LIVE migration, Stripe signature check on exact raw body, Stripe API re-retrieval, allowlisted domains, auth and rate limits, idempotent response and bounded retries.
+2. **Server snapshot and stock handling:** create immutable priced snapshot using production Firestore data. Introduce atomic checkout reservations with cancel/expire release **or** a funded-order `needs_review` handling/alert/refund process. Reconcile abandoned Checkout Sessions and asynchronous outcomes.
+3. **Authorizations:** independently audit actual production Firebase Security Rules. Only a tightly authenticated server may mark a card order `paid`, fulfill a Stripe order, or mutate stock for Stripe; users cannot forge `customerUid`, order ownership, receipts, cancel marker or refunds. Preserve authenticated/guest orders without exposing customer PII.
+4. **COD + Ziina compatibility:** migrate COD stock writes to a secure backend or design Firestore rules that enforce stock constraints without trusting customer amounts/status (not trivial). Validate Ziina's own fulfillment and do not change it without review.
+5. **Edit/cancel paths:** update the production customer app, mobile app, and admin UI to use `stockDebits` for restorations. Require status authorization and guard canceled/refunded/payment processing races. Prevent modifications to server-paid order amounts and customer identity.
+6. **Customer UX:** server receipt uses authenticated ownership after verifying ID tokens; the guest flow must use a separate secure, bound receipt token; do not trust session_id in the URL alone. Handle payment when the customer never returns.
+7. **Integration/regression tests:** run isolated, actual Stripe Sandbox Checkout + signed webhook delivery and duplicates in a production-shaped *test* Firestore database, compare stock quantities, ensure one paid order, tracking, edit records and customer access. Test delayed webhooks, stale sessions, price tampering, out-of-stock, one missing document and 5xx responses.
+8. **Operational safety:** backup Firestore, review IAM and secrets, alert on paid-unfulfilled orders, reconcile Stripe vs Firestore daily, audit logs without PII/credentials, design rollbacks, set up Stripe Live webhook only after successful dry-run. No production data test writes.
+9. **Go-live approval:** perform an explicit rollout review and confirm with the user before any Live key, Cloudflare route, website, Firestore rules or production database change.
+
+## Safe commands
+```bash
+node --test stripe-live-candidate/*.test.mjs
+```
+
+Do not create an automatic deploy for this branch.
