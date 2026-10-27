@@ -82,3 +82,10 @@ test('finalize API refuses client paid evidence and unknown checkout tokens',asy
  assert.equal((await run(http('/payments/stripe/finalize',{checkoutToken:'c'.repeat(64),paymentStatus:'paid'}),env)).status,400);
  assert.equal((await run(http('/payments/stripe/finalize',{checkoutToken:'c'.repeat(64)}),env)).status,404);
 });
+test('copied secret whitespace is normalized without accepting Live keys',async()=>{
+ const store=memoryStore(),s=await setup(store,'stripe');s.snapshot.verificationEvidence='provider_api';
+ const p=await retrievePayment({STRIPE_SECRET_KEY:'  sk_test_example\n'},s.snapshot,async(url,opts)=>{
+  assert.equal(opts.headers.Authorization,'Bearer sk_test_example');return Response.json(s.payment);
+ });assert.equal(p.id,s.payment.id);
+ await assert.rejects(retrievePayment({STRIPE_SECRET_KEY:' sk_live_example\n'},s.snapshot),/stripe_test_key_required/);
+});

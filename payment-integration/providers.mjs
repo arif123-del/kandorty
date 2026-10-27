@@ -25,13 +25,15 @@ export async function retrievePayment(env,s,net=fetch){
  if(s.verificationEvidence!=='provider_api')throw new Fault('real_provider_evidence_required',409);
  let url,key;
  if(s.provider==='stripe'){
-  if(!/^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||''))throw new Fault('stripe_test_key_required',503);
+  key=String(env.STRIPE_SECRET_KEY||'').trim();
+  if(!/^sk_test_[A-Za-z0-9_]+$/.test(key))throw new Fault('stripe_test_key_required',503);
   if(!/^pi_[A-Za-z0-9]+$/.test(s.paymentId||''))throw new Fault('invalid_payment_id');
-  url='https://api.stripe.com/v1/payment_intents/'+s.paymentId;key=env.STRIPE_SECRET_KEY;
+  url='https://api.stripe.com/v1/payment_intents/'+s.paymentId;
  }else if(s.provider==='ziina'){
-  if(!env.ZIINA_TEST_API_KEY)throw new Fault('ziina_test_key_required',503);
+  key=String(env.ZIINA_TEST_API_KEY||'').trim();
+  if(!key)throw new Fault('ziina_test_key_required',503);
   if(!/^[a-zA-Z0-9_-]{10,160}$/.test(s.paymentId||''))throw new Fault('invalid_payment_id');
-  url='https://api-v2.ziina.com/api/payment_intent/'+s.paymentId;key=env.ZIINA_TEST_API_KEY;
+  url='https://api-v2.ziina.com/api/payment_intent/'+s.paymentId;
  }else throw new Fault('unknown_provider');
  const r=await net(url,{headers:{Authorization:'Bearer '+key},redirect:'manual',signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw new Fault('provider_verification_unavailable',503);
