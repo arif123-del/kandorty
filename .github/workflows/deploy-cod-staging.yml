@@ -2,7 +2,7 @@ name: Isolated COD staging deploy and integration tests
 on:
   push:
     branches: [stripe-live-fulfillment-hardening]
-    paths: ['cod-staging/**', '.github/workflows/deploy-cod-staging.yml']
+    paths: ['cod-staging/**', 'payment-integration/**', '.github/workflows/deploy-cod-staging.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test candidate and staging endpoints before deployment
-        run: node --test cod-staging/*.test.mjs stripe-live-candidate/fulfillment.test.mjs stripe-live-candidate/cancellation.test.mjs stripe-live-candidate/atomic-commit.test.mjs stripe-live-candidate/cod.test.mjs stripe-live-candidate/cod-race.test.mjs
+        run: node --test payment-integration/*.test.mjs cod-staging/*.test.mjs stripe-live-candidate/fulfillment.test.mjs stripe-live-candidate/cancellation.test.mjs stripe-live-candidate/atomic-commit.test.mjs stripe-live-candidate/cod.test.mjs stripe-live-candidate/cod-race.test.mjs
       - name: Validate isolated destination and credentials without printing secrets
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
@@ -61,16 +61,36 @@ jobs:
           command: deploy
           secrets: |
             FIREBASE_SERVICE_ACCOUNT_JSON
+            STRIPE_SECRET_KEY
             STAGING_ACCESS_SECRET
             GUEST_RECEIPT_SECRET
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
           STAGING_ACCESS_SECRET: ${{ env.STAGING_ACCESS_SECRET }}
           GUEST_RECEIPT_SECRET: ${{ env.GUEST_RECEIPT_SECRET }}
       - name: Real COD and guest tracking integration against isolated Firebase
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
         run: node cod-staging/smoke.mjs
+      - name: Real test Firestore cross-provider races (simulated provider evidence)
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: node payment-integration/firestore-smoke.mjs
+      - name: Real Stripe Sandbox payment and deployed COD shared-stock integration
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+        run: node payment-integration/stripe-smoke.mjs
+      - name: Record Ziina real-provider blocker accurately
+        env:
+          ZIINA_TEST_API_KEY: ${{ secrets.ZIINA_TEST_API_KEY }}
+        run: |
+          if [ -z "$ZIINA_TEST_API_KEY" ]; then
+            echo 'BLOCKED: real Ziina API integration needs repository secret ZIINA_TEST_API_KEY. Simulated evidence is not a real payment test.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Ziina credential present; real hosted test payment must still be verified before claiming completion.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Confirm Stripe and Ziina TEST pages unchanged (read only)
         if: always()
         run: node cod-staging/regression.mjs after

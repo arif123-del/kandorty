@@ -19,3 +19,7 @@ Workflow performs real test-project COD create/retry/last-stock race, atomic com
 ## Remaining gates
 
 Migrate and test all payment paths against a common isolated inventory/receipt model, including Stripe paid webhook and Ziina Sandbox paid webhook, replay, failed/out-of-stock payment recovery, customer cancellation and admin authorization. User explicitly prohibits changing Ziina, activating Stripe LIVE, changing kandorty.online or publishing production rules. Keep PR draft.
+
+## Shared settlement extension
+
+`payment-integration/` adds private Stripe/Ziina finalization and card guest tracking using the same isolated orders/products collections. Read its README for separate evidence levels and the missing Ziina repository credential. The original COD smoke checks are still run. No original provider Worker or storefront is changed.

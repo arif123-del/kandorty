@@ -75,3 +75,15 @@ test('uncertain commit timeout safely recovers on same-token retry',async()=>{
  assert.equal((await f.run(f.request(f.input()),f.e)).status,200);
  assert.equal(f.commits(),1);assert.equal(f.rows.get('products/p1').data.stock,4);
 });
+test('same-token last-unit request straddling another commit recovers instead of false sold-out',async()=>{
+ const f=fixture(1),get=f.store.get;let inject=true;
+ f.store.get=async path=>{
+  const old=await get(path);
+  if(inject&&path.startsWith('cod_checkout_intents/')){
+   inject=false;assert.equal((await f.run(f.request(f.input()),f.e)).status,201);
+  }
+  return old;
+ };
+ const r=await f.run(f.request(f.input()),f.e);assert.equal(r.status,200);assert.equal((await r.json()).replay,true);
+ assert.equal(f.commits(),1);assert.equal(f.rows.get('products/p1').data.stock,0);
+});
