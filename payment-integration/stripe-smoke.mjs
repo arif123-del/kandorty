@@ -19,7 +19,8 @@ await store.commit([store.write('products/'+id,{price:10,stock:2,totalStock:2,na
 const req=request(id),s=await pricedSnapshot(store,req,'stripe');
 const p=await stripe('',{amount:String(s.totalFils),currency:'aed','payment_method_types[]':'card','metadata[checkout_id]':s.checkoutId,'metadata[order_id]':s.orderId});
 assert.equal(p.livemode,false);await bindPayment(store,s,p);
-assert.equal((await call('/payments/stripe/finalize',{checkoutToken:req.checkoutToken})).status,409,'unpaid must not fulfill');
+const unpaid=await call('/payments/stripe/finalize',{checkoutToken:req.checkoutToken});
+assert.equal(unpaid.status,409,'unpaid must not fulfill; safe error code='+String(unpaid.body.error||'none'));
 assert.equal((await store.get('products/'+id)).data.stock,2);
 const paid=await stripe('/'+p.id+'/confirm',{payment_method:'pm_card_visa'});
 assert.equal(paid.livemode,false);assert.equal(paid.status,'succeeded');
