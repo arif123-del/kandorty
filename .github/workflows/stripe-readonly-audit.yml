@@ -1,0 +1,32 @@
+name: Stripe read-only preflight
+on:
+  push:
+    branches: [stripe-security-audit]
+    paths: ['stripe-audit/**', '.github/workflows/stripe-readonly-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check report privacy and fail-closed output
+        run: python3 -m unittest discover -s stripe-audit -v
+      - name: Reproduce deployed payment findings with mocked network
+        run: node --test stripe-audit/payment-audit.test.mjs
+      - name: Read Stripe Worker metadata without deploying
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python3 stripe-audit/preflight.py
+      - name: Save encrypted source for private review
+        uses: actions/upload-artifact@v4
+        with:
+          name: stripe-review-encrypted
+          path: stripe-review-encrypted/source.json
+          retention-days: 1
+          if-no-files-found: error

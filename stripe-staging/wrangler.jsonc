@@ -1,0 +1,17 @@
+{
+  "name": "kandorty-stripe-orders-test",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "vars": {
+    "STRIPE_MODE": "test",
+    "STRIPE_TEST_PROJECT_ID": "kandorty-stripe-test-5f8af"
+  },
+  "secrets": {
+    "required": [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "FIREBASE_SERVICE_ACCOUNT_JSON"
+    ]
+  }
+}
