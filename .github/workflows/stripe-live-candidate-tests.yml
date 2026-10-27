@@ -25,4 +25,4 @@ jobs:
           test ! -e stripe-live-candidate/wrangler.toml
           echo "Safety: no Cloudflare deployment, no live keys, no production database reads/writes."
       - name: Atomic order, stock and idempotency unit tests
-        run: node --test stripe-live-candidate/*.test.mjs
+        run: node --test stripe-live-candidate/fulfillment.test.mjs stripe-live-candidate/cancellation.test.mjs stripe-live-candidate/atomic-commit.test.mjs
