@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kandorty Stripe TEST ONLY</title><style>body{font:18px system-ui;max-width:640px;margin:3rem auto;padding:1rem}input,button{display:block;padding:12px;margin:12px 0;width:100%;box-sizing:border-box}pre{white-space:pre-wrap}</style><h1>Kandorty — TEST ONLY</h1><p>Isolated Stripe Sandbox checkout. Synthetic orders only. No real charges.</p><label>Private staging access<input id="gate" type="password" autocomplete="off"></label><label>Test product ID<input id="product" autocomplete="off"></label><button id="start">Pay AED 35 in Sandbox</button><button id="refresh">Check my order</button><pre id="status" role="status"></pre><script type="module">
+import {stripeCheckoutClient} from './browser-client.mjs';
+const status=document.querySelector('#status'),gate=document.querySelector('#gate'),product=document.querySelector('#product');
+gate.value=sessionStorage.getItem('stripe_test_gate')||'';product.value=sessionStorage.getItem('stripe_test_product')||'';
+const client=stripeCheckoutClient({endpoint:location.origin,storage:localStorage});
+async function refresh(){try{const r=await client.status(gate.value);status.textContent=r.paid?'Order registered: '+r.order.id+' | '+r.order.inventoryStatus:'Payment pending';}catch(e){status.textContent=e.message;}}
+document.querySelector('#refresh').onclick=refresh;
+document.querySelector('#start').onclick=async()=>{try{sessionStorage.setItem('stripe_test_gate',gate.value);sessionStorage.setItem('stripe_test_product',product.value);const r=await client.start({stagingKey:gate.value,customer:{name:'SYNTHETIC TEST',phone:'+971500000000',city:'Dubai',location:'TEST ONLY'},items:[{id:product.value,qty:1}]});if(r.url)location.assign(r.url);else await refresh();}catch(e){status.textContent=e.message;}};
+if(new URLSearchParams(location.search).get('stripe')==='success')refresh();
+</script></html>

@@ -1,0 +1,58 @@
+name: Stripe release isolated Sandbox deployment and hosted payment
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths: ['stripe-release/**', '.github/workflows/stripe-release-sandbox.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kandorty-stripe-release-test
+  cancel-in-progress: false
+jobs:
+  sandbox-only:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      STRIPE_MODE: test
+      FIREBASE_PROJECT_ID: kandorty-stripe-test-5f8af
+      LIVE_RELEASE_APPROVAL: NOT_APPROVED
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test stripe-release/*.test.mjs stripe-live-candidate/fulfillment.test.mjs stripe-live-candidate/cancellation.test.mjs stripe-live-candidate/atomic-commit.test.mjs stripe-live-candidate/cod.test.mjs stripe-live-candidate/cod-race.test.mjs
+      - name: Provision only dedicated Sandbox endpoint and test secrets
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: node stripe-release/provision-test.mjs
+      - name: Deploy only separate Stripe release TEST Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: stripe-release
+          command: deploy --config wrangler.test.json
+          secrets: |
+            FIREBASE_SERVICE_ACCOUNT_JSON
+            STRIPE_SECRET_KEY
+            STRIPE_WEBHOOK_SECRET
+            STRIPE_RECEIPT_SECRET
+            STAGING_ACCESS_SECRET
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+          STRIPE_SECRET_KEY: ${{ env.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ env.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_RECEIPT_SECRET: ${{ env.STRIPE_RECEIPT_SECRET }}
+          STAGING_ACCESS_SECRET: ${{ env.STAGING_ACCESS_SECRET }}
+      - name: Install Sandbox browser test dependency
+        run: npm install --no-save playwright@1.58.2
+      - name: Real hosted Sandbox payment, webhook-only fulfillment and guest return
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: node stripe-release/sandbox-e2e.mjs

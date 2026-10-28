@@ -11,7 +11,11 @@ export function handler(factories={}){return async(request,env)=>{
  const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
  try{
   const cfg=releaseConfig(env),url=new URL(request.url),origin=request.headers.get('Origin');
-  if(url.protocol!=='https:'||url.hostname!==cfg.host||url.search)throw new Fault('invalid_endpoint',403);
+  if(url.protocol!=='https:'||url.hostname!==cfg.host)throw new Fault('invalid_endpoint',403);
+  if(!cfg.live&&request.method==='GET'&&['/','/index.html','/browser-client.mjs'].includes(url.pathname)&&env.ASSETS){
+   const response=await env.ASSETS.fetch(request);const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('Referrer-Policy','no-referrer');h.set('X-Content-Type-Options','nosniff');return new Response(response.body,{status:response.status,headers:h});
+  }
+  if(url.search)throw new Fault('invalid_endpoint',403);
   const isWebhook=url.pathname==='/webhook';
   if(!isWebhook){
    if(!cfg.origins.includes(origin))throw new Fault('origin_forbidden',403);
@@ -31,7 +35,8 @@ export function handler(factories={}){return async(request,env)=>{
    const session=body.data?.object;
    if(session?.metadata?.integration!=='kandorty-stripe-v1')return reply({received:true,ignored:true});
    if(!/^[a-f0-9]{64}$/.test(session.metadata?.checkout_id||''))throw new Fault('invalid_checkout',400);
-   await service.fulfill(session.metadata.checkout_id,session.id);
+   const settled=await service.fulfill(session.metadata.checkout_id,session.id);
+   await store.commit([store.write('stripe_webhook_receipts/'+session.metadata.checkout_id,{sessionId:session.id,paid:settled.paid,verifiedAt:new Date().toISOString()})]);
    return reply({received:true});
   }
   if(url.pathname==='/create-checkout-session'){

@@ -20,3 +20,6 @@ test('changed cart does not silently replace a pending payment receipt',async()=
  await c.start({customer:{},items:[{id:'p1',qty:1}]});
  await assert.rejects(c.start({customer:{},items:[{id:'p1',qty:2}]}),/pending_checkout_changed/);
 });
+test('deployed test browser adapter is identical to reviewed client',async()=>{
+ const fs=await import('node:fs/promises');assert.equal(await fs.readFile(new URL('./public/browser-client.mjs',import.meta.url),'utf8'),await fs.readFile(new URL('./browser-client.mjs',import.meta.url),'utf8'));
+});

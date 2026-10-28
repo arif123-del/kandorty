@@ -16,7 +16,7 @@ function fixture(stock=5,live=false){
  const put=(path,data)=>rows.set(path,{data,version:'2026-10-28T00:00:00.'+String(++v).padStart(6,'0')+'Z'});
  put('products/p1',{nameAr:'Dress',price:10,stock,totalStock:stock});
  const store={root,rows,put,get:async p=>structuredClone(rows.get(p)||null),write:(path,data,currentDocument)=>({update:{name:root+'/'+path,fields:pack(data).mapValue.fields},currentDocument}),pending:async()=>[...rows].filter(([p,v])=>p.startsWith('stripe_checkout_sessions/')&&v.data.reconcilePending).map(([,v])=>structuredClone(v.data)),commit:async writes=>{
-  for(const w of writes){const p=w.update.name.split('/documents/')[1],old=rows.get(p),c=w.currentDocument;if(c.exists===false&&old||c.updateTime&&c.updateTime!==old?.version)throw new Fault('write_conflict',409);}
+  for(const w of writes){const p=w.update.name.split('/documents/')[1],old=rows.get(p),c=w.currentDocument||{};if(c.exists===false&&old||c.updateTime&&c.updateTime!==old?.version)throw new Fault('write_conflict',409);}
   for(const w of writes){const p=w.update.name.split('/documents/')[1],data=unpack({mapValue:{fields:w.update.fields}});put(p,w.updateMask?{...rows.get(p).data,...data}:data);}
  }};
  const sessions=new Map();
@@ -139,4 +139,10 @@ test('LIVE-mode branch is exercised only against mock services with strict live 
 });
 test('LIVE checkout fails closed without verified Turnstile and cannot use a test staging bypass',async()=>{
  const f=fixture(5,true);const res=await f.run(f.http('/create-checkout-session',input()),f.env);assert.equal(res.status,403);assert.equal(f.sessions.size,0);
+});
+test('test storefront assets are isolated; Live never serves private staging UI',async()=>{
+ const f=fixture();f.env.ASSETS={fetch:async()=>new Response('TEST ONLY')};
+ const r=await f.run(new Request(base+'/?stripe=success'),f.env);assert.equal(r.status,200);assert.equal(await r.text(),'TEST ONLY');assert.equal(r.headers.get('Cache-Control'),'no-store');
+ const live=fixture(5,true);live.env.ASSETS=f.env.ASSETS;
+ assert.notEqual((await live.run(new Request('https://'+live.cfg.host+'/'),live.env)).status,200);
 });

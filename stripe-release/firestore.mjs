@@ -7,7 +7,7 @@ export function unpack(v){if('stringValue'in v)return v.stringValue;if('integerV
 export function createStore(env,net=fetch){
  const cfg=releaseConfig(env);
  let account;try{account=JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);}catch{throw new Fault('database_not_configured',503);}
- // This candidate deliberately refuses the real store project, even with admin credentials.
+ // Credentials must match the explicitly gated test/live project.
  if(account.project_id!==cfg.projectId)throw new Fault('isolated_test_project_required',503);
  // Validate the staged JSON structure without ever logging or returning its secret fields.
  if(typeof account.private_key!=='string'||!account.private_key.includes('-----BEGIN PRIVATE KEY-----')||
