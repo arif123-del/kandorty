@@ -18,10 +18,7 @@ const page=await browser.newPage({locale:'en-US'});
 // Prevent the success page status call from doing fulfillment: webhook must register the order alone.
 await page.route(base+'/checkout/status',r=>r.abort());
 async function fillAny(selectors,value,wait=12000){const end=Date.now()+wait;while(Date.now()<end){for(const f of page.frames())for(const sel of selectors){const el=f.locator(sel).first();try{if(await el.count()&&await el.isVisible()){await el.fill(value,{timeout:1500});return true;}}catch{}}await pause(250);}return false;}
-try{
- await page.goto(base,{waitUntil:'domcontentloaded'});assert.ok(await page.getByText('TEST ONLY',{exact:false}).count());
- await page.locator('#gate').fill(process.env.STAGING_ACCESS_SECRET);await page.locator('#product').fill(product);await page.locator('#start').click();
- await page.waitForURL(u=>u.hostname==='checkout.stripe.com',{timeout:45000});
+async function payHosted(){
  assert.ok(await fillAny(['input[name="email"]','input[type="email"]','input[autocomplete="email"]'],'stripe-release-test@example.com',7000),'Sandbox email required');
  assert.ok(await fillAny(['input[name="cardNumber"]','input[autocomplete="cc-number"]'],'4242424242424242'));
  assert.ok(await fillAny(['input[name="cardExpiry"]','input[autocomplete="cc-exp"]'],'1230'));
@@ -40,6 +37,12 @@ try{
   console.log('Sandbox submit labels:',JSON.stringify(await page.locator('button[type=submit]').allTextContents()));
   throw new Error('Sandbox hosted form did not return; inspect field metadata only');
  }
+}
+try{
+ await page.goto(base,{waitUntil:'domcontentloaded'});assert.ok(await page.getByText('TEST ONLY',{exact:false}).count());
+ await page.locator('#gate').fill(process.env.STAGING_ACCESS_SECRET);await page.locator('#product').fill(product);await page.locator('#start').click();
+ await page.waitForURL(u=>u.hostname==='checkout.stripe.com',{timeout:45000});
+ await payHosted();
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kandorty_server_stripe_v1')));
  assert.ok(saved.receipt&&saved.checkoutToken&&saved.orderId);
  const checkoutId=await hash(saved.checkoutToken);
@@ -60,6 +63,25 @@ try{
  // Refund only this run's test PaymentIntent; no live or pre-existing payment can enter this branch.
  assert.match(session.payment_intent,/^pi_/);assert.equal(session.livemode,false);
  const refund=await fetch('https://api.stripe.com/v1/refunds',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+cfg.key,'Idempotency-Key':'release-test-refund-'+checkoutId},body:new URLSearchParams({payment_intent:session.payment_intent})});assert.ok(refund.ok,'Sandbox refund request failed');const returned=await refund.json();assert.equal(returned.status,'succeeded');assert.equal(returned.amount,3500);
+ // Two hosted sessions are created while only one unit is available; both can pay.
+ const last='release-last-'+random(8);
+ await store.commit([store.write('products/'+last,{nameAr:'LAST UNIT TEST ONLY',price:10,stock:1,totalStock:1},{exists:false})]);
+ const request=()=>({checkoutToken:random(32),customer:{name:'SYNTHETIC TEST',phone:'+971500000000',city:'Dubai',location:'TEST ONLY'},items:[{id:last,qty:1}]});
+ const buyers=[request(),request()],checkouts=[];
+ for(const buyer of buyers){const r=await api('/create-checkout-session',buyer);assert.equal(r.status,200);checkouts.push(r.body);}
+ await page.route(base+'/checkout/status',r=>r.abort());
+ for(let n=0;n<2;n++){
+  await page.goto(checkouts[n].url,{waitUntil:'domcontentloaded'});await payHosted();
+  const id=await hash(buyers[n].checkoutToken);let o;
+  for(let i=0;i<30;i++){o=(await store.get('orders/'+checkouts[n].orderId))?.data;if(o&&(await store.get('stripe_webhook_receipts/'+id))?.data.paid)break;await pause(2000);}
+  assert.equal(o?.paymentStatus,'paid');assert.equal(o.inventoryStatus,n===0?'debited':'needs_review');assert.equal((await store.get('products/'+last)).data.stock,0);
+  if(n===1){assert.deepEqual(o.stockDebits,{});assert.equal((await store.get('stripe_review_queue/'+o.id)).data.reason,'paid_inventory_shortage');}
+  const snap=(await store.get('stripe_checkout_sessions/'+id)).data,session=await stripeClient(cfg).retrieve(snap.sessionId);assert.equal(session.livemode,false);assert.equal(session.amount_total,3500);
+  // A private replay performs no second debit, including the paid-shortage case.
+  await service.fulfill(id,session.id);assert.equal((await store.get('products/'+last)).data.stock,0);
+  const refund=await fetch('https://api.stripe.com/v1/refunds',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+cfg.key,'Idempotency-Key':'release-test-refund-'+id},body:new URLSearchParams({payment_intent:session.payment_intent})});assert.ok(refund.ok);assert.equal((await refund.json()).status,'succeeded');
+ }
+ console.log('PASS: two real Sandbox hosted payments compete for one unit; one debit, one durable paid-shortage review, no negative stock, both test refunds succeeded.');
  console.log('PASS: real hosted Sandbox AED35, signed provider webhook without browser fulfillment, guest return, invalid receipt rejection, concurrent webhook replay, exactly one stock debit, reconciliation and Sandbox refund.');
  console.log('Synthetic test records retained. No production, Live or Ziina operations.');
 }finally{await browser.close();}

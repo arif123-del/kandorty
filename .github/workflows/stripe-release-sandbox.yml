@@ -2,7 +2,7 @@ name: Stripe release isolated Sandbox deployment and hosted payment
 on:
   push:
     branches: [stripe-live-fulfillment-hardening]
-    paths: ['stripe-release/**', '.github/workflows/stripe-release-sandbox.yml']
+    paths: ['stripe-release/**', '!stripe-release/*.md', '.github/workflows/stripe-release-sandbox.yml']
   workflow_dispatch:
 permissions:
   contents: read
