@@ -146,3 +146,10 @@ test('test storefront assets are isolated; Live never serves private staging UI'
  const live=fixture(5,true);live.env.ASSETS=f.env.ASSETS;
  assert.notEqual((await live.run(new Request('https://'+live.cfg.host+'/'),live.env)).status,200);
 });
+test('emergency stop disables new Checkout but preserves verified webhook and guest status',async()=>{
+ const f=fixture(),{snapshot:s}=await f.service.create(input());f.pay(s);f.env.CHECKOUT_DISABLED='true';
+ assert.equal((await f.run(f.http('/create-checkout-session',input()),f.env)).status,503);
+ assert.equal((await f.run(await signedEvent(f,s),f.env)).status,200);
+ const receipt=await issueReceipt(f.env.STRIPE_RECEIPT_SECRET,f.cfg,s);
+ const r=await f.run(f.http('/checkout/status',{}, {Authorization:'Bearer '+receipt}),f.env);assert.equal(r.status,200);assert.equal((await r.json()).paid,true);
+});

@@ -59,5 +59,9 @@ export function createStore(env,net=fetch){
   const result=await call(':runQuery','POST',{structuredQuery:{from:[{collectionId:'stripe_checkout_sessions'}],where:{fieldFilter:{field:{fieldPath:'reconcilePending'},op:'EQUAL',value:{booleanValue:true}}},limit:50}});
   return result.filter(r=>r.document).map(r=>unpack({mapValue:{fields:r.document.fields}}));
  }
- return {get,commit,root,write,pending};
+ async function reviews(){
+  const result=await call(':runQuery','POST',{structuredQuery:{from:[{collectionId:'stripe_review_queue'}],where:{fieldFilter:{field:{fieldPath:'resolved'},op:'EQUAL',value:{booleanValue:false}}},limit:50}});
+  return result.filter(r=>r.document).map(r=>unpack({mapValue:{fields:r.document.fields}}));
+ }
+ return {get,commit,root,write,pending,reviews};
 }

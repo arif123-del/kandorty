@@ -22,7 +22,7 @@ try{
  await page.goto(base,{waitUntil:'domcontentloaded'});assert.ok(await page.getByText('TEST ONLY',{exact:false}).count());
  await page.locator('#gate').fill(process.env.STAGING_ACCESS_SECRET);await page.locator('#product').fill(product);await page.locator('#start').click();
  await page.waitForURL(u=>u.hostname==='checkout.stripe.com',{timeout:45000});
- await fillAny(['input[type="email"]'],'stripe-release-test@example.com',5000);
+ assert.ok(await fillAny(['input[name="email"]','input[type="email"]','input[autocomplete="email"]'],'stripe-release-test@example.com',7000),'Sandbox email required');
  assert.ok(await fillAny(['input[name="cardNumber"]','input[autocomplete="cc-number"]'],'4242424242424242'));
  assert.ok(await fillAny(['input[name="cardExpiry"]','input[autocomplete="cc-exp"]'],'1230'));
  assert.ok(await fillAny(['input[name="cardCvc"]','input[autocomplete="cc-csc"]'],'123'));
