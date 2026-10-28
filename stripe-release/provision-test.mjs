@@ -13,7 +13,7 @@ let cursor='';for(let n=0;n<20;n++){
  for(const e of list.data){if(e.url!==url)continue;assert.equal(e.livemode,false);assert.equal(e.metadata?.managed_by,'kandorty-stripe-release-test');await api('/webhook_endpoints/'+e.id,'DELETE');}
  if(!list.has_more)break;assert.ok(n<19,'Too many endpoints');cursor=list.data.at(-1).id;
 }
-const endpoint=await api('/webhook_endpoints','POST',new URLSearchParams({url,'enabled_events[0]':'checkout.session.completed','enabled_events[1]':'checkout.session.async_payment_succeeded','metadata[managed_by]':worker,description:'Isolated Stripe release Sandbox only'}));
+const endpoint=await api('/webhook_endpoints','POST',new URLSearchParams({url,'enabled_events[0]':'checkout.session.completed','enabled_events[1]':'checkout.session.async_payment_succeeded','enabled_events[2]':'refund.created','enabled_events[3]':'refund.updated','enabled_events[4]':'refund.failed','enabled_events[5]':'charge.refunded','metadata[managed_by]':worker,description:'Isolated Stripe release Sandbox only'}));
 assert.equal(endpoint.livemode,false);assert.match(endpoint.secret,/^whsec_/);
 for(const [name,value] of Object.entries({STRIPE_SECRET_KEY:key,STRIPE_WEBHOOK_SECRET:endpoint.secret,STRIPE_RECEIPT_SECRET:random(32),STAGING_ACCESS_SECRET:random(32)})){
  console.log('::add-mask::'+value);fs.appendFileSync(process.env.GITHUB_ENV,name+'='+value+'\n');

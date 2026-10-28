@@ -1,8 +1,9 @@
+import {syncRefunds} from './refunds.mjs';
 import {Fault,hash,random} from '../cod-staging/security.mjs';
 import {normalizeCodRequest,prepareCodOrder} from '../stripe-live-candidate/cod.mjs';
 import {preparePaidFulfillment,validatePaidSession} from '../stripe-live-candidate/fulfillment.mjs';
 const check=(ok,code)=>{if(!ok)throw new Fault(code,409);};
-export const publicOrder=o=>({id:o.id,paymentStatus:o.paymentStatus,status:o.status,inventoryStatus:o.inventoryStatus,total:o.total,deliveryFee:o.deliveryFee,items:o.items.map(i=>({id:i.id,name:i.name,qty:i.qty,price:i.price}))});
+export const publicOrder=o=>({id:o.id,payment:o.payment,refundStatus:o.refundStatus||'none',refundedAmount:o.refundedAmount||0,paymentStatus:o.paymentStatus,status:o.status,inventoryStatus:o.inventoryStatus,total:o.total,deliveryFee:o.deliveryFee,items:o.items.map(i=>({id:i.id,name:i.name,qty:i.qty,price:i.price}))});
 function bound(cfg,s,p){
  check(p&&p.livemode===cfg.live&&p.mode==='payment'&&(cfg.live?/^cs_live_[A-Za-z0-9]+$/:/^cs_test_[A-Za-z0-9]+$/).test(p.id||''),'session_mode_mismatch');
  check(p.client_reference_id===s.orderId&&p.metadata?.checkout_id===s.checkoutId&&p.metadata?.order_id===s.orderId&&p.metadata?.integration==='kandorty-stripe-v1','session_binding_mismatch');
@@ -54,12 +55,15 @@ export function createService(cfg,store,stripe){
     const products={};for(const id of new Set(s.items.map(i=>i.id))){const r=await store.get('products/'+id);if(r)products[id]={data:r.data,updateTime:r.version};}
     const plan=preparePaidFulfillment({session:p,snapshot:s,snapshotVersion:row.version,existingOrder:existing||null,products,editToken:s.editToken,accessKey:s.accessKey,nowISO:new Date().toISOString(),projectId:cfg.projectId,mode:cfg.mode});
     if(!plan.replay){
+     if(typeof p.payment_intent==='string'&&/^pi_[A-Za-z0-9]+$/.test(p.payment_intent))plan.writes.push(store.write('stripe_payment_intents/'+await hash(p.payment_intent),{checkoutId,orderId:s.orderId,sessionId:p.id},{exists:false}));
+     plan.writes.push(store.write('order_lifecycle/'+s.orderId,{orderId:s.orderId,checkoutId,payment:'card',stockDebits:plan.stockDebits,manageTokenHash:await hash(s.editToken)},{exists:false}));
      plan.writes.push(store.write('stripe_payment_claims/'+claimId,{checkoutId,orderId:s.orderId,sessionId:p.id},{exists:false}));
      const marker=plan.writes.find(w=>w.update.name===store.root+'/stripe_checkout_sessions/'+checkoutId);marker.update.fields.reconcilePending={booleanValue:false};
      if(plan.order.inventoryStatus==='needs_review')plan.writes.push(store.write('stripe_review_queue/'+s.orderId,{orderId:s.orderId,sessionId:p.id,reason:'paid_inventory_shortage',resolved:false,createdAt:new Date().toISOString()},{exists:false}));
      try{await store.commit(plan.writes);}catch(e){if(e.message==='write_conflict')continue;throw e;}
     }
-    return {paid:true,replay:plan.replay,order:publicOrder(plan.order),snapshot:s};
+    const settledOrder=stripe.refundState?await syncRefunds(store,stripe,{...s,sessionId:p.id}):plan.order;
+    return {paid:true,replay:plan.replay,order:publicOrder(settledOrder),snapshot:s};
    }throw new Fault('database_busy',503);
   },
   async status(claims){

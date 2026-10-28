@@ -1,3 +1,6 @@
+import {lifecycle} from './lifecycle.mjs';
+import {codService} from './cod-service.mjs';
+import {syncRefunds} from './refunds.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {releaseConfig,TEST_PROJECT,LIVE_PROJECT} from './configuration.mjs';
@@ -152,4 +155,46 @@ test('emergency stop disables new Checkout but preserves verified webhook and gu
  assert.equal((await f.run(await signedEvent(f,s),f.env)).status,200);
  const receipt=await issueReceipt(f.env.STRIPE_RECEIPT_SECRET,f.cfg,s);
  const r=await f.run(f.http('/checkout/status',{}, {Authorization:'Bearer '+receipt}),f.env);assert.equal(r.status,200);assert.equal((await r.json()).paid,true);
+});
+
+test('COD server route prices stock atomically, retries once, guest status stays private',async()=>{
+ const f=fixture(1),req=input();const rs=await Promise.all([f.run(f.http('/cod/orders',req),f.env),f.run(f.http('/cod/orders',req),f.env)]);assert.ok(rs.every(r=>[200,201].includes(r.status)));const a=await rs[0].json();assert.equal(a.order.total,35);assert.equal(a.manageToken.length,48);assert.equal(a.order.customer,undefined);assert.equal(f.rows.get('products/p1').data.stock,0);
+ const status=await f.run(f.http('/checkout/status',{}, {Authorization:'Bearer '+a.receipt}),f.env);assert.equal((await status.json()).registered,true);
+ const cancel=()=>f.run(f.http('/orders/cancel',{orderId:a.order.id,manageToken:a.manageToken},{Authorization:'Bearer '+a.receipt}),f.env);
+ const results=await Promise.all([cancel(),cancel()]);assert.ok(results.every(r=>r.status===200));assert.equal(f.rows.get('products/p1').data.stock,1);assert.equal(f.rows.get('orders/'+a.order.id).data.status,'cancelled');
+ assert.equal((await f.run(f.http('/orders/cancel',{orderId:a.order.id,manageToken:'f'.repeat(48)},{Authorization:'Bearer '+a.receipt}),f.env)).status,409);
+});
+test('guest cannot cancel from tracking receipt alone or after admin begins preparation',async()=>{
+ const f=fixture(),{snapshot:s}=await f.service.create(input());f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);const manage=lifecycle(f.cfg,f.store);
+ await assert.rejects(manage.change(s.orderId,'cancelled',{kind:'guest',checkoutId:s.checkoutId,manageToken:'wrong'}),/invalid_manage_token/);
+ await manage.change(s.orderId,'preparing',{kind:'admin',uid:'admin'});
+ await assert.rejects(manage.change(s.orderId,'cancelled',{kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken}),/order_state_locked/);
+ assert.equal(f.rows.get('products/p1').data.stock,4);await assert.rejects(manage.change(s.orderId,'delivered',{kind:'admin',uid:'admin'}),/order_state_locked/);
+});
+test('concurrent cancellation and preparation cannot both win; stock restored at most once',async()=>{
+ const f=fixture(1),{snapshot:s}=await f.service.create(input());f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);const l=lifecycle(f.cfg,f.store);
+ const rs=await Promise.allSettled([l.change(s.orderId,'cancelled',{kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken}),l.change(s.orderId,'preparing',{kind:'admin',uid:'admin'})]);assert.equal(rs.filter(r=>r.status==='fulfilled').length,1);
+ const o=f.rows.get('orders/'+s.orderId).data;assert.equal(f.rows.get('products/p1').data.stock,o.status==='cancelled'?1:0);
+ await f.service.fulfill(s.checkoutId,s.sessionId);assert.equal(f.rows.get('products/p1').data.stock,o.status==='cancelled'?1:0);
+});
+test('refund synchronization retains capture, exposes full/partial/pending truth and never restores stock',async()=>{
+ const f=fixture(),{snapshot:s}=await f.service.create(input());f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);
+ let state={amount:1000,status:'partial'};const provider={refundState:async()=>state};
+ await syncRefunds(f.store,provider,s);assert.equal(f.rows.get('orders/'+s.orderId).data.refundedAmount,10);
+ state={amount:0,status:'none'};await syncRefunds(f.store,provider,s);assert.equal(f.rows.get('orders/'+s.orderId).data.refundedAmount,10);
+ state={amount:3500,status:'full'};await syncRefunds(f.store,provider,s);const o=f.rows.get('orders/'+s.orderId).data;assert.equal(o.refundStatus,'full');assert.equal(o.paymentStatus,'paid');assert.equal(f.rows.get('products/p1').data.stock,4);
+});
+test('paid shortage cancellation restores zero and refund completion resolves review queues',async()=>{
+ const f=fixture(1),{snapshot:s}=await f.service.create(input());f.rows.get('products/p1').data.stock=0;f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);
+ await lifecycle(f.cfg,f.store).change(s.orderId,'cancelled',{kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken});assert.equal(f.rows.get('products/p1').data.stock,0);assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'required');
+ await syncRefunds(f.store,{refundState:async()=>({amount:3500,status:'full'})},s);assert.equal(f.rows.get('stripe_review_queue/'+s.orderId).data.resolved,true);assert.equal(f.rows.get('stripe_refund_queue/'+s.orderId).data.resolved,true);
+});
+test('admin HTTP route rejects guest staging gate without verified administrator token',async()=>{
+ const f=fixture();const r=await f.run(f.http('/admin/orders/status',{orderId:'KD-12345678',status:'preparing'}),f.env);assert.equal(r.status,403);
+});
+test('signed refund webhook re-retrieves provider truth and updates the correct payment-bound order only',async()=>{
+ const f=fixture(),{snapshot:s}=await f.service.create(input());f.sessions.get(s.sessionId).payment_intent='pi_fixture';f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);
+ f.stripe.refundState=async()=>({amount:3500,status:'full'});
+ const event=await signedEvent(f,s,{type:'refund.updated',data:{object:{payment_intent:'pi_fixture',status:'failed'}}});
+ assert.equal((await f.run(event,f.env)).status,200);assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'full');assert.equal(f.rows.get('products/p1').data.stock,4);
 });

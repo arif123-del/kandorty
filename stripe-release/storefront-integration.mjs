@@ -10,6 +10,11 @@ export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,get
    if(result.url){const u=new URL(result.url);if(u.protocol!=='https:'||u.hostname!=='checkout.stripe.com')throw new Error('invalid_checkout_url');redirect(u.href);return;}
    return this.finish();
   },
+  async startCod(order){
+   const token=await getTurnstileToken();if(!token)throw new Error('anti_bot_required');
+   const r=await client.startCod({customer:order.customer,items:order.items,note:order.notes||'',turnstileToken:token});confirmed(r.order);return r;
+  },
+  async cancel(id){return client.cancel(id);},
   async finish(){
    const result=await client.status();
    if(!result.paid)return {paid:false};
@@ -17,7 +22,7 @@ export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,get
    confirmed(result.order);client.archiveConfirmed(result.order);return result;
   },
   ownsReceipt:id=>client.hasReceipt(id),
-  async track(id){const result=await client.track(id);if(!result.paid||result.order.id!==id)throw new Error('order_not_confirmed');return result.order;}
+  async track(id){const result=await client.track(id);if((!result.paid&&!result.registered)||result.order.id!==id)throw new Error('order_not_confirmed');return result.order;}
  };
 }
 export async function turnstileToken(sitekey,document=globalThis.document){

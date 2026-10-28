@@ -60,9 +60,22 @@ try{
  const status=await api('/checkout/status',{}, {Authorization:'Bearer '+saved.receipt});assert.equal(status.status,200);assert.equal(status.body.order.id,order.id);assert.equal(status.body.order.customer,undefined);assert.equal(status.body.order.editToken,undefined);
  await page.unroute(base+'/checkout/status');await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('Order registered:'),{timeout:30000});
  const reconcile=await service.reconcile();assert.equal(reconcile.failed,0);assert.equal((await store.get('products/'+product)).data.stock,2);
+ // Cancellation requires a distinct manage token, then restores recorded stock once.
+ assert.match(saved.manageToken,/^[a-f0-9]{48}$/);
+ const cancel=()=>api('/orders/cancel',{orderId:order.id,manageToken:saved.manageToken},{Authorization:'Bearer '+saved.receipt});
+ const cancellations=await Promise.all([cancel(),cancel()]);assert.ok(cancellations.every(r=>r.status===200));assert.equal((await store.get('products/'+product)).data.stock,3);
+ await service.fulfill(checkoutId,session.id);assert.equal((await store.get('products/'+product)).data.stock,3);
  // Refund only this run's test PaymentIntent; no live or pre-existing payment can enter this branch.
  assert.match(session.payment_intent,/^pi_/);assert.equal(session.livemode,false);
  const refund=await fetch('https://api.stripe.com/v1/refunds',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+cfg.key,'Idempotency-Key':'release-test-refund-'+checkoutId},body:new URLSearchParams({payment_intent:session.payment_intent})});assert.ok(refund.ok,'Sandbox refund request failed');const returned=await refund.json();assert.equal(returned.status,'succeeded');assert.equal(returned.amount,3500);
+ for(let i=0;i<20;i++){if((await store.get('orders/'+order.id)).data.refundStatus==='full')break;await pause(1000);}
+ assert.equal((await store.get('orders/'+order.id)).data.refundStatus,'full','Refund webhook must sync order without browser return');
+ assert.equal((await store.get('stripe_refund_queue/'+order.id)).data.resolved,true);assert.equal((await store.get('products/'+product)).data.stock,3);
+ const codInput={checkoutToken:random(32),customer:{name:'COD TEST',phone:'+971500000000',city:'Dubai',location:'TEST ONLY'},items:[{id:product,qty:1}]};
+ const cod=await api('/cod/orders',codInput);assert.equal(cod.status,201);assert.equal(cod.body.order.total,35);assert.equal((await api('/cod/orders',codInput)).status,200);assert.equal((await store.get('products/'+product)).data.stock,2);
+ assert.equal((await api('/orders/cancel',{orderId:cod.body.order.id,manageToken:cod.body.manageToken},{Authorization:'Bearer '+cod.body.receipt})).status,200);assert.equal((await store.get('products/'+product)).data.stock,3);
+ assert.equal((await api('/admin/orders/status',{orderId:order.id,status:'preparing'})).status,403);
+ console.log('PASS: deployed COD creation/replay/cancellation, paid Stripe cancellation with exactly-once restock, webhook-only refund status/queue resolution, unauthorized admin rejection.');
  // Two hosted sessions are created while only one unit is available; both can pay.
  const last='release-last-'+random(8);
  await store.commit([store.write('products/'+last,{nameAr:'LAST UNIT TEST ONLY',price:10,stock:1,totalStock:1},{exists:false})]);
@@ -80,6 +93,8 @@ try{
   // A private replay performs no second debit, including the paid-shortage case.
   await service.fulfill(id,session.id);assert.equal((await store.get('products/'+last)).data.stock,0);
   const refund=await fetch('https://api.stripe.com/v1/refunds',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+cfg.key,'Idempotency-Key':'release-test-refund-'+id},body:new URLSearchParams({payment_intent:session.payment_intent})});assert.ok(refund.ok);assert.equal((await refund.json()).status,'succeeded');
+  for(let i=0;i<20;i++){if((await store.get('orders/'+o.id)).data.refundStatus==='full')break;await pause(1000);}
+  assert.equal((await store.get('orders/'+o.id)).data.refundStatus,'full');if(n===1)assert.equal((await store.get('stripe_review_queue/'+o.id)).data.resolved,true);
  }
  console.log('PASS: two real Sandbox hosted payments compete for one unit; one debit, one durable paid-shortage review, no negative stock, both test refunds succeeded.');
  console.log('PASS: real hosted Sandbox AED35, signed provider webhook without browser fulfillment, guest return, invalid receipt rejection, concurrent webhook replay, exactly one stock debit, reconciliation and Sandbox refund.');

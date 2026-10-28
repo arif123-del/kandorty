@@ -42,7 +42,33 @@ html=html.replace(trackAnchor,trackAnchor+`
     return;
   }
 `);
+// All new COD orders also use the trusted server; no customer stock transaction.
+const codStart=html.indexOf("    checkoutMessage(lang==='ar'?'جارٍ تسجيل الطلب...",html.indexOf('async function submitCheckoutOrder'));
+const codEnd=html.indexOf('  }catch(error){',codStart);assert.ok(codStart>0&&codEnd>codStart);
+html=html.slice(0,codStart)+"    await (await secureStripeFlow()).startCod(order);\n"+html.slice(codEnd);
+html=html.replace("localStorage.setItem('kandorty_last_order_id',order.id);", "localStorage.setItem('kandorty_last_order_id',order.id);saveCustomerOwnOrders([order,...readCustomerOwnOrders().filter(o=>o.id!==order.id)]);");
+html=html.replace("?'تم تأكيد الدفع. رقم الطلب: ':'Payment confirmed. Order: '","?'تم تسجيل الطلب. رقم الطلب: ':'Order registered: '");
+const cancelAnchor="async function cancelOrderFromMyOrders(orderId,button){";assert.ok(html.includes(cancelAnchor));
+html=html.replace(cancelAnchor,cancelAnchor+`
+  const secure=await secureStripeFlow();
+  if(secure.ownsReceipt(orderId)){
+    button.disabled=true;
+    try{const result=await secure.cancel(orderId);saveCustomerOwnOrders(readCustomerOwnOrders().map(o=>o.id===orderId?{...o,...result.order}:o));renderMyOrders();alert(result.order.payment==='card'?'تم إلغاء الطلب. حالة الاسترداد: '+result.order.refundStatus:'تم إلغاء الطلب.');}
+    catch{alert('تعذر إلغاء الطلب. ربما بدأ تجهيزه؛ تواصلي مع المتجر.');}
+    finally{button.disabled=false;}return;
+  }
+`);
+// A separately reviewed admin page uses a verified Firebase token for state transitions.
+let admin=fs.readFileSync('admin.html','utf8');
+assert.equal(createHash('sha256').update(admin).digest('hex'),'b073297b9289ca5846afcf6e99fe67d8acf7f93a440b3c46ba037ffae82ea669','Admin source changed');
+const adminStart=admin.indexOf('async function updateOrderStatus(id,status){'),adminEnd=admin.indexOf("const SETTINGS_KEY=",adminStart);assert.ok(adminStart>0&&adminEnd>adminStart);
+admin=admin.slice(0,adminStart)+`async function updateOrderStatus(id,status){
+ if(!auth.currentUser)return;
+ try{const {adminOrderClient}=await import('./stripe-release/admin-client.mjs');const updated=await adminOrderClient({getIdToken:force=>auth.currentUser.getIdToken(force)}).change(id,status);orders=orders.map(o=>o.id===id?{...o,...updated}:o);renderOrders();renderProfileOrders();}
+ catch(error){alert('تعذر تحديث الطلب: '+error.message);renderOrders();}
+}
+\n`+admin.slice(adminEnd);
 const out=process.env.STRIPE_CANDIDATE_DIR||'/tmp/kandorty-stripe-storefront-review';assert.ok(path.resolve(out)!==process.cwd());fs.mkdirSync(out,{recursive:true});
-fs.writeFileSync(path.join(out,'index.html'),html);fs.cpSync('stripe-release',path.join(out,'stripe-release'),{recursive:true,filter:p=>!p.includes('/public')&&!p.endsWith('sandbox-e2e.mjs')});
+fs.writeFileSync(path.join(out,'index.html'),html);fs.writeFileSync(path.join(out,'admin.html'),admin);fs.cpSync('stripe-release',path.join(out,'stripe-release'),{recursive:true,filter:p=>!p.includes('/public')&&!p.endsWith('sandbox-e2e.mjs')});
 assert.ok(!html.includes('https://kandorty-stripe.aliyajan200011.workers.dev/'));assert.ok(!html.slice(html.indexOf('async function completeStripeCheckoutReturn'),html.indexOf('setTimeout(()=>{completeStripeCheckoutReturn')).includes('submitCustomerOrder'));
-console.log('Unpublished storefront review artifact built; live index unchanged. Turnstile remains NOT_CONFIGURED. COD/admin migration is separate.');
+console.log('Unpublished storefront review artifact built; live index unchanged. Turnstile remains NOT_CONFIGURED. New COD/admin state transitions use server endpoints; legacy-order migration remains a separate release check.');
