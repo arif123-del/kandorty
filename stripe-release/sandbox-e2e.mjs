@@ -31,7 +31,15 @@ try{
  await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'00000',2000);
  await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+971500000000',2000);
  await page.locator('button[type="submit"]').filter({visible:true}).last().click();
- await page.waitForURL(u=>u.origin===base,{timeout:60000});
+ try{await page.waitForURL(u=>u.origin===base,{timeout:45000,waitUntil:'domcontentloaded'});}catch{
+  console.log('Sandbox checkout host:',new URL(page.url()).hostname);
+  for(const frame of page.frames()){
+   console.log('Visible required/invalid field metadata:',JSON.stringify(await frame.locator('input').evaluateAll(xs=>xs.filter(x=>x.offsetParent!==null).map(x=>({name:x.name,type:x.type,required:x.required,invalid:x.getAttribute('aria-invalid'),empty:!x.value}))).catch(()=>[])));
+   console.log('Sandbox form alerts:',JSON.stringify(await frame.locator('[role=alert],.InputError').allTextContents().catch(()=>[])));
+  }
+  console.log('Sandbox submit labels:',JSON.stringify(await page.locator('button[type=submit]').allTextContents()));
+  throw new Error('Sandbox hosted form did not return; inspect field metadata only');
+ }
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kandorty_server_stripe_v1')));
  assert.ok(saved.receipt&&saved.checkoutToken&&saved.orderId);
  const checkoutId=await hash(saved.checkoutToken);

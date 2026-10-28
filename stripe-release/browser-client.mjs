@@ -22,6 +22,12 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
    const s=read();if(!s?.receipt)throw new Error('missing_checkout_receipt');
    return post('/checkout/status',{}, {Authorization:'Bearer '+s.receipt,...(stagingKey?{'X-Staging-Key':stagingKey}:{})});
   },
+  async track(orderId,stagingKey){
+   const pending=read(),receipt=storage.getItem('kandorty_stripe_receipt_'+orderId)||(pending?.orderId===orderId?pending.receipt:null);
+   if(!receipt)throw new Error('missing_checkout_receipt');
+   return post('/checkout/status',{}, {Authorization:'Bearer '+receipt,...(stagingKey?{'X-Staging-Key':stagingKey}:{})});
+  },
+  hasReceipt(orderId){const pending=read();return !!(storage.getItem('kandorty_stripe_receipt_'+orderId)||(pending?.orderId===orderId&&pending.receipt));},
   archiveConfirmed(order){
    const s=read();if(!s||s.orderId!==order.id||order.paymentStatus!=='paid')throw new Error('order_not_confirmed');
    storage.setItem('kandorty_stripe_receipt_'+order.id,s.receipt);storage.removeItem(key);

@@ -40,6 +40,7 @@ export function handler(factories={}){return async(request,env)=>{
    return reply({received:true});
   }
   if(url.pathname==='/create-checkout-session'){
+   if(env.CHECKOUT_DISABLED==='true')throw new Fault('checkout_temporarily_disabled',503);
    if(!body||Array.isArray(body))throw new Fault('invalid_request');
    const {turnstileToken,...input}=body;
    if(cfg.live){
