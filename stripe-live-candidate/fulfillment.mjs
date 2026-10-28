@@ -25,10 +25,11 @@ function fields(value){return typed(value).mapValue.fields;}
 function path(root,type,id){check(identity(id),"invalid_document_id");return root+"/"+type+"/"+id;}
 const validVersion=v=>typeof v==="string"&&/^\d{4}-\d\d-\d\dT/.test(v);
 
-export function validatePaidSession(session,snapshot){
+export function validatePaidSession(session,snapshot,{mode="live"}={}){
+ check(mode==="live"||mode==="test","invalid_payment_mode");
  check(object(session)&&object(snapshot),"missing_checkout");
- check(/^cs_live_[A-Za-z0-9]+$/.test(session.id||""),"not_live_session");
- check(session.livemode===true&&session.mode==="payment"&&
+ check((mode==="live"?/^cs_live_[A-Za-z0-9]+$/:/^cs_test_[A-Za-z0-9]+$/).test(session.id||""),mode==="live"?"not_live_session":"not_test_session");
+ check(session.livemode===(mode==="live")&&session.mode==="payment"&&
        session.payment_status==="paid"&&session.status==="complete","payment_not_verified");
  check(session.currency==="aed"&&money(snapshot.totalFils)&&
        Number.isSafeInteger(session.amount_total)&&
@@ -52,11 +53,11 @@ export function validatePaidSession(session,snapshot){
  */
 export function preparePaidFulfillment({
  session,snapshot,snapshotVersion,existingOrder=null,products,
- editToken,accessKey,nowISO,projectId
+ editToken,accessKey,nowISO,projectId,mode="live"
 }){
- validatePaidSession(session,snapshot);
+ validatePaidSession(session,snapshot,{mode});
  check(/^[a-z][a-z0-9-]{4,60}$/.test(projectId||""),"invalid_project");
- check(projectId!=="kandorty-stripe-test-5f8af","test_project_not_live");
+ check(mode==="test"?projectId==="kandorty-stripe-test-5f8af":projectId!=="kandorty-stripe-test-5f8af","test_project_not_live");
  check(validVersion(snapshotVersion),"missing_snapshot_version");
  check(typeof nowISO==="string"&&!Number.isNaN(Date.parse(nowISO)),"invalid_timestamp");
  const root="projects/"+projectId+"/databases/(default)/documents";
@@ -96,7 +97,7 @@ export function preparePaidFulfillment({
  let shortages=false;
  for(const [productId,need] of byProduct){
   const row=products[productId];
-  if(!object(row)||!object(row.data)){shortages=true;continue;}
+  if(!object(row)||!object(row.data)||row.data.active===false){shortages=true;continue;}
   const value=row.data.stock;
   if(value!==null&&value!==undefined&&value!==""){
    const current=numberStock(value);

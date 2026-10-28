@@ -1,0 +1,14 @@
+{
+  "name": "kandorty-stripe-release",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "vars": {
+    "STRIPE_MODE": "disabled",
+    "FIREBASE_PROJECT_ID": "kandorty-9378a",
+    "LIVE_RELEASE_APPROVAL": "NOT_APPROVED"
+  },
+  "ratelimits": [{"name":"RATE_LIMITER","namespace_id":"927102801","simple":{"limit":30,"period":60}}]
+}
