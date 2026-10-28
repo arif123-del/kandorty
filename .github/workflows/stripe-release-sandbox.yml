@@ -31,11 +31,14 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
         run: node stripe-release/provision-test.mjs
+      - name: Select validated TEST config for secret installation
+        run: cp stripe-release/wrangler.test.json stripe-release/wrangler.jsonc
       - name: Deploy only separate Stripe release TEST Worker
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
           workingDirectory: stripe-release
           command: deploy --config wrangler.test.json
           secrets: |
