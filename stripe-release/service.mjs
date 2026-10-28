@@ -88,6 +88,9 @@ export function createService(cfg,store,stripe){
      const r=await this.fulfill(s.checkoutId,s.sessionId);if(r.paid)paid++;else {if(r.expired)await this.closePending(s.checkoutId);pending++;}
     }catch{failed++;}
    }
+   if(store.refundPending&&stripe.refundState)for(const record of await store.refundPending()){
+    try{const s=(await store.get('stripe_checkout_sessions/'+record.checkoutId))?.data;if(!s||s.orderId!==record.orderId||s.mode!==cfg.mode)throw new Fault('refund_binding_mismatch',409);await syncRefunds(store,stripe,s);}catch{failed++;}
+   }
    return {paid,pending,failed};
   }
  };

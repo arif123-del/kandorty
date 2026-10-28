@@ -155,3 +155,15 @@ test('client cannot edit tracking or customer-edit records even with known token
  await assertFails(updateDoc(doc(anon,'order_edits/secret-edit-token'),{quantities:{dressA:0}}));
  await assertFails(updateDoc(doc(phone,'order_access/capability-secret'),{active:false}));
 });
+test('no browser including admin can grant server administrator membership',async()=>{
+ for(const db of [anon,phone,admin])await assertFails(setDoc(doc(db,'admin_access/trustedAdmin'),{active:true,validAfter:0}));
+});
+test('browser cannot forge cancellation ledger or payment-intent mapping',async()=>{
+ for(const db of [anon,phone,admin]){
+  await assertFails(setDoc(doc(db,'order_lifecycle/KD-12345678'),{stockDebits:{dressA:99}}));
+  await assertFails(setDoc(doc(db,'stripe_payment_intents/forged'),{orderId:'KD-12345678'}));
+ }
+});
+test('refund/review queues and audit records are server-owned',async()=>{
+ for(const name of ['stripe_refund_queue','stripe_review_queue','order_audit'])for(const db of [anon,phone,admin])await assertFails(setDoc(doc(db,name+'/forged'),{resolved:true}));
+});
