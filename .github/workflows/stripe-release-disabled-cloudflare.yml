@@ -4,6 +4,7 @@ on:
     branches: [stripe-live-fulfillment-hardening]
     paths:
       - '.github/workflows/stripe-release-disabled-cloudflare.yml'
+      - 'stripe-release/wrangler.release.example.json'
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,6 +32,7 @@ jobs:
           assert.equal(cfg.name,'kandorty-stripe-release');
           assert.equal(cfg.vars.STRIPE_MODE,'disabled');
           assert.equal(cfg.vars.LIVE_RELEASE_APPROVAL,'NOT_APPROVED');
+          assert.equal(cfg.vars.CHECKOUT_DISABLED,'true');
           assert.equal(cfg.vars.FIREBASE_PROJECT_ID,'kandorty-9378a');
           assert.equal(cfg.workers_dev,false);
           assert.deepEqual(cfg.routes,[]);
