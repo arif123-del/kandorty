@@ -56,23 +56,27 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow get, list: if isAdmin() || ownsOrder();
-      // Server-created card and COD orders: never allow client-paid flags/stock changes.
-      allow create, update, delete: if isAdmin();
+      // ONLY trusted server IAM code can create/update/delete orders.
+      // A browser with admin:true is NOT payment, stock or lifecycle authority.
+      allow create, update, delete: if false;
     }
 
     match /tracking/{orderId} {
       // Do not expose status/PII by guessing a public order ID.
       // Guest tracking must go through an authenticated server-held receipt token.
-      allow get, list, create, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /order_edits/{editToken} {
       // Bearer-token documents contain customer PII. Server will mediate guest access.
-      allow get, list, create, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /order_access/{accessKey} {
-      allow get, list, create, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /newsletter_subscribers/{id} {
