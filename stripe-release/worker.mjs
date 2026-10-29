@@ -7,6 +7,7 @@ import {createStore} from './firestore.mjs';
 import {stripeClient} from './stripe.mjs';
 import {createService} from './service.mjs';
 import {verifyWebhook,issueReceipt,readReceipt,rawBody} from './signatures.mjs';
+import {STRIPE_CHECKOUT_EVENTS,STRIPE_REFUND_EVENTS} from './webhook-contract.mjs';
 import {Fault,hash} from '../cod-staging/security.mjs';
 import {CodFault} from '../stripe-live-candidate/cod.mjs';
 import {CheckoutFault} from '../stripe-live-candidate/fulfillment.mjs';
@@ -34,7 +35,7 @@ export function handler(factories={}){return async(request,env)=>{
   let body;try{body=JSON.parse(raw);}catch{throw new Fault('invalid_json',400);}
   const store=(factories.store||createStore)(env),stripe=(factories.stripe||stripeClient)(cfg),service=createService(cfg,store,stripe);
   if(isWebhook){
-   if(['refund.created','refund.updated','refund.failed','charge.refunded'].includes(body.type)){
+   if(STRIPE_REFUND_EVENTS.includes(body.type)){
     if(body.livemode!==cfg.live)throw new Fault('event_mode_mismatch',400);
     const pi=body.data?.object?.payment_intent;if(typeof pi!=='string'||!/^pi_[A-Za-z0-9]+$/.test(pi))throw new Fault('invalid_payment_intent');
     const link=(await store.get('stripe_payment_intents/'+await hash(pi)))?.data;
@@ -43,7 +44,7 @@ export function handler(factories={}){return async(request,env)=>{
     if(!snapshot||snapshot.orderId!==link.orderId||snapshot.sessionId!==link.sessionId)throw new Fault('refund_binding_mismatch',409);
     await syncRefunds(store,stripe,snapshot);return reply({received:true});
    }
-   if(!['checkout.session.completed','checkout.session.async_payment_succeeded'].includes(body.type))return reply({received:true,ignored:true});
+   if(!STRIPE_CHECKOUT_EVENTS.includes(body.type))return reply({received:true,ignored:true});
    if(body.livemode!==cfg.live)throw new Fault('event_mode_mismatch',400);
    const session=body.data?.object;
    if(session?.metadata?.integration!=='kandorty-stripe-v1')return reply({received:true,ignored:true});

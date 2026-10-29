@@ -1,7 +1,8 @@
 import {Fault} from '../cod-staging/security.mjs';
+import {STRIPE_WEBHOOK_API_VERSION} from './webhook-contract.mjs';
 export function stripeClient(cfg,net=fetch){
  async function api(path,body,idempotency,root='/checkout/sessions'){
-  const r=await net('https://api.stripe.com/v1'+root+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+cfg.key,'Stripe-Version':'2024-06-20',...(body?{'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':idempotency}:{})},...(body?{body}:{}),redirect:'manual',signal:AbortSignal.timeout(15000)});
+  const r=await net('https://api.stripe.com/v1'+root+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+cfg.key,'Stripe-Version':STRIPE_WEBHOOK_API_VERSION,...(body?{'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':idempotency}:{})},...(body?{body}:{}),redirect:'manual',signal:AbortSignal.timeout(15000)});
   if(!r.ok)throw new Fault('stripe_unavailable',503);return r.json();
  }
  return {
