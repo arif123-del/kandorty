@@ -5,7 +5,7 @@ export function releaseConfig(env){
  if(!['test','live'].includes(mode))throw new Fault('release_disabled',503);
  const live=mode==='live',projectId=live?LIVE_PROJECT:TEST_PROJECT;
  if(env.FIREBASE_PROJECT_ID!==projectId)throw new Fault('project_mode_mismatch',503);
- if(!(live?/^sk_live_[a-zA-Z0-9_]+$/:/^sk_test_[a-zA-Z0-9_]+$/).test(key))throw new Fault('stripe_key_mode_mismatch',503);
+ if(!(live?/^(?:sk|rk)_live_[a-zA-Z0-9_]+$/:/^(?:sk|rk)_test_[a-zA-Z0-9_]+$/).test(key))throw new Fault('stripe_key_mode_mismatch',503);
  if(live&&env.LIVE_RELEASE_APPROVAL!=='KANDORTY_STRIPE_V1_APPROVED')throw new Fault('live_release_not_approved',503);
  if(live&&!env.TURNSTILE_SECRET_KEY)throw new Fault('anti_bot_required',503);
  if(!live&&!/^[a-f0-9]{64}$/.test(env.STAGING_ACCESS_SECRET||''))throw new Fault('staging_gate_required',503);
