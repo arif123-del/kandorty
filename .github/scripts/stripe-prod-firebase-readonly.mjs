@@ -55,6 +55,47 @@ async function main(){
   if(!response.ok)throw Error('firestore_read_denied');
   report('Production Firestore products read permission',true);
  }catch{report('Production Firestore products read permission',false);process.exitCode=1;return;}
+ // Bounded, metadata-only compatibility scan: IDs stay in memory; output counts only.
+ // This DOES NOT migrate legacy orders or modify Firestore Rules.
+ async function scanCollection(name,fieldPaths,max=500){
+  const seen=[];let cursor='';
+  do{
+   const query=new URLSearchParams({pageSize:'100'});
+   for(const f of fieldPaths)query.append('mask.fieldPaths',f);
+   if(cursor)query.set('pageToken',cursor);
+   const url='https://firestore.googleapis.com/v1/projects/'+PROJECT+
+    '/databases/(default)/documents/'+name+'?'+query;
+   const response=await request(url,{method:'GET',headers:{Authorization:'Bearer '+token}});
+   if(!response.ok)throw Error('collection_read_denied');
+   const json=await response.json();
+   for(const d of json.documents||[]){
+    const id=d.name?.split('/').at(-1);
+    if(typeof id!=='string'||!id)continue;
+    seen.push({id,fields:d.fields||{}});
+   }
+   cursor=json.nextPageToken||'';
+  }while(cursor&&seen.length<max);
+  return {rows:seen,truncated:!!cursor};
+ }
+ try{
+  const orders=await scanCollection('orders',['status','payment'],500);
+  const ledgers=await scanCollection('order_lifecycle',['payment'],500);
+  const admins=await scanCollection('admin_access',['active'],500);
+  const ledgerIds=new Set(ledgers.rows.map(row=>row.id));
+  const unmanaged=orders.rows.filter(row=>!ledgerIds.has(row.id)).length;
+  const activeAdmins=admins.rows.filter(row=>row.fields.active?.booleanValue===true).length;
+  console.log('Production metadata audit (counts only; never IDs or customer data):');
+  console.log('Orders scanned: '+orders.rows.length+(orders.truncated?' (TRUNCATED)':''));
+  console.log('Trusted lifecycle ledgers scanned: '+ledgers.rows.length+(ledgers.truncated?' (TRUNCATED)':''));
+  console.log('Orders missing matching server lifecycle ledger in scanned data: '+
+    unmanaged+(orders.truncated||ledgers.truncated?' (LOWER BOUND; scan limited)':''));
+  console.log('Active server-owned admin memberships: '+activeAdmins+(admins.truncated?' (TRUNCATED)':''));
+  console.log('This is a read-only inventory, NOT confirmation of legacy migration or actual admin login.');
+ }catch{
+  report('Legacy order/admin metadata read access',false);
+  process.exitCode=1;
+  return;
+ }
  console.log('Read-only verification complete. No production document writes, rules changes, deployment, Stripe Live calls, or secret output.');
 }
 main().catch(()=>{report('Unexpected read-only check error',false);process.exitCode=1;});
