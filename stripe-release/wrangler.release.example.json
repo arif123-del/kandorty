@@ -8,7 +8,17 @@
   "vars": {
     "STRIPE_MODE": "disabled",
     "FIREBASE_PROJECT_ID": "kandorty-9378a",
-    "LIVE_RELEASE_APPROVAL": "NOT_APPROVED"
+    "LIVE_RELEASE_APPROVAL": "NOT_APPROVED",
+    "CHECKOUT_DISABLED": "true"
   },
-  "ratelimits": [{"name":"RATE_LIMITER","namespace_id":"927102801","simple":{"limit":30,"period":60}}]
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "927102801",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ]
 }
