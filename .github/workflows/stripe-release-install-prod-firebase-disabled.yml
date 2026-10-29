@@ -49,6 +49,8 @@ jobs:
           assert.ok(typeof c.private_key==='string' && c.private_key.startsWith('-----BEGIN PRIVATE KEY-----'));
           console.log('PASS: correct project; detached Worker still disabled, checkout blocked, zero routes. No secret values printed.');
           JS
+      - name: Set disabled Worker configuration as Wrangler default for secret bulk
+        run: cp stripe-release/wrangler.release.example.json stripe-release/wrangler.jsonc
       - name: Store existing Firebase JSON as encrypted Cloudflare secret on DISABLED Worker only
         uses: cloudflare/wrangler-action@v4
         with:
