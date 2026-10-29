@@ -1,0 +1,65 @@
+name: Stripe disabled release - secure Firebase secret install (NO LIVE)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/workflows/stripe-release-install-prod-firebase-disabled.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kandorty-stripe-disabled-shell
+  cancel-in-progress: false
+jobs:
+  install-firebase-on-disabled-release:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify production identity and disabled/unrouted deploy only
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const cfg=JSON.parse(fs.readFileSync('stripe-release/wrangler.release.example.json','utf8'));
+          assert.equal(cfg.name,'kandorty-stripe-release');
+          assert.equal(cfg.vars.STRIPE_MODE,'disabled');
+          assert.equal(cfg.vars.LIVE_RELEASE_APPROVAL,'NOT_APPROVED');
+          assert.equal(cfg.vars.CHECKOUT_DISABLED,'true');
+          assert.equal(cfg.vars.FIREBASE_PROJECT_ID,'kandorty-9378a');
+          assert.equal(cfg.workers_dev,false);
+          assert.equal(cfg.preview_urls,false);
+          assert.deepEqual(cfg.routes,[]);
+          assert.ok(!cfg.triggers && !cfg.crons);
+          const raw=process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+          assert.ok(raw,'Production Firebase secret is missing; do not proceed');
+          const c=JSON.parse(raw);
+          assert.equal(c.type,'service_account');
+          assert.equal(c.project_id,'kandorty-9378a');
+          assert.equal(typeof c.client_email,'string');
+          assert.ok(c.client_email.endsWith('.iam.gserviceaccount.com'));
+          assert.ok(typeof c.private_key==='string' && c.private_key.startsWith('-----BEGIN PRIVATE KEY-----'));
+          console.log('PASS: correct project; detached Worker still disabled, checkout blocked, zero routes. No secret values printed.');
+          JS
+      - name: Store existing Firebase JSON as encrypted Cloudflare secret on DISABLED Worker only
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          workingDirectory: stripe-release
+          command: deploy --config wrangler.release.example.json
+          secrets: |
+            FIREBASE_SERVICE_ACCOUNT_JSON
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      - name: Confirm scope
+        run: echo 'Only detached disabled kandorty-stripe-release; no routes, Live API calls, payments, rules, main site or Ziina changes.'
