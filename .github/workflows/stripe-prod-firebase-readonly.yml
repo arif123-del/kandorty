@@ -1,0 +1,26 @@
+name: Stripe production Firebase connectivity READ ONLY (NO DEPLOY)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/workflows/stripe-prod-firebase-readonly.yml'
+      - '.github/scripts/stripe-prod-firebase-readonly.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production-firebase-readonly:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate existing production credential with OAuth and Firestore GET only
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-prod-firebase-readonly.mjs
