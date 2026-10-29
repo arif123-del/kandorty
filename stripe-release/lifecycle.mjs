@@ -26,7 +26,7 @@ export function lifecycle(cfg,store){
      }
      next.cancelledBy=actor.kind;next.cancelStockRestoredAt=at;next.inventoryStatus='restored';
      if(o.payment==='card'){
-      next.refundStatus=o.refundStatus||'required';
+      next.refundStatus=!o.refundStatus||o.refundStatus==='none'?'required':o.refundStatus;
       writes.push(store.write('stripe_refund_queue/'+orderId,{orderId,checkoutId:l.checkoutId,resolved:false,reason:'cancelled_paid_order',createdAt:at}));
      }
      writes.push(store.write('order_lifecycle/'+orderId,{...l,restockedAt:at},{updateTime:ledger.version}));
