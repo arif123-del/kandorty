@@ -85,10 +85,13 @@ test('client cannot mark an order paid or mutate items',async()=>{
  await assertFails(updateDoc(doc(phone,'orders/KD-12345678'),{paymentStatus:'paid',total:1,items:[]}));
  await assertFails(updateDoc(doc(anon,'orders/KD-12345678'),{paymentStatus:'paid'}));
 });
-test('server-admin capability can create a paid order',async()=>{
- await assertSucceeds(setDoc(doc(admin,'orders/KD-12345679'),{
+test('browser admin claim cannot forge paid order, alter payment or delete an order',async()=>{
+ await assertFails(setDoc(doc(admin,'orders/KD-12345679'),{
   ...seedOrder,id:'KD-12345679',customerUid:'customer2'
  }));
+ await assertFails(updateDoc(doc(admin,'orders/KD-12345678'),{paymentStatus:'paid',total:1}));
+ await assertFails(deleteDoc(doc(admin,'orders/KD-12345678')));
+ await assertSucceeds(getDoc(doc(admin,'orders/KD-12345678')));
 });
 test('phone buyer may read own order but not another buyer order',async()=>{
  await assertSucceeds(getDoc(doc(phone,'orders/KD-12345678')));
@@ -110,6 +113,15 @@ test('tracking by guessed order ID is denied, including logged-in non-owner',asy
  await assertFails(getDoc(doc(wrongPhone,'tracking/KD-12345678')));
 });
 test('admin can inspect tracking and edit access documents',async()=>{
+ await assertSucceeds(getDoc(doc(admin,'tracking/KD-12345678')));
+ await assertSucceeds(getDoc(doc(admin,'order_edits/secret-edit-token')));
+});
+test('even authenticated browser admin cannot forge tracking or guest access capabilities',async()=>{
+ await assertFails(updateDoc(doc(admin,'tracking/KD-12345678'),{status:'delivered'}));
+ await assertFails(setDoc(doc(admin,'tracking/KD-99999999'),{id:'KD-99999999',status:'delivered'}));
+ await assertFails(updateDoc(doc(admin,'order_edits/secret-edit-token'),{status:'cancelled'}));
+ await assertFails(deleteDoc(doc(admin,'order_access/capability-secret')));
+ await assertFails(setDoc(doc(admin,'order_access/fake'),{active:true}));
  await assertSucceeds(getDoc(doc(admin,'tracking/KD-12345678')));
  await assertSucceeds(getDoc(doc(admin,'order_edits/secret-edit-token')));
 });
