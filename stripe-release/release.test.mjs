@@ -42,7 +42,11 @@ test('configuration cannot mix test/live keys or projects and Live stays blocked
  const e=environment();assert.equal(releaseConfig(e).live,false);
  for(const patch of [{STRIPE_MODE:'disabled'},{STRIPE_SECRET_KEY:'sk_live_fixture'},{FIREBASE_PROJECT_ID:LIVE_PROJECT},{STRIPE_MODE:'live',FIREBASE_PROJECT_ID:LIVE_PROJECT,STRIPE_SECRET_KEY:'sk_live_fixture'}])assert.throws(()=>releaseConfig({...e,...patch}));
  const live={...e,STRIPE_MODE:'live',FIREBASE_PROJECT_ID:LIVE_PROJECT,STRIPE_SECRET_KEY:'sk_live_fixture',LIVE_RELEASE_APPROVAL:'KANDORTY_STRIPE_V1_APPROVED',TURNSTILE_SECRET_KEY:'fixture'};
- assert.equal(releaseConfig(live).live,true);assert.throws(()=>releaseConfig({...live,STRIPE_SECRET_KEY:'sk_test_fixture'}));
+ assert.equal(releaseConfig(live).live,true);
+ assert.equal(releaseConfig({...live,STRIPE_SECRET_KEY:'rk_live_restricted_fixture'}).live,true);
+ assert.equal(releaseConfig({...e,STRIPE_SECRET_KEY:'rk_test_restricted_fixture'}).live,false);
+ for(const badKey of ['sk_test_fixture','rk_test_fixture','pk_live_fixture'])assert.throws(()=>releaseConfig({...live,STRIPE_SECRET_KEY:badKey}));
+ assert.throws(()=>releaseConfig({...live,STRIPE_SECRET_KEY:'rk_live_fixture',LIVE_RELEASE_APPROVAL:'NOT_APPROVED'}));
 });
 test('server creates immutable priced snapshot, 25 AED shipping once, idempotent Checkout, changed retry rejected',async()=>{
  const f=fixture(),req=input();const a=await f.service.create(req),b=await f.service.create(req);
