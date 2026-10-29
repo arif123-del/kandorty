@@ -1,6 +1,6 @@
 # Stripe release preparation — isolated TEST deployment, Live disabled
 
-This is a reviewable Stripe-only hosted Checkout implementation. No Live key, production write, deployment or storefront change is performed by its readiness workflow. Ziina is out of scope: no new Ziina work or credential request is required for this task. Existing historical integration files remain unchanged.
+This is a reviewable Stripe-only hosted Checkout implementation. As of 2026-10-29, the current branch also includes aggregate-only refund-queue alerts and 27 successful local Firestore Rules emulator security tests; these are NOT published to production. No Live key, production write, deployment or storefront change is performed by its readiness workflow. Ziina is out of scope: no new Ziina work or credential request is required for this task. Existing historical integration files remain unchanged.
 
 ## Included
 
@@ -18,7 +18,7 @@ This is a reviewable Stripe-only hosted Checkout implementation. No Live key, pr
 
 `node --test stripe-release/*.test.mjs stripe-live-candidate/{fulfillment,cancellation,atomic-commit,cod,cod-race}.test.mjs`
 
-78 local tests pass, covering the release runtime and browser adapter with mocked provider/database services plus the existing atomic order tests. GitHub readiness also performs a Wrangler **dry-run bundle only**. The separate Sandbox deployment workflow exercises the new hosted Checkout/webhook flow; its completed run and results are recorded in PR #2. The previous successful real AED 35 Sandbox PaymentIntent run is https://github.com/arif123-del/kandorty/actions/runs/40587061966 and used the earlier isolated Worker.
+82 code tests pass in the latest successful readiness workflow, covering the release runtime and browser adapter with mocked provider/database services plus the existing atomic order tests. GitHub readiness also performs a Wrangler **dry-run bundle only**. The separate Sandbox deployment workflow exercises the new hosted Checkout/webhook flow; its completed run and results are recorded in PR #2. The previous successful real AED 35 Sandbox PaymentIntent run is https://github.com/arif123-del/kandorty/actions/runs/40587061966 and used the earlier isolated Worker.
 
 ## API and browser integration
 
@@ -31,7 +31,7 @@ This is a reviewable Stripe-only hosted Checkout implementation. No Live key, pr
 
 Live return URLs point to kandorty.online, but the live storefront is untouched and does not yet implement this adapter. Test return URLs use the isolated frontend served by the test Worker. The private staging key is entered locally by the test runner and is not embedded in assets.
 
-See `OPERATIONS.md` for the private monitoring report, shortage/refund procedure and tested emergency checkout stop.
+See `OPERATIONS.md` for the aggregate-only private monitoring report covering pending checkouts, shortages and unresolved cancellation-refund queues, shortage/refund procedure and tested emergency checkout stop.
 
 ## Required before any Live activation
 
