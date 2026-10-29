@@ -1,4 +1,4 @@
-name: Stripe dedicated DISABLED Worker shell (NO LIVE, NO ROUTES)
+name: Stripe disabled Worker public URL setup (NO LIVE, NO CUSTOM ROUTES)
 on:
   push:
     branches: [stripe-live-fulfillment-hardening]
@@ -34,10 +34,11 @@ jobs:
           assert.equal(cfg.vars.LIVE_RELEASE_APPROVAL,'NOT_APPROVED');
           assert.equal(cfg.vars.CHECKOUT_DISABLED,'true');
           assert.equal(cfg.vars.FIREBASE_PROJECT_ID,'kandorty-9378a');
-          assert.equal(cfg.workers_dev,false);
+          assert.equal(cfg.workers_dev,true);
+          assert.equal(cfg.preview_urls,false);
           assert.deepEqual(cfg.routes,[]);
           assert.ok(!cfg.triggers && !cfg.crons);
-          console.log('PASS: detached disabled Worker; no public routes or cron, no Live credentials');
+          console.log('PASS: release worker disabled, single public workers.dev URL, no custom routes, no cron, no Live payment access');
           JS
       - name: Deploy ONLY separate INERT Cloudflare Worker shell
         uses: cloudflare/wrangler-action@v4
@@ -47,5 +48,36 @@ jobs:
           wranglerVersion: 4.153.0
           workingDirectory: stripe-release
           command: deploy --config wrangler.release.example.json
-      - name: Confirm nothing was routed or activated
-        run: echo 'Disabled shell only. No production routes, webhook, Live key, Firestore write, customer site change or Ziina action.'
+      - name: Probe public endpoint and confirm ALL requests fail closed
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          const base='https://kandorty-stripe-release.aliyajan200011.workers.dev';
+          const probes=[
+            ['GET','/'],
+            ['POST','/webhook'],
+            ['POST','/create-checkout-session'],
+            ['POST','/cod/orders']
+          ];
+          for(const [method,path] of probes){
+            let ok=false;
+            for(let i=0;i<8&&!ok;i++){
+              try{
+                const res=await fetch(base+path,{method,redirect:'error',signal:AbortSignal.timeout(13000),...(method==='POST'?{headers:{'Content-Type':'application/json'},body:'{}'}:{})});
+                const body=await res.json();
+                assert.equal(res.status,503,method+' '+path+' status');
+                assert.equal(body.error,'release_disabled',method+' '+path+' response');
+                assert.equal(res.headers.get('cache-control'),'no-store');
+                ok=true;
+              }catch(e){
+                if(i===7)throw new Error('Public disabled endpoint did not pass strict 503 check: '+method+' '+path);
+                await new Promise(r=>setTimeout(r,2000));
+              }
+            }
+            console.log('PASS: '+method+' '+path+' => 503 release_disabled');
+          }
+          console.log('PASS: public URL exists; checkout/card/COD/webhook remain disabled. No Live API activity.');
+          JS
+      - name: Confirm limited scope
+        run: echo 'Only isolated disabled workers.dev endpoint; no custom domains, no routes, no production site changes, no Firebase Rules, no Ziina, no Stripe Live activation.'
+

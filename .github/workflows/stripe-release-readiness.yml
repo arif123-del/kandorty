@@ -30,9 +30,11 @@ jobs:
           const c=JSON.parse(fs.readFileSync('stripe-release/wrangler.release.example.json','utf8'));
           assert.equal(c.vars.STRIPE_MODE,'disabled');
           assert.equal(c.vars.LIVE_RELEASE_APPROVAL,'NOT_APPROVED');
-          assert.equal(c.workers_dev,false);
+          assert.equal(c.workers_dev,true);
+          assert.equal(c.preview_urls,false);
+          assert.equal(c.vars.CHECKOUT_DISABLED,'true');
           assert.deepEqual(c.routes,[]);
-          console.log('No Live enablement, routes, production writes or Ziina calls.');
+          console.log('Public workers.dev is disabled at application level; no Live enablement, custom routes, production writes or Ziina calls.');
           JS
       - name: Bundle Worker locally only; never upload or deploy
         run: npx --yes wrangler@4.153.0 deploy --dry-run --config stripe-release/wrangler.release.example.json --outdir /tmp/kandorty-stripe-release-bundle
