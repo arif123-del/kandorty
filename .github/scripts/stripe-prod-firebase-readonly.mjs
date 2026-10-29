@@ -89,6 +89,17 @@ async function main(){
   console.log('Trusted lifecycle ledgers scanned: '+ledgers.rows.length+(ledgers.truncated?' (TRUNCATED)':''));
   console.log('Orders missing matching server lifecycle ledger in scanned data: '+
     unmanaged+(orders.truncated||ledgers.truncated?' (LOWER BOUND; scan limited)':''));
+  const summarize=(rows,field,allowlist)=>{
+   const counts=Object.fromEntries([...allowlist,'other','missing'].map(x=>[x,0]));
+   for(const row of rows){
+    const value=row.fields[field]?.stringValue;
+    const category=value===undefined?'missing':allowlist.includes(value)?value:'other';
+    counts[category]++;
+   }
+   return Object.entries(counts).filter(([,count])=>count>0).map(([name,count])=>name+'='+count).join(', ');
+  };
+  console.log('Order status groups: '+summarize(orders.rows,'status',['new','preparing','shipping','delivered','cancelled']));
+  console.log('Order payment groups: '+summarize(orders.rows,'payment',['cod','card']));
   console.log('Active server-owned admin memberships: '+activeAdmins+(admins.truncated?' (TRUNCATED)':''));
   console.log('This is a read-only inventory, NOT confirmation of legacy migration or actual admin login.');
  }catch{
