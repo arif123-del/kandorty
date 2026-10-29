@@ -3,6 +3,11 @@ import fs from 'node:fs';import path from 'node:path';import assert from 'node:a
 const source=fs.readFileSync('index.html','utf8');
 const expected='dbabdbc414e49ad3f571373e6e7b1bfdea3fc8d31d5046dad16c873d8aa0bd82';assert.equal(createHash('sha256').update(source).digest('hex'),expected,'Storefront changed: review replacement anchors before rebuilding');
 let html=source;
+// Turnstile site key is PUBLIC and is used only in the unpublished storefront candidate.
+// The separate Turnstile secret remains encrypted in Cloudflare; never put it here.
+const turnstileSiteKey='0x4AAAAAAFroUm7gBp-V9_Ta';
+assert.match(turnstileSiteKey,/^0x4[A-Za-z0-9_-]{15,}$/);
+
 const start=html.indexOf("    if(order.payment==='card'){",html.indexOf('async function submitCheckoutOrder'));
 const end=html.indexOf("\n    checkoutMessage(lang==='ar'?'جارٍ تسجيل الطلب...",start);assert.ok(start>0&&end>start);
 html=html.slice(0,start)+`    if(order.payment==='card'){
@@ -16,7 +21,7 @@ html=html.slice(0,a)+`let secureStripePromise;
 function secureStripeFlow(){
   if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
     storage:localStorage,redirect:url=>window.location.assign(url),
-    getTurnstileToken:()=>turnstileToken('NOT_CONFIGURED'),
+    getTurnstileToken:()=>turnstileToken('${turnstileSiteKey}'),
     confirmed:order=>{
       localStorage.setItem('kandorty_last_order_id',order.id);
       cart=[];saveCart();closeCheckout();
@@ -70,5 +75,7 @@ admin=admin.slice(0,adminStart)+`async function updateOrderStatus(id,status){
 \n`+admin.slice(adminEnd);
 const out=process.env.STRIPE_CANDIDATE_DIR||'/tmp/kandorty-stripe-storefront-review';assert.ok(path.resolve(out)!==process.cwd());fs.mkdirSync(out,{recursive:true});
 fs.writeFileSync(path.join(out,'index.html'),html);fs.writeFileSync(path.join(out,'admin.html'),admin);fs.cpSync('stripe-release',path.join(out,'stripe-release'),{recursive:true,filter:p=>!p.includes('/public')&&!p.endsWith('sandbox-e2e.mjs')});
-assert.ok(!html.includes('https://kandorty-stripe.aliyajan200011.workers.dev/'));assert.ok(!html.slice(html.indexOf('async function completeStripeCheckoutReturn'),html.indexOf('setTimeout(()=>{completeStripeCheckoutReturn')).includes('submitCustomerOrder'));
-console.log('Unpublished storefront review artifact built; live index unchanged. Turnstile remains NOT_CONFIGURED. New COD/admin state transitions use server endpoints; legacy-order migration remains a separate release check.');
+assert.ok(!html.includes('https://kandorty-stripe.aliyajan200011.workers.dev/'));
+assert.ok(html.includes("getTurnstileToken:()=>turnstileToken('"+turnstileSiteKey+"')"),'Turnstile widget site key missing from candidate');
+assert.ok(!html.includes("turnstileToken('NOT_CONFIGURED')"),'Turnstile placeholder must not ship in review candidate');assert.ok(!html.slice(html.indexOf('async function completeStripeCheckoutReturn'),html.indexOf('setTimeout(()=>{completeStripeCheckoutReturn')).includes('submitCustomerOrder'));
+console.log('Unpublished storefront review artifact built; live index unchanged. Public Turnstile Site Key configured in review copy. New COD/admin state transitions use server endpoints; legacy-order migration remains a separate release check.');
