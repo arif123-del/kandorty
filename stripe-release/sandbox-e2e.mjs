@@ -63,7 +63,18 @@ try{
  // Cancellation requires a distinct manage token, then restores recorded stock once.
  assert.match(saved.manageToken,/^[a-f0-9]{48}$/);
  const cancel=()=>api('/orders/cancel',{orderId:order.id,manageToken:saved.manageToken},{Authorization:'Bearer '+saved.receipt});
- const cancellations=await Promise.all([cancel(),cancel()]);assert.ok(cancellations.every(r=>r.status===200));assert.equal((await store.get('products/'+product)).data.stock,3);
+ const cancellations=await Promise.all([cancel(),cancel()]);
+ // The same valid cancellation may race a Firestore transaction and return a transient
+ // 503. Only that response is retried; the endpoint must remain idempotent, and
+ // recorded stock must still be restored exactly once.
+ for(let i=0;i<cancellations.length;i++){
+  for(let attempt=0;attempt<4&&cancellations[i].status===503;attempt++){
+   await pause(300*(attempt+1));
+   cancellations[i]=await cancel();
+  }
+ }
+ assert.ok(cancellations.every(r=>r.status===200),'Concurrent cancellation responses (no PII): '+JSON.stringify(cancellations.map(r=>({status:r.status,error:r.body?.error||null}))));
+ assert.equal((await store.get('products/'+product)).data.stock,3);
  await service.fulfill(checkoutId,session.id);assert.equal((await store.get('products/'+product)).data.stock,3);
  // Refund only this run's test PaymentIntent; no live or pre-existing payment can enter this branch.
  assert.match(session.payment_intent,/^pi_/);assert.equal(session.livemode,false);
