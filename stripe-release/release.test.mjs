@@ -184,6 +184,17 @@ test('refund synchronization retains capture, exposes full/partial/pending truth
  state={amount:0,status:'none'};await syncRefunds(f.store,provider,s);assert.equal(f.rows.get('orders/'+s.orderId).data.refundedAmount,10);
  state={amount:3500,status:'full'};await syncRefunds(f.store,provider,s);const o=f.rows.get('orders/'+s.orderId).data;assert.equal(o.refundStatus,'full');assert.equal(o.paymentStatus,'paid');assert.equal(f.rows.get('products/p1').data.stock,4);
 });
+test('paid cancellation requires refund after earlier provider check returned none',async()=>{
+ const f=fixture(1),{snapshot:s}=await f.service.create(input());f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);
+ const noRefund={refundState:async()=>({amount:0,status:'none'})};
+ await syncRefunds(f.store,noRefund,s);assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'none');
+ await lifecycle(f.cfg,f.store).change(s.orderId,'cancelled',{kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken});
+ assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'required');
+ assert.equal(f.rows.get('products/p1').data.stock,1);
+ await syncRefunds(f.store,noRefund,s);
+ assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'required');
+ assert.equal(f.rows.get('stripe_refund_queue/'+s.orderId).data.resolved,false);
+});
 test('paid shortage cancellation restores zero and refund completion resolves review queues',async()=>{
  const f=fixture(1),{snapshot:s}=await f.service.create(input());f.rows.get('products/p1').data.stock=0;f.pay(s);await f.service.fulfill(s.checkoutId,s.sessionId);
  await lifecycle(f.cfg,f.store).change(s.orderId,'cancelled',{kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken});assert.equal(f.rows.get('products/p1').data.stock,0);assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'required');
