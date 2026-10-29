@@ -4,7 +4,7 @@ No production activation is authorized by this document. These procedures apply 
 
 ## Monitoring
 
-Run `node stripe-release/operations.mjs` in a trusted runner with the appropriate mode-bound credentials. Output contains counts and order IDs only; exit code 2 means attention is required. A full 50-record sample is an alert, not a claim that the backlog has only 50 records. Inspect all pending records before resuming growth. Do not print Firestore snapshots, customer information, keys or guest receipts.
+Run `node stripe-release/operations.mjs` in a trusted runner with the appropriate mode-bound credentials. Output contains **aggregate counts and flags only** (no order IDs or customer data); exit code 2 means attention is required. Pending cancellation-refund records are included, and unresolved refunds cause an attention signal even when they are not overdue. A full 50-record sample in **any** of the pending-checkout, review or refund queues is an alert, not a claim that the backlog has only 50 records. Inspect all pending records before resuming growth. Do not print Firestore snapshots, order IDs, customer information, keys or guest receipts.
 
 The test Worker schedules reconciliation every five minutes. A failed settlement makes the scheduled handler throw so it appears as a Worker execution failure. Configure Cloudflare failure alerts and Stripe webhook delivery alerts for the production release; GitHub one-time tests are not permanent monitoring. The owner must name the responsible operator and notification destination before activation; this project does not send messages to anyone.
 
