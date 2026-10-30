@@ -4,6 +4,7 @@ on:
     branches: [stripe-live-fulfillment-hardening]
     paths:
       - '.github/scripts/android-compat-archive-audit.py'
+      - '.github/scripts/android-checkout-compat-readonly.py'
       - '.github/workflows/android-compat-archive-readonly.yml'
       - 'KandortyAndroid_v1_source.zip'
   workflow_dispatch:
@@ -22,6 +23,10 @@ jobs:
         run: python3 -m py_compile .github/scripts/android-compat-archive-audit.py
       - name: Read ZIP directly and print only non-sensitive aggregate compatibility signals
         run: python3 .github/scripts/android-compat-archive-audit.py
+      - name: Read-only checkout and direct Firestore operation inventory
+        run: |
+          python3 -m py_compile .github/scripts/android-checkout-compat-readonly.py
+          python3 .github/scripts/android-checkout-compat-readonly.py
       - name: Explain actual version and safety limits
         run: |
           echo 'Historical V1 ZIP static audit ONLY; cannot certify the current installed Android APK.'
