@@ -9,6 +9,7 @@ import {getFirestore} from 'firebase-admin/firestore';
 import {verifyAdmin} from './admin-auth.mjs';
 import {ADMIN_PROJECT,currentStorefrontAdminEmail} from './admin-grant-plan.mjs';
 import {parsePublicWebKey} from './email-verification.mjs';
+import {safeFirebaseSignInFailure} from './firebase-signin-error.mjs';
 
 const args=process.argv.slice(2);
 const email=String(args[0]||'').trim().toLowerCase();
@@ -30,7 +31,10 @@ try{
   body:JSON.stringify({email,password,returnSecureToken:true}),
   signal:AbortSignal.timeout(15000)
  });
- if(!response.ok)throw Error('FIREBASE_SIGNIN_REJECTED');
+ if(!response.ok){
+  const failure=await response.json().catch(()=>({}));
+  throw Error(safeFirebaseSignInFailure(failure?.error?.message,response.status));
+ }
  const signed=await response.json();
  if(signed.email?.toLowerCase()!==email||typeof signed.idToken!=='string'||!signed.idToken||
    typeof signed.localId!=='string'||!signed.localId)throw Error('IDENTITY_MISMATCH');
@@ -53,6 +57,8 @@ try{
  say('RESULT','READ_ONLY_ACCEPTANCE_PASS');
 }catch(e){
  const allowed=new Set(['INPUT_REQUIRED','ADMIN_CONFIG_NOT_VERIFIED','FIREBASE_SIGNIN_REJECTED',
+  'FIREBASE_CREDENTIALS_REJECTED','FIREBASE_RETRY_LATER','FIREBASE_ACCOUNT_DISABLED',
+  'FIREBASE_PASSWORD_SIGNIN_DISABLED','FIREBASE_CAPTCHA_REQUIRED','FIREBASE_PROJECT_ACCESS_BLOCKED',
   'IDENTITY_MISMATCH','FIREBASE_ADMIN_ACCOUNT_NOT_READY']);
  say('RESULT',allowed.has(e?.message)?e.message:'ACCEPTANCE_BLOCKED');
  process.exitCode=1;
