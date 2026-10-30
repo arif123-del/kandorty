@@ -1,8 +1,16 @@
 // Pure guard used by the separately owner-invoked administrative provisioning tool.
 // Does not access Firebase, secrets, the network or production data.
 export const ADMIN_PROJECT='kandorty-9378a';
-export function ownerGrantPreflight({email,user,membership,now=Math.floor(Date.now()/1000)}){
+// This does not prove ownership. It prevents an owner-run grant from accidentally
+// targeting a newly-created account instead of the currently shipped admin.
+export function currentStorefrontAdminEmail(source){
+ const matches=[...String(source).matchAll(/\bconst\s+ADMIN_EMAIL\s*=\s*(['"])([^'"\s]+)\1\s*;/g)];
+ if(matches.length!==1||!/^\S+@\S+\.\S+$/.test(matches[0][2]))throw new Error('admin_config_not_verified');
+ return matches[0][2].toLowerCase();
+}
+export function ownerGrantPreflight({email,approvedEmail,user,membership,now=Math.floor(Date.now()/1000)}){
  const normalise=s=>typeof s==='string'?s.trim().toLowerCase():'';
+ if(!normalise(approvedEmail)||normalise(email)!==normalise(approvedEmail))throw new Error('admin_email_not_current');
  if(!normalise(email)||normalise(email)!==normalise(user?.email))throw new Error('account_email_mismatch');
  if(typeof user?.uid!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(user.uid))throw new Error('unsafe_uid');
  if(user.disabled===true)throw new Error('firebase_user_disabled');
