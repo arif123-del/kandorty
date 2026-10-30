@@ -24,7 +24,17 @@ async function payHosted(){
  assert.ok(await fillAny(['input[name="cardExpiry"]','input[autocomplete="cc-exp"]'],'1230'));
  assert.ok(await fillAny(['input[name="cardCvc"]','input[autocomplete="cc-csc"]'],'123'));
  await fillAny(['input[name="billingName"]','input[autocomplete="cc-name"]'],'SYNTHETIC TEST',2000);
- for(const f of page.frames()){const c=f.locator('select[name="billingCountry"],select[autocomplete="country"]').first();if(await c.count()&&await c.isVisible())await c.selectOption('AE');}
+ // Stripe replaces hosted-checkout iframes while the form is initializing.
+ // A detached optional country frame is not a payment or form error.
+ for(const frame of page.frames()){
+  try{
+   const country=frame.locator('select[name="billingCountry"],select[autocomplete="country"]').first();
+   if(await country.count()&&await country.isVisible())await country.selectOption('AE',{timeout:1500});
+  }catch(error){
+   if(/frame was detached|execution context was destroyed|target closed/i.test(String(error?.message||'')))continue;
+   throw error;
+  }
+ }
  await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'00000',2000);
  await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+971500000000',2000);
  await page.locator('button[type="submit"]').filter({visible:true}).last().click();
