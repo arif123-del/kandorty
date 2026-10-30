@@ -239,3 +239,36 @@ test('legacy orders without trusted lifecycle cannot be changed or restocked by 
  assert.equal(f.rows.has('order_lifecycle/'+legacyId),false);
  assert.equal(f.rows.has('stripe_refund_queue/'+legacyId),false);
 });
+
+
+test('concurrent cancellation re-reads a stale order against an already-restocked ledger and returns idempotent success',async()=>{
+ const f=fixture(1),s=(await f.service.create(input())).snapshot;f.pay(s);
+ await f.service.fulfill(s.checkoutId,s.sessionId);
+ const oldOrder=await f.store.get('orders/'+s.orderId);
+ const actor={kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken};
+ await lifecycle(f.cfg,f.store).change(s.orderId,'cancelled',actor);
+ const firstStock=f.rows.get('products/p1').data.stock,firstCount=f.rows.size;
+ const get=f.store.get;let staleOnce=true;
+ f.store.get=async path=>{
+  if(staleOnce&&path==='orders/'+s.orderId){staleOnce=false;return structuredClone(oldOrder);}
+  return get(path);
+ };
+ const result=await lifecycle(f.cfg,f.store).change(s.orderId,'cancelled',actor);
+ assert.equal(result.status,'cancelled');
+ assert.equal(staleOnce,false);
+ assert.equal(f.rows.get('products/p1').data.stock,firstStock);
+ assert.equal(f.rows.size,firstCount);
+ assert.equal(f.rows.get('orders/'+s.orderId).data.status,'cancelled');
+});
+
+test('restocked ledger with still-open order is not treated as a successful cancellation',async()=>{
+ const f=fixture(1),s=(await f.service.create(input())).snapshot;f.pay(s);
+ await f.service.fulfill(s.checkoutId,s.sessionId);
+ const ledger=f.rows.get('order_lifecycle/'+s.orderId).data;
+ f.store.put('order_lifecycle/'+s.orderId,{...ledger,restockedAt:new Date().toISOString()});
+ const beforeStock=f.rows.get('products/p1').data.stock;
+ const actor={kind:'guest',checkoutId:s.checkoutId,manageToken:s.editToken};
+ await assert.rejects(lifecycle(f.cfg,f.store).change(s.orderId,'cancelled',actor),e=>e.message==='database_busy');
+ assert.equal(f.rows.get('orders/'+s.orderId).data.status,'new');
+ assert.equal(f.rows.get('products/p1').data.stock,beforeStock);
+});
