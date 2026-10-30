@@ -23,7 +23,8 @@ try{
  // Release-prep only: bind grants to the exact currently shipped admin source.
  // A future admin replacement requires an explicitly reviewed source change.
  const adminSource=readFileSync(new URL('../../admin.html',import.meta.url),'utf8');
- if(createHash('sha256').update(adminSource).digest('hex')!=='b073297b9289ca5846afcf6e99fe67d8acf7f93a440b3c46ba037ffae82ea669')throw new Error('admin_config_not_verified');
+ const gitBlob=createHash('sha1').update(`blob ${Buffer.byteLength(adminSource,'utf8')}\0`).update(adminSource,'utf8').digest('hex');
+ if(gitBlob!=='59ebb2e8b38de5b689607aa5bdb5aeee5442b310')throw new Error('admin_config_not_verified');
  const approvedEmail=currentStorefrontAdminEmail(adminSource);
  if(email!==approvedEmail)throw new Error('admin_email_not_current');
  const auth=getAuth(app),db=getFirestore(app);
