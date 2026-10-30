@@ -1,3 +1,5 @@
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {ownerGrantPreflight,currentStorefrontAdminEmail,ADMIN_PROJECT} from './admin-grant-plan.mjs';
@@ -33,4 +35,12 @@ test('current storefront admin is extracted only from one exact configuration de
  assert.equal(currentStorefrontAdminEmail("const ADMIN_EMAIL='target@example.test';"),email);
  assert.throws(()=>currentStorefrontAdminEmail('const UNRELATED_EMAIL="target@example.test";'),/admin_config_not_verified/);
  assert.throws(()=>currentStorefrontAdminEmail("const ADMIN_EMAIL='target@example.test'; const ADMIN_EMAIL='other@example.test';"),/admin_config_not_verified/);
+});
+
+// An owner-run grant must stop if the shipped admin entrypoint changes.
+test('owner grant is pinned to exact reviewed storefront admin source',()=>{
+ const html=readFileSync(new URL('../admin.html',import.meta.url),'utf8');
+ const digest=createHash('sha1').update(`blob ${Buffer.byteLength(html,'utf8')}\0`).update(html,'utf8').digest('hex');
+ assert.equal(digest,'59ebb2e8b38de5b689607aa5bdb5aeee5442b310');
+ assert.equal(currentStorefrontAdminEmail(html),'aliyajan200011@gmail.com');
 });
