@@ -66,18 +66,18 @@ def scan(path: pathlib.Path) -> int:
             src.append(content)
         entire = '\n'.join(src)
         checks = {
-            'WEBVIEW': r'\\bWebView\\b|\\bwebview_flutter\\b',
-            'WEBVIEW_JAVASCRIPT_ENABLED': r'setJavaScriptEnabled\\s*\\(\\s*true|JavaScriptMode\\.unrestricted',
+            'WEBVIEW': r'\bWebView\b|\bwebview_flutter\b',
+            'WEBVIEW_JAVASCRIPT_ENABLED': r'setJavaScriptEnabled\s*\(\s*true|JavaScriptMode\.unrestricted',
             'FIRESTORE_SDK': r'FirebaseFirestore|cloud_firestore|firebase-firestore',
             'FIREBASE_AUTH_SDK': r'FirebaseAuth|firebase_auth|firebase-auth',
-            'ORDER_COLLECTION_ACCESS': r'''collection\\s*\\(\\s*['"]orders['"]\\s*\\)|collection\\s*\\(\\s*['"]tracking['"]\\s*\\)''',
-            'CLIENT_TRANSACTION_API': r'\\brunTransaction\\s*\\(|\\brunTransaction\\b|\\bwriteBatch\\s*\\(',
-            'CLIENT_WRITE_CALLS': r'\\.set\\s*\\(|\\.update\\s*\\(|\\.add\\s*\\(|\\.delete\\s*\\(',
-            'KANDORTY_DOT_ONLINE_URL': r'kandorty\\.online',
-            'LEGACY_KANDORTY_DOT_COM_URL': r'kandorty\\.com',
-            'STRIPE_PAYMENT_REFERENCE': r'(?i)stripe|checkout\\.stripe',
+            'ORDER_COLLECTION_ACCESS': r'''collection\s*\(\s*['"]orders['"]\s*\)|collection\s*\(\s*['"]tracking['"]\s*\)''',
+            'CLIENT_TRANSACTION_API': r'\brunTransaction\s*\(|\brunTransaction\b|\bwriteBatch\s*\(',
+            'CLIENT_WRITE_CALLS': r'\.set\s*\(|\.update\s*\(|\.add\s*\(|\.delete\s*\(',
+            'KANDORTY_DOT_ONLINE_URL': r'kandorty\.online',
+            'LEGACY_KANDORTY_DOT_COM_URL': r'kandorty\.com',
+            'STRIPE_PAYMENT_REFERENCE': r'(?i)stripe|checkout\.stripe',
             'ZIINA_PAYMENT_REFERENCE': r'(?i)ziina',
-            'CASH_ON_DELIVERY_REFERENCE': r'(?i)cash.on.delivery|\\bCOD\\b|الدفع عند الاستلام'
+            'CASH_ON_DELIVERY_REFERENCE': r'(?i)cash.on.delivery|\bCOD\b|الدفع عند الاستلام'
         }
         for key, pattern in checks.items():
             markers[key] = bool(re.search(pattern, entire, re.IGNORECASE))
