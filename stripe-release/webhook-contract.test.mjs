@@ -1,10 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {STRIPE_WEBHOOK_API_VERSION,STRIPE_WEBHOOK_URL,STRIPE_CHECKOUT_EVENTS,STRIPE_REFUND_EVENTS,STRIPE_WEBHOOK_EVENTS} from './webhook-contract.mjs';
+import {STRIPE_WEBHOOK_API_VERSION,STRIPE_REST_API_VERSION,STRIPE_WEBHOOK_URL,STRIPE_CHECKOUT_EVENTS,STRIPE_REFUND_EVENTS,STRIPE_WEBHOOK_EVENTS} from './webhook-contract.mjs';
 
 test('Live webhook contract is scoped to one Stripe account, one endpoint and six v1 snapshot events',()=>{
- assert.equal(STRIPE_WEBHOOK_API_VERSION,'2024-06-20');
+ assert.equal(STRIPE_WEBHOOK_API_VERSION,'2026-08-26.dahlia');
+ assert.equal(STRIPE_REST_API_VERSION,'2024-06-20');
+ assert.notEqual(STRIPE_WEBHOOK_API_VERSION,STRIPE_REST_API_VERSION,'Snapshot and REST API versions are intentionally independently pinned');
  assert.equal(STRIPE_WEBHOOK_URL,'https://kandorty-stripe-release.aliyajan200011.workers.dev/webhook');
  assert.deepEqual(STRIPE_CHECKOUT_EVENTS,['checkout.session.completed','checkout.session.async_payment_succeeded']);
  assert.deepEqual(STRIPE_REFUND_EVENTS,['refund.created','refund.updated','refund.failed','charge.refunded']);

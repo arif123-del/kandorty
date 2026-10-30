@@ -8,7 +8,9 @@ This is phase 2 preparation in the draft PR only. Live payments, production Fire
 - Account: Kandorty Stripe **Live**, events on **this account** only (not Connect).
 - Endpoint URL: `https://kandorty-stripe-release.aliyajan200011.workers.dev/webhook`
 - Event payload type: **v1 snapshot events**, not thin events / v2 Event Destinations.
-- Webhook API version: `2024-06-20`, matching the Stripe client adapter's pinned version.
+- Dashboard Snapshot event version: **`2026-08-26.dahlia`** (owner's existing/current available selection as of 2026-10-30). Do **not** choose `2026-10-07.preview` or Thin.
+- Stripe Checkout/refund REST API requests separately remain pinned to **`2024-06-20`**. Event destination snapshot and REST request API version selection are independent; do not automatically upgrade REST calls merely because the Dashboard cannot select the older event version.
+- Before approving LIVE processing, test representative 2026-08-26.dahlia Checkout/Refund signed snapshot payloads and reconciliation; existing mock tests and Sandbox testing do not by themselves prove cross-major-version event compatibility.
 - Subscribe to **only these 6 events**, as declared in `webhook-contract.mjs`:
   - `checkout.session.completed`
   - `checkout.session.async_payment_succeeded`
