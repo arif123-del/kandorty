@@ -33,7 +33,15 @@ async function main(){
  try{
   let user;
   try{user=await getAuth(app).getUserByEmail(intendedEmail);}
-  catch{status('AUTH_LOOKUP','BLOCKED_OR_NOT_FOUND');process.exitCode=1;return;}
+  catch(error){
+   // Whitelist error codes only; NEVER echo exception text, user/email/UID or response.
+   const code=typeof error?.code==='string'?error.code:'';
+   const category=code==='auth/user-not-found'?'USER_NOT_FOUND':
+     code==='auth/insufficient-permission'?'IAM_PERMISSION_DENIED':
+     code==='auth/invalid-credential'?'INVALID_CREDENTIAL':
+     code==='auth/project-not-found'?'PROJECT_NOT_FOUND':'OTHER_BLOCKER';
+   status('AUTH_LOOKUP',category);process.exitCode=1;return;
+  }
   if(user.email?.toLowerCase()!==intendedEmail||!user.uid||user.uid.length>128){
    status('AUTH_IDENTITY_MATCH','UNVERIFIED');process.exitCode=1;return;
   }
