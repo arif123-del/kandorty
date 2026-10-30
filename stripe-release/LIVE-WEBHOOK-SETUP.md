@@ -1,6 +1,8 @@
 # Kandorty Stripe Live Webhook — disabled pre-release contract
 
-**Status: PREPARED, NOT CREATED OR ENABLED. DO NOT ACTIVATE YET.**
+**Status (2026-10-30): LIVE webhook endpoint CREATED, then DISABLED; not processing events.** Endpoint ID `we_1UWAvK3sGbTcMOYOYV440pNw`. Stripe read-after-write verification: `status=disabled`, `livemode=true`, `api_version=2026-08-26.dahlia`, exact six correct events. The endpoint initially had `checkout.session.async_payment_failed` selected in place of the desired `checkout.session.async_payment_succeeded`; this was corrected while disabled and read back from Stripe. The signing secret remains to be transferred **locally** and encrypted in Cloudflare as `STRIPE_WEBHOOK_SECRET`; never reveal it in ChatGPT or GitHub. The dedicated Cloudflare Worker remains `STRIPE_MODE=disabled`, `CHECKOUT_DISABLED=true`, `LIVE_RELEASE_APPROVAL=NOT_APPROVED`. No Live checkout/production site/rules/Ziina changes.
+
+**DO NOT ENABLE the endpoint until server payment processing and the production release are separately approved.**
 
 This is phase 2 preparation in the draft PR only. Live payments, production Firestore Rules, the live storefront and Ziina must not be changed without the owner's separate final explicit approval.
 
@@ -25,7 +27,7 @@ This is phase 2 preparation in the draft PR only. Live payments, production Fire
 
 Stripe's `POST /v1/webhook_endpoints` creation API takes `url` and `enabled_events`, but **has no initial disabled-status option**. Creating it would immediately start real delivery attempts. The isolated Release Worker currently correctly responds `HTTP 503 {"error":"release_disabled"}` for all webhook requests. Connecting an enabled Live webhook now would deliberately fail legitimate webhook notifications and could cause retries or false error alerts. An "immediate disable" step is not atomic or safe.
 
-Do not create a Live endpoint, send Live test events, reveal the signing secret, or switch `STRIPE_MODE` away from `disabled` until final coordination with the authorized owner. A webhook may be created and enabled **only during the coordinated approved rollout**, when the server's signature verification, admin identity, operations alerts and Firestore compatibility have been accepted and checkout routing is controlled. If the dashboard supports an actual disabled-on-create staging facility, owner may confirm that separately; do not assume.
+The owner expressly authorized creating the endpoint. It was created in Stripe Dashboard, then disabled via the Stripe API, and its event list was fixed and verified. Do not **enable** the Live endpoint, send Live test events, reveal the signing secret, or switch `STRIPE_MODE` away from `disabled` until final coordination with the authorized owner. A webhook may be created and enabled **only during the coordinated approved rollout**, when the server's signature verification, admin identity, operations alerts and Firestore compatibility have been accepted and checkout routing is controlled. No disabled-on-create option was available; disable was verified after creation. Stripe may show stale status in a previously open Dashboard tab; refresh to confirm Disabled.
 
 ## Security checks already covered and rollback requirements
 
