@@ -22,3 +22,9 @@ An existing earlier audit found zero active memberships. This alone blocks live 
 6. No Live activation or production rules/storefront changes until compatibility migration and the 98 historical orders policy are accepted.
 
 Never put UID/email/secret values in public PR comments or CI logs.
+
+## Actual read-only attempt and current blocker (2026-10-30)
+
+GitHub Actions [production admin audit run 41026179282](https://github.com/arif123-del/kandorty/actions/runs/41026179282) validated the production service-account project identity, but Firebase Authentication `getUserByEmail` returned **`auth/insufficient-permission`**. Logs were sanitized to show `ADMIN_AUDIT AUTH_LOOKUP: IAM_PERMISSION_DENIED`. Therefore **the real Firebase Auth user has NOT been verified by the runner**, and no current Auth custom-claim or server-membership readiness conclusion can be drawn from this attempt. Older Firestore aggregate audit found zero active server memberships, but that snapshot should be refreshed via least-privilege read-only Firestore access before the final grant.
+
+Do **NOT** give the Firestore service account general Authentication Admin or Owner rights simply to make a diagnostic pass. Safer next action: owner signs into [Firebase console](https://console.firebase.google.com/project/kandorty-9378a/authentication/users) on their own browser and verifies the existing admin email-auth user and UID (without sharing passwords, tokens or private keys). A different, separately approved least-privilege identity-viewer process may be designed if owner expressly approves. The production Auth claim and membership remain unchanged.
