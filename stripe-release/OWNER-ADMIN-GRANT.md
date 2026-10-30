@@ -1,7 +1,7 @@
-# Owner-authorized Firebase admin provisioning (GRANTED; read-only acceptance pending)
+# Owner-authorized Firebase admin provisioning (GRANTED; read-only acceptance PASSED)
 Target project: `kandorty-9378a`. User-selected Firebase account: enter the email in the trusted Cloud Shell terminal; this repository does not hardcode that personal identifier.
 
-**Historical note:** The owner verified the existing admin by email and executed the guarded `--apply` in Google Cloud Shell on 2026-10-30. The tool returned `ADMIN_GRANT: VERIFIED` and `NEW_LOGIN_REQUIRED: YES`. Subsequent read-only Firestore CI independently counted exactly one active membership. **Do not rerun the grant simply to continue setup.** The pending gate is a genuine fresh Firebase ID-token acceptance by the release verifier, not another privilege grant.
+**Historical note:** The owner verified the existing admin by email and executed the guarded `--apply` in Google Cloud Shell on 2026-10-30. The tool returned `ADMIN_GRANT: VERIFIED` and `NEW_LOGIN_REQUIRED: YES`. Subsequent read-only Firestore CI independently counted exactly one active membership. **Do not rerun the grant simply to continue setup.** The owner subsequently completed the fresh Firebase ID-token acceptance using the actual release verifier and production membership (see outcome below). No further privilege grant is necessary.
 
 **Do not run `--apply` for any different user.** The existing production Stripe Worker still has `STRIPE_MODE=disabled`, `CHECKOUT_DISABLED=true`, `LIVE_RELEASE_APPROVAL=NOT_APPROVED`; no site, rules, Ziina or 98 historical orders will be changed by this script.
 
@@ -40,7 +40,7 @@ bash .github/scripts/owner-send-verification.sh 'YOUR_NEW_FIREBASE_ACCOUNT_EMAIL
 
 The Bash prompt hides the **Firebase Authentication login password** (not the Gmail password) and neither writes it to disk nor prints it in the shell. The script obtains only the public Web API key from `admin.html`, signs in as exactly that Firebase account using official Identity Toolkit API, then requests Firebase to email a `VERIFY_EMAIL` message to that signed-in user's inbox. No admin claim, rule, order, membership, Stripe, or Ziina is changed. The owner must open their Gmail inbox and follow the received verification link. **Do not share any password or verification link in chat.** After verifying, rerun `node .github/scripts/owner-firebase-admin-grant.mjs --email 'YOUR_NEW_FIREBASE_ACCOUNT_EMAIL'` without `--apply` and inspect readiness before any permission grant.
 
-## Next: safe read-only server-verifier acceptance (NOT YET EXECUTED)
+## Completed: safe read-only server-verifier acceptance (PASSED 2026-10-30)
 
 In the existing owner-authorized Cloud Shell, on the reviewed draft branch and already installed `firebase-admin`, run:
 
@@ -50,4 +50,4 @@ git pull --ff-only
 bash stripe-release/owner-admin-acceptance.sh 'CURRENT_STOREFRONT_ADMIN_EMAIL'
 ```
 
-Enter the **Firebase Authentication** password only at the terminal's hidden prompt. It signs in directly through Firebase Identity Toolkit and checks the resulting fresh signed ID token using **the same `verifyAdmin` code** as the release Worker, including Google's Firebase signing keys and the current production `admin_access` membership. Output contains only PASS/BLOCKED labels; it never prints password, token, UID, email or Firestore records. It does not contact the disabled release Worker, change Rules, alter orders, or enable Stripe/Ziina. Successful acceptance will close the *server-verifier identity preflight*, **not** the actual deployed Worker integration test. Keep Live NO-GO until the other gates pass.
+Enter the **Firebase Authentication** password only at the terminal's hidden prompt. It signs in directly through Firebase Identity Toolkit and checks the resulting fresh signed ID token using **the same `verifyAdmin` code** as the release Worker, including Google's Firebase signing keys and the current production `admin_access` membership. Output contains only PASS/BLOCKED labels; it never prints password, token, UID, email or Firestore records. It does not contact the disabled release Worker, change Rules, alter orders, or enable Stripe/Ziina. **Owner-verified result (2026-10-30):** `OWNER_ACCEPT FRESH_FIREBASE_LOGIN: PASS`; `OWNER_ACCEPT SERVER_ADMIN_TOKEN_AND_MEMBERSHIP: PASS`; `OWNER_ACCEPT FIRESTORE_WRITES: NONE`; `OWNER_ACCEPT LIVE_WORKER_CALLS: NONE`; `OWNER_ACCEPT RESULT: READ_ONLY_ACCEPTANCE_PASS`. A first rejected login did not grant privileges or modify records; a subsequent fresh credential sign-in passed. This closes the *server-verifier identity preflight*, **not** the deployed Live Worker integration acceptance test. Keep Live NO-GO until historical-order/Android compatibility, operational alerting, provider-side secret verification and explicit final release authorization are satisfied. Never print passwords, user UIDs, tokens or order data.
