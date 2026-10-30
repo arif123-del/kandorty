@@ -27,3 +27,13 @@ node .github/scripts/owner-firebase-admin-grant.mjs --email 'YOUR_VERIFIED_ADMIN
 The tool asks the owner to type the exact approval phrase interactively. It reads the current user by email via Firebase Admin SDK, refuses disabled/unverified users, preserves unrelated custom claims, and creates **only** the `admin_access/{real UID}` server-owned membership. Writes are ordered with an initially disabled membership before setting admin claim; on failure it attempts a rollback. The script prints no emails/UIDs/tokens/credentials. Its dry-run and standalone guards are tested in `admin-grant-plan.test.mjs`.
 
 Because the server checks that the token `auth_time` is newer than `validAfter`, the user must sign out and sign in again after the role is granted. Verification of actual API authorization still requires separate future release approval; do not enable Stripe Live or publish Rules just to test this one admin role.
+
+## Owner-created password account: official email verification
+
+If the first dry run prints `OWNER_ADMIN RESULT: EMAIL_VERIFICATION_REQUIRED`, **do not** use `--apply`, and do not mark `emailVerified=true` through privileged Admin SDK as a shortcut. The intended owner should instead run the separately prepared interactive tool from an owner-controlled Cloud Shell session:
+
+```bash
+bash .github/scripts/owner-send-verification.sh 'YOUR_NEW_FIREBASE_ACCOUNT_EMAIL'
+```
+
+The Bash prompt hides the **Firebase Authentication login password** (not the Gmail password) and neither writes it to disk nor prints it in the shell. The script obtains only the public Web API key from `admin.html`, signs in as exactly that Firebase account using official Identity Toolkit API, then requests Firebase to email a `VERIFY_EMAIL` message to that signed-in user's inbox. No admin claim, rule, order, membership, Stripe, or Ziina is changed. The owner must open their Gmail inbox and follow the received verification link. **Do not share any password or verification link in chat.** After verifying, rerun `node .github/scripts/owner-firebase-admin-grant.mjs --email 'YOUR_NEW_FIREBASE_ACCOUNT_EMAIL'` without `--apply` and inspect readiness before any permission grant.
