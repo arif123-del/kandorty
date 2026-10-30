@@ -18,7 +18,18 @@ export function lifecycle(cfg,store){
     if(target!=='cancelled')check(o.inventoryStatus==='debited'&&(!o.refundStatus||o.refundStatus==='none'),'order_requires_review');
     const at=new Date().toISOString(),next={...o,status:target,updatedAt:at},writes=[];
     if(target==='cancelled'){
-     check(!l.restockedAt,'restock_state_conflict');
+     if(l.restockedAt){
+      // Firestore REST GETs below are separate reads, not one atomic snapshot.
+      // A concurrent successful cancellation may therefore leave us seeing an
+      // older order status alongside the already-restocked lifecycle ledger.
+      // Re-read the order and only acknowledge success once it is actually
+      // cancelled; never return success for an inconsistent ledger/order pair.
+      const fresh=await store.get('orders/'+orderId);
+      if(fresh?.data?.status==='cancelled')return publicOrder(fresh.data);
+      if(fresh?.data?.status!=='new')throw new Fault('restock_state_conflict',409);
+      await new Promise(resolve=>setTimeout(resolve,40*(n+1)));
+      continue;
+     }
      for(const [id,qty] of Object.entries(l.stockDebits||{})){
       check(/^[A-Za-z0-9_-]{1,150}$/.test(id)&&Number.isSafeInteger(qty)&&qty>0&&qty<=99,'invalid_recorded_debit');
       const p=await store.get('products/'+id),stock=Number(p?.data.stock);check(p&&p.data.stock!==null&&p.data.stock!==''&&Number.isSafeInteger(stock)&&stock>=0&&Number.isSafeInteger(stock+qty),'invalid_stock');
