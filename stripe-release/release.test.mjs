@@ -219,3 +219,23 @@ test('scheduled reconciliation recovers missed refund event for cancelled paid o
  f.store.refundPending=async()=>[{orderId:s.orderId,checkoutId:s.checkoutId}];f.stripe.refundState=async()=>({amount:3500,status:'full'});
  assert.equal((await f.service.reconcile()).failed,0);assert.equal(f.rows.get('orders/'+s.orderId).data.refundStatus,'full');assert.equal(f.rows.get('stripe_refund_queue/'+s.orderId).data.resolved,true);assert.equal(f.rows.get('products/p1').data.stock,5);
 });
+
+
+test('legacy orders without trusted lifecycle cannot be changed or restocked by new admin API',async()=>{
+ const f=fixture(5),legacyId='KD-12345678';
+ f.store.put('orders/'+legacyId,{id:legacyId,payment:'cod',status:'new',inventoryStatus:'unknown',items:[],total:35});
+ f.store.put('tracking/'+legacyId,{id:legacyId,status:'new'});
+ const before={order:structuredClone(f.rows.get('orders/'+legacyId).data),
+  tracking:structuredClone(f.rows.get('tracking/'+legacyId).data),
+  stock:f.rows.get('products/p1').data.stock,count:f.rows.size};
+ const manager=lifecycle(f.cfg,f.store);
+ for(const target of ['preparing','cancelled']){
+  await assert.rejects(manager.change(legacyId,target,{kind:'admin',uid:'verified-admin-fixture'}),/managed_order_required/);
+ }
+ assert.deepEqual(f.rows.get('orders/'+legacyId).data,before.order);
+ assert.deepEqual(f.rows.get('tracking/'+legacyId).data,before.tracking);
+ assert.equal(f.rows.get('products/p1').data.stock,before.stock);
+ assert.equal(f.rows.size,before.count);
+ assert.equal(f.rows.has('order_lifecycle/'+legacyId),false);
+ assert.equal(f.rows.has('stripe_refund_queue/'+legacyId),false);
+});
