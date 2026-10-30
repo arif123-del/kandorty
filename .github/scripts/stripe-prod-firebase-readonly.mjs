@@ -2,6 +2,7 @@
 // Uses an existing GitHub Actions secret in process memory, never prints values.
 // No Firestore writes, no rules publication, no admin provisioning.
 import {createPrivateKey,sign} from 'node:crypto';
+import {countLegacyOrderFolders} from '../../stripe-release/legacy-audit.mjs';
 
 const PROJECT='kandorty-9378a';
 const report=(label,passed)=>console.log(label+': '+(passed?'PASS':'BLOCKED'));
@@ -78,7 +79,7 @@ async function main(){
   return {rows:seen,truncated:!!cursor};
  }
  try{
-  const orders=await scanCollection('orders',['status','payment'],500);
+  const orders=await scanCollection('orders',['status','payment','customer.phone'],500);
   const ledgers=await scanCollection('order_lifecycle',['payment'],500);
   const admins=await scanCollection('admin_access',['active'],500);
   const ledgerIds=new Set(ledgers.rows.map(row=>row.id));
@@ -89,6 +90,10 @@ async function main(){
   console.log('Trusted lifecycle ledgers scanned: '+ledgers.rows.length+(ledgers.truncated?' (TRUNCATED)':''));
   console.log('Orders missing matching server lifecycle ledger in scanned data: '+
     unmanaged+(orders.truncated||ledgers.truncated?' (LOWER BOUND; scan limited)':''));
+  // The deployed admin renders customer folders by normalized phone. A folder is
+  // not an order; explain any apparent discrepancy without printing phone data.
+  console.log('Legacy admin customer folders inferred from phone: '+
+    countLegacyOrderFolders(orders.rows)+(orders.truncated?' (PARTIAL; scan limited)':''));
   const summarize=(rows,field,allowlist)=>{
    const counts=Object.fromEntries([...allowlist,'other','missing'].map(x=>[x,0]));
    for(const row of rows){
