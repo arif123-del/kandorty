@@ -31,3 +31,12 @@ This failure-closed behavior protects stock and payment records; do **not** disa
 ## No-Go until verified
 
 The existing site, Ziina workers, current Firebase Rules and all 98 historical orders must remain untouched. PR #2 stays Draft and unmerged. Stripe Live, production routes, rules and live-payment/refund checks require **separate, specific final approval** after a verified compatibility plan.
+
+## Source-level client compatibility evidence (2026-10-30 review)
+
+- Current `index.html` includes `saveOrderWithStock()` using `db.runTransaction()` for browser-side order/stock writes. It also includes `cancelOrderFromMyOrders()` and `requestOrderCancellation()` that depend on browser reads/writes for legacy proofs and order status.
+- Current `admin.html` includes `updateOrderStatus()` with a browser Firestore transaction and `finalizeCustomerCancellation()` with another browser transaction. The latter recognizes legacy `customerEdit.cancelRequestedAt` and proof matching the order's edit token.
+- Draft `stripe-release/build-storefront-candidate.mjs` replaces the new checkout/COD and ordinary admin status update routes with server endpoints, but does **not** prove that the existing 98 orders or the released Android client can complete all legacy tracking, cancellation and status workflows.
+- Draft `stripe-live-candidate/firestore.rules` intentionally denies browser writes to `orders`, `tracking`, `order_edits` and `order_access`. This is incompatible with the current legacy browser workflow unless a separate, verified compatibility path is added first.
+
+**Release acceptance requirement:** on isolated fixtures representing pre-cutover and new orders, verify customer order history, guest tracking, customer cancellation before processing, admin cancellation/processing status changes, no status resurrection after cancellation, no stock increments without trusted debits, refund review and existing Android behavior. Record owner-approved legacy handling before replacing the public site or publishing these Rules. This source-level audit did not run client/device acceptance tests and did not modify production records.
