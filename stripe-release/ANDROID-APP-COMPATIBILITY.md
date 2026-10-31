@@ -36,3 +36,9 @@ Original Java Activities, splash UI, branding/icons, Android Manifest, online We
 5. Test alert delivery and signed webhook with owner-verified secrets in a safe environment; receive explicit independent approval before any Live site/rules/Stripe activation.
 
 **Status: 2.3.1 SOURCE REVIEW PREPARED, NOT SHIPPED; PRODUCTION NO-GO.**
+
+## CodeAssist import-ready source artifact (2026-10-31)
+
+- Prepared separate conversation artifact `KandortyAndroid_2.3.1_CODEASSIST_READY.zip`, derived from already-confirmed v13 2.3.0, with a bilingual Pashto/Arabic import/build/read-only testing guide. All 16 preexisting V13 project files are preserved; **only** `app/build.gradle.kts` and `app/src/main/assets/index-fast-start.html` differ from original, plus a separate guide and review note. ZIP integrity, XML parsing, application ID and version, and static fallback absence of scripts, Firebase and order forms passed. Source PNGs, Java WebView/splash Activities, and online store URL are retained byte-for-byte.
+- The assistant environment lacks Android SDK/Gradle and cannot remotely control the user's on-device CodeAssist projects; **no actual APK was compiled or signed** and no Android install/real payment was tested. The next user-visible step is extracting/importing the ZIP in CodeAssist as a **separate** project, building a debug APK, and inspecting results before any installation. Do not delete the installed app to work around signature mismatches.
+- This review ZIP is a chat artifact, **not** a commit to this GitHub repository and not an app-store/production release. Firebase Rules, 98 historical orders, Ziina, public site and Stripe Live remain unchanged.
