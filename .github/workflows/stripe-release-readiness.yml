@@ -1,0 +1,77 @@
+name: Stripe release readiness (NO DEPLOY, NO LIVE KEYS)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - 'stripe-release/**'
+      - 'stripe-live-candidate/fulfillment.mjs'
+      - '.github/workflows/stripe-release-readiness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stripe-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Stripe-only release tests and existing atomic order safeguards
+        run: node --test stripe-release/*.test.mjs stripe-live-candidate/fulfillment.test.mjs stripe-live-candidate/cancellation.test.mjs stripe-live-candidate/atomic-commit.test.mjs stripe-live-candidate/cod.test.mjs stripe-live-candidate/cod-race.test.mjs
+      - name: Assert disabled production template with no routes
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const c=JSON.parse(fs.readFileSync('stripe-release/wrangler.release.example.json','utf8'));
+          assert.equal(c.vars.STRIPE_MODE,'disabled');
+          assert.equal(c.vars.LIVE_RELEASE_APPROVAL,'NOT_APPROVED');
+          assert.equal(c.workers_dev,true);
+          assert.equal(c.preview_urls,false);
+          assert.equal(c.vars.CHECKOUT_DISABLED,'true');
+          assert.deepEqual(c.routes,[]);
+          console.log('Public workers.dev is disabled at application level; no Live enablement, custom routes, production writes or Ziina calls.');
+          JS
+      - name: Bundle Worker locally only; never upload or deploy
+        run: npx --yes wrangler@4.153.0 deploy --dry-run --config stripe-release/wrangler.release.example.json --outdir /tmp/kandorty-stripe-release-bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stripe-release-review-bundle
+          path: /tmp/kandorty-stripe-release-bundle
+          retention-days: 14
+
+      - name: Build unpublished storefront integration review artifact
+        run: node stripe-release/build-storefront-candidate.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stripe-storefront-review-NOT-FOR-DEPLOY
+          path: /tmp/kandorty-stripe-storefront-review
+          retention-days: 14
+  rules-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install local rules emulator libraries
+        working-directory: stripe-live-candidate
+        run: npm install --no-save firebase@13 @firebase/rules-unit-testing@6 firebase-tools@14
+      - name: Verify proposed rules locally only
+        working-directory: stripe-live-candidate
+        env:
+          CI: 'true'
+          FIREBASE_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+        run: ./node_modules/.bin/firebase emulators:exec --project demo-kandorty-stripe-rules-only --only firestore 'node --test firestore.rules.test.mjs'
