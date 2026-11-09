@@ -1,5 +1,6 @@
 // Produce a review artifact only. Never modifies index.html or publishes Pages.
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createHash} from 'node:crypto';
+import {guardLegacyAdminReviewArtifact} from './legacy-admin-candidate-guard.mjs';
 const source=fs.readFileSync('index.html','utf8');
 const expected='dbabdbc414e49ad3f571373e6e7b1bfdea3fc8d31d5046dad16c873d8aa0bd82';assert.equal(createHash('sha256').update(source).digest('hex'),expected,'Storefront changed: review replacement anchors before rebuilding');
 let html=source;
@@ -73,7 +74,7 @@ admin=admin.slice(0,adminStart)+`async function updateOrderStatus(id,status){
  catch(error){alert('تعذر تحديث الطلب: '+error.message);renderOrders();}
 }
 \n`+admin.slice(adminEnd);
-const out=process.env.STRIPE_CANDIDATE_DIR||'/tmp/kandorty-stripe-storefront-review';assert.ok(path.resolve(out)!==process.cwd());fs.mkdirSync(out,{recursive:true});
+// Draft admin must not automatically mutate historical cancellations, stock,\n// tracking or edit-token backfill while strict Rules/server migration is pending.\nadmin=guardLegacyAdminReviewArtifact(admin);\nconst out=process.env.STRIPE_CANDIDATE_DIR||'/tmp/kandorty-stripe-storefront-review';assert.ok(path.resolve(out)!==process.cwd());fs.mkdirSync(out,{recursive:true});
 fs.writeFileSync(path.join(out,'index.html'),html);fs.writeFileSync(path.join(out,'admin.html'),admin);fs.cpSync('stripe-release',path.join(out,'stripe-release'),{recursive:true,filter:p=>!p.includes('/public')&&!p.endsWith('sandbox-e2e.mjs')});
 assert.ok(!html.includes('https://kandorty-stripe.aliyajan200011.workers.dev/'));
 assert.ok(html.includes("getTurnstileToken:()=>turnstileToken('"+turnstileSiteKey+"')"),'Turnstile widget site key missing from candidate');
