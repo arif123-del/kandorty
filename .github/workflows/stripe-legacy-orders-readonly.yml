@@ -1,0 +1,43 @@
+name: Kandorty 98 legacy order preservation aggregate READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/stripe-legacy-orders-readonly.mjs'
+      - '.github/workflows/stripe-legacy-orders-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  legacy-inventory:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify no mutation operations in the read-only audit
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const src=fs.readFileSync('.github/scripts/stripe-legacy-orders-readonly.mjs','utf8');
+          for(const forbidden of [/\.set\s*\(/, /\.update\s*\(/, /\.delete\s*\(/,
+            /\.create\s*\(/, /\.commit\s*\(/, /\.add\s*\(/, /\.batch\s*\(/,
+            /\.runTransaction\s*\(/, /\.bulkWriter\s*\(/])
+            assert.ok(!forbidden.test(src),'Forbidden Firestore mutation in read-only audit');
+          assert.ok(src.includes(".collection('orders').select('status','payment')"));
+          console.log('SAFE: aggregations only, no Firestore mutation');
+          JS
+      - name: Install ephemeral Firebase Admin SDK
+        run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Read only bounded production order/tracking/lifecycle compatibility aggregates
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-legacy-orders-readonly.mjs
+      - name: State explicit restrictions
+        if: always()
+        run: echo 'No real order, stock, payment, refund, Stripe Live, Firebase Rule, site, Android or Ziina mutation. Historical read-only snapshot is NOT permission to migrate.'
