@@ -31,6 +31,9 @@ export function planLegacyAdminTransition({
   const current=order.status;
   fail(Object.hasOwn(transitions,current),'unknown_legacy_status');
   fail(current===tracking.status,'order_tracking_disagree');
+  // The legacy method is not proof of settlement. Unknown methods must never
+  // be silently classified as COD (or exempted from manual card review).
+  fail(order.payment==='cod'||order.payment==='card','unknown_legacy_payment');
   fail(Object.hasOwn(transitions,target),'invalid_target');
   if(current===target)return Object.freeze({noop:true,orderPatch:null,trackingPatch:null,auditPlan:null,needsPaymentReview:false});
   fail(transitions[current].includes(target),'legacy_transition_locked');
