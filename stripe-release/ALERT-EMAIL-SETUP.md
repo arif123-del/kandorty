@@ -40,6 +40,18 @@ In a trusted **private** Work/Cloud Shell session after Resend domain verificati
 4. If the tool reports provider acceptance, ask the owner to check the exact inbox and spam folder for the message. Only then record inbox delivery as confirmed. If no email arrives, review Resend's authenticated logs privately; never expose secret-bearing logs.
 5. Separately implement a durable, owner-approved schedule, provider error alarms, cooldown/dedup, Stripe failure/dispute and Cloudflare execution alerts. **Do not set `ALERT_DELIVERY_ENABLED=true` in production merely because the one-time test passes.**
 
+## Staged opt-in automatic incident alerts (implemented but DISABLED)
+
+`alert-scheduler.mjs` is now called by the Stripe/COD release Worker's scheduled reconciliation **only when** `ALERT_DELIVERY_ENABLED=true`; the variable is absent from the default test and disabled Live templates. There is no enabled production alert deployment or Resend credential installed by this source change. The isolated Sandbox CI runs automated tests; it does not need or transmit the owner's Resend key.
+
+The scheduler reads *aggregate-only* pending/review/refund queues through `operations.mjs`. If nothing requires attention, it sends nothing. If attention is present, it claims a private Firestore `stripe_operator_alerts` record with an optimistic write precondition, then sends one fixed-content notification through Resend. Its **stable idempotency key per hour and Stripe mode** avoids duplicate provider requests on retry. Accepted notifications are recorded separately from delivery confirmation. Competing schedulers share a 90-second lease, a failed send gets a 2-minute retry cooldown, and an uncertain acceptance can retry under the same provider idempotency key. Only aggregate metadata is written. At most one accepted notification per mode per hour is intended; repeated/recurrent problems in that hour are intentionally coalesced.
+
+Production mode requires an additional private `ALERT_PRODUCTION_APPROVAL=KANDORTY_ALERTS_APPROVED` gate **as well as** the separate Stripe Live release gate. Do **not** set either gate to true as part of these preparations. The alert scheduler cannot send if required private parameters are missing and reports a failure instead of silently claiming success.
+
+To activate in an owner-controlled staging environment *after owner approval*, separately install `RESEND_API_KEY`, `ALERT_EMAIL_FROM` and `ALERT_EMAIL_TO` as encrypted Worker secrets, and set `ALERT_DELIVERY_ENABLED=true` **only for the isolated TEST Worker** after reviewing the sender, recipient, test project and frequency. Never put these values in public GitHub source, browser scripts or ChatGPT messages. Run a TEST-only simulated queue incident, confirm exactly one email arrives and confirm the cooldown and retries; do not use a real payment/order to induce an incident.
+
+**Still outstanding:** privately installing the limited key and routing to the operator, verifying the automatic (not just manual) end-to-end email, owner-approved frequency and backup escalation, and separate Stripe Dashboard dispute/webhook-delivery and Cloudflare execution-failure alarms. These external operations cannot be certified by passing unit tests; stage 6 remains partial.
+
 ## Owner-only interactive shortcut (prepared 2026-11-09)
 
 From a trusted private owner terminal with this PR branch checked out, run
