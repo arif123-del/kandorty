@@ -48,7 +48,7 @@ if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<1
    // deployed plain-text binding is also valid. Never display its content.
    const publicEmail=name!=='RESEND_API_KEY'&&kind==='plain_text'&&
      typeof binding.text==='string'&&
-     /^[^\\s@<>]+@[^\\s@<>]+\\.[^\\s@<>]+$/.test(binding.text);
+     /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(binding.text);
    const ok=secret||publicEmail;
    console.log(name+': '+(secret?'PRESENT_SECRET_NAME_ONLY':publicEmail?'PRESENT_VALID_EMAIL_NAME_ONLY':binding?'PRESENT_INVALID_BINDING':'MISSING'));
    if(!ok)process.exitCode=2;
