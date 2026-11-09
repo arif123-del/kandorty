@@ -1,0 +1,29 @@
+name: Kandorty TEST Resend delivery state READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/test-resend-delivery-state-readonly.mjs'
+      - '.github/workflows/stripe-test-resend-delivery-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider-aggregate-only:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read only provider delivery status saved in TEST Firestore
+        env:
+          STRIPE_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/test-resend-delivery-state-readonly.mjs
+      - name: State limitations
+        if: always()
+        run: echo 'Only isolated TEST provider metadata. Does not prove recipient Inbox receipt and never writes production data.'
