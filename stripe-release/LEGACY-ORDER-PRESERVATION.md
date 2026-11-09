@@ -17,6 +17,16 @@ This is a **count-level snapshot**, not identity-by-identity comparison of the o
 
 Consequently, the new-order management endpoint is intentionally unable to update **all 99 currently observed legacy orders**. Before any publication of client-deny Firestore Rules, provide a safe reviewed legacy-only status/cancellation path, verify old Android/WebView compatibility, and obtain a protected owner-held backup. No stock or refund ledger should be inferred.
 
+## 2026-11-10 — additional TEST-only protection work
+
+The future legacy-admin status path now has a **separate TEST-only Firestore REST read-write transaction** in `legacy-status-service.mjs`. The Worker route `/admin/legacy/orders/status` is off unless two private TEST gates are explicitly set, requires existing Firebase ID-token administrator verification and rejects LIVE unconditionally even with those gates. It cannot be used to modify the 99 current production historical orders.
+
+The service atomically reads the order, tracking and trusted lifecycle ledger (including absence), then changes only order/tracking status/lock metadata and creates an immutable audit. It does **not** refund card payments, infer trusted inventory debits, modify product stock, grant customer edit tokens or enable guest cancellation. Ambiguous payment labels, pending customer cancellation, already-processed or cancelled states and ledger-backed orders fail closed.
+
+[Authentic isolated TEST Firestore smoke](https://github.com/arif123-del/kandorty/actions/runs/42703622080) **PASS**: synthetic order + tracking status and audit changed in one transaction; a duplicate status was a no-op. TEST fixtures and obsolete synthetic audit markers were deleted. [169 code tests plus Firestore Rules compatibility](https://github.com/arif123-del/kandorty/actions/runs/42703984347) **PASS**. No production orders, production Rules, main store, Stripe Live or Ziina were changed.
+
+**Still blocked:** controlled backup/export of the current 99 under the owner's protected cloud storage; review and approval of exactly how historical cancellation and stock reconciliation must work; proven compatibility for installed Android 2.3.0 and older embedded fallback/guest order routes; final coordinated production authorization. The deployed legacy admin, consumer cancellation and order-edit flows cannot be silently replaced by the disabled TEST-only route.
+
 ## Exact incompatibility
 
 The existing production `admin.html` changes order/tracking status using a browser Firestore transaction. The new **unpublished** candidate admin page routes updates through `/admin/orders/status`; its server `lifecycle.change` refuses any order without a trusted `order_lifecycle` document. Proposed rules also deny direct client writes to orders/tracking. **Publishing the candidate without a legacy policy would prevent normal state changes for all 98 historical orders.** Existing browser tracking and customer cancellation flows also require separate compatibility verification. The **archived native Android V1 source** has Firestore SDK access, order collection references, transaction and write-call code (see read-only archive scan below); the installed Android app may contain later modifications and **is not certified**.
