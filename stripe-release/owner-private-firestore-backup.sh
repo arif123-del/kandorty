@@ -54,8 +54,24 @@ read -r -p 'To export the database, type EXPORT_LEGACY_BACKUP: ' approval
 if [[ "$approval" != 'EXPORT_LEGACY_BACKUP' ]]; then
   echo 'No export started.'; exit 1
 fi
+# Without --async, this command waits for the managed export operation.
+# A failed command aborts the script because set -e is enabled.
 gcloud firestore export "$destination" --database='(default)' --project="$PROJECT"
-echo "EXPORT_COMMAND_COMPLETED: $destination"
-echo 'Verify the Firestore import/export job shows completed SUCCESS and backup files exist.'
-echo 'Keep this destination and access under your owner-controlled Cloud account.'
+echo 'Managed export command reported success; verifying the Cloud Storage manifest.'
+# Do not print bucket listings, object names, customer IDs or file payloads.
+if ! objects="$(gcloud storage ls --recursive "$destination" 2>/dev/null)"; then
+  echo 'BACKUP_VERIFICATION_INCOMPLETE: cannot list private export objects.' >&2
+  echo 'Check Firestore Import/Export operation status and destination in your own Google Cloud console.' >&2
+  exit 2
+fi
+if ! grep -qF '.overall_export_metadata' <<<"$objects"; then
+  echo 'BACKUP_VERIFICATION_INCOMPLETE: overall export metadata not found.' >&2
+  echo 'Check Firestore Import/Export operation status and destination in your own Google Cloud console.' >&2
+  exit 2
+fi
+unset objects
+echo 'BACKUP_MANIFEST_VERIFIED: YES'
+echo 'Managed export reported success. Manifest exists in the owner-controlled private bucket.'
+echo 'Do not share the bucket name, export file or customer data in chat or GitHub.'
+echo 'This backup is not a guarantee of an instantaneous database snapshot.'
 echo 'The live website, Stripe Live, Firebase Rules, Ziina and all original orders were not modified.'
