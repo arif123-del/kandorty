@@ -27,3 +27,17 @@ The current aggregate operational scanner flags: paid stock shortages, pending c
 ## Security acceptance boundary
 
 No actual email has been sent by these draft files, no provider account created, no sender domain verified, no alert destination deployed, no Stripe Live webhook enabled and no production traffic monitored. **Stage 6 remains incomplete** until operational delivery, coverage and escalation tests pass.
+
+## Manual provider acceptance path (prepared 2026-11-09)
+
+A dedicated `stripe-release/resend-verification.mjs` was added as a **manual-only** verified-provider test tool. Running ordinary CI or importing this module does not send mail. It uses no real orders and its message says **TEST**. The result `provider_accepted_delivery_not_confirmed` is never a substitute for inbox confirmation.
+
+In a trusted **private** Work/Cloud Shell session after Resend domain verification and owner permission:
+
+1. Obtain a limited Resend key through its account UI. Save it through the operator's private environment/secret manager, **never** in GitHub source, workflow YAML, terminal history, chat or screenshots. Set `RESEND_API_KEY`, `ALERT_EMAIL_FROM` and `ALERT_EMAIL_TO` privately; keep the destination that the owner specifically designated.
+2. Set `STRIPE_MODE=test`, `ALERT_DELIVERY_ENABLED=false` and a unique `ALERT_EVENT_KEY` (16–128 letters, digits, underscore or dash). Confirm the destination and `from` domain are allowed by the provider.
+3. Set `RESEND_TEST_SEND_CONFIRM=SEND_ONE_VERIFICATION_EMAIL` deliberately, then run `node stripe-release/resend-verification.mjs` **once** from the PR branch checked out in that private environment. No production Firebase, Stripe or Cloudflare mutation is necessary.
+4. If the tool reports provider acceptance, ask the owner to check the exact inbox and spam folder for the message. Only then record inbox delivery as confirmed. If no email arrives, review Resend's authenticated logs privately; never expose secret-bearing logs.
+5. Separately implement a durable, owner-approved schedule, provider error alarms, cooldown/dedup, Stripe failure/dispute and Cloudflare execution alerts. **Do not set `ALERT_DELIVERY_ENABLED=true` in production merely because the one-time test passes.**
+
+No provider key or receiver email is committed. The public domain's existing DNS records, site, Firebase Rules, Stripe Live and Ziina stay unchanged until separately approved.
