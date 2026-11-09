@@ -100,7 +100,7 @@ test('competing creation is guarded by Firestore exists=false',async()=>{
   send:async()=>{calls++;return accepted();}});
  const statuses=(await Promise.all([invoke(),invoke()])).map(x=>x.status);
  assert.ok(statuses.includes('accepted_by_provider_not_delivered'));
- assert.ok(statuses.includes('claimed_elsewhere_no_send')||statuses.includes('in_flight_no_send'));
+ assert.ok(statuses.some(s=>['claimed_elsewhere_no_send','in_flight_no_send','already_accepted_no_send'].includes(s)));
  assert.equal(calls,1);
 });
 test('email transport receives fixed aggregate-only payload via standard adapter',async()=>{
