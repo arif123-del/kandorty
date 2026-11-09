@@ -2,6 +2,7 @@ import {verifyAdmin} from './admin-auth.mjs';
 import {runScheduledAlert} from './alert-scheduler.mjs';
 import {auditResendDelivery} from './resend-delivery-audit.mjs';
 import {lifecycle} from './lifecycle.mjs';
+import {legacyStatusTestService} from './legacy-status-service.mjs';
 import {codService} from './cod-service.mjs';
 import {syncRefunds} from './refunds.mjs';
 import {releaseConfig} from './configuration.mjs';
@@ -81,6 +82,16 @@ export function handler(factories={}){return async(request,env)=>{
    const claims=await readReceipt(env.STRIPE_RECEIPT_SECRET,cfg,request.headers.get('Authorization')?.replace(/^Bearer /,''));
    if(claims.orderId!==body.orderId)throw new Fault('invalid_receipt',401);
    return reply({order:await lifecycle(cfg,store).change(body.orderId,'cancelled',{kind:'guest',checkoutId:claims.checkoutId,manageToken:body.manageToken})});
+  }
+  if(url.pathname==='/admin/legacy/orders/status'){
+   // Explicit TEST-only, owner-controlled feature gate. Impossible to use in
+   // Live even with a copied approval token. Do not route production legacy
+   // admin operations here before a coordinated client migration.
+   const legacy=legacyStatusTestService(cfg,store,env);
+   const actor=await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
+   if(!body||Array.isArray(body)||Object.keys(body).some(k=>!['orderId','status'].includes(k)))
+    throw new Fault('invalid_request',409);
+   return reply({order:await legacy.change(body.orderId,body.status,{kind:'admin',uid:actor.uid})});
   }
   if(url.pathname==='/admin/orders/status'){
    const actor=await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
