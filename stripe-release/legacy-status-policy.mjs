@@ -37,6 +37,16 @@ export function planLegacyAdminTransition({
   fail(Object.hasOwn(transitions,target),'invalid_target');
   if(current===target)return Object.freeze({noop:true,orderPatch:null,trackingPatch:null,auditPlan:null,needsPaymentReview:false});
   fail(transitions[current].includes(target),'legacy_transition_locked');
+  // A previous browser-admin action may have advanced an order without
+  // persisting its cancellation lock. Never proceed automatically: preserving
+  // a missing or mismatched lock can reopen customer cancellation and cause
+  // unsafe client-side stock restoration.
+  if(current==='preparing'||current==='shipping'){
+   const orderLock=order.cancellationLockedAt;
+   const trackingLock=tracking.cancellationLockedAt;
+   fail(typeof orderLock==='string'&&orderLock.length>0&&
+     trackingLock===orderLock,'legacy_processing_lock_missing_or_mismatched');
+  }
   const pendingCancellation=Boolean(order.customerEdit?.cancelRequestedAt||
     tracking.customerEdit?.cancelRequestedAt||order.cancelRequestedAt||tracking.cancelRequestedAt);
   // Existing browser-admin customer-cancel listeners may independently restock
