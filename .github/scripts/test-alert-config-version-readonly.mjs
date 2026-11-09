@@ -38,7 +38,7 @@ if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<1
    if(from?.type==='plain_text'&&
       typeof from.text==='string'&&/^alerts@[-.a-z0-9]+$/i.test(from.text)&&
       to?.type==='plain_text'&&typeof to.text==='string'&&
-      /^[^\\s@<>]+@gmail\\.com$/i.test(to.text)&&
+      /^[^\s@<>]+@gmail\.com$/i.test(to.text)&&
       enabled?.type==='plain_text'&&enabled.text==='true')matches++;
   }
   console.log('TEST_PREVIOUS_CONFIG_READ: COMPLETED');
