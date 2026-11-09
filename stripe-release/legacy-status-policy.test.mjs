@@ -14,9 +14,9 @@ const fixture=(changes={})=>({
 });
 const snapshot=value=>structuredClone(value);
 const rejects=(args,code)=>assert.throws(()=>plan(args),e=>e instanceof LegacyPolicyError&&e.code===code);
-test('legacy management proposal is disabled by default for 98 representative legacy fixtures; zero mutation',()=>{
+test('legacy management proposal is disabled by default for 99 representative legacy fixtures; zero mutation',()=>{
   // The fixture size reflects a past read-only aggregate, not a new live audit.
-  const fixtures=Array.from({length:98},(_,n)=>fixture({payment:n<86?'cod':'card'}));
+  const fixtures=Array.from({length:99},(_,n)=>fixture({payment:n<86?'cod':'card'}));
   const before=snapshot(fixtures);
   for(const x of fixtures)rejects({...x,policyApproved:false},'legacy_policy_not_approved');
   assert.deepEqual(fixtures,before);
@@ -77,4 +77,22 @@ test('repeat same-status request is a no-op and produces no audit or writes',()=
   assert.deepEqual(plan({...a,target:'preparing'}),{
     noop:true,orderPatch:null,trackingPatch:null,auditPlan:null,needsPaymentReview:false
   });
+});
+
+test('unknown historical payment method is never silently treated as COD',()=>{
+ const a=fixture({payment:'unknown_legacy_payment'});
+ rejects(a,'unknown_legacy_payment');
+ rejects({...a,target:'cancelled'},'unknown_legacy_payment');
+});
+test('99 synthetic legacy records remain untouched by no-op previews',()=>{
+ const records=Array.from({length:99},(_,n)=>fixture({
+  status:n<78?'new':n<80?'preparing':n<82?'shipping':n<85?'delivered':'cancelled',
+  payment:n<86?'cod':'card'
+ }));
+ const before=snapshot(records);
+ for(const rec of records){
+  const r=plan({...rec,target:rec.order.status,tracking:{id,status:rec.order.status}});
+  assert.equal(r.noop,true);
+ }
+ assert.deepEqual(records,before);
 });
