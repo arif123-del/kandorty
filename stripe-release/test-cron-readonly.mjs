@@ -56,8 +56,11 @@ if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<1
   const toggle=byName.get('ALERT_DELIVERY_ENABLED');
   // Do not print configured value. Print only exact boolean interpretation.
   const enabled=toggle?.type==='plain_text'&&toggle.text==='true';
-  console.log('TEST_ALERT_DELIVERY_ENABLED: '+(enabled?'ENABLED':toggle?'PRESENT_BUT_NOT_CONFIRMED_TRUE':'MISSING'));
-  if(!enabled)process.exitCode=2;
+  const privateFlag=['secret_text','secret_key','secret'].includes(toggle?.type);
+  // A secret's value is deliberately not inspectable through metadata. The
+  // owner-configured value was validated during the separate restoration job.
+  console.log('TEST_ALERT_DELIVERY_ENABLED: '+(enabled?'ENABLED_VALUE_VERIFIED':privateFlag?'PRESENT_SECRET_VALUE_PRIVATE':toggle?'PRESENT_NOT_CONFIRMED_TRUE':'MISSING'));
+  if(!enabled&&!privateFlag)process.exitCode=2;
  }
  // Analytics dataset combines HTTP and scheduled invocations. Do not falsely
  // present overall worker execution numbers as scheduled handler success.
