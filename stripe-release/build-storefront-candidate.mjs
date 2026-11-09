@@ -74,7 +74,10 @@ admin=admin.slice(0,adminStart)+`async function updateOrderStatus(id,status){
  catch(error){alert('تعذر تحديث الطلب: '+error.message);renderOrders();}
 }
 \n`+admin.slice(adminEnd);
-// Draft admin must not automatically mutate historical cancellations, stock,\n// tracking or edit-token backfill while strict Rules/server migration is pending.\nadmin=guardLegacyAdminReviewArtifact(admin);\nconst out=process.env.STRIPE_CANDIDATE_DIR||'/tmp/kandorty-stripe-storefront-review';assert.ok(path.resolve(out)!==process.cwd());fs.mkdirSync(out,{recursive:true});
+// Draft admin must not automatically mutate historical cancellations, stock,
+// tracking or edit-token backfill while strict Rules/server migration is pending.
+admin=guardLegacyAdminReviewArtifact(admin);
+const out=process.env.STRIPE_CANDIDATE_DIR||'/tmp/kandorty-stripe-storefront-review';assert.ok(path.resolve(out)!==process.cwd());fs.mkdirSync(out,{recursive:true});
 fs.writeFileSync(path.join(out,'index.html'),html);fs.writeFileSync(path.join(out,'admin.html'),admin);fs.cpSync('stripe-release',path.join(out,'stripe-release'),{recursive:true,filter:p=>!p.includes('/public')&&!p.endsWith('sandbox-e2e.mjs')});
 assert.ok(!html.includes('https://kandorty-stripe.aliyajan200011.workers.dev/'));
 assert.ok(html.includes("getTurnstileToken:()=>turnstileToken('"+turnstileSiteKey+"')"),'Turnstile widget site key missing from candidate');
