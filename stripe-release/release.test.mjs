@@ -272,3 +272,20 @@ test('restocked ledger with still-open order is not treated as a successful canc
  assert.equal(f.rows.get('orders/'+s.orderId).data.status,'new');
  assert.equal(f.rows.get('products/p1').data.stock,beforeStock);
 });
+
+test('legacy admin status HTTP route is disabled by default in Sandbox and unconditionally disabled in LIVE',async()=>{
+ const testEnv=fixture();
+ const request=testEnv.http('/admin/legacy/orders/status',{orderId:'KD-12345678',status:'preparing'});
+ const response=await testEnv.run(request,testEnv.env);
+ assert.equal(response.status,503);
+ assert.deepEqual(await response.json(),{error:'legacy_test_only_disabled'});
+ assert.equal(testEnv.rows.size,1); // product fixture only; no order or audit writes
+ const live=fixture(3,true);
+ const liveRequest=live.http('/admin/legacy/orders/status',{orderId:'KD-12345678',status:'preparing'});
+ const evenWithCopiedFlags={...live.env,LEGACY_STATUS_TEST_ENABLED:'true',
+  LEGACY_STATUS_TEST_APPROVAL:'KANDORTY_LEGACY_TEST_ONLY_APPROVED'};
+ const liveResult=await live.run(liveRequest,evenWithCopiedFlags);
+ assert.equal(liveResult.status,503);
+ assert.deepEqual(await liveResult.json(),{error:'legacy_production_disabled'});
+ assert.equal(live.rows.size,1);
+});
