@@ -47,6 +47,9 @@ if(!raw||typeof raw!=='string'||raw.length<100){
   for(const ref of [order,tracking,audit]){
    if((await ref.get()).exists)throw Error('synthetic_id_collision');
   }
+  // Track audit for cleanup BEFORE the status change, even if verification
+  // fails after the commit returned successfully.
+  created.push({ref:audit,kind:'audit'});
   const base={id,status:'new',payment:'cod',paymentStatus:'unverified_legacy',
    testOnly:true,testMarker:marker,items:[{id:'synthetic_no_stock',qty:1}],total:1};
   phase='create_synthetic_order';
@@ -66,12 +69,18 @@ if(!raw||typeof raw!=='string'||raw.length<100){
   const [afterOrder,afterTracking,afterAudit,ledger]=await Promise.all([
    order.get(),tracking.get(),audit.get(),db.collection('order_lifecycle').doc(id).get()
   ]);
-  if(afterOrder.data()?.status!=='preparing'||
-     afterTracking.data()?.status!=='preparing'||
-     !audit.exists||audit.data()?.actorUid!==admin||
-     audit.data()?.moneyOrStockChanged!==false||ledger.exists)
+  const checks={
+   ORDER_PREPARING:afterOrder.data()?.status==='preparing',
+   TRACKING_PREPARING:afterTracking.data()?.status==='preparing',
+   AUDIT_EXISTS:afterAudit.exists,
+   AUDIT_ACTOR_VALID:afterAudit.data()?.actorUid===admin,
+   AUDIT_NO_MONEY_STOCK:afterAudit.data()?.moneyOrStockChanged===false,
+   LEDGER_ABSENT:!ledger.exists
+  };
+  for(const [name,ok] of Object.entries(checks))
+   log('SAFE_CHECK_'+name+': '+(ok?'PASS':'FAIL'));
+  if(Object.values(checks).some(x=>!x))
    throw Error('atomic_status_or_audit_invalid');
-  created.push({ref:audit,kind:'audit'});
   log('ATOMIC_TEST_STATUS_AND_IMMUTABLE_AUDIT_PASS');
   phase='verify_idempotent_noop';
   const second=await s.change(id,'preparing',{kind:'admin',uid:admin});
