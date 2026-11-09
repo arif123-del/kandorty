@@ -27,6 +27,25 @@ The service atomically reads the order, tracking and trusted lifecycle ledger (i
 
 **Still blocked:** controlled backup/export of the current 99 under the owner's protected cloud storage; review and approval of exactly how historical cancellation and stock reconciliation must work; proven compatibility for installed Android 2.3.0 and older embedded fallback/guest order routes; final coordinated production authorization. The deployed legacy admin, consumer cancellation and order-edit flows cannot be silently replaced by the disabled TEST-only route.
 
+## Owner-protected backup procedure (prepared, NOT EXECUTED)
+
+The GitHub CI service account does **not** have permission to list Cloud Storage buckets in the production project. [Read-only destination check](https://github.com/arif123-del/kandorty/actions/runs/42705205226) returned `NO_BUCKET_METADATA_PERMISSION`. Therefore **no production customer-data backup has been exported**, and no bucket/security policy was modified.
+
+`stripe-release/owner-private-firestore-backup.sh` is an owner-only, **interactive Cloud Shell** script. It checks that an **existing** destination bucket belongs to project `kandorty-9378a`, enforces public-access prevention, uses uniform IAM and is not requester-pays. It refuses to run in CI, requires the owner to type `EXPORT_LEGACY_BACKUP`, and then uses Google Cloud's official managed Firestore export to that owner's bucket. It never logs, downloads or uploads customer details to GitHub or ChatGPT. It neither creates nor changes bucket IAM, does not enable Stripe Live, and does not modify production Firestore documents or Rules.
+
+**Owner prerequisite:** a suitable privately controlled Cloud Storage bucket and an authenticated Google Cloud identity with `datastore.databases.export` and destination access. Google's managed export may incur read/storage charges and is *not* a perfect instantaneous database snapshot. Verify the completed export job and secure destination before any coordinated client/Rules cutover. Do not claim stage 4 complete merely because this script exists.
+
+From an authenticated Cloud Shell with the PR branch checked out:
+```bash
+bash stripe-release/owner-private-firestore-backup.sh
+```
+
+## Fresh cancellation/lock aggregates (READ ONLY)
+
+[2026-11-09 Firebase cancellation metadata audit](https://github.com/arif123-del/kandorty/actions/runs/42705735191): 99 total orders; **3 customer-cancelled** records with stock-restoration *flags*; **3 cancellation requests** across statuses, none still marked `new`; and **4 processing/shipping/delivered records without a stored cancellation lock**. There are 28 `order_edits` and 28 `order_access` documents, which does **not** certify that all 99 legacy customers can authenticate or cancel. A historical stock-restoration flag is not a trusted stock-debit ledger; never restock those 3 again based only on quantities/flags.
+
+The TEST-only legacy transition planner now explicitly refuses automatic advancement when a preparing/shipping order is missing a consistent cancellation lock. The 4 live records need owner-authorized, individually documented reconciliation after a protected backup; no payment or stock mutation is justified by this aggregate report.
+
 ## Exact incompatibility
 
 The existing production `admin.html` changes order/tracking status using a browser Firestore transaction. The new **unpublished** candidate admin page routes updates through `/admin/orders/status`; its server `lifecycle.change` refuses any order without a trusted `order_lifecycle` document. Proposed rules also deny direct client writes to orders/tracking. **Publishing the candidate without a legacy policy would prevent normal state changes for all 98 historical orders.** Existing browser tracking and customer cancellation flows also require separate compatibility verification. The **archived native Android V1 source** has Firestore SDK access, order collection references, transaction and write-call code (see read-only archive scan below); the installed Android app may contain later modifications and **is not certified**.
