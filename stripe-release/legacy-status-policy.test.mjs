@@ -9,7 +9,7 @@ const fixture=(changes={})=>({
   orderId:id,
   order:{id,status:'new',payment:'cod',paymentStatus:'unverified_legacy',total:3500,
     items:[{id:'p1',qty:3}],...changes},
-  tracking:{id,status:changes.status||'new'},
+  tracking:{id,status:changes.status||'new',...(changes.cancellationLockedAt?{cancellationLockedAt:changes.cancellationLockedAt}:{})},
   ledger:null,target:'preparing',at,policyApproved:true
 });
 const snapshot=value=>structuredClone(value);
@@ -95,4 +95,14 @@ test('99 synthetic legacy records remain untouched by no-op previews',()=>{
   assert.equal(r.noop,true);
  }
  assert.deepEqual(records,before);
+});
+
+test('missing or mismatched legacy processing cancellation locks block silent advancement',()=>{
+ const missing=fixture({status:'preparing'});
+ rejects({...missing,target:'shipping'},'legacy_processing_lock_missing_or_mismatched');
+ const mismatch=fixture({status:'preparing',cancellationLockedAt:at});
+ rejects({...mismatch,target:'shipping',tracking:{id,status:'preparing',cancellationLockedAt:'2026-11-09T01:00:00.000Z'}},
+  'legacy_processing_lock_missing_or_mismatched');
+ const unverifiedShipping=fixture({status:'shipping'});
+ rejects({...unverifiedShipping,target:'delivered'},'legacy_processing_lock_missing_or_mismatched');
 });
