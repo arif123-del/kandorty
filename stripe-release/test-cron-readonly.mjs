@@ -66,7 +66,7 @@ if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<1
  }else{
   const aggregate=samples.reduce((a,v)=>({
    requests:a.requests+(Number(v.sum?.requests)||0),
-   errors:a.errors+(Number(v.sum?.errors)||0)}, {requests:0,errors:0});
+   errors:a.errors+(Number(v.sum?.errors)||0)}), {requests:0,errors:0});
   console.log('TEST_WORKER_LAST_HOUR_ALL_INVOCATIONS: '+aggregate.requests);
   console.log('TEST_WORKER_LAST_HOUR_ALL_INVOCATION_ERRORS: '+aggregate.errors);
   console.log('TEST_SCHEDULED_ONLY_SUCCESS: NOT_PROVEN_BY_THIS_METRIC');
