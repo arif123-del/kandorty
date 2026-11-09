@@ -27,6 +27,12 @@ Original Java Activities, splash UI, branding/icons, Android Manifest, online We
 - The 98 historical orders lack trusted `order_lifecycle` ledgers. The new admin API intentionally refuses to change them. A separate authenticated, narrowly scoped legacy-only status workflow must be reviewed, isolated-test validated and approved. Never fabricate trusted stock history or refund assertions from client-controlled fields.
 - Existing Ziina flows and legacy Stripe Workers remain unchanged until the operator approves exact compatibility and migration.
 
+## Latest owner Library source comparison (2026-11-10, static only)
+
+Read-only binary ZIP comparison of the **owner-provided** `KandortyAndroid_WEB_EXACT_v13_CENTER_DOT_FULLSCREEN_IMAGE.zip` (version 2.3.0 source) and `KandortyAndroid_2.3.1_CODEASSIST_READY.zip` (version 2.3.1 source) found all 16 original non-directory project files preserved. The **only modified existing file contents** were `app/build.gradle.kts` (version bump) and `app/src/main/assets/index-fast-start.html` (offline safety); two build/review guides were added.
+
+The original v13 embedded HTML contains browser `<script>` code and direct Firebase order/stock transaction logic; the 2.3.1 offline fallback is a **static Arabic connection-help page** with no script tag, Firestore, checkout or order submission. The Java WebView wrapper and `https://kandorty.online/` destination are otherwise unchanged. This is **source-level evidence only**: 2.3.1 has NOT been compiled, signed, installed or exercised on the owner's phone, and 2.3.0 or other distributed APKs remain incompatible with proposed deny-client-writes Rules. Leave existing Android and production Rules unchanged.
+
 ## Required release acceptance (NOT performed)
 
 1. Build the 2.3.1 source in Android Studio/CodeAssist; confirm proper app signature, versionName/code, splash/login/WebView and that only the app's own valid package is updated. No test orders in production.
