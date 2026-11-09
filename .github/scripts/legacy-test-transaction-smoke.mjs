@@ -39,6 +39,32 @@ if(!raw||typeof raw!=='string'||raw.length<100){
   phase='initialize_test_app';
   app=initializeApp({credential:cert(acct),projectId:PROJECT},'legacy-test-'+marker);
   db=getFirestore(app);
+  // Cleanup any orphaned audit markers from an earlier failed TEST smoke.
+  // Never touch real order audits: require the unique synthetic actor, a
+  // recent timestamp, the exact synthetic transition and no corresponding
+  // order, tracking, or lifecycle document in the TEST project.
+  phase='cleanup_previous_synthetic_test_audits';
+  let orphanRemoved=0;
+  const previous=await db.collection('legacy_admin_status_audit')
+   .where('actorUid','==',admin).limit(50).get();
+  for(const candidate of previous.docs){
+   const d=candidate.data()||{};
+   if(!/^KD-[0-9]{8}_preparing$/.test(candidate.id)||
+      d.kind!=='legacy_admin_status_only'||d.moneyOrStockChanged!==false||
+      d.from!=='new'||d.to!=='preparing'||d.actorUid!==admin||
+      !Number.isFinite(Date.parse(d.at||''))||
+      Date.now()-Date.parse(d.at)>6*3600000||Date.now()-Date.parse(d.at)<0)
+    continue;
+   const olderId=candidate.id.slice(0,-'_preparing'.length);
+   const [oldOrder,oldTracking,oldLedger]=await Promise.all([
+    db.collection('orders').doc(olderId).get(),
+    db.collection('tracking').doc(olderId).get(),
+    db.collection('order_lifecycle').doc(olderId).get()
+   ]);
+   if(oldOrder.exists||oldTracking.exists||oldLedger.exists)continue;
+   await candidate.ref.delete();orphanRemoved++;
+  }
+  log('ISOLATED_OLD_SYNTHETIC_ORPHAN_AUDITS_CLEANED_'+orphanRemoved);
   phase='query_synthetic_collision';
   const order=db.collection('orders').doc(id);
   const tracking=db.collection('tracking').doc(id);
