@@ -6,7 +6,7 @@ const hour=Date.UTC(2026,10,9,20,0,0);
 const timestamp=hour+15*60000;
 const env=()=>({
  STRIPE_MODE:'test',ALERT_DELIVERY_ENABLED:'true',
- RESEND_API_KEY:'re_fixture_only_key',
+ RESEND_READ_ACCESS_ENABLED:'true',RESEND_READ_API_KEY:'re_fixture_only_key',
  ALERT_EMAIL_FROM:'alerts@example.test',
  ALERT_EMAIL_TO:'recipient@example.test'
 });
@@ -102,4 +102,11 @@ test('live mode requires separate alerts approval even on read-only provider che
  const s=await fake();
  await assert.rejects(auditResendDelivery({store:s,env:{...env(),STRIPE_MODE:'live'},
   now:timestamp+9000,net:()=>{throw Error('unexpected network');}}),/delivery_audit_live_not_approved/);
+});
+
+test('sending-only credential cannot trigger read without separate opt-in',async()=>{
+ const r=await auditResendDelivery({store:{get:()=>{throw Error('not allowed');}},
+  env:{...env(),RESEND_READ_ACCESS_ENABLED:'false'},now:timestamp,
+  net:()=>{throw Error('unauthorized read');}});
+ assert.equal(r.status,'read_not_authorized_no_network');
 });
