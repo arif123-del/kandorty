@@ -1,0 +1,30 @@
+name: Kandorty Cloudflare error alert policies READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/cloudflare-alert-policies-readonly.mjs'
+      - '.github/workflows/stripe-cloudflare-alert-policies-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policy-metadata:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read Cloudflare notification policies, never destination addresses
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node .github/scripts/cloudflare-alert-policies-readonly.mjs
+      - name: Safety
+        if: always()
+        run: echo 'Read-only policy metadata; no alerts configured, accounts changed, real customers touched, or Live payment system activated.'
