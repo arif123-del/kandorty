@@ -1,0 +1,31 @@
+name: Kandorty production backup destination metadata READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/stripe-prod-backup-destination-readonly.mjs'
+      - '.github/workflows/stripe-prod-backup-destination-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  storage-readonly:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ephemeral Google Auth library
+        run: npm install --no-save --no-package-lock --ignore-scripts google-auth-library@10
+      - name: Read only Cloud Storage bucket security metadata
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-prod-backup-destination-readonly.mjs
+      - name: Security boundary
+        if: always()
+        run: echo 'READ ONLY. No backup exported, customer data downloaded, permissions changed, site published, Firebase Rules written, Stripe Live enabled or Ziina modified.'
