@@ -1,9 +1,9 @@
-# Kandorty operator email notifications — SAFE DRAFT / delivery NOT ACTIVE
+# Kandorty operator email notifications — isolated TEST delivery ACTIVE / production NOT ACTIVE
 
 **Owner-designated recipient exists privately in the conversation; no address is committed here.** As reported by the owner on 2026-11-09, `kandorty.online` was verified in Resend and its existing DNS records were preserved. The manual TEST email was subsequently confirmed in the recipient's Gmail inbox by owner-provided screenshot on 2026-11-09. This proves one delivery, not operational alert automation. Do not put operator email addresses, SMTP passwords, service tokens, customer contact data, order IDs, payment receipts or API keys in GitHub issue comments, PRs, public source or logs.
 
-## Prepared, not switched on
-`stripe-release/operations-email.mjs` converts the authenticated operations runner's *aggregate-only* attention report into a fixed-text email and contains a transport adapter for Resend. It is **NOT imported by the deployed Worker, scheduled handlers, storefront, or admin page**. By default it returns `disabled_no_send` without network traffic. Unit tests use fictitious email addresses and mock transport; they cannot send mail.
+## Isolated TEST enabled; Live remains disabled
+`stripe-release/operations-email.mjs` converts the authenticated operations runner's *aggregate-only* attention report into a fixed-text email. It is imported by the scheduled `alert-scheduler.mjs` on the isolated TEST Worker when the owner-configured private toggle is true; the published storefront/admin and disabled Live release Worker are unchanged. Default templates remain OFF. Mock-based unit tests themselves do not send email.
 
 This optional design requires **all** of the following before any real notification delivery:
 - `ALERT_DELIVERY_ENABLED=true` in a separately controlled private operator process, never in an unreviewed public frontend or CI test.
@@ -19,14 +19,14 @@ The current aggregate operational scanner flags: paid stock shortages, pending c
 
 ## Safe activation gates
 
-1. Owner selected Resend, reported its domain verified, and confirmed one manually triggered test message in the recipient's Gmail inbox on 2026-11-09. Persistent private alert credentials and monitored operator ownership remain **not yet complete**.
+1. Owner selected Resend, verified one manual test email in the recipient's inbox, then enabled TEST-only private alert settings. All three TEST alert settings were restored as encrypted Cloudflare secrets on 2026-11-09. Recurring automatic acceptance has been recorded; **automatic recipient-inbox delivery and independent escalation remain unverified**.
 2. Verify sender domain DNS ownership, recipient, secret and webhook/Worker account permissions **privately** without changing the published store or active email routing.
 3. Run one explicit recipient-approved test email in an isolated environment; confirm it actually arrived. Validate noisy/repeated failures, duplicate throttling, operational-on-call acknowledgements and alternative backup contact.
 4. Review the final schedule/transport connection and independent final Live/site/Rules approval. The 98 historical orders and Ziina remain untouched.
 
 ## Security acceptance boundary
 
-One manual verification email was successfully delivered to the owner-designated Gmail inbox on 2026-11-09, as evidenced by an owner-provided screenshot displaying the exact verification subject/body. No API key or recipient address was committed; this screenshot is not independently corroborated provider telemetry. No automated alert destination has been deployed, no Stripe Live webhook enabled and no production traffic monitored. **Stage 6 remains incomplete** until operational delivery, coverage, throttling and escalation tests pass.
+One manual verification email was successfully delivered to the owner-designated Gmail inbox on 2026-11-09, as evidenced by an owner-provided screenshot displaying the exact verification subject/body. No API key or recipient address was committed; this screenshot is not independently corroborated provider telemetry. A TEST-only automated alert destination has been deployed; two aggregate alert windows have provider-accepted evidence. The recipient Inbox delivery of the automatically generated alert is not confirmed. No Stripe Live webhook was enabled and no production traffic was monitored by this release. **Stage 6 remains incomplete** until recipient delivery, monitoring coverage and escalation tests pass.
 
 ## Manual provider acceptance path (prepared 2026-11-09)
 
@@ -40,9 +40,9 @@ In a trusted **private** Work/Cloud Shell session after Resend domain verificati
 4. If the tool reports provider acceptance, ask the owner to check the exact inbox and spam folder for the message. Only then record inbox delivery as confirmed. If no email arrives, review Resend's authenticated logs privately; never expose secret-bearing logs.
 5. Separately implement a durable, owner-approved schedule, provider error alarms, cooldown/dedup, Stripe failure/dispute and Cloudflare execution alerts. **Do not set `ALERT_DELIVERY_ENABLED=true` in production merely because the one-time test passes.**
 
-## Staged opt-in automatic incident alerts (implemented but DISABLED)
+## Staged opt-in automatic incident alerts (TEST Worker ACTIVE, production DISABLED)
 
-`alert-scheduler.mjs` is now called by the Stripe/COD release Worker's scheduled reconciliation **only when** `ALERT_DELIVERY_ENABLED=true`; the variable is absent from the default test and disabled Live templates. There is no enabled production alert deployment or Resend credential installed by this source change. The isolated Sandbox CI runs automated tests; it does not need or transmit the owner's Resend key.
+`alert-scheduler.mjs` is now called by the Stripe/COD release Worker's scheduled reconciliation **only when** `ALERT_DELIVERY_ENABLED=true`; the variable is absent from the default test and disabled Live templates. There is no enabled production alert deployment or Resend credential installed in the detached Live Worker by this source change. The owner privately added the Resend credentials to the TEST Worker, and a safe recovery procedure restored its three alert bindings as encrypted TEST Worker secrets after a dashboard-variable overwrite. The isolated Sandbox CI runs mocked tests; it never needs or transmits the owner's Resend key.
 
 The scheduler reads *aggregate-only* pending/review/refund queues through `operations.mjs`. If nothing requires attention, it sends nothing. If attention is present, it claims a private Firestore `stripe_operator_alerts` record with an optimistic write precondition, then sends one fixed-content notification through Resend. Its **stable idempotency key per hour and Stripe mode** avoids duplicate provider requests on retry. Accepted notifications are recorded separately from delivery confirmation. Competing schedulers share a 90-second lease, a failed send gets a 2-minute retry cooldown, and an uncertain acceptance can retry under the same provider idempotency key. Only aggregate metadata is written. At most one accepted notification per mode per hour is intended; repeated/recurrent problems in that hour are intentionally coalesced.
 
@@ -50,7 +50,7 @@ Production mode requires an additional private `ALERT_PRODUCTION_APPROVAL=KANDOR
 
 To activate in an owner-controlled staging environment *after owner approval*, separately install `RESEND_API_KEY`, `ALERT_EMAIL_FROM` and `ALERT_EMAIL_TO` as encrypted Worker secrets, and set `ALERT_DELIVERY_ENABLED=true` **only for the isolated TEST Worker** after reviewing the sender, recipient, test project and frequency. Never put these values in public GitHub source, browser scripts or ChatGPT messages. Run a TEST-only simulated queue incident, confirm exactly one email arrives and confirm the cooldown and retries; do not use a real payment/order to induce an incident.
 
-**Still outstanding:** privately installing the limited key and routing to the operator, verifying the automatic (not just manual) end-to-end email, owner-approved frequency and backup escalation, and separate Stripe Dashboard dispute/webhook-delivery and Cloudflare execution-failure alarms. These external operations cannot be certified by passing unit tests; stage 6 remains partial.
+**Still outstanding:** independently confirming the **automatic** alert in the intended recipient Gmail (the Gmail connector authenticated here is a different account), owner-approved backup escalation, and separately tested Stripe Dashboard dispute/webhook-delivery and Cloudflare execution-failure alarms. Sending-only Resend keys cannot list or retrieve message history; the optional `resend-delivery-audit.mjs` is OFF unless a separate explicitly approved read-capable credential and toggle are installed. Do not request or grant a broad key merely to make this test pass. These external operations cannot be certified by passing unit tests; stage 6 remains partial.
 
 ## Owner-only interactive shortcut (prepared 2026-11-09)
 
