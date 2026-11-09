@@ -58,6 +58,10 @@ test('successful notification is accepted once per hour with no sensitive fields
  assert.match(observedKey,/^kandorty-ops-test-\d+$/);
  assert.equal(store.rows.size,1);
  for(const entry of store.rows.values()){
+  assert.equal(entry.data.messageReport.refundPendingSample,3);
+  assert.deepEqual(Object.keys(entry.data.messageReport).sort(),
+   ['requiresAttention','scanLimitReached','pendingSample','reviewSample',
+    'refundPendingSample','overduePendingCount','overdueRefundCount'].sort());
   assert.equal(entry.data.status,'accepted');
   assert.ok(!JSON.stringify(entry).includes('KD-PRIVATE-ORDER'));
   assert.ok(!JSON.stringify(entry).includes('DO-NOT-SEND'));
@@ -123,4 +127,21 @@ test('incomplete secret configuration fails before creating durable alert record
  await assert.rejects(runScheduledAlert({store,env:{...env(),RESEND_API_KEY:''},
   now:start,reporter:async()=>report()}),/alert_private_configuration_missing/);
  assert.equal(store.rows.size,0);
+});
+
+test('retry sends the original aggregate snapshot even if queue counts changed',async()=>{
+ const store=fakeStore();let scans=0;const seen=[];
+ const invoke=(now,send)=>runScheduledAlert({
+  store,env:env(),now,
+  reporter:async()=>({...report(),refundPendingSample:++scans}),
+  send:async(snapshot,configured)=>{
+   seen.push({count:snapshot.refundPendingSample,key:configured.ALERT_EVENT_KEY});
+   return send();
+  }
+ });
+ await assert.rejects(invoke(start,async()=>{throw Error('temporary provider failure');}),/alert_send_failed/);
+ assert.equal((await invoke(start+120001,accepted)).status,'accepted_by_provider_not_delivered');
+ assert.deepEqual(seen.map(x=>x.count),[1,1]);
+ assert.equal(seen[0].key,seen[1].key);
+ assert.equal([...store.rows.values()][0].data.messageReport.refundPendingSample,1);
 });
