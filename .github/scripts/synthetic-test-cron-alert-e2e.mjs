@@ -26,6 +26,9 @@ if(typeof source!=='string'||source.length<100){
   const currentKey='kandorty-ops-test-'+Math.floor(started/3600000);
   const current=await store.get('stripe_operator_alerts/'+await hash(currentKey));
   if(current?.data?.status==='accepted'){
+   const acceptedAt=current.data.acceptedAt;
+   const safeTime=typeof acceptedAt==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(acceptedAt)?acceptedAt:'NOT_RECORDED';
+   say('HOURLY_ALERT_PREVIOUSLY_ACCEPTED_AT_UTC '+safeTime);
    say('BLOCKED_HOURLY_ALERT_ALREADY_ACCEPTED');process.exitCode=2;
   }else{
    const suffix=Array.from(crypto.getRandomValues(new Uint8Array(8)),n=>n.toString(16).padStart(2,'0')).join('');
