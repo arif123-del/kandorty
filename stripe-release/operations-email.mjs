@@ -37,13 +37,13 @@ export async function sendOperationalEmail(report,env,transport=fetch){
  // operator job may turn this on; this module does not schedule any work.
  if(env?.ALERT_DELIVERY_ENABLED!=='true')return Object.freeze({status:'disabled_no_send'});
  if(env.STRIPE_MODE!=='test'&&env.STRIPE_MODE!=='live')throw Error('invalid_delivery_mode');
- const to=env.ALERT_EMAIL_TO,from=env.ALERT_EMAIL_FROM,apiKey=env.RESEND_API_KEY;
+ const to=env.ALERT_EMAIL_TO,from=env.ALERT_EMAIL_FROM,apiKey=env.RESEND_API_KEY,\n  eventKey=env.ALERT_EVENT_KEY;
  if(!isEmail(to)||!isEmail(from)||typeof apiKey!=='string'||!/^re_[A-Za-z0-9_\-]{8,}$/.test(apiKey))
   throw Error('alert_delivery_not_configured');
  const response=await transport('https://api.resend.com/emails',{
   method:'POST',redirect:'manual',headers:{
    'Authorization':'Bearer '+apiKey,'Content-Type':'application/json',
-   'Idempotency-Key':env.ALERT_EVENT_KEY||'kandorty-operations-once'
+   'Idempotency-Key':eventKey
   },body:JSON.stringify({from,to:[to],subject:message.subject,text:message.text}),
   signal:AbortSignal.timeout(15000)
  });
