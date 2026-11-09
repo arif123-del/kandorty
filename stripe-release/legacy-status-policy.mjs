@@ -35,7 +35,9 @@ export function planLegacyAdminTransition({
   if(current===target)return Object.freeze({noop:true,orderPatch:null,trackingPatch:null,auditPlan:null,needsPaymentReview:false});
   fail(transitions[current].includes(target),'legacy_transition_locked');
   const pendingCancellation=Boolean(order.customerEdit?.cancelRequestedAt);
-  fail(!pendingCancellation||target==='cancelled','customer_cancellation_pending');
+  // Existing browser-admin customer-cancel listeners may independently restock
+  // untrusted quantities. No status mutation is safe while that path is active.
+  fail(!pendingCancellation,'legacy_pending_cancel_requires_manual_review');
   // An apparently-new order with a previously set lock is inconsistent.
   // Do not resurrect its cancellation option or silently advance it.
   if(current==='new')fail(!order.cancellationLockedAt&&!tracking.cancellationLockedAt,'legacy_lock_conflict');
