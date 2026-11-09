@@ -30,14 +30,16 @@ const admin='synthetic_test_operator';
 if(!raw||typeof raw!=='string'||raw.length<100){
  log('BLOCKED_TEST_CREDENTIAL_MISSING');process.exitCode=2;
 }else{
- let acct=null,app=null,db=null;
+ let acct=null,app=null,db=null,phase='credential';
  const created=[];
  try{
   acct=JSON.parse(raw);
   if(acct.project_id!==PROJECT||acct.type!=='service_account')
    throw Error('test_project_guard');
+  phase='initialize_test_app';
   app=initializeApp({credential:cert(acct),projectId:PROJECT},'legacy-test-'+marker);
   db=getFirestore(app);
+  phase='query_synthetic_collision';
   const order=db.collection('orders').doc(id);
   const tracking=db.collection('tracking').doc(id);
   const audit=db.collection('legacy_admin_status_audit').doc(id+'_preparing');
@@ -47,15 +49,20 @@ if(!raw||typeof raw!=='string'||raw.length<100){
   }
   const base={id,status:'new',payment:'cod',paymentStatus:'unverified_legacy',
    testOnly:true,testMarker:marker,items:[{id:'synthetic_no_stock',qty:1}],total:1};
+  phase='create_synthetic_order';
   await order.create(base);created.push({ref:order,kind:'fixture'});
+  phase='create_synthetic_tracking';
   await tracking.create({id,status:'new',testOnly:true,testMarker:marker});
   created.push({ref:tracking,kind:'fixture'});
+  phase='configure_rest_transaction';
   const store=createStore(isolation);
   if(store.root!==root)throw Error('sandbox_store_root_mismatch');
   const s=legacyStatusTestService({mode:'test',projectId:PROJECT},store,isolation);
+  phase='run_legacy_rest_transaction';
   const outcome=await s.change(id,'preparing',{kind:'admin',uid:admin});
   if(outcome.status!=='preparing'||outcome.unchanged!==false)
    throw Error('atomic_update_not_confirmed');
+  phase='verify_synthetic_transaction';
   const [afterOrder,afterTracking,afterAudit,ledger]=await Promise.all([
    order.get(),tracking.get(),audit.get(),db.collection('order_lifecycle').doc(id).get()
   ]);
@@ -66,11 +73,12 @@ if(!raw||typeof raw!=='string'||raw.length<100){
    throw Error('atomic_status_or_audit_invalid');
   created.push({ref:audit,kind:'audit'});
   log('ATOMIC_TEST_STATUS_AND_IMMUTABLE_AUDIT_PASS');
+  phase='verify_idempotent_noop';
   const second=await s.change(id,'preparing',{kind:'admin',uid:admin});
   if(second.unchanged!==true)throw Error('idempotent_noop_not_detected');
   log('REPEAT_STATUS_NO_DUPLICATE_WRITE_PASS');
  }catch{
-  log('SMOKE_BLOCKED_OR_FAILED_NO_PRIVATE_DETAILS');
+  log('SMOKE_BLOCKED_OR_FAILED_NO_PRIVATE_DETAILS_AT_'+phase.toUpperCase());
   process.exitCode=2;
  }finally{
   let clean=true;
