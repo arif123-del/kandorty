@@ -30,7 +30,9 @@ export function legacyCutoverReadiness({
       has(admin,/tx\.update\s*\(orderRef/),
     adminRestocksFromLegacyQuantities:has(admin,/async\s+function\s+restoreCustomerCancelledStock\s*\(/)&&
       has(admin,/qtyById/) && has(admin,/tx\.update\s*\(ref,\s*\{\s*stock/),
-    candidateDeniesLegacyOrderTrackingWrites:\n      has(rules,/match\\s+\\/orders\\/\\{(?:id|orderId|orderID)\\}\\s*\\{[\\s\\S]{0,120}allow\\s+create,\\s*update,\\s*delete:\\s*if\\s+false/)&&\n      has(rules,/match\\s+\\/tracking\\/\\{(?:id|orderId|orderID)\\}\\s*\\{[\\s\\S]{0,120}allow\\s+create,\\s*update,\\s*delete:\\s*if\\s+false/)
+    candidateDeniesLegacyOrderTrackingWrites:
+      has(rules,/match\s+\/orders\/\{(?:id|orderId|orderID)\}\s*\{[\s\S]{0,120}allow\s+create,\s*update,\s*delete:\s*if\s+false/)&&
+      has(rules,/match\s+\/tracking\/\{(?:id|orderId|orderID)\}\s*\{[\s\S]{0,120}allow\s+create,\s*update,\s*delete:\s*if\s+false/)
   });
   const missingAcceptance=LEGACY_CLIENT_GATES.filter(k=>acceptance[k]!==true);
   // Critical: accepting seven booleans in this diagnostic is NEVER sufficient
