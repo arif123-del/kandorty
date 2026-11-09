@@ -11,6 +11,10 @@ const HOUR_MS=3600000;
 
 export async function auditResendDelivery({store,env,now=Date.now(),net=fetch}={}){
  if(env?.ALERT_DELIVERY_ENABLED!=='true')return {status:'disabled'};
+ // Do not use the domain-scoped sending key to read provider history.
+ // This optional audit remains unavailable until a separate owner-authorized
+ // read-capable credential is installed privately.
+ if(env?.RESEND_READ_ACCESS_ENABLED!=='true')return {status:'read_not_authorized_no_network'};
  if(!store||typeof store.get!=='function'||typeof store.commit!=='function'||typeof store.write!=='function')
   throw Error('delivery_audit_store_missing');
  if(!Number.isSafeInteger(now)||now<0)throw Error('delivery_audit_clock_invalid');
@@ -19,7 +23,7 @@ export async function auditResendDelivery({store,env,now=Date.now(),net=fetch}={
  if(env.STRIPE_MODE==='live'&&env.ALERT_PRODUCTION_APPROVAL!=='KANDORTY_ALERTS_APPROVED')
   throw Error('delivery_audit_live_not_approved');
  // Private Resend credentials never go to logs, email content or Firestore.
- const key=env.RESEND_API_KEY;
+ const key=env.RESEND_READ_API_KEY;
  if(typeof key!=='string'||!/^re_[A-Za-z0-9_-]{8,}$/.test(key)||
     typeof env.ALERT_EMAIL_FROM!=='string'||typeof env.ALERT_EMAIL_TO!=='string')
   return {status:'missing_provider_credentials'};
