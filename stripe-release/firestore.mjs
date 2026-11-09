@@ -55,6 +55,35 @@ export function createStore(env,net=fetch){
   return call(':commit','POST',{writes});
  }
 
+ // An authenticated REST read-write transaction is required for legacy
+ // updates. In particular, the absence of an order_lifecycle ledger must be
+ // read in the same transaction as the order/tracking writes. A batch commit
+ // with separate GETs is not sufficient for this decision.
+ const validTransaction=tx=>typeof tx==='string'&&
+   /^[A-Za-z0-9+/=_-]{8,2048}$/.test(tx);
+ async function beginTransaction(){
+  const r=await call(':beginTransaction','POST',{options:{readWrite:{}}});
+  if(!validTransaction(r?.transaction))throw new Fault('transaction_unavailable',503);
+  return r.transaction;
+ }
+ async function getInTransaction(path,transaction){
+  if(!validTransaction(transaction)||!/^[-A-Za-z0-9_/]{1,240}$/.test(path)||
+     path.includes('//'))throw new Fault('invalid_transaction_read',503);
+  const r=await call('/'+path+'?transaction='+encodeURIComponent(transaction));
+  return r?{data:unpack({mapValue:{fields:r.fields||{}}}),version:r.updateTime}:null;
+ }
+ async function commitTransaction(transaction,writes){
+  if(!validTransaction(transaction)||!Array.isArray(writes)||!writes.length||
+    writes.length>8||writes.some(w=>!w?.update?.name?.startsWith(root+'/')||
+    !w.currentDocument||!(w.currentDocument.updateTime||w.currentDocument.exists===false)))
+   throw new Fault('unsafe_transaction_commit',503);
+  return call(':commit','POST',{writes,transaction});
+ }
+ async function rollbackTransaction(transaction){
+  if(!validTransaction(transaction))return;
+  try{await call(':rollback','POST',{transaction});}catch{/* rollback best-effort, no writes were committed */}
+ }
+
  async function pending(){
   const result=await call(':runQuery','POST',{structuredQuery:{from:[{collectionId:'stripe_checkout_sessions'}],where:{fieldFilter:{field:{fieldPath:'reconcilePending'},op:'EQUAL',value:{booleanValue:true}}},limit:50}});
   return result.filter(r=>r.document).map(r=>unpack({mapValue:{fields:r.document.fields}}));
@@ -67,5 +96,6 @@ export function createStore(env,net=fetch){
   const result=await call(':runQuery','POST',{structuredQuery:{from:[{collectionId:'stripe_refund_queue'}],where:{fieldFilter:{field:{fieldPath:'resolved'},op:'EQUAL',value:{booleanValue:false}}},limit:50}});
   return result.filter(r=>r.document).map(r=>unpack({mapValue:{fields:r.document.fields}}));
  }
- return {get,commit,root,write,pending,reviews,refundPending};
+ return {get,commit,root,write,pending,reviews,refundPending,
+  beginTransaction,getInTransaction,commitTransaction,rollbackTransaction};
 }
