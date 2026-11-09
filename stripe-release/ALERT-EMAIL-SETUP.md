@@ -40,4 +40,19 @@ In a trusted **private** Work/Cloud Shell session after Resend domain verificati
 4. If the tool reports provider acceptance, ask the owner to check the exact inbox and spam folder for the message. Only then record inbox delivery as confirmed. If no email arrives, review Resend's authenticated logs privately; never expose secret-bearing logs.
 5. Separately implement a durable, owner-approved schedule, provider error alarms, cooldown/dedup, Stripe failure/dispute and Cloudflare execution alerts. **Do not set `ALERT_DELIVERY_ENABLED=true` in production merely because the one-time test passes.**
 
+## Owner-only interactive shortcut (prepared 2026-11-09)
+
+From a trusted private owner terminal with this PR branch checked out, run
+`bash stripe-release/owner-resend-verification.sh`. This wrapper requires a
+real interactive terminal, prompts for the verified sender and designated
+recipient, reads the Resend sending-only key with hidden input, and requires
+typing `SEND_ONE_VERIFICATION_EMAIL` before a single isolated test send. It
+generates a fresh idempotency key, does not write credentials to disk or
+command history, and invokes the manual verification module in test mode with
+automatic alert delivery disabled. It never changes Stripe, DNS, Firebase,
+Cloudflare, GitHub secrets or the public site. It intentionally **does not run
+inside GitHub Actions**. The operator must verify the actual arrival (including
+spam) before any assertion of delivery. Do not paste the API key or terminal
+secret output into chat.
+
 No provider key or receiver email is committed. The public domain's existing DNS records, site, Firebase Rules, Stripe Live and Ziina stay unchanged until separately approved.
