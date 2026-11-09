@@ -1,0 +1,96 @@
+// TEST-ONLY Firestore REST transaction smoke with a synthetic legacy order.
+// Production Firebase and any real checkout/stock/refund/customer data are
+// explicitly out of scope. Owner approval to publish remains required.
+// This job creates at most two synthetic documents and an immutable audit in
+// kandorty-stripe-test-5f8af, verifies atomic status change, then deletes only
+// documents it created. Never use production credentials or project IDs.
+import {randomInt,randomBytes} from 'node:crypto';
+import {initializeApp,cert,deleteApp} from 'firebase-admin/app';
+import {getFirestore} from 'firebase-admin/firestore';
+import {createStore} from '../../stripe-release/firestore.mjs';
+import {legacyStatusTestService} from '../../stripe-release/legacy-status-service.mjs';
+
+const PROJECT='kandorty-stripe-test-5f8af';
+const root=`projects/${PROJECT}/databases/(default)/documents`;
+const log=s=>console.log('LEGACY_TEST_TRANSACTION_SMOKE: '+s);
+const raw=process.env.STRIPE_TEST_SERVICE_ACCOUNT_JSON;
+const isolation={
+ STRIPE_MODE:'test',FIREBASE_PROJECT_ID:PROJECT,
+ STRIPE_SECRET_KEY:'sk_test_offline_fixture',
+ STRIPE_WEBHOOK_SECRET:'whsec_offline_fixture',
+ STRIPE_RECEIPT_SECRET:'a'.repeat(64),
+ STAGING_ACCESS_SECRET:'b'.repeat(64),
+ FIREBASE_SERVICE_ACCOUNT_JSON:raw,
+ LEGACY_STATUS_TEST_ENABLED:'true',
+ LEGACY_STATUS_TEST_APPROVAL:'KANDORTY_LEGACY_TEST_ONLY_APPROVED'
+};
+const marker=randomBytes(12).toString('hex');
+const id='KD-'+String(randomInt(10000000,99999999));
+const admin='synthetic_test_operator';
+if(!raw||typeof raw!=='string'||raw.length<100){
+ log('BLOCKED_TEST_CREDENTIAL_MISSING');process.exitCode=2;
+}else{
+ let acct=null,app=null,db=null;
+ const created=[];
+ try{
+  acct=JSON.parse(raw);
+  if(acct.project_id!==PROJECT||acct.type!=='service_account')
+   throw Error('test_project_guard');
+  app=initializeApp({credential:cert(acct),projectId:PROJECT},'legacy-test-'+marker);
+  db=getFirestore(app);
+  const order=db.collection('orders').doc(id);
+  const tracking=db.collection('tracking').doc(id);
+  const audit=db.collection('legacy_admin_status_audit').doc(id+'_preparing');
+  // Refuse to collide with any existing TEST data, even though order ID is random.
+  for(const ref of [order,tracking,audit]){
+   if((await ref.get()).exists)throw Error('synthetic_id_collision');
+  }
+  const base={id,status:'new',payment:'cod',paymentStatus:'unverified_legacy',
+   testOnly:true,testMarker:marker,items:[{id:'synthetic_no_stock',qty:1}],total:1};
+  await order.create(base);created.push({ref:order,kind:'fixture'});
+  await tracking.create({id,status:'new',testOnly:true,testMarker:marker});
+  created.push({ref:tracking,kind:'fixture'});
+  const store=createStore(isolation);
+  if(store.root!==root)throw Error('sandbox_store_root_mismatch');
+  const s=legacyStatusTestService({mode:'test',projectId:PROJECT},store,isolation);
+  const outcome=await s.change(id,'preparing',{kind:'admin',uid:admin});
+  if(outcome.status!=='preparing'||outcome.unchanged!==false)
+   throw Error('atomic_update_not_confirmed');
+  const [afterOrder,afterTracking,afterAudit,ledger]=await Promise.all([
+   order.get(),tracking.get(),audit.get(),db.collection('order_lifecycle').doc(id).get()
+  ]);
+  if(afterOrder.data()?.status!=='preparing'||
+     afterTracking.data()?.status!=='preparing'||
+     !audit.exists||audit.data()?.actorUid!==admin||
+     audit.data()?.moneyOrStockChanged!==false||ledger.exists)
+   throw Error('atomic_status_or_audit_invalid');
+  created.push({ref:audit,kind:'audit'});
+  log('ATOMIC_TEST_STATUS_AND_IMMUTABLE_AUDIT_PASS');
+  const second=await s.change(id,'preparing',{kind:'admin',uid:admin});
+  if(second.unchanged!==true)throw Error('idempotent_noop_not_detected');
+  log('REPEAT_STATUS_NO_DUPLICATE_WRITE_PASS');
+ }catch{
+  log('SMOKE_BLOCKED_OR_FAILED_NO_PRIVATE_DETAILS');
+  process.exitCode=2;
+ }finally{
+  let clean=true;
+  // Remove ONLY synthetic documents of this exact newly-generated marker.
+  // Never delete anything if the proof is missing or the path changed.
+  if(db)for(const {ref,kind} of [...created].reverse()){
+   try{
+    const snap=await ref.get();
+    if(!snap.exists)continue;
+    const d=snap.data()||{};
+    const safe=kind==='fixture'?(d.testOnly===true&&d.testMarker===marker):
+      (kind==='audit'&&d.kind==='legacy_admin_status_only'&&
+       d.actorUid===admin&&d.orderId===id);
+    if(!safe){clean=false;continue;}
+    await ref.delete();
+   }catch{clean=false;}
+  }
+  log(clean?'SYNTHETIC_DOCUMENTS_REMOVED':'CLEANUP_REQUIRES_TEST_ONLY_REVIEW');
+  if(!clean)process.exitCode=2;
+  if(app)await deleteApp(app).catch(()=>{});
+  log('PRODUCTION_ORDERS_STOCK_LIVE_STRIPE_ZIINA_UNCHANGED');
+ }
+}
