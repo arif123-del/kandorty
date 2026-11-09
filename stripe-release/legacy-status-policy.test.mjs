@@ -45,8 +45,8 @@ test('historical card cancellation triggers review flag but never assumes a refu
 });
 test('customer cancellation request blocks preparation; an already cancelled order is never resurrected',()=>{
   const pending=fixture({customerEdit:{cancelRequestedAt:'2026-11-08T01:00:00Z'}});
-  rejects(pending,'customer_cancellation_pending');
-  assert.equal(plan({...pending,target:'cancelled'}).orderPatch.status,'cancelled');
+  rejects(pending,'legacy_pending_cancel_requires_manual_review');
+  rejects({...pending,target:'cancelled'},'legacy_pending_cancel_requires_manual_review');
   const cancelled=fixture({status:'cancelled'});
   rejects({...cancelled,target:'preparing'},'legacy_transition_locked');
 });
