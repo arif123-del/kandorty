@@ -39,7 +39,8 @@ export async function sendOperationalEmail(report,env,transport=fetch){
  if(env.STRIPE_MODE!=='test'&&env.STRIPE_MODE!=='live')throw Error('invalid_delivery_mode');
  const to=env.ALERT_EMAIL_TO,from=env.ALERT_EMAIL_FROM,apiKey=env.RESEND_API_KEY,
   eventKey=env.ALERT_EVENT_KEY;
- if(!isEmail(to)||!isEmail(from)||typeof apiKey!=='string'||!/^re_[A-Za-z0-9_\-]{8,}$/.test(apiKey))
+ if(!isEmail(to)||!isEmail(from)||typeof apiKey!=='string'||!/^re_[A-Za-z0-9_\-]{8,}$/.test(apiKey)||
+    typeof eventKey!=='string'||!/^[A-Za-z0-9_-]{16,128}$/.test(eventKey))
   throw Error('alert_delivery_not_configured');
  const response=await transport('https://api.resend.com/emails',{
   method:'POST',redirect:'manual',headers:{
