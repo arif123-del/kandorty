@@ -16,7 +16,7 @@ const api=async(path,method='GET',body)=>{
    ...headers,...(body?{'Content-Type':'application/json'}:{})
   },...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000)});
   if(!res.ok)return null;
-  const json=await res.json();return json.success===false?null:json.result;
+  const json=await res.json();return json.success===false?null:(json.result??{});
  }catch{return null;}
 };
 if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<10){
@@ -52,7 +52,7 @@ if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<1
      if(!Array.isArray(old))continue;
      const byName=new Map(old.filter(b=>typeof b?.name==='string').map(b=>[b.name,b]));
      const from=byName.get('ALERT_EMAIL_FROM'),to=byName.get('ALERT_EMAIL_TO'),flag=byName.get('ALERT_DELIVERY_ENABLED');
-     if(from?.type==='plain_text'&&from.text==='alerts@kandorty.online'&&
+     if(from?.type==='plain_text'&&from.text.startsWith('alerts@')&&from.text.endsWith('@kandorty.online')&&
         to?.type==='plain_text'&&typeof to.text==='string'&&
         /^[A-Za-z0-9._%+-]+@gmail\.com$/.test(to.text)&&
         flag?.type==='plain_text'&&flag.text==='true'){
