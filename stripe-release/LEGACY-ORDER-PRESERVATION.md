@@ -9,6 +9,14 @@
 - 86 were tagged COD and 12 card; status groups were 77 new, 2 preparing, 2 shipping, 3 delivered and 14 cancelled.
 - This is a historical snapshot, **not** a new live count or evidence of payment settlement, available stock, or successful legacy migration.
 
+## Updated production snapshot (READ ONLY, 2026-11-09 UTC)
+
+[Read-only audited GitHub Action](https://github.com/arif123-del/kandorty/actions/runs/42699507328) scanned **99 orders**, versus 98 in the 2026-10-29 baseline. There are now **86 COD and 13 card** by stored payment label, with statuses: **78 new, 2 preparing, 2 shipping, 3 delivered and 14 cancelled**. All 99 have matching tracking statuses, **zero missing tracking documents** and **zero matching trusted `order_lifecycle` ledgers**.
+
+This is a **count-level snapshot**, not identity-by-identity comparison of the original 98, proof of actual paid card settlement, a cryptographic backup or approval to change any record. The audit never printed customer data or any order ID and made **no production writes**.
+
+Consequently, the new-order management endpoint is intentionally unable to update **all 99 currently observed legacy orders**. Before any publication of client-deny Firestore Rules, provide a safe reviewed legacy-only status/cancellation path, verify old Android/WebView compatibility, and obtain a protected owner-held backup. No stock or refund ledger should be inferred.
+
 ## Exact incompatibility
 
 The existing production `admin.html` changes order/tracking status using a browser Firestore transaction. The new **unpublished** candidate admin page routes updates through `/admin/orders/status`; its server `lifecycle.change` refuses any order without a trusted `order_lifecycle` document. Proposed rules also deny direct client writes to orders/tracking. **Publishing the candidate without a legacy policy would prevent normal state changes for all 98 historical orders.** Existing browser tracking and customer cancellation flows also require separate compatibility verification. The **archived native Android V1 source** has Firestore SDK access, order collection references, transaction and write-call code (see read-only archive scan below); the installed Android app may contain later modifications and **is not certified**.
