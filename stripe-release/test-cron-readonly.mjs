@@ -43,8 +43,14 @@ if(!/^[a-f0-9]{32}$/i.test(account||'')||typeof token!=='string'||token.length<1
   for(const name of secretNames){
    const binding=byName.get(name);
    const kind=binding?.type;
-   const ok=kind==='secret_text'||kind==='secret_key'||kind==='secret';
-   console.log(name+': '+(ok?'PRESENT_SECRET_NAME_ONLY':binding?'PRESENT_BUT_NOT_SECRET':'MISSING'));
+   const secret=kind==='secret_text'||kind==='secret_key'||kind==='secret';
+   // Sender and recipient addresses are identities, not credentials: a
+   // deployed plain-text binding is also valid. Never display its content.
+   const publicEmail=name!=='RESEND_API_KEY'&&kind==='plain_text'&&
+     typeof binding.text==='string'&&
+     /^[^\\s@<>]+@[^\\s@<>]+\\.[^\\s@<>]+$/.test(binding.text);
+   const ok=secret||publicEmail;
+   console.log(name+': '+(secret?'PRESENT_SECRET_NAME_ONLY':publicEmail?'PRESENT_VALID_EMAIL_NAME_ONLY':binding?'PRESENT_INVALID_BINDING':'MISSING'));
    if(!ok)process.exitCode=2;
   }
   const toggle=byName.get('ALERT_DELIVERY_ENABLED');
