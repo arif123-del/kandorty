@@ -1,4 +1,5 @@
 import {verifyAdmin} from './admin-auth.mjs';
+import {runScheduledAlert} from './alert-scheduler.mjs';
 import {lifecycle} from './lifecycle.mjs';
 import {codService} from './cod-service.mjs';
 import {syncRefunds} from './refunds.mjs';
@@ -92,4 +93,11 @@ export function handler(factories={}){return async(request,env)=>{
   return reply({error:'service_unavailable'},503);
  }
 };}
-export default {fetch:handler(),async scheduled(event,env){const cfg=releaseConfig(env);const result=await createService(cfg,createStore(env),stripeClient(cfg)).reconcile();if(result.failed)throw new Error('stripe_reconciliation_retry_required');}};
+export default {fetch:handler(),async scheduled(event,env){
+ const cfg=releaseConfig(env),store=createStore(env);
+ const result=await createService(cfg,store,stripeClient(cfg)).reconcile();
+ // Alerts are OFF unless a private operator explicitly enables and configures
+ // them. No emails are sent from default test/production deployments.
+ if(env.ALERT_DELIVERY_ENABLED==='true')await runScheduledAlert({store,env});
+ if(result.failed)throw new Error('stripe_reconciliation_retry_required');
+}};
