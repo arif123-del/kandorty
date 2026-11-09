@@ -9,6 +9,18 @@ const LEASE_MS=90*1000;
 const RETRY_MS=2*60*1000;
 const iso=ms=>new Date(ms).toISOString();
 const nonce=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
+const asAggregate=(r)=>{
+ if(!r||typeof r.requiresAttention!=='boolean'||typeof r.scanLimitReached!=='boolean')
+  throw Error('alert_report_invalid');
+ const result={requiresAttention:r.requiresAttention,scanLimitReached:r.scanLimitReached};
+ for(const name of ['pendingSample','reviewSample','refundPendingSample','overduePendingCount','overdueRefundCount']){
+  if(!Number.isSafeInteger(r[name])||r[name]<0||r[name]>1000000)
+   throw Error('alert_report_invalid');
+  result[name]=r[name];
+ }
+ // Explicit allowlist: customer contacts, order IDs and tokens are discarded.
+ return Object.freeze(result);
+};
 
 export async function runScheduledAlert({
  store,env,now=Date.now(),reporter=operationalReport,
@@ -25,8 +37,7 @@ export async function runScheduledAlert({
  if(!env.RESEND_API_KEY||!env.ALERT_EMAIL_FROM||!env.ALERT_EMAIL_TO)
   throw Error('alert_private_configuration_missing');
 
- const report=await reporter(store,now);
- if(!report||typeof report.requiresAttention!=='boolean')throw Error('alert_report_invalid');
+ const report=asAggregate(await reporter(store,now));
  if(!report.requiresAttention)return Object.freeze({status:'healthy_no_send'});
 
  // All attempts in one hourly incident window use the same Resend idempotency key.
@@ -45,9 +56,13 @@ export async function runScheduledAlert({
   if(!['sending','failed'].includes(prior.status)||!Number.isSafeInteger(prior.attempt)||
       prior.attempt<1||prior.attempt>1000)throw Error('alert_state_invalid');
  }
+ // Persist the first aggregate snapshot: Resend retries with the same
+ // idempotency key MUST use the same payload even if queue counts change.
+ const messageReport=asAggregate(prior?.messageReport||report);
+ if(!messageReport.requiresAttention)throw Error('alert_state_invalid');
  const leaseToken=nonce();
  const claimed={
-  eventKey,status:'sending',leaseToken,leaseUntil:now+LEASE_MS,
+  eventKey,messageReport,status:'sending',leaseToken,leaseUntil:now+LEASE_MS,
   attempt:(prior?.attempt||0)+1,createdAt:prior?.createdAt||iso(now),
   updatedAt:iso(now)
  };
@@ -61,7 +76,7 @@ export async function runScheduledAlert({
  if(claimRow?.data?.leaseToken!==leaseToken||claimRow.data.status!=='sending')
   throw Error('alert_claim_confirmation_failed');
  try{
-  const result=await send(report,{...env,ALERT_EVENT_KEY:eventKey},net);
+  const result=await send(messageReport,{...env,ALERT_EVENT_KEY:eventKey},net);
   if(result?.status!=='accepted_by_provider_not_delivered')
    throw Error('alert_provider_not_accepted');
  }catch{
