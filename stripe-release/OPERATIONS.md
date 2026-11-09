@@ -8,6 +8,34 @@ Run `node stripe-release/operations.mjs` in a trusted runner with the appropriat
 
 The test Worker schedules reconciliation every five minutes. A failed settlement makes the scheduled handler throw so it appears as a Worker execution failure. Configure Cloudflare failure alerts and Stripe webhook delivery alerts for the production release; GitHub one-time tests are not permanent monitoring. The owner must name the responsible operator and notification destination before activation; this project does not send messages to anyone.
 
+## Resend alert scheduler (staged, inactive)
+
+The release Worker now optionally calls `runScheduledAlert` after its scheduled
+reconciliation. Default deployments have no `ALERT_DELIVERY_ENABLED=true`, so
+they send **no email**. It scans bounded aggregate queues in the same
+Firebase project selected by `STRIPE_MODE`; it does not read or email
+customer/order details. The message can flag overdue pending checkouts, paid
+stock shortages, cancellation refund queues and query sample saturation.
+
+A Firestore `stripe_operator_alerts` state record is claimed atomically to
+coalesce concurrent workers; accepted alerts are limited to one per
+`STRIPE_MODE` and UTC hour. Provider idempotency keys are stable across retries,
+with a 90-second sending lease and a 2-minute retry cooldown after failures.
+An accepted provider response does not mean the operator inbox received it.
+
+Staging requirements: install private Resend sender, recipient and sending-only
+API key as encrypted secrets in the dedicated **test Worker**, then explicitly
+enable only its `ALERT_DELIVERY_ENABLED` variable and simulate one aggregate
+attention report. Do not configure its receiver in GitHub source, logs or CI
+artifacts. Live delivery additionally requires independent private
+`ALERT_PRODUCTION_APPROVAL=KANDORTY_ALERTS_APPROVED` and a separately approved
+Stripe production release. No credentials, production activation, or alert
+routing were changed when this code was added.
+
+This alert does **not** replace Stripe webhook delivery/dispute alarms,
+Cloudflare worker failure notifications, delivery confirmation and owner backup
+escalation. Do not call monitoring complete until those paths are tested.
+
 ## Paid stock shortage
 
 1. Treat `orders.inventoryStatus=needs_review` / unresolved `stripe_review_queue` as a paid obligation. Do not ask the customer to pay again or ship unavailable items.
