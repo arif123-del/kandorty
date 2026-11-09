@@ -103,7 +103,9 @@ export default {fetch:handler(),async scheduled(event,env){
   await runScheduledAlert({store,env});
   // Read only Resend provider last-event metadata. A sending-only API key
   // may lack list permission; audit fails unverified without blocking checkout.
-  await auditResendDelivery({store,env});
+  // Resend domain-scoped Sending Access keys cannot GET sent-email status.
+  // A separate, explicitly authorized read-capable credential is required.
+  if(env.RESEND_READ_ACCESS_ENABLED==='true')await auditResendDelivery({store,env});
  }
  if(result.failed)throw new Error('stripe_reconciliation_retry_required');
 }};
