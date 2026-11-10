@@ -61,6 +61,17 @@ def aggregate_risks(data):
         "ledger_documents_present",
     )
     counts = {key: 0 for key in keys}
+    # Overlap counters prevent double-counting the same exceptional order.
+    # No order identifier is included in any result or console output.
+    overlaps = {
+        "pending_request_already_cancelled": 0,
+        "pending_request_still_new": 0,
+        "pending_request_in_processing": 0,
+        "pending_request_with_restored_stock_flag": 0,
+        "cancelled_unknown_origin_with_pending_request": 0,
+        "cancelled_unknown_origin_with_restored_stock_flag": 0,
+        "processing_lock_gap_with_pending_request": 0,
+    }
     for doc in collections["orders"]:
         order = record_fields(doc)
         suffix = doc["name"][len(pref + "orders/"):]
@@ -77,6 +88,27 @@ def aggregate_risks(data):
         ))
         restored = bool(prop(order, "cancelStockRestoredAt"))
         cancelled_by = prop(order, "cancelledBy")
+        lock_gap = status in ("preparing", "shipping", "delivered") and (
+            not ol or not tl or ol != tl
+        )
+        unknown_cancel_origin = status == "cancelled" and cancelled_by not in (
+            "admin", "customer"
+        )
+        if pending:
+            if status == "cancelled":
+                overlaps["pending_request_already_cancelled"] += 1
+            elif status == "new":
+                overlaps["pending_request_still_new"] += 1
+            elif status in ("preparing", "shipping", "delivered"):
+                overlaps["pending_request_in_processing"] += 1
+            if restored:
+                overlaps["pending_request_with_restored_stock_flag"] += 1
+        if unknown_cancel_origin and pending:
+            overlaps["cancelled_unknown_origin_with_pending_request"] += 1
+        if unknown_cancel_origin and restored:
+            overlaps["cancelled_unknown_origin_with_restored_stock_flag"] += 1
+        if lock_gap and pending:
+            overlaps["processing_lock_gap_with_pending_request"] += 1
         if status in ("preparing", "shipping", "delivered") and (not ol or not tl or ol != tl):
             counts["processing_lock_missing_or_mismatch"] += 1
         if status == "new" and (ol or tl):
@@ -96,7 +128,8 @@ def aggregate_risks(data):
         if payment not in ("cod", "card"):
             counts["invalid_payment_label"] += 1
     counts["ledger_documents_present"] = len(collections["order_lifecycle"])
-    return {"orders": summary["orders"], "total": summary["total"], "risks": counts}
+    return {"orders": summary["orders"], "total": summary["total"],
+            "risks": counts, "overlaps": overlaps}
 
 def decrypt_and_review(path, password):
     if not shutil.which("gpg"):
@@ -121,6 +154,9 @@ def main():
     print("ORDERS_INSPECTED:", report["orders"])
     print("TOTAL_DOCUMENTS_INSPECTED:", report["total"])
     for key, count in report["risks"].items():
+        print(key.upper() + ":", count)
+    print("OVERLAPPING_EXCEPTION_COUNTS (not additive):")
+    for key, count in report["overlaps"].items():
         print(key.upper() + ":", count)
     print("AUTOMATIC_STOCK_RESTORATION_AUTHORIZED: NO")
     print("REFUNDS_OR_LIVE_RELEASE_AUTHORIZED: NO")
