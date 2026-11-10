@@ -84,6 +84,26 @@ test('unknown historical payment method is never silently treated as COD',()=>{
  rejects(a,'unknown_legacy_payment');
  rejects({...a,target:'cancelled'},'unknown_legacy_payment');
 });
+test('unexpected prior restock or cancellation actor on ACTIVE legacy order forbids further changes',()=>{
+ for(const status of ['new','preparing','shipping']){
+  for(const [collection,field,value] of [
+    ['order','cancelStockRestoredAt','2026-11-09T07:00:00.000Z'],
+    ['tracking','cancelStockRestoredAt','2026-11-09T07:00:00.000Z'],
+    ['order','cancelledBy','customer'],
+    ['tracking','cancelledBy','admin']
+  ]){
+   const base=fixture({status,...(status==='new'?{}:{cancellationLockedAt:at})});
+   const custom={...base,
+     order:{...base.order},tracking:{...base.tracking}};
+   custom[collection]={...custom[collection],[field]:value};
+   const before=snapshot(custom);
+   const target=status==='new'?'preparing':status==='preparing'?'shipping':'delivered';
+   rejects({...custom,target},'legacy_prior_cancellation_or_restock_requires_manual_review');
+   assert.deepEqual(custom,before);
+  }
+ }
+});
+
 test('99 synthetic legacy records remain untouched by no-op previews',()=>{
  const records=Array.from({length:99},(_,n)=>fixture({
   status:n<78?'new':n<80?'preparing':n<82?'shipping':n<85?'delivered':'cancelled',
