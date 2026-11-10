@@ -24,6 +24,24 @@ managed export remains **NOT DONE**. The owner must safely retain the
 password and separately verify retained off-Cloud-Shell file readability.
 No production cutover may treat this partial backup as a full recovery plan.
 
+## 2026-11-11 non-mutating exception coverage and conservative TEST-only blocking
+
+A new synthetic 99-order test reproduces **18 unique flagged cases
+with 21 overlapping category hits** (4 locks, 3 cancellation requests,
+11 unknown origins, 3 stock-restoration evidence markers overlapping
+cancelled cases). The owner's actual private overlap relationships are
+unknown and were not exported. [Offline CI 42899068800](https://github.com/arif123-del/kandorty/actions/runs/42899068800)
+passed 24 synthetic checks. Also, the isolated TEST-only legacy
+status-transition policy refuses otherwise-active legacy records if
+historical `cancelledBy` or `cancelStockRestoredAt` evidence appears,
+preventing silent escalation or reuse of questionable stock history.
+[Release readiness CI 42899322217](https://github.com/arif123-del/kandorty/actions/runs/42899322217)
+passed. Nothing was modified in production.
+
+This is additional **prepared code safety**, not reconciliation of a
+single live case or proof of a full recoverable backup. All 18 real
+cases remain unreviewed and NO-GO persists.
+
 ## 2026-11-11 owner-confirmed generation of a private encrypted manual-review docket (READ ONLY)
 
 The owner has now run the locally checked-out exception-docket tool with their own private GPG password in Cloud Shell. Their **aggregate-only** terminal report says:
