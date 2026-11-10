@@ -27,6 +27,11 @@ without the owner's separate specific final release approval.
   payment/stock/refund updates are rejected.
 - [176/176 automated tests and candidate Rules checks](https://github.com/arif123-del/kandorty/actions/runs/42836875133)
   passed. These tests are not proof of live Android 2.3.0 compatibility.
+- [Isolated authentic Firestore TEST transaction smoke](https://github.com/arif123-del/kandorty/actions/runs/42837485071)
+  **PASSED** using a synthetic order. Verified Firestore timestamp and
+  geolocation preservation after masked status write, payment/line-items
+  integrity, order/tracking atomic status, immutable audit, replay no-op,
+  and cleanup of synthetic documents; production remained untouched.
 - Stage 4 remains **PARTIAL / NO-GO** pending a full protected recovery
   plan, legacy cancellation and missing-lock reconciliation, customer/admin
   compatibility acceptance, and installed Android device tests. No production
