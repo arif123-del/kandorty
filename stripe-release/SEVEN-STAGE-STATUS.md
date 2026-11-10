@@ -37,8 +37,11 @@ without the owner's separate specific final release approval.
   rejects wrong project, missing or duplicate documents, missing tracking or
   mismatched order/tracking status. Its [7 synthetic CI tests](https://github.com/arif123-del/kandorty/actions/runs/42839036235)
   **PASSED**, including an authentic synthetic GPG AES-256 roundtrip and wrong
-  password rejection. The owner's REAL encrypted backup has **NOT** been run
-  through the new checker; private file and passphrase are unavailable to CI.
+  password rejection. On 2026-11-10 the owner **explicitly confirmed** that their own Cloud Shell run of the real encrypted backup checker displayed
+  `BACKUP_STRUCTURE_VERIFIED: YES`. This is owner-attested local file
+  structural validation, not an independently retrieved backup or an
+  executed Firestore restore. The private file and passphrase remain
+  unavailable to CI and were not shared with ChatGPT.
 - Read-only comparison of the previously owner-provided Android 2.3.0 source
   ZIP and prepared 2.3.1 CodeAssist ZIP confirms exactly two changed original
   files: app version and static safe-offline fallback. Both ZIPs passed integrity
