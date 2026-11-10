@@ -80,6 +80,34 @@ class PrivateExceptionDocketTests(unittest.TestCase):
         self.assertNotIn('"qty"',output)
         self.assertNotIn('"customer"',output)
 
+    def test_exact_18_unique_case_21_overlap_flags_reproduce_owner_aggregate_safely(self):
+        # Representative synthetic pattern only: NOT the owner's real overlap map.
+        # 4 lock + 3 pending + 11 unknown-origin = 18 unique IDs.
+        # 3 historical stock-marker flags overlap three unknown-origin cases.
+        data=example()
+        status(data,range(4),'preparing')
+        for i in (4,5,6):
+            field(data,'orders',i,'cancelRequestedAt','2026-11-10T11:00:00Z')
+        status(data,range(7,18),'cancelled')
+        for i in (7,8,9):
+            field(data,'orders',i,'cancelStockRestoredAt','2026-11-10T11:00:00Z')
+        before=json.dumps(data,sort_keys=True)
+        d=mod.build_docket(data)
+        self.assertEqual(d['uniqueOrdersRequiringReview'],18)
+        counts=d['riskCategoryCounts']
+        self.assertEqual(counts,{'customer_cancellation_request_review':3,
+            'historical_stock_restoration_evidence_review':3,
+            'processing_lock_review':4,
+            'unknown_cancellation_origin_review':11})
+        self.assertEqual(sum(counts.values()),21)
+        self.assertEqual(len({x['orderCode'] for x in d['records']}),18)
+        self.assertFalse(d['cutoverAuthorized'])
+        self.assertFalse(d['refundAuthorized'])
+        self.assertFalse(d['automaticStockRestorationAuthorized'])
+        self.assertEqual(before,json.dumps(data,sort_keys=True),
+            'read-only classification must never mutate source')
+        self.assertNotIn('SYNTHETIC_PRIVATE_PHONE',json.dumps(d))
+
     def test_overlapping_cancel_pending_and_unknown_origin_is_one_record(self):
         data=example()
         status(data,[0],'cancelled')
