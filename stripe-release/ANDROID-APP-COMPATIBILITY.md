@@ -10,6 +10,36 @@
 - Earlier GitHub-committed `KandortyAndroid_v1_source.zip` is a *different* older native Kotlin app (archive version 1.1.0, code 2). [CI 41094489132](https://github.com/arif123-del/kandorty/actions/runs/41094489132) found Kotlin `orders`/`tracking` collection references, transactions, and write APIs. **Do not use the V1 source as evidence for the installed 2.3.0 implementation.**
 - Another saved `KandortyAndroid_V22_ENGLISH_LOGO_CodeAssist(1).zip` advertises version 3.2.0 and also contains a WebView and the bundled fallback. It is NOT evidence that 3.2.0 is installed.
 
+## Owner's in-session network-loss follow-up and 2.3.3 source-only mitigation — 2026-11-10
+
+On a Samsung handset with 2.3.2, the owner confirmed: (a) an offline
+cold start shows the correct Arabic offline notice, (b) after reconnect,
+the public store loads, but (c) switching Wi-Fi and mobile data OFF while
+the online store remains open **does not show the offline notice immediately**.
+The owner has not confirmed whether the notice appeared later, so this is
+a *latency/behavior observation*, not proof it never appears.
+
+The 2.3.2 Activity relies on Android network callbacks, which can arrive
+before `getActiveNetwork()` reflects the updated state. To mitigate that
+race, a separate **2.3.3 CodeAssist source ZIP** was prepared in the
+assistant's artifact workspace (not committed as binary here): a
+foreground-only `Handler(Looper.getMainLooper())` watchdog rechecks
+Android's validated internet capability every 500ms, starts on
+`onResume`, and removes callbacks on `onPause` and `onDestroy`.
+Existing network callbacks, the static offline page, explicit online
+retry, storefront URL, branding, and safe offline navigation checks
+remain unchanged. Android can still delay the underlying capability
+state update; zero-latency transition is NOT guaranteed.
+
+The only changed original files are `MainActivity.java` and
+`app/build.gradle.kts` (versionName 2.3.3; versionCode 16); one
+Arabic/Pashto test guide was added. ZIP integrity, XML parse, version,
+permissions, lifecycle anchors, and exact-two-file diff passed static
+checks. **No APK was built/signed/installed/tested for 2.3.3.**
+Do not activate live Firebase Rules or Stripe Live from this evidence.
+Owner still must test foreground disconnect, repeat disconnect/reconnect,
+and legacy/order handling without creating production orders.
+
 ## Owner-reported Android 2.3.2 on-device follow-up (2026-11-10)
 
 The owner confirmed on their Samsung handset that the 2.3.2 offline
