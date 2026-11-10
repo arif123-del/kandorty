@@ -65,6 +65,33 @@ but this reported private aggregate run is owner-attested, not a
 cloud-connected production audit or independent restore test.
 No passwords, customers or order IDs were exported into GitHub.
 
+## 2026-11-10 — Conservative legacy exception collision testing (TEST ONLY)
+
+The server-only legacy status service has **four additional regression tests**
+covering a concurrent customer cancellation request racing an administrator
+status change, four distinct synthetic processing-lock gaps, 11 synthetic
+unknown-origin cancelled orders, and a malicious client-authored quantity
+inside a pending cancellation. A concurrent client edit invalidates the
+transactional read and forces a retry that **rejects** the status change;
+no stock, payment, tracking, cancellation or audit mutation is committed.
+
+[180/180 source tests passed](https://github.com/arif123-del/kandorty/actions/runs/42877834722),
+plus independent proposed Rules emulator checks. These are synthetic
+nonproduction tests; they do **not** unlock the four real processing orders
+or reclassify the 11 unknown-origin cancellations.
+
+The owner-only encrypted backup risk counter now includes cross-cutting
+aggregates so the three cancellation requests cannot be assumed to be
+the same as the three historical stock-restoration markers. It distinguishes
+missing `cancelledBy` fields **including** pending cancellations from
+the previous `cancelled_unknown_origin` category, which excluded cancelled
+orders bearing a pending customer cancellation. Exact per-order overlap
+remains **unknown** until the owner runs the updated private checker.
+
+[17/17 synthetic offline backup and risk tests passed](https://github.com/arif123-del/kandorty/actions/runs/42878539922),
+and output still contains no identifiers, customer data, inventory changes
+or refunded amounts. No live order or Firebase Rules change was made.
+
 ## 2026-11-10 — TEST-only masked-write safety improvement
 
 The isolated `legacyStatusTestService` now uses a limited Firestore
