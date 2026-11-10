@@ -32,6 +32,18 @@ without the owner's separate specific final release approval.
   geolocation preservation after masked status write, payment/line-items
   integrity, order/tracking atomic status, immutable audit, replay no-op,
   and cleanup of synthetic documents; production remained untouched.
+- A private read-only [local encrypted backup structure checker](owner-private-local-backup-review.py)
+  was added. It only prints aggregate counts and encrypted-file checksum and
+  rejects wrong project, missing or duplicate documents, missing tracking or
+  mismatched order/tracking status. Its [7 synthetic CI tests](https://github.com/arif123-del/kandorty/actions/runs/42839036235)
+  **PASSED**, including an authentic synthetic GPG AES-256 roundtrip and wrong
+  password rejection. The owner's REAL encrypted backup has **NOT** been run
+  through the new checker; private file and passphrase are unavailable to CI.
+- Read-only comparison of the previously owner-provided Android 2.3.0 source
+  ZIP and prepared 2.3.1 CodeAssist ZIP confirms exactly two changed original
+  files: app version and static safe-offline fallback. Both ZIPs passed integrity
+  checks, and the offline HTML has no script/checkout/Firebase forms. **No
+  Android APK was built, installed, signed or tested on-device.**
 - Stage 4 remains **PARTIAL / NO-GO** pending a full protected recovery
   plan, legacy cancellation and missing-lock reconciliation, customer/admin
   compatibility acceptance, and installed Android device tests. No production
