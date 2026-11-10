@@ -68,6 +68,7 @@ def aggregate_risks(data):
         "pending_request_still_new": 0,
         "pending_request_in_processing": 0,
         "pending_request_with_restored_stock_flag": 0,
+        "cancelled_missing_origin_including_pending": 0,
         "cancelled_unknown_origin_with_pending_request": 0,
         "cancelled_unknown_origin_with_restored_stock_flag": 0,
         "processing_lock_gap_with_pending_request": 0,
@@ -103,6 +104,8 @@ def aggregate_risks(data):
                 overlaps["pending_request_in_processing"] += 1
             if restored:
                 overlaps["pending_request_with_restored_stock_flag"] += 1
+        if unknown_cancel_origin:
+            overlaps["cancelled_missing_origin_including_pending"] += 1
         if unknown_cancel_origin and pending:
             overlaps["cancelled_unknown_origin_with_pending_request"] += 1
         if unknown_cancel_origin and restored:
@@ -155,7 +158,7 @@ def main():
     print("TOTAL_DOCUMENTS_INSPECTED:", report["total"])
     for key, count in report["risks"].items():
         print(key.upper() + ":", count)
-    print("OVERLAPPING_EXCEPTION_COUNTS (not additive):")
+    print("CROSS_CUTTING_EXCEPTION_COUNTS (not additive):")
     for key, count in report["overlaps"].items():
         print(key.upper() + ":", count)
     print("AUTOMATIC_STOCK_RESTORATION_AUTHORIZED: NO")
