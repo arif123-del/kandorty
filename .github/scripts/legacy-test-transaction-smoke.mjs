@@ -6,7 +6,7 @@
 // documents it created. Never use production credentials or project IDs.
 import {randomInt,randomBytes} from 'node:crypto';
 import {initializeApp,cert,deleteApp} from 'firebase-admin/app';
-import {getFirestore} from 'firebase-admin/firestore';
+import {getFirestore,Timestamp,GeoPoint} from 'firebase-admin/firestore';
 import {createStore} from '../../stripe-release/firestore.mjs';
 import {legacyStatusTestService} from '../../stripe-release/legacy-status-service.mjs';
 
@@ -76,8 +76,12 @@ if(!raw||typeof raw!=='string'||raw.length<100){
   // Track audit for cleanup BEFORE the status change, even if verification
   // fails after the commit returned successfully.
   created.push({ref:audit,kind:'audit'});
+  // Real Firestore types expose regression in naive full-document REST rewrites.
+  const originalTimestamp=Timestamp.fromDate(new Date('2026-10-29T08:45:00.000Z'));
+  const originalLocation=new GeoPoint(25.125,55.25);
   const base={id,status:'new',payment:'cod',paymentStatus:'unverified_legacy',
-   testOnly:true,testMarker:marker,items:[{id:'synthetic_no_stock',qty:1}],total:1};
+   testOnly:true,testMarker:marker,items:[{id:'synthetic_no_stock',qty:1}],total:1,
+   originalTimestamp,originalLocation};
   phase='create_synthetic_order';
   await order.create(base);created.push({ref:order,kind:'fixture'});
   phase='create_synthetic_tracking';
@@ -98,6 +102,12 @@ if(!raw||typeof raw!=='string'||raw.length<100){
   const checks={
    ORDER_PREPARING:afterOrder.data()?.status==='preparing',
    TRACKING_PREPARING:afterTracking.data()?.status==='preparing',
+   REST_TIMESTAMP_PRESERVED:afterOrder.data()?.originalTimestamp?.isEqual(originalTimestamp)===true,
+   REST_GEO_PRESERVED:afterOrder.data()?.originalLocation?.latitude===originalLocation.latitude&&
+     afterOrder.data()?.originalLocation?.longitude===originalLocation.longitude,
+   HISTORICAL_ITEMS_PRESERVED:afterOrder.data()?.items?.[0]?.id==='synthetic_no_stock'&&
+     afterOrder.data()?.items?.[0]?.qty===1,
+   PAYMENT_FIELDS_PRESERVED:afterOrder.data()?.paymentStatus==='unverified_legacy',
    AUDIT_EXISTS:afterAudit.exists,
    AUDIT_ACTOR_VALID:afterAudit.data()?.actorUid===admin,
    AUDIT_NO_MONEY_STOCK:afterAudit.data()?.moneyOrStockChanged===false,
