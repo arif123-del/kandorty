@@ -3,6 +3,21 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Updated TEST-only safeguards — November 11, 2026
+
+The 18-unique / 21-overlapping category pattern has a representative
+**synthetic test case** that passed in [CI run 42899068800](https://github.com/arif123-del/kandorty/actions/runs/42899068800)
+(24 tests overall: 7 backup, 10 risk and 7 docket). It does **not**
+reveal which actual private cases overlap.
+
+In the isolated TEST-only legacy status source, active orders with old
+`cancelledBy` or `cancelStockRestoredAt` markers now fail closed before
+status mutation. Additional tests verify no inventory, refunds or order
+status updates in those ambiguous scenarios. Current release-code CI
+[42899322217](https://github.com/arif123-del/kandorty/actions/runs/42899322217)
+passed. These safety tests do not settle the 18 cases or authorize a
+production transition.
+
 ## Owner execution confirmation — November 11, 2026 UAE / November 10 UTC
 
 The owner confirmed in ChatGPT with aggregate-only Cloud Shell console output that the script ran against the existing 99-order private local backup and created an encrypted GPG report successfully. It identified **18 unique orders** with **21 overlapping flag hits** (lock review 4; customer cancellation 3; historical stock-restoration evidence 3; cancelled-by origin unknown 11). The reported script exit included `PRODUCTION_ORDER_CHANGES: NONE` and `LIVE_RELEASE_OR_AUTOMATIC_RESTOCK_AUTHORIZED: NO`. This confirms **owner-reported successful private generation** only. The assistant did not obtain the GPG file or access any order ID, customer information or private password.
