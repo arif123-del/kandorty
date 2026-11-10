@@ -34,6 +34,7 @@ function fakeStore(overrides={}){
    return clone(value);
   },
   write:(path,data,currentDocument)=>({path,data:clone(data),currentDocument}),
+  writePatch:(path,patch,currentDocument)=>({path,patch:clone(patch),updateMask:{fieldPaths:Object.keys(patch).sort()},currentDocument}),
   commitTransaction:async(tx,writes)=>{
    const t=trans.get(tx);
    if(!t)throw Error('invalid_test_transaction');
@@ -48,7 +49,11 @@ function fakeStore(overrides={}){
      throw Error('write_conflict');
     assert.match(w.path,/^(orders|tracking|legacy_admin_status_audit)\//);
    }
-   for(const w of writes)rows.set(w.path,{version:String(++revision),data:clone(w.data)});
+   for(const w of writes){
+    const old=rows.get(w.path)?.data;
+    const next=w.patch?{...clone(old||{}),...clone(w.patch)}:clone(w.data);
+    rows.set(w.path,{version:String(++revision),data:next});
+   }
    commits++;trans.delete(tx);
   },
   rollbackTransaction:async tx=>{trans.delete(tx);rollbacks++;}
@@ -91,6 +96,25 @@ test('status-only new -> preparing is atomic, auditable and preserves private + 
  assert.equal(audit.actorUid,actor.uid);assert.equal(audit.needsPaymentReview,false);
  assert.equal(audit.moneyOrStockChanged,false);
  assert.ok(!JSON.stringify(audit).includes('PRIVATE_PHONE'));
+});
+test('narrow legacy patches preserve all unrelated historical fields byte-for-byte in the TEST model',async()=>{
+ const s=fakeStore();
+ const original=s.rows.get('orders/'+id).data;
+ const special={createdAt:{timestampValue:'2026-10-29T09:00:00Z'},
+  image:{bytesValue:'ZmFrZQ=='},location:{geoPointValue:{latitude:1,longitude:2}},
+  submittedBy:{referenceValue:'projects/test/databases/(default)/documents/users/test'},
+  nested:{customer:{extra:'keep-me'}},otherOriginalFlag:true};
+ s.put('orders/'+id,{...original,...special});
+ const before=structuredClone(s.rows.get('orders/'+id).data);
+ await service(s).change(id,'preparing',actor);
+ const after=s.rows.get('orders/'+id).data;
+ for(const key of Object.keys(before)){
+  if(key==='status')continue;
+  assert.deepEqual(after[key],before[key],`unexpected historical field rewrite: ${key}`);
+ }
+ assert.equal(s.rows.get('tracking/'+id).data.customerPrivate,'PRIVATE_TRACKING');
+ assert.equal(s.rows.get('orders/'+id).data.status,'preparing');
+ assert.equal(s.rows.get('legacy_admin_status_audit/'+id+'_preparing').data.moneyOrStockChanged,false);
 });
 test('repeated same-status action does not write twice or duplicate audit',async()=>{
  const s=fakeStore(),x=service(s);
