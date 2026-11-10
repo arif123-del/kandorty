@@ -1,0 +1,35 @@
+name: Kandorty owner-only LOCAL backup structural checker (SYNTHETIC ONLY)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - 'stripe-release/owner-private-local-backup-review.py'
+      - 'stripe-release/test_owner_private_local_backup_review.py'
+      - '.github/workflows/stripe-owner-local-backup-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test verifier against synthetic fixtures only
+        run: |
+          python -m py_compile stripe-release/owner-private-local-backup-review.py
+          python -m unittest discover -s stripe-release -p 'test_owner_private_local_backup_review.py' -v
+      - name: Assert offline-only script has no Firestore, Firebase or cloud calls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src=Path('stripe-release/owner-private-local-backup-review.py').read_text()
+          for bad in ('firebase_admin','https://','requests.', 'urlopen(', 'gcloud ', 'commit(', '.delete(', '.set(', 'google.cloud', 'storage.buckets'):
+            assert bad not in src, 'forbidden network/production write pattern'
+          print('OFFLINE_BACKUP_VERIFIER: SYNTHETIC_TESTS_ONLY; NO FIREBASE OR CLOUD MUTATION')
+          PY
