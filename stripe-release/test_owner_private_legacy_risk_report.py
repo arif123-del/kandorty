@@ -88,6 +88,34 @@ class OfflineLegacyRiskReportTests(unittest.TestCase):
         self.assertEqual(flags["invalid_payment_label"], 1)
         self.assertEqual(flags["cancelled_unknown_origin"], 1)
 
+    def test_overlapping_exceptions_are_counted_without_double_counting_or_ids(self):
+        data = risk_fixture()
+        set_status(data, [0, 1], "cancelled")
+        set_status(data, [3], "preparing")
+        set_field(data, "orders", 0, "cancelledBy", "customer")
+        set_field(data, "orders", 0, "cancelStockRestoredAt", "2026-11-09T13:00:00Z")
+        set_field(data, "orders", 1, "cancelStockRestoredAt", "2026-11-09T13:00:00Z")
+        for i in (0, 1, 2, 3):
+            set_customer_cancel(data, "orders", i)
+        result = mod.aggregate_risks(data)
+        self.assertEqual(result["orders"], 99)
+        self.assertEqual(result["total"], 254)
+        overlap = result["overlaps"]
+        self.assertEqual(overlap["pending_request_already_cancelled"], 2)
+        self.assertEqual(overlap["pending_request_still_new"], 1)
+        self.assertEqual(overlap["pending_request_in_processing"], 1)
+        self.assertEqual(overlap["pending_request_with_restored_stock_flag"], 2)
+        self.assertEqual(overlap["cancelled_unknown_origin_with_pending_request"], 1)
+        self.assertEqual(overlap["cancelled_unknown_origin_with_restored_stock_flag"], 1)
+        self.assertEqual(overlap["processing_lock_gap_with_pending_request"], 1)
+        self.assertEqual(result["risks"]["pending_customer_cancellation"], 4)
+        self.assertEqual(result["risks"]["cancelled_unknown_origin"], 1)
+        self.assertNotIn("KD-", str(result))
+
+    def test_no_exception_in_baseline_means_no_overlap(self):
+        result = mod.aggregate_risks(risk_fixture())
+        self.assertTrue(all(v == 0 for v in result["overlaps"].values()))
+
     def test_project_status_and_tracking_mismatch_fail_closed(self):
         data = risk_fixture()
         data["sourceProject"] = "wrong"
