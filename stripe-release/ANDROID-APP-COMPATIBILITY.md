@@ -10,6 +10,17 @@
 - Earlier GitHub-committed `KandortyAndroid_v1_source.zip` is a *different* older native Kotlin app (archive version 1.1.0, code 2). [CI 41094489132](https://github.com/arif123-del/kandorty/actions/runs/41094489132) found Kotlin `orders`/`tracking` collection references, transactions, and write APIs. **Do not use the V1 source as evidence for the installed 2.3.0 implementation.**
 - Another saved `KandortyAndroid_V22_ENGLISH_LOGO_CodeAssist(1).zip` advertises version 3.2.0 and also contains a WebView and the bundled fallback. It is NOT evidence that 3.2.0 is installed.
 
+## Owner-reported Android 2.3.3 foreground disconnect check — 2026-11-10
+
+After following the 2.3.3 on-device test instructions, the owner replied
+**"سم شو" (it worked)**. This is owner-attested success for the foreground
+network-loss/offline-notice check after the 500ms watchdog source change.
+This is NOT independent access to the device, APK signing verification,
+a quantified latency measurement, or proof of all Android compatibility.
+The next acceptance check is reconnection via an explicit retry and
+repeated offline/online transitions without production checkout. Still
+no authorization to change Firestore Rules, Stripe Live, Ziina or orders.
+
 ## Owner's in-session network-loss follow-up and 2.3.3 source-only mitigation — 2026-11-10
 
 On a Samsung handset with 2.3.2, the owner confirmed: (a) an offline
