@@ -205,6 +205,25 @@ test('four synthetic processing orders missing locks are rejected without silent
  }
 });
 
+test('an ACTIVE legacy order with old cancellation/restock markers cannot be changed or restocked',async()=>{
+ for(const [targetPath,field,value] of [
+  ['orders','cancelStockRestoredAt','2026-11-10T12:00:00Z'],
+  ['tracking','cancelStockRestoredAt','2026-11-10T12:00:00Z'],
+  ['orders','cancelledBy','customer'],
+  ['tracking','cancelledBy','admin']
+ ]){
+  const s=fakeStore();
+  const row=s.rows.get(targetPath+'/'+id).data;
+  s.put(targetPath+'/'+id,{...row,[field]:value});
+  await assert.rejects(service(s).change(id,'preparing',actor),
+    /legacy_prior_cancellation_or_restock_requires_manual_review/);
+  assert.equal(s.commitCount,0);
+  assert.equal(s.rows.get('orders/'+id).data.status,'new');
+  assert.equal(s.rows.get('tracking/'+id).data.status,'new');
+  assert.ok(![...s.rows.keys()].some(p=>/audit|refund|products|stock/.test(p)));
+ }
+});
+
 test('cancelled orders with unknown cancellation origin remain immutable and never restock',async()=>{
  for(let n=0;n<11;n++){
   const s=fakeStore();
