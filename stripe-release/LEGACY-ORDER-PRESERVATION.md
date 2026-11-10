@@ -24,6 +24,47 @@ managed export remains **NOT DONE**. The owner must safely retain the
 password and separately verify retained off-Cloud-Shell file readability.
 No production cutover may treat this partial backup as a full recovery plan.
 
+## 2026-11-10 — Owner-only offline cancellation/lock verification (NO MUTATION)
+
+The owner executed the checked-in `owner-private-legacy-risk-report.py`
+locally in Cloud Shell against their private AES-256-encrypted backup
+and provided a screenshot of aggregate counts only. **99 orders and
+254 related top-level documents** were read, not written.
+
+- 4 processing/delivery orders have missing or mismatched cancellation locks.
+- 3 pending customer cancellation indicators were detected.
+- 3 customer-cancelled records carry historical stock-restoration markers;
+  no such record was found missing a marker.
+- 11 cancelled records have no recognized `cancelledBy` source.
+- 0 cancelled card-payment-review flags, 0 invalid payment labels,
+  and 0 trusted `order_lifecycle` documents.
+
+**Do not treat these groups as disjoint:** pending cancellation and stock
+restoration may overlap. The marker shows a historical action was recorded,
+not that product stock quantities, card settlement or refunds were correct.
+Unknown cancellation origin is not evidence of customer or administrator action.
+
+**Safe handling policy until coordinated cutover:**
+
+1. Maintain order and tracking status as found; never backfill cancellation
+   lock metadata automatically for the 4 processing cases.
+2. Review 3 cancellation-request cases under authenticated owner control;
+   do not auto-finalize or restock from client-authored quantities.
+3. Preserve the 3 historical restock markers exactly; do not replay a stock
+   increment without independent product stock debit/credit evidence.
+4. Keep the 11 unknown-origin cancellations in a manual exception queue.
+   Never resurrect or reclassify them merely from old status fields.
+5. No retroactive trusted lifecycle ledger, card-payment proof, refund or
+   inventory debit can be synthesized from client-era documents.
+6. Continue to require signed operator identity, isolated fixture verification,
+   an Android compatibility cutover, protected recovery validation and
+   explicit separate production approval.
+
+The checker has [8 successful synthetic offline CI tests](https://github.com/arif123-del/kandorty/actions/runs/42850577369),
+but this reported private aggregate run is owner-attested, not a
+cloud-connected production audit or independent restore test.
+No passwords, customers or order IDs were exported into GitHub.
+
 ## 2026-11-10 — TEST-only masked-write safety improvement
 
 The isolated `legacyStatusTestService` now uses a limited Firestore
