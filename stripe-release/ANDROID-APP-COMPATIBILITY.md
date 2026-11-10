@@ -10,6 +10,40 @@
 - Earlier GitHub-committed `KandortyAndroid_v1_source.zip` is a *different* older native Kotlin app (archive version 1.1.0, code 2). [CI 41094489132](https://github.com/arif123-del/kandorty/actions/runs/41094489132) found Kotlin `orders`/`tracking` collection references, transactions, and write APIs. **Do not use the V1 source as evidence for the installed 2.3.0 implementation.**
 - Another saved `KandortyAndroid_V22_ENGLISH_LOGO_CodeAssist(1).zip` advertises version 3.2.0 and also contains a WebView and the bundled fallback. It is NOT evidence that 3.2.0 is installed.
 
+## Owner's 2.3.1 real-device OFFLINE failure and local 2.3.2 source fix — 2026-11-10
+
+The owner reported Android 2.3.1 installed via CodeAssist. Their real-device
+offline test **FAILED**: with both Wi-Fi and mobile network unavailable, the
+application displayed a cached storefront page with images missing, **not**
+the safe static Arabic offline notice. Therefore the 2.3.1 APK **must not**
+be treated as compatible or safe for a stricter Firestore Rules migration.
+
+Root cause in the v13/2.3.1 `MainActivity.java` review source: the WebView
+only loads the static offline fallback after a **main-frame** network error.
+A cached main HTML response can load with network-dependent images failing,
+so the main-frame error callback is never triggered. This is a failed
+acceptance test, not evidence of a failed ZIP import.
+
+A separate **2.3.2 CodeAssist source-only ZIP** was created locally,
+derived byte-for-byte from the owner's 2.3.1 source except for:
+- `MainActivity.java`: checks Android active default network for
+  `NET_CAPABILITY_INTERNET` **and** `NET_CAPABILITY_VALIDATED` at launch,
+  onResume and network capability/loss callbacks; redirects cached or
+  restored HTML to the static offline page while offline; URL overrides
+  also block offline navigations. On reconnect, the user must explicitly
+  tap the safe `إعادة فتح المتجر` HTTPS link; no automatic checkout replay.
+- `app/build.gradle.kts`: `versionName=2.3.2`, `versionCode=15`.
+- A bilingual Arabic/Pashto owner build-and-test guide was added.
+
+Source ZIP integrity, manifest parsing, capability permission presence,
+version and exact two-existing-file diff were validated locally.
+The source ZIP is NOT committed here, not a built APK, not signed, installed,
+or tested on the actual device. CodeAssist import, APK build, offline-on-launch,
+connection-loss-during-session and explicit-retry tests are still needed.
+Do not infer production compatibility until those owner tests succeed.
+Never delete the existing installed app to work around a signature error.
+No live Firebase Rules, Stripe, COD, Ziina, order or website changes were made.
+
 ## Draft-only 2.3.1 safe-offline source candidate
 
 A separate review ZIP `KandortyAndroid_2.3.1_SAFE_OFFLINE_REVIEW.zip` was generated from the owner's saved v13 2.3.0 source in the assistant's working container, not uploaded/merged to this repo. It has exactly these two modified original files:
