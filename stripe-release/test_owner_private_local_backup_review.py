@@ -1,6 +1,10 @@
 """Synthetic and offline-only tests for owner backup validation. No customer data."""
 import importlib.util
+import json
 from pathlib import Path
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 HERE = Path(__file__).resolve().parent
@@ -46,6 +50,28 @@ class BackupReviewTests(unittest.TestCase):
         self.assertEqual(summary["total"], 254)
         self.assertEqual(summary["other_collection_total"], 56)
         self.assertNotIn("KD-", str(summary))
+
+    @unittest.skipUnless(shutil.which("gpg"), "GPG not installed")
+    def test_synthetic_gpg_aes256_roundtrip_without_customer_data(self):
+        password = "synthetic-LOCAL-only-test-2026"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plaintext = root / "synthetic.json"
+            encrypted = root / "synthetic.json.gpg"
+            plaintext.write_text(json.dumps(fixture()), encoding="utf-8")
+            result = subprocess.run([
+                "gpg", "--batch", "--quiet", "--pinentry-mode", "loopback",
+                "--passphrase-fd", "0", "--symmetric", "--cipher-algo", "AES256",
+                "--output", str(encrypted), str(plaintext)
+            ], input=(password + "\n").encode("utf-8"),
+               stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            self.assertEqual(result.returncode, 0, "synthetic encryption failed")
+            summary, sha = module.inspect_encrypted_file(encrypted, password)
+            self.assertEqual(summary["orders"], 99)
+            self.assertEqual(summary["total"], 254)
+            self.assertEqual(len(sha), 64)
+            with self.assertRaises(module.UnsafeBackupError):
+                module.inspect_encrypted_file(encrypted, "WRONG-synthetic-pass-123")
 
     def test_project_and_format_mismatch_rejected(self):
         for attr, value in [
