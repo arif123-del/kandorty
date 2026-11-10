@@ -105,11 +105,14 @@ class OfflineLegacyRiskReportTests(unittest.TestCase):
         self.assertEqual(overlap["pending_request_still_new"], 1)
         self.assertEqual(overlap["pending_request_in_processing"], 1)
         self.assertEqual(overlap["pending_request_with_restored_stock_flag"], 2)
+        self.assertEqual(overlap["cancelled_missing_origin_including_pending"], 1)
         self.assertEqual(overlap["cancelled_unknown_origin_with_pending_request"], 1)
         self.assertEqual(overlap["cancelled_unknown_origin_with_restored_stock_flag"], 1)
         self.assertEqual(overlap["processing_lock_gap_with_pending_request"], 1)
         self.assertEqual(result["risks"]["pending_customer_cancellation"], 4)
-        self.assertEqual(result["risks"]["cancelled_unknown_origin"], 1)
+        # Original category deliberately excludes pending customer cancellations.
+        # A missing 'cancelledBy' with a pending request is counted separately.
+        self.assertEqual(result["risks"]["cancelled_unknown_origin"], 0)
         self.assertNotIn("KD-", str(result))
 
     def test_no_exception_in_baseline_means_no_overlap(self):
