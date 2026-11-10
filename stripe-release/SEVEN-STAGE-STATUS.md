@@ -66,6 +66,40 @@ without the owner's separate specific final release approval.
   compatibility acceptance, and installed Android device tests. No production
   migration or publishing approval has been given.
 
+## Owner-verified encrypted-backup legacy-risk inventory — 2026-11-10 (read-only)
+
+Owner ran `stripe-release/owner-private-legacy-risk-report.py` inside their own
+Cloud Shell, entering the private GPG password locally, and supplied a screenshot
+of the **aggregate-only output**. The script inspected **99 orders / 254
+documents** with these exact counters:
+
+| Risk category | Count |
+|---|---:|
+| Processing order missing/mismatching cancellation locks | **4** |
+| New order with unexpected processing lock | **0** |
+| Pending customer cancellation indicators | **3** |
+| Cancelled customer orders with a recorded stock-restored flag | **3** |
+| Cancelled customer orders lacking that flag | **0** |
+| Cancelled card orders needing payment review | **0** |
+| Cancelled orders with unknown cancellation origin | **11** |
+| Invalid stored payment labels | **0** |
+| Trusted lifecycle documents present | **0** |
+
+**Interpretation:** These are independently counted indicators, not a proof
+that any two categories contain the same orders. A stock-restored *flag*
+does **not** establish correct inventory quantity or legitimate stock debit.
+An unknown cancellation origin is **not** permission to infer customer/admin
+actor, adjust stock, re-open the order, or issue a refund. Without trusted
+`order_lifecycle` documents, existing client-side status/money/stock writes
+must not be translated automatically to the new server lifecycle.
+
+This is **owner-attested read-only local analysis of the encrypted backup**,
+not a fresh live Firestore snapshot, full managed backup, recovery rehearsal,
+or proof of real payment settlement. No private file, identifiers, passphrase,
+customer data, Stripe Live key or production write was obtained from the
+owner. Maintain **NO-GO** until manual legacy exception procedure, Android
+device compatibility and full recovery/rollout gates are independently met.
+
 ## Verified test evidence
 
 - [Current code/rules readiness](https://github.com/arif123-del/kandorty/actions/runs/42675520665): **148 code tests passed, zero failures**; rules-emulator job passed.
