@@ -47,6 +47,20 @@ without the owner's separate specific final release approval.
   files: app version and static safe-offline fallback. Both ZIPs passed integrity
   checks, and the offline HTML has no script/checkout/Firebase forms. **No
   Android APK was built, installed, signed or tested on-device.**
+- An owner-only [offline encrypted legacy cancellation-risk report](owner-private-legacy-risk-report.py)
+  now evaluates matching order/tracking status, missing/mismatched
+  cancellation locks, customer cancellation requests, prior/restored
+  stock flags, cancelled card payment review, unknown payment labels
+  and lifecycle presence. It emits only aggregate counts and **never**
+  authorizes stock restock, refund or production cutover. Its
+  [8 synthetic CI regression tests](https://github.com/arif123-del/kandorty/actions/runs/42850577369)
+  passed. The owner must run it privately on their encrypted local
+  snapshot before we can call the real aggregate risk inventory verified.
+- Static review of the owner-provided 2.3.1 Android ZIP confirms the offline
+  HTML contains no form, scripts, iframe, card/payment controls or Firebase
+  calls and links only back to the HTTPS Kandorty store. No Android
+  SDK/Gradle or enrolled physical test device was available in the
+  assistant environment; **no signed/installed APK acceptance**.
 - Stage 4 remains **PARTIAL / NO-GO** pending a full protected recovery
   plan, legacy cancellation and missing-lock reconciliation, customer/admin
   compatibility acceptance, and installed Android device tests. No production
