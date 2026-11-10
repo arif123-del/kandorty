@@ -161,6 +161,78 @@ test('missing order or tracking, inconsistent status or unknown payment never mu
   assert.equal(s.commitCount,0);
  }
 });
+test('concurrent customer cancellation request aborts stale admin preparing and never restocks',async()=>{
+ let injected=false;
+ const s=fakeStore({beforeCommit:store=>{
+  if(injected)return;
+  injected=true;
+  const old=store.rows.get('orders/'+id).data;
+  store.put('orders/'+id,{...old,customerEdit:{
+   editProof:'synthetic-private-proof',
+   cancelRequestedAt:'2026-11-10T14:00:00.000Z'
+  }});
+ }});
+ const before=s.rows.get('orders/'+id).data;
+ await assert.rejects(
+  service(s).change(id,'preparing',actor),
+  /legacy_pending_cancel_requires_manual_review/
+ );
+ assert.equal(s.commitCount,0,'no half status write');
+ assert.equal(s.rows.get('orders/'+id).data.status,'new');
+ assert.equal(s.rows.get('tracking/'+id).data.status,'new');
+ assert.deepEqual(s.rows.get('orders/'+id).data.items,before.items);
+ assert.equal(s.rows.get('orders/'+id).data.paymentStatus,before.paymentStatus);
+ assert.ok(![...s.rows.keys()].some(p=>/audit|products|refund/.test(p)));
+});
+
+test('four synthetic processing orders missing locks are rejected without silent backfill',async()=>{
+ for(const status of ['preparing','shipping']){
+  for(const missingOn of ['order','tracking']){
+   const s=fakeStore();
+   const locks={status,cancellationLockedAt:'2026-11-10T14:00:00.000Z'};
+   s.put('orders/'+id,{...s.rows.get('orders/'+id).data,...locks,
+    ...(missingOn==='order'?{cancellationLockedAt:null}:{})});
+   s.put('tracking/'+id,{...s.rows.get('tracking/'+id).data,...locks,
+    ...(missingOn==='tracking'?{cancellationLockedAt:null}:{})});
+   const target=status==='preparing'?'shipping':'delivered';
+   await assert.rejects(service(s).change(id,target,actor),
+    /legacy_processing_lock_missing_or_mismatched/);
+   assert.equal(s.commitCount,0);
+   assert.equal(s.rows.get('orders/'+id).data.status,status);
+   assert.equal(s.rows.get('tracking/'+id).data.status,status);
+   assert.ok(!s.rows.has('legacy_admin_status_audit/'+id+'_'+target));
+  }
+ }
+});
+
+test('cancelled orders with unknown cancellation origin remain immutable and never restock',async()=>{
+ for(let n=0;n<11;n++){
+  const s=fakeStore();
+  s.put('orders/'+id,{...s.rows.get('orders/'+id).data,status:'cancelled',
+   cancelledBy:n%2?'':undefined,
+   ...(n%3===0?{cancelStockRestoredAt:'2026-11-09T00:00:00Z'}:{})});
+  s.put('tracking/'+id,{...s.rows.get('tracking/'+id).data,status:'cancelled'});
+  for(const target of ['preparing','shipping','delivered']){
+   await assert.rejects(service(s).change(id,target,actor),/legacy_transition_locked/);
+  }
+  assert.equal(s.commitCount,0);
+  assert.equal(s.rows.get('orders/'+id).data.status,'cancelled');
+  assert.ok(![...s.rows.keys()].some(p=>/refund|audit|products|stock/.test(p)));
+ }
+});
+
+test('pending customer cancellation never auto-accepts a server cancellation even for COD',async()=>{
+ const s=fakeStore();
+ s.put('orders/'+id,{...s.rows.get('orders/'+id).data,
+   customerEdit:{cancelRequestedAt:'2026-11-09T11:00:00.000Z',
+   quantities:{synthetic_product:99}}});
+ await assert.rejects(service(s).change(id,'cancelled',actor),
+   /legacy_pending_cancel_requires_manual_review/);
+ assert.equal(s.commitCount,0);
+ assert.equal(s.rows.get('orders/'+id).data.status,'new');
+ assert.ok(![...s.rows.keys()].some(p=>/refund|products|stock|audit/.test(p)));
+});
+
 test('ledger created between transactional read and commit forces retry then rejection, never overwrites it',async()=>{
  let once=true;
  const s=fakeStore({beforeCommit:(store)=>{
