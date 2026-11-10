@@ -24,6 +24,20 @@ managed export remains **NOT DONE**. The owner must safely retain the
 password and separately verify retained off-Cloud-Shell file readability.
 No production cutover may treat this partial backup as a full recovery plan.
 
+## 2026-11-11 owner-confirmed generation of a private encrypted manual-review docket (READ ONLY)
+
+The owner has now run the locally checked-out exception-docket tool with their own private GPG password in Cloud Shell. Their **aggregate-only** terminal report says:
+
+- `BACKUP_ORDERS_INSPECTED: 99`
+- `UNIQUE_ORDERS_REQUIRING_REVIEW: 18`
+- Review categories: 4 processing lock, 3 pending customer cancellations, 3 stock-restoration-evidence markers, 11 unknown cancellation origins.
+- `PRIVATE_ENCRYPTED_DOCKET_CREATED: YES`
+- `PRODUCTION_ORDER_CHANGES: NONE`; `LIVE_RELEASE_OR_AUTOMATIC_RESTOCK_AUTHORIZED: NO`.
+
+Flag hits total 21 across just 18 unique orders and therefore **overlap**. It does not establish exactly which categories share a record, nor permission to attribute stock restoration, payment, cancellation actor or refund. The private encrypted docket remains **only in the owner's Cloud Shell**, with no order IDs, contact details, decryption password or ciphertext sent to the assistant or GitHub. This is owner-attested file creation, not a managed Firestore export, real restore test or live order reconciliation.
+
+**Status remains NO-GO** for production. The 18 cases must be privately assessed without auto-updating any historical order/stock/payment fields. The document below retains the preparation record for audit history.
+
 ## 2026-11-11 — private encrypted exception docket is prepared (NOT EXECUTED ON REAL BACKUP)
 
 A new [owner-only offline GPG exception docket tool](owner-private-legacy-exception-docket.py)
