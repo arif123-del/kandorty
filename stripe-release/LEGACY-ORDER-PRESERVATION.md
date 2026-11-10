@@ -2,6 +2,48 @@
 
 **Status: PREPARED / NO PRODUCTION MIGRATION.** This checklist is for review on GitHub PR #2. It does not authorize merging, publishing rules, enabling Live payments, or rewriting any order.
 
+## Owner-held LOCAL encrypted backup — 2026-11-10 (NOT a managed Firestore export)
+
+The owner used the owner-only Cloud Shell local JSON fallback, after confirming
+the production project has no listed Cloud Storage bucket and Cloud Billing
+is disabled. The owner reported the downloaded encrypted GPG file is **7.1 MB**
+and successfully decrypted/parsed it **in their own Cloud Shell**, showing
+`ORDERS_SAVED: 99` and `TOTAL_DOCUMENTS: 254` across five top-level
+collections: `orders`, `tracking`, `order_edits`, `order_access`, and
+`order_lifecycle`. No customer contact fields or plaintext files were shared
+with ChatGPT or uploaded to GitHub. This is owner-reported verification,
+**not** a connector-observed read of the private backup, nor a restoration test.
+
+The backup is a sequential, read-only JSON extraction encrypted locally
+with a password known only to the owner, and a second encrypted file copy
+was downloaded to their device. It is **not** a Firestore managed export,
+not a point-in-time snapshot, and does **not** include every collection,
+nested subcollections, Storage objects, Auth users or Firebase Rules.
+Google Cloud billing and bucket remain unconfigured; the official protected
+managed export remains **NOT DONE**. The owner must safely retain the
+password and separately verify retained off-Cloud-Shell file readability.
+No production cutover may treat this partial backup as a full recovery plan.
+
+## 2026-11-10 — TEST-only masked-write safety improvement
+
+The isolated `legacyStatusTestService` now uses a limited Firestore
+`updateMask` for status, cancellation lock, operator cancellation marker
+and `updatedAt`, instead of rewriting entire historical order and tracking
+documents. This prevents destroying unrelated Firestore-typed fields
+such as timestamps, bytes, geolocations and references from converting
+through the REST JSON packing/unpacking path. The helper rejects all
+production project roots, unrelated collections, paths, arbitrary client
+fields and money/stock/refund mutations. This remains TEST-only;
+the production legacy status UI is **not** migrated.
+
+[Latest source tests](https://github.com/arif123-del/kandorty/actions/runs/42836875133):
+**176/176 passed** plus separate proposed Rules emulator success.
+No live order, original Firebase Rule, Stripe Live or Ziina mutation
+was authorized or performed. Installed Android 2.3.0 remains untested
+against a candidate rollout; old customer cancellation and missing
+processing locks still need an owner-reviewed policy and nonproduction
+acceptance.
+
 ## Confirmed snapshot (read-only, 2026-10-29)
 
 - The production project contained **98 orders** in the bounded read-only audit.
