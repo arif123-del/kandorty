@@ -15,6 +15,34 @@ without the owner's separate specific final release approval.
 | 6 | Resend email and operational monitoring | **Partial** | Resend domain and manual test email: owner-confirmed delivered to designated Gmail inbox on 2026-11-09. Deduplicated alert scheduler was tested and activated on the isolated TEST Worker only; a Firestore operator alert record shows **provider-accepted at 2026-11-09T20:15:34.421Z**. Three operator settings were restored as TEST Worker secrets from its owner-configured version history and the Wrangler TEST config now preserves dashboard variables. Automatic Resend **provider acceptance** has been independently seen for two TEST alert windows; recipient-inbox confirmation for the *automatic* message, Cloudflare scheduled execution alerts, Stripe delivery/dispute alerts and backup escalation remain. Cloudflare's connected CI token does **not** have permission to read notification policies, as confirmed by a non-mutating read attempt; do not claim external failure alerts are configured. The existing Resend API key is **Sending Access**, so it cannot be used to GET sent email history; the optional delivery-status reader requires a separate, owner-approved read-capable key and is OFF by default. |
 | 7 | Final coordinated production activation | **Not started — approval required** | Only after stages 2, 4, 5 and 6 pass: owner must specifically authorize site/rules/backend and Live webhook activation and limited real payment/refund validation. Generic permission to finish preparation is **not** this authorization. |
 
+## 2026-11-11 synthetic 18-case regression and strict TEST-only historical marker guard
+
+The owner-reported **18 unique exceptions / 21 overlapping flags** now have a
+corresponding **fully synthetic 99-order regression fixture** (4 lock cases,
+3 pending cancellation requests, 11 unknown-origin cancellations, with
+3 historical stock-restoration marker overlaps). It verifies one private
+review entry per order, zero source mutation and no authorization to
+restore inventory, refund or release. The
+[owner-only offline synthetic CI run](https://github.com/arif123-del/kandorty/actions/runs/42899068800)
+passed **24 tests** (7 backup structure + 10 aggregate risk + 7 exception
+docket). This synthetic overlap placement is merely representative; the
+actual private case overlap map has not been disclosed.
+
+The TEST-only legacy status policy additionally **fails closed** if an
+otherwise-active order/tracking record unexpectedly carries an old
+`cancelStockRestoredAt` or `cancelledBy` marker. Synthetic policy and
+transactional service tests confirm no status, product, stock or refund
+write occurs on such cases. The
+[release code/Rules readiness CI](https://github.com/arif123-del/kandorty/actions/runs/42899322217)
+completed successfully. **TEST-only source branch; no live endpoints,
+existing 99 orders or production Rules changed.**
+
+**UNRESOLVED:** 18 real private cases still require authorized, evidence-based
+manual decisions; a full protected managed backup/restore remains absent;
+new and old app/admin checkout/tracking/cancellation compatibility remains
+unverified. Stage 4 and Stage 5 are still **PARTIAL / NO-GO**. No automatic
+historical mutation is safe or authorized.
+
 ## 2026-11-11 owner-reported private exception docket SUCCESS (NO PRODUCTION MUTATION)
 
 The owner executed `python3 stripe-release/owner-private-legacy-exception-docket.py` from their Cloud Shell checkout and shared **aggregate-only console output**. The locally encrypted report was created successfully (`PRIVATE_ENCRYPTED_DOCKET_CREATED: YES`) from the existing private 99-order backup. It identified **18 unique legacy orders requiring manual review** (not 21 distinct orders), with overlapping review flags: 4 processing-lock cases, 3 customer-cancellation-request indicators, 3 historical stock-restoration-evidence markers and 11 unknown cancellation origins. The owner-reported output declared `PRODUCTION_ORDER_CHANGES: NONE` and `LIVE_RELEASE_OR_AUTOMATIC_RESTOCK_AUTHORIZED: NO`. We did **not** receive the encrypted file, its password, order IDs or customer data. This is **owner-attested local execution**, not an independent database read or a live fix.
