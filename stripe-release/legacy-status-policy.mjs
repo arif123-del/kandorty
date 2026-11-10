@@ -52,6 +52,13 @@ export function planLegacyAdminTransition({
   // Existing browser-admin customer-cancel listeners may independently restock
   // untrusted quantities. No status mutation is safe while that path is active.
   fail(!pendingCancellation,'legacy_pending_cancel_requires_manual_review');
+  // Historical cancellation/restock markers on an otherwise ACTIVE order
+  // are ambiguous: a previous browser client could already have credited
+  // inventory. Never advance or re-cancel the order before human evidence
+  // review. No trusted ledger is available to reconcile those writes.
+  fail(!order.cancelStockRestoredAt&&!tracking.cancelStockRestoredAt&&
+    !order.cancelledBy&&!tracking.cancelledBy,
+    'legacy_prior_cancellation_or_restock_requires_manual_review');
   // An apparently-new order with a previously set lock is inconsistent.
   // Do not resurrect its cancellation option or silently advance it.
   if(current==='new')fail(!order.cancellationLockedAt&&!tracking.cancellationLockedAt,'legacy_lock_conflict');
