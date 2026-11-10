@@ -1,6 +1,6 @@
 # Kandorty Android compatibility — WebView 2.3.0, native V1, and Stripe/COD release blockers
 
-**DRAFT / NO-GO: no APK was installed or published, no production Firestore Rules/site/Stripe/Ziina changes, and no orders were altered.** A source-code review is not device acceptance.
+**DRAFT / NO-GO for production cutover:** The owner reports installing and testing Android 2.3.3 for basic online/offline behavior; no APK was independently signed, published, or verified by CI. No production Firestore Rules/site/Stripe/Ziina changes or order mutations were authorized. Connectivity acceptance is not complete payment/order compatibility acceptance.
 
 ## Established source provenance
 
@@ -9,6 +9,21 @@
 - The original 2.3.0 WebView `onReceivedError` on a main-frame failure loads **`file:///android_asset/index-fast-start.html`**. That bundled file contains an older full storefront with direct Firestore/transaction order paths, not merely an offline status screen.
 - Earlier GitHub-committed `KandortyAndroid_v1_source.zip` is a *different* older native Kotlin app (archive version 1.1.0, code 2). [CI 41094489132](https://github.com/arif123-del/kandorty/actions/runs/41094489132) found Kotlin `orders`/`tracking` collection references, transactions, and write APIs. **Do not use the V1 source as evidence for the installed 2.3.0 implementation.**
 - Another saved `KandortyAndroid_V22_ENGLISH_LOGO_CodeAssist(1).zip` advertises version 3.2.0 and also contains a WebView and the bundled fallback. It is NOT evidence that 3.2.0 is installed.
+
+## Owner-verified repeat online/offline recovery — 2026-11-10
+
+The owner confirmed that Android 2.3.3 **works normally again after
+re-enabling internet**, and that the app recovers its Kandorty storefront
+and product images while online, after previously confirming the
+in-session offline notice. This is owner-attested acceptance of the
+basic network-loss and network-return checks, **not** independent
+verification of app signing, authenticated order tracking, guest
+cancellation, Stripe Sandbox return, COD creation or old APK behavior.
+No real order or payment was created as part of this acceptance report.
+
+Do not claim Stage 4/5 complete or publish strict Firestore Rules based
+solely on this connection test. Older installed APKs and direct client
+writes must be handled in a separately approved cutover.
 
 ## Owner-reported Android 2.3.3 foreground disconnect check — 2026-11-10
 
