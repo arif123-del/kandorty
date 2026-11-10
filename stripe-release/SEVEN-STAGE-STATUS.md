@@ -2,7 +2,7 @@
 
 **This is a preparation checkpoint, not an authorization to activate Live payments.**
 GitHub PR #2 remains draft/unmerged. Do not change production Firebase Rules,
-published storefront/admin, existing Workers, Stripe Live, Ziina or 98 legacy orders
+published storefront/admin, existing Workers, Stripe Live, Ziina or 99 current legacy orders
 without the owner's separate specific final release approval.
 
 | # | Stage | Status | Verified scope and remaining gate |
@@ -99,6 +99,21 @@ or proof of real payment settlement. No private file, identifiers, passphrase,
 customer data, Stripe Live key or production write was obtained from the
 owner. Maintain **NO-GO** until manual legacy exception procedure, Android
 device compatibility and full recovery/rollout gates are independently met.
+
+## Owner's Android 2.3.3 connectivity acceptance (2026-11-10)
+
+Owner confirmed via this chat that 2.3.3 shows the offline warning
+when internet is cut during an open app, and then works normally with
+products/images after reconnecting. Earlier 2.3.1 failed offline-cached
+behavior and 2.3.2 had delayed in-session warning; 2.3.3 addresses these
+two reported network cases. This is **owner-observed device behavior**,
+not an APK signature/build attestation or evidence that legacy
+order/admin/guest tracking, cancellation and Stripe/COD checkout are
+compatible with the proposed restrictive production Rules.
+
+Stages 4 and 5 remain **PARTIAL / NO-GO** for production. Older clients
+remain a blocker; no owner approval to migrate orders, publish rules/site
+or enable Stripe Live has been given.
 
 ## Verified test evidence
 
