@@ -115,6 +115,27 @@ Stages 4 and 5 remain **PARTIAL / NO-GO** for production. Older clients
 remain a blocker; no owner approval to migrate orders, publish rules/site
 or enable Stripe Live has been given.
 
+## 2026-11-10 — Historical cancellation concurrency hardening (NO LIVE CHANGE)
+
+The isolated legacy-admin service passed additional tests for a race between
+a signed administrator status change and a customer's cancellation request:
+Firestore transaction conflict causes a fresh read and **rejects** the
+now-pending cancellation, without restocking products. Four synthetic
+processing records with missing locks remain blocked; previously cancelled
+orders with unknown cancellation origin remain immutable; customer-supplied
+item quantities cannot authorize stock changes.
+
+[180 source tests and separate Rules emulator checks](https://github.com/arif123-del/kandorty/actions/runs/42877834722)
+succeeded, with no production reads/writes in those tests.
+
+The owner-only encrypted risk checker was extended with **aggregate-only
+overlap counters** for pending cancellation, lock gaps, restored-stock flags,
+and unknown cancellation origin. Its
+[17 synthetic checks](https://github.com/arif123-del/kandorty/actions/runs/42878539922)
+passed. The new checker has **not yet** been executed by the owner on
+the real encrypted file, so the actual overlap figures remain unknown.
+No production migration/stock/refund/card-payment action is permitted.
+
 ## Verified test evidence
 
 - [Current code/rules readiness](https://github.com/arif123-del/kandorty/actions/runs/42675520665): **148 code tests passed, zero failures**; rules-emulator job passed.
