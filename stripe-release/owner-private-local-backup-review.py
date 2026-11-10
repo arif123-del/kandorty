@@ -5,6 +5,7 @@ Reads and decrypts the owner's file in memory. No plaintext data is saved,
 uploaded, written to logs or exposed. Never contacts Firebase, cloud or GitHub.
 NOT a true Firestore restore, managed export, or point-in-time snapshot.
 """
+import getpass
 import hashlib
 import json
 from pathlib import Path
@@ -81,16 +82,21 @@ def review_structure(data):
     }
 
 
-def inspect_encrypted_file(path):
+def inspect_encrypted_file(path, password):
     require(shutil.which("gpg") is not None, "gpg_unavailable")
+    require(isinstance(password, str) and len(password) >= 12, "password_missing_or_too_short")
     require(path.is_file() and not path.is_symlink() and path.name.endswith(".json.gpg"),
             "encrypted_backup_file_not_found")
     size = path.stat().st_size
     require(0 < size <= MAX_CIPHERTEXT_BYTES, "unsafe_backup_file_size")
-    # GPG handles passphrase prompting locally; do not log passphrase or stderr.
-    # The process must succeed: partial or unauthenticated plaintext is rejected.
-    result = subprocess.run(["gpg", "--quiet", "--decrypt", str(path)],
-                            capture_output=True, check=False, timeout=240)
+    # Send password through private STDIN, never command-line argv, shell,
+    # environment, file, or log. Symmetric GPG's integrity check must pass.
+    result = subprocess.run(
+        ["gpg", "--batch", "--quiet", "--pinentry-mode", "loopback",
+         "--passphrase-fd", "0", "--decrypt", str(path)],
+        input=(password + "\n").encode("utf-8"),
+        capture_output=True, check=False, timeout=240
+    )
     require(result.returncode == 0, "password_or_encrypted_integrity_check_failed")
     require(0 < len(result.stdout) <= MAX_PLAINTEXT_BYTES, "unsafe_json_size")
     try:
@@ -106,7 +112,8 @@ def main():
     print("KANDORTY_OWNER_BACKUP_OFFLINE_REVIEW — NO FIREBASE WRITES")
     print("Only aggregate counts and encrypted SHA256 will be printed.")
     path = Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 else DEFAULT_BACKUP
-    summary, digest = inspect_encrypted_file(path)
+    password = getpass.getpass("Enter your PRIVATE backup password: ")
+    summary, digest = inspect_encrypted_file(path, password)
     print("BACKUP_ENCRYPTED_AND_READABLE: YES")
     print("BACKUP_STRUCTURE_VERIFIED: YES")
     print("SOURCE_PROJECT_CONFIRMED: YES")
