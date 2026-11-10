@@ -11,7 +11,8 @@ const TEST_GATE='KANDORTY_LEGACY_TEST_ONLY_APPROVED';
 const validStore=store=>store&&typeof store.beginTransaction==='function'&&
  typeof store.getInTransaction==='function'&&
  typeof store.commitTransaction==='function'&&
- typeof store.rollbackTransaction==='function'&&typeof store.write==='function';
+ typeof store.rollbackTransaction==='function'&&typeof store.write==='function'&&
+ typeof store.writePatch==='function';
 
 export function legacyStatusTestService(cfg,store,env){
  // Explicitly reject LIVE even if a caller copied all TEST approval flags
@@ -52,12 +53,14 @@ export function legacyStatusTestService(cfg,store,env){
       await store.rollbackTransaction(transaction);
       return Object.freeze({id:orderId,status:target,unchanged:true});
      }
-     const updatedOrder={...row.data,...planned.orderPatch,updatedAt:at};
-     const updatedTracking={...tracking.data,...planned.trackingPatch,updatedAt:at};
+     // Preserve *all* unrelated historical Firestore types/fields with
+     // updateMask. Never round-trip the entire old order via unpack()/pack().
+     const orderPatch={...planned.orderPatch,updatedAt:at};
+     const trackingPatch={...planned.trackingPatch,updatedAt:at};
      const auditPath='legacy_admin_status_audit/'+orderId+'_'+target;
      const writes=[
-      store.write('orders/'+orderId,updatedOrder,{updateTime:row.version}),
-      store.write('tracking/'+orderId,updatedTracking,{updateTime:tracking.version}),
+      store.writePatch('orders/'+orderId,orderPatch,{updateTime:row.version}),
+      store.writePatch('tracking/'+orderId,trackingPatch,{updateTime:tracking.version}),
       store.write(auditPath,{
        orderId,from:planned.auditPlan.from,to:target,at,
        actorUid:actor.uid,kind:'legacy_admin_status_only',
