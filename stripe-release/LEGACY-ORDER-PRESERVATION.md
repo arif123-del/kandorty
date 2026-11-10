@@ -24,6 +24,26 @@ managed export remains **NOT DONE**. The owner must safely retain the
 password and separately verify retained off-Cloud-Shell file readability.
 No production cutover may treat this partial backup as a full recovery plan.
 
+## 2026-11-11 — private encrypted exception docket is prepared (NOT EXECUTED ON REAL BACKUP)
+
+A new [owner-only offline GPG exception docket tool](owner-private-legacy-exception-docket.py)
+was added along with [private run and review instructions](OWNER-LEGACY-EXCEPTION-REVIEW.md).
+It validates the 99-order encrypted snapshot structure before classifying
+individual cases, combines overlapping flags into one entry per order,
+and encrypts **only** the order code, coarse status/method and manual-review
+tags to a new local AES-256 .gpg file. No customer names, phone numbers,
+delivery details, item quantities, payment proofs, contact metadata or
+plaintext report files are created. Its console output contains aggregate
+counts only. The existing source backup is never modified.
+
+[23 synthetic offline tests PASSED](https://github.com/arif123-del/kandorty/actions/runs/42895639209):
+7 backup-structure, 10 overlap-risk and 6 new docket tests, including
+a GPG encryption/decryption roundtrip. This is **not** validation of
+the real private backup or permission to change any live status, inventory,
+refund or payments. Owner's separate Cloud Shell execution is still
+required for the real per-case encrypted queue; none has run via these
+connected tools.
+
 ## 2026-11-10 — Owner-only offline cancellation/lock verification (NO MUTATION)
 
 The owner executed the checked-in `owner-private-legacy-risk-report.py`
