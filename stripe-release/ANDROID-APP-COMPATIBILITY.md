@@ -10,6 +10,22 @@
 - Earlier GitHub-committed `KandortyAndroid_v1_source.zip` is a *different* older native Kotlin app (archive version 1.1.0, code 2). [CI 41094489132](https://github.com/arif123-del/kandorty/actions/runs/41094489132) found Kotlin `orders`/`tracking` collection references, transactions, and write APIs. **Do not use the V1 source as evidence for the installed 2.3.0 implementation.**
 - Another saved `KandortyAndroid_V22_ENGLISH_LOGO_CodeAssist(1).zip` advertises version 3.2.0 and also contains a WebView and the bundled fallback. It is NOT evidence that 3.2.0 is installed.
 
+## Owner-reported Android 2.3.2 on-device follow-up (2026-11-10)
+
+The owner confirmed on their Samsung handset that the 2.3.2 offline
+experience displays **"غير متصل بالإنترنت"** rather than a stale storefront,
+and that enabling network again and using the return/retry action
+successfully opens the Kandorty website. This is **owner-attested
+functional acceptance** for offline launch and reconnect; it is not a
+signed artifact verification or comprehensive app security certification.
+
+Still needed: **network-loss during an already-open online WebView session**,
+confirm offline navigation/checkout unavailable, test repeated disconnect
+and reconnect without duplicate orders, verify package/version/signature
+and practical legacy order/tracking compatibility in a safe nonproduction
+environment. Do not activate production Firestore Rules/Stripe Live or
+merge PR #2 on the strength of these two checks alone.
+
 ## Owner's 2.3.1 real-device OFFLINE failure and local 2.3.2 source fix — 2026-11-10
 
 The owner reported Android 2.3.1 installed via CodeAssist. Their real-device
