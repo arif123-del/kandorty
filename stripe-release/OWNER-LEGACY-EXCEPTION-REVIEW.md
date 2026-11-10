@@ -3,6 +3,12 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner execution confirmation — November 11, 2026 UAE / November 10 UTC
+
+The owner confirmed in ChatGPT with aggregate-only Cloud Shell console output that the script ran against the existing 99-order private local backup and created an encrypted GPG report successfully. It identified **18 unique orders** with **21 overlapping flag hits** (lock review 4; customer cancellation 3; historical stock-restoration evidence 3; cancelled-by origin unknown 11). The reported script exit included `PRODUCTION_ORDER_CHANGES: NONE` and `LIVE_RELEASE_OR_AUTOMATIC_RESTOCK_AUTHORIZED: NO`. This confirms **owner-reported successful private generation** only. The assistant did not obtain the GPG file or access any order ID, customer information or private password.
+
+**Do not disclose the output file or its decrypted contents.** The 18 records remain unresolved, and the docket does not automatically authorize any Firestore updates, restocking or Stripe refunds.
+
 ## Purpose
 
 The owner previously ran a fully private encrypted-backup checker and
