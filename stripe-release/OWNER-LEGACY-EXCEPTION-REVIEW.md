@@ -3,6 +3,12 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner execution confirmation — November 11, 2026 (aggregate-only screenshot)
+
+The owner ran the private `owner-private-legacy-triage.py` after `git pull --ff-only` in their Cloud Shell and shared a screenshot of **only its aggregate console result**. It returned `CASES_READ_FROM_PRIVATE_DOCKET: 18`, `CASES_NEEDING_INDEPENDENT_EVIDENCE: 18`, `PRODUCTION_CHANGES_AUTHORIZED: 0` and `PRIVATE_ENCRYPTED_EVIDENCE_PLAN_CREATED: YES`. Four review flags matched the earlier private baseline (4 lock, 3 customer cancellation, 3 previous stock restoration, 11 unknown cancellation origins). It also declared `FIREBASE_STRIPE_STOCK_REFUND_WRITES: NONE` and `STAGE4_RELEASE_AUTHORIZED: NO`.
+
+This **confirms owner-reported successful local creation of the second encrypted private checklist**, NOT that any one of the 18 cases is resolved. Private contents remain unshared. Do not request or publish the decrypted review file, any IDs, private backup, password or personal customer data. All 18 cases remain evidence-blocked and no production deployment is authorized.
+
 ## November 11 — owner-only 18-case evidence checklist (new offline safeguard)
 
 The additional [owner-private-legacy-triage.py](owner-private-legacy-triage.py)
