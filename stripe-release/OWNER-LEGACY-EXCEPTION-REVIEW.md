@@ -3,6 +3,30 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## 2026-11-11 private owner-only status survey of the remaining 14 cases (PREPARED, not run on real docket)
+
+Added [owner-private-legacy-status-survey.py](owner-private-legacy-status-survey.py) for **owner-only manual comparison of live admin statuses** against the locally encrypted historical docket: three pending customer-cancellation cases (`PENDING`) and eleven cancelled orders with unknown cancellation actor (`UNKNOWN`). The three stock-marker cases are *overlapping flags*, not three additional orders. The script validates the existing 99-order/18-unique case baseline, prints only explicitly approved private order codes to the owner's **local terminal** and writes a **new AES256-GPG encrypted status survey** in `~/kandorty-private-backups/`. It never retrieves live Firestore data, invokes the admin website, changes order status, restores inventory, refunds payment or calls any cloud API. The owner's current-status input is a **visual observation**, not independent evidence of cancellation actor, valid stock debit/credit, payment/refund or processing locks. All output cases remain blocked and `STAGE4_RELEASE_AUTHORIZED: NO`.
+
+Private Cloud Shell command, when the owner is ready to compare each case visually without screenshots or sharing identifiers:
+
+```bash
+cd ~/kandorty-stage4-review && git pull --ff-only && python3 stripe-release/owner-private-legacy-status-survey.py
+```
+
+Select `PENDING` (3 cases) first or `UNKNOWN` (11 cases) on a second run, type the exact `YES` approval, enter the original GPG password in Cloud Shell **privately**, then for each printed code look up only its live admin status and enter one of:
+
+- `new` = طلب جديد
+- `preparing` = قيد التجهيز
+- `shipping` = قيد التوصيل
+- `delivered` = تم التوصيل
+- `cancelled` = ملغي
+- `missing` = no matching order found (not a cancellation)
+- `skip` = cannot verify safely now
+
+The only results to share are aggregate counts such as `OWNER_VISUAL_MATCHING`, `OWNER_VISUAL_CHANGED`, `OWNER_VISUAL_MISSING`, `OWNER_VISUAL_SKIPPED` and `PRIVATE_ENCRYPTED_STATUS_SURVEY_CREATED: YES`. **Never share an order code, customer identity, screenshot of private identifiers, encrypted report, passphrase or decrypted file. Never press admin action buttons.** [49/49 synthetic offline CI tests PASSED](https://github.com/arif123-del/kandorty/actions/runs/42982296577) across private backup/risk/docket/triage/RAM replay/lock viewer/status survey.
+
+**No progress should be misrepresented:** the 3 + 11 real cases have *not yet* been operator-compared with current statuses using this new script; a future visual comparison alone still cannot close the 18 cases or authorize a production release. Independent evidence-based reconciliation, protected full restore, and historical client/admin acceptance remain necessary.
+
 ## 2026-11-11 owner-reported admin status comparison of four lock cases
 
 The owner privately located the four historical processing-lock cases in the live admin order viewer and reported that their **current statuses match the local backup** (two shipping, two delivered). This is a useful non-mutating **status consistency check**. It **does not establish valid matching cancellation/processing locks** or prove delivery, stock restoration, cancellation provenance or any financial settlement. The four cases remain flagged, and none has been remediated or authorized for live change. No order IDs, customer data or password are recorded here.
