@@ -9,6 +9,7 @@ on:
       - 'stripe-release/legacy-archive-only-policy.test.mjs'
       - '.github/scripts/stripe-legacy-virtual-cod-readonly.mjs'
       - '.github/scripts/stripe-stage4-backup-coverage-readonly.mjs'
+      - '.github/scripts/stripe-stage4-stock-health-readonly.mjs'
       - '.github/workflows/stripe-legacy-virtual-cod-readonly.yml'
   workflow_dispatch:
 permissions:
@@ -65,6 +66,22 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: node .github/scripts/stripe-stage4-backup-coverage-readonly.mjs
+      - name: Assert stock health reader is bounded and write-free
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const s=fs.readFileSync('.github/scripts/stripe-stage4-stock-health-readonly.mjs','utf8');
+          for(const bad of [/\\.set\\s*\\(/,/\\.update\\s*\\(/,/\\.delete\\s*\\(/,/\\.commit\\s*\\(/,
+            /\\.create\\s*\\(/,/\\.batch\\s*\\(/,/\\.runTransaction\\s*\\(/,
+            /\\.bulkWriter\\s*\\(/])
+            assert.ok(!bad.test(s),'Stock audit cannot write Firestore');
+          assert.ok(s.includes("db.collection('products').select('stock','totalStock').limit(1001).get()"));
+          JS
+      - name: Read only aggregate product stock-field health
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-stage4-stock-health-readonly.mjs
       - name: Explicit data and activation boundary
         if: always()
         run: echo 'No order IDs, customer info, stock updates, actual refund checks, release approval, website/Rules/Live activity or Ziina changes.'
