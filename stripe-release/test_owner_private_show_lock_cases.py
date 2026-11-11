@@ -50,7 +50,8 @@ class PrivateFourLockViewerTests(unittest.TestCase):
         self.assertNotIn("firebase_admin",content)
         self.assertNotIn("https://",content)
         self.assertNotIn("requests.",content)
-        self.assertNotIn("print('PRIVATE_OWNER_ONLY_ORDER:",content)
+        self.assertIn("print('PRIVATE_OWNER_ONLY_ORDER:",content)
+        self.assertNotIn("customer_phone",content)
 
 if __name__ == '__main__':
     unittest.main()
