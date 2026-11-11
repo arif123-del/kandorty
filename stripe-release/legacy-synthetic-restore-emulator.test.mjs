@@ -49,7 +49,7 @@ function syntheticSnapshot(db, Timestamp, GeoPoint) {
     if(cancelled && !unknownCancelledOrigin) fields.cancelledBy=i===85?'customer':'admin';
     if(stockMarker) fields.cancelStockRestoredAt='2026-10-17T00:00:00Z';
     // Four processing cases omit locks, as in the owner aggregate (synthetic IDs).
-    if((status==='preparing'||status==='shipping')&&!isLockGap)
+    if(['preparing','shipping','delivered'].includes(status)&&!isLockGap)
       fields.cancellationLockedAt='2026-10-16T00:00:00Z';
     docs.push({collection:'orders',id,fields});
     docs.push({collection:'tracking',id,fields:{
