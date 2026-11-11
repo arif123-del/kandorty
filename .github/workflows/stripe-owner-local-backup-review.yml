@@ -15,6 +15,8 @@ on:
       - 'stripe-release/test_owner_private_local_replay.py'
       - 'stripe-release/owner-private-show-lock-cases.py'
       - 'stripe-release/test_owner_private_show_lock_cases.py'
+      - 'stripe-release/owner-private-legacy-status-survey.py'
+      - 'stripe-release/test_owner_private_legacy_status_survey.py'
       - '.github/workflows/stripe-owner-local-backup-review.yml'
   workflow_dispatch:
 permissions:
@@ -32,18 +34,19 @@ jobs:
           python-version: '3.12'
       - name: Compile and test verifier against synthetic fixtures only
         run: |
-          python -m py_compile stripe-release/owner-private-local-backup-review.py stripe-release/owner-private-legacy-risk-report.py stripe-release/owner-private-legacy-exception-docket.py stripe-release/owner-private-legacy-triage.py stripe-release/owner-private-local-replay.py stripe-release/owner-private-show-lock-cases.py
+          python -m py_compile stripe-release/owner-private-local-backup-review.py stripe-release/owner-private-legacy-risk-report.py stripe-release/owner-private-legacy-exception-docket.py stripe-release/owner-private-legacy-triage.py stripe-release/owner-private-local-replay.py stripe-release/owner-private-show-lock-cases.py stripe-release/owner-private-legacy-status-survey.py
           python -m unittest discover -s stripe-release -p 'test_owner_private_local_backup_review.py' -v
           python -m unittest discover -s stripe-release -p 'test_owner_private_legacy_risk_report.py' -v
           python -m unittest discover -s stripe-release -p 'test_owner_private_legacy_exception_docket.py' -v
           python -m unittest discover -s stripe-release -p 'test_owner_private_legacy_triage.py' -v
           python -m unittest discover -s stripe-release -p 'test_owner_private_local_replay.py' -v
           python -m unittest discover -s stripe-release -p 'test_owner_private_show_lock_cases.py' -v
+          python -m unittest discover -s stripe-release -p 'test_owner_private_legacy_status_survey.py' -v
       - name: Assert offline-only script has no Firestore, Firebase or cloud calls
         run: |
           python - <<'PY'
           from pathlib import Path
-          src='\n'.join(Path(path).read_text() for path in ('stripe-release/owner-private-local-backup-review.py','stripe-release/owner-private-legacy-risk-report.py','stripe-release/owner-private-legacy-exception-docket.py','stripe-release/owner-private-legacy-triage.py','stripe-release/owner-private-local-replay.py','stripe-release/owner-private-show-lock-cases.py'))
+          src='\n'.join(Path(path).read_text() for path in ('stripe-release/owner-private-local-backup-review.py','stripe-release/owner-private-legacy-risk-report.py','stripe-release/owner-private-legacy-exception-docket.py','stripe-release/owner-private-legacy-triage.py','stripe-release/owner-private-local-replay.py','stripe-release/owner-private-show-lock-cases.py','stripe-release/owner-private-legacy-status-survey.py'))
           for bad in ('firebase_admin','https://','requests.', 'urlopen(', 'gcloud ', 'commit(', '.delete(', '.set(', 'google.cloud', 'storage.buckets'):
             assert bad not in src, 'forbidden network/production write pattern'
           print('OFFLINE_BACKUP_VERIFIER: SYNTHETIC_TESTS_ONLY; NO FIREBASE OR CLOUD MUTATION')
