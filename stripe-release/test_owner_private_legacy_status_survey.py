@@ -115,7 +115,7 @@ class PrivateSurveyInteractiveFlowTests(unittest.TestCase):
         src.outer=self
         stdout,stderr=StringIO(),StringIO()
         user_input=[group,'YES',*answers]
-        with patch.object(survey,'load',side_effect=[Viewer(),src]), patch.object(survey.getpass,'getpass',return_value='only-synthetic-password-123'), patch('builtins.input',side_effect=user_input), patch('sys.stdout',stdout), patch('sys.stderr',stderr):
+        with patch.object(survey.sys,'argv',['owner-private-legacy-status-survey.py']), patch.object(survey,'load',side_effect=[Viewer(),src]), patch.object(survey.getpass,'getpass',return_value='only-synthetic-password-123'), patch('builtins.input',side_effect=user_input), patch('sys.stdout',stdout), patch('sys.stderr',stderr):
             if fail_at:
                 with self.assertRaises(ValueError): survey.main()
             else:
