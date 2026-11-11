@@ -7,6 +7,15 @@ REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
 The owner ran the local fake-project `emulators:exec` backup rehearsal and entered the local GPG passphrase. The shell reported `LOCAL_STAGE4_EMULATOR_REHEARSAL_NOT_COMPLETED` and exit code 2; the emulator shut down afterward. The original generic error does **not** distinguish a GPG/decryption, source baseline, emulator HTTP write, or typed-field comparison issue. **Do not claim backup corruption or a successful real restore.**
 
+The owner can now retry using a **single short interactive command**, after checking their existing GitHub branch and without installing any production credentials:
+
+```bash
+cd ~/kandorty-stage4-review && git pull --ff-only
+bash stripe-release/owner-private-stage4-retry.sh
+```
+
+The wrapper validates the local test prerequisites, runs the synthetic security tests, checks Bash syntax in CI, strips cloud service-account/Stripe environment secrets and invokes the **same** fake-project loopback emulator. It never uploads the private backup. At the prompt, type the exact `REHEARSE_LOCAL_ONLY` and enter the private GPG passphrase only in the owner terminal. If it fails, share **only the last `LOCAL_REPLAY_STAGE` marker and the generic error**, never Firebase debug logs, private document fields, GPG password, full terminal history or customer data.
+
 The draft branch now emits strictly fixed nonprivate `LOCAL_REPLAY_STAGE` diagnostic markers before decrypt/validate/empty-check/write/readback, plus synthetic tests for label integrity. The actual underlying failure cause remains **unverified** pending a new private owner retry. Never share private GPG password, ciphertext, order code, local emulator logs, request body or customer data. Stage 4 remains NO-GO, and no real production order, stock, Rules, Live payment, existing Worker or Ziina change is authorized.
 
 ## Stage 4 owner-only real encrypted JSON replay in an ISOLATED Firestore emulator (PREPARED / NOT OWNER-RUN)
