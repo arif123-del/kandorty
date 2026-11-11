@@ -72,11 +72,15 @@ def main():
     docket=source.decrypt_private_backup(triage.select_private_docket(),password)
     rows=owner_case_rows(docket)
     print('PRIVATE_VIEW_VALIDATED: YES')
+    # Pause after three private rows so mobile Cloud Shell users can see ALL
+    # eighteen entries without having to locate scrolled-off records.
     for index,row in enumerate(rows,1):
-        print('\nCASE',index,'OF 18 — PRIVATE CODE:',row['code'])
+        print('\nCASE',index,'OF 18 — PRIVATE CODE:',row['code'],flush=True)
         print('  Status at backup:',STATUS.get(row['status'],'Unknown'))
         print('  Payment field:',PAYMENT.get(row['payment_label'],'Unverified label'))
-        print('  Why flagged:', '; '.join(DESCRIPTIONS[v] for v in row['flags']))
+        print('  Why flagged:', '; '.join(DESCRIPTIONS[v] for v in row['flags']),flush=True)
+        if index % 3 == 0 and index < 18:
+            input('VIEWED '+str(index)+' OF 18. Press ENTER to show the next 3: ')
     print('\nTOTAL_DISTINCT_FLAGGED_ORDERS: 18')
     print('TOTAL_OVERLAPPING_FLAG_HITS: 21')
     print('OWNER_REPORTED_TEST_ORIGIN: YES (NOT INDEPENDENTLY PROVEN)')
