@@ -152,13 +152,15 @@ def crawl(list_ids, list_docs):
             require(len(result)<=MAX_COLLECTIONS,'too_many_nested_collections')
             total_documents+=len(docs)
             require(total_documents<=MAX_DOCUMENTS,'too_many_documents')
+            distinct_document_ids=set()
             for doc in docs:
                 require(isinstance(doc,dict) and
                         str(doc.get('name','')).startswith(path+'/'),
                         'invalid_document_path')
                 suffix=doc['name'][len(path+'/'):]
-                require(bool(suffix) and '/' not in suffix,
-                        'invalid_nested_document')
+                require(bool(suffix) and '/' not in suffix and suffix not in distinct_document_ids,
+                        'invalid_or_duplicate_nested_document')
+                distinct_document_ids.add(suffix)
                 if not doc.get('fields'):
                     missing_parents+=1
                 queue.append((doc['name'],depth+1))
