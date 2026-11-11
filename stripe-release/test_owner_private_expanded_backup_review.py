@@ -1,7 +1,10 @@
 """Offline synthetic tests for expanded owner GPG snapshot verifier."""
 import copy
 import importlib.util
+import json
 from pathlib import Path
+import shutil
+import tempfile
 import unittest
 
 DIR=Path(__file__).resolve().parent
@@ -106,6 +109,26 @@ class ExpandedBackupReview(unittest.TestCase):
         data['sourceProject']='another-project'
         with self.assertRaisesRegex(ValueError,'wrong_project_or_database'):
             review.audit(data)
+
+    @unittest.skipUnless(shutil.which('gpg'), 'GPG not installed')
+    def test_private_decrypt_matches_original_backup_writer_pipe_gpg(self):
+        spec=importlib.util.spec_from_file_location(
+            'private_writer_helper',DIR/'owner-private-local-orders-backup.py')
+        helper=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        secret='synthetic-NEW-expanded-owner-pass-2026'
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'kandorty-expanded-firestore-synthetic.json.gpg'
+            source=snapshot()
+            content=json.dumps(source,separators=(',',':')).encode('utf-8')
+            encrypted=helper.gpg_with_secret(secret,[
+                '--symmetric','--cipher-algo','AES256','--output',str(path)
+            ],content)
+            self.assertEqual(encrypted.returncode,0)
+            self.assertEqual(review.private_decrypt(path,secret),source)
+            with self.assertRaisesRegex(ValueError,'private_decryption_or_integrity_failed'):
+                review.private_decrypt(path,'synthetic-WRONG-password-not-real')
+            self.assertEqual(review.private_decrypt(path,secret),source)
 
     def test_private_error_codes_are_diagnostic_without_leaking_sensitive_values(self):
         self.assertEqual(
