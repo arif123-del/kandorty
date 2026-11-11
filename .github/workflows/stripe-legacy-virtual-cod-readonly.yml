@@ -72,9 +72,9 @@ jobs:
           import fs from 'node:fs';
           import assert from 'node:assert/strict';
           const s=fs.readFileSync('.github/scripts/stripe-stage4-stock-health-readonly.mjs','utf8');
-          for(const bad of [/\\.set\\s*\\(/,/\\.update\\s*\\(/,/\\.delete\\s*\\(/,/\\.commit\\s*\\(/,
-            /\\.create\\s*\\(/,/\\.batch\\s*\\(/,/\\.runTransaction\\s*\\(/,
-            /\\.bulkWriter\\s*\\(/])
+          for(const bad of [/\.set\s*\(/,/\.update\s*\(/,/\.delete\s*\(/,/\.commit\s*\(/,
+            /\.create\s*\(/,/\.batch\s*\(/,/\.runTransaction\s*\(/,
+            /\.bulkWriter\s*\(/])
             assert.ok(!bad.test(s),'Stock audit cannot write Firestore');
           assert.ok(s.includes("db.collection('products').select('stock','totalStock').limit(1001).get()"));
           JS
