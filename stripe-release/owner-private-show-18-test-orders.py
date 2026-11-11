@@ -83,6 +83,8 @@ def main():
             input('VIEWED '+str(index)+' OF 18. Press ENTER to show the next 3: ')
     print('\nTOTAL_DISTINCT_FLAGGED_ORDERS: 18')
     print('TOTAL_OVERLAPPING_FLAG_HITS: 21')
+    print('CARD_LABEL_COUNT:',sum(row['payment_label']=='card' for row in rows))
+    print('COD_LABEL_COUNT:',sum(row['payment_label']=='cod' for row in rows))
     print('OWNER_REPORTED_TEST_ORIGIN: YES (NOT INDEPENDENTLY PROVEN)')
     print('ORIGINAL_ORDER_STOCK_PAYMENT_WRITES: NONE')
     print('LIVE_RELEASE_OR_AUTOMATIC_REFUND_AUTHORIZED: NO')
