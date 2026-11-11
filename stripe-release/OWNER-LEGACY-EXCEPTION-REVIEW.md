@@ -3,6 +3,31 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Stage 4 owner-only real encrypted JSON replay in an ISOLATED Firestore emulator (PREPARED / NOT OWNER-RUN)
+
+A new [local replay tool](owner-private-firestore-emulator-replay.py) and [loopback-only emulator config](stage4-private-recovery.firebase.json) are checked in on the **draft test branch**. Synthetic-only regression tests (99 fake orders / 254 fake documents, changed-source refusal, nonempty-emulator refusal, local-demo guard) were attached to the private offline workflow; **do not treat this text as a verified CI run**.
+
+**Before running real private data**, check the synthetic CI and ensure Cloud Shell has `firebase`, Java and an updated private repository checkout. The owner may execute the following only in their private authenticated Cloud Shell (never GitHub Actions or a shared runner). In particular, there is NO request to upload private GPG files or add a payment card:
+
+```bash
+cd ~/kandorty-stage4-review
+git pull --ff-only
+command -v firebase
+java -version
+```
+
+Once prerequisites and synthetic tests are confirmed, the **separate owner-only opt-in** local emulator run is:
+
+```bash
+firebase emulators:exec --only firestore --project demo-kandorty-stage4-recovery \
+  --config stripe-release/stage4-private-recovery.firebase.json \
+  "env GCLOUD_PROJECT=demo-kandorty-stage4-recovery GOOGLE_CLOUD_PROJECT=demo-kandorty-stage4-recovery python3 stripe-release/owner-private-firestore-emulator-replay.py"
+```
+
+The tool requires owner typing `REHEARSE_LOCAL_ONLY` and entering the existing private GPG password at an invisible prompt. It first confirms an **empty emulator bound to 127.0.0.1:8119**. It then decrypts the previously saved 99-order / 254-document JSON backup only in the owner's local process and replays the five top-level collections to a **fake `demo-` project emulator**, verifies every document's identity and typed Firestore fields, and prints aggregate results only. The emulator is shut down by `emulators:exec` when the process exits; do not export emulator data, forward its loopback port, share temporary data or screenshots of private data, or save verbose request logs. The private snapshot contains customer personal data, so Cloud Shell and emulator runtime access must remain owner-only.
+
+This is a **real-backup-to-local-emulator field-level rehearsal**, not a Google-managed Firestore export, cross-project real restore, backup of all collections/subcollections/Auth/Storage/Rules, independent verification of historical payment/stock/cancellation cause or permission to launch. Existing 18 evidence-blocked cases remain blocked. Production orders, stock, Stripe Live, Ziina, Firestore Rules and released website must stay unchanged. The original GPG file must be retained privately.
+
 ## Owner-only check of both encrypted visual surveys (READ ONLY)
 
 An offline verifier now checks the **actual encrypted** owner-held PENDING (3) and UNKNOWN (11) visual-survey files against the **same private 18-case encrypted docket**, without printing any private code or reading a remote database. It rejects case drift, duplicated cases, missing responses, modified authorization fields, and inconsistent aggregate totals. A missing encrypted PENDING result is reported **MISSING**, even if three statuses were verbally reported as matching.
