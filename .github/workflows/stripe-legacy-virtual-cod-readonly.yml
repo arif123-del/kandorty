@@ -5,6 +5,8 @@ on:
     paths:
       - 'stripe-release/legacy-virtual-cod-aggregate.mjs'
       - 'stripe-release/legacy-virtual-cod-aggregate.test.mjs'
+      - 'stripe-release/legacy-archive-only-policy.mjs'
+      - 'stripe-release/legacy-archive-only-policy.test.mjs'
       - '.github/scripts/stripe-legacy-virtual-cod-readonly.mjs'
       - '.github/workflows/stripe-legacy-virtual-cod-readonly.yml'
   workflow_dispatch:
@@ -23,7 +25,7 @@ jobs:
         with:
           node-version: '22'
       - name: Synthetic 99-order and 18-case privacy regression
-        run: node --test stripe-release/legacy-virtual-cod-aggregate.test.mjs
+        run: node --test stripe-release/legacy-virtual-cod-aggregate.test.mjs stripe-release/legacy-archive-only-policy.test.mjs
       - name: Assert strictly read-only Firebase metadata projection
         run: |
           node --input-type=module <<'JS'
