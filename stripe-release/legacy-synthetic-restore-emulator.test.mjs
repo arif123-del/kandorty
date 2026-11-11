@@ -4,8 +4,8 @@
 // No production Firebase / Stripe / stock / admin writes are authorized.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initializeApp, deleteApp} from 'firebase-admin/app';
-import {getFirestore, Timestamp, GeoPoint} from 'firebase-admin/firestore';
+// Load firebase-admin only inside the dedicated emulator workflow. The normal
+// Stripe/COD unit-test job has no SDK and must skip this isolated test.
 
 const DEMO = 'demo-kandorty-legacy-rehearsal';
 const emulator = process.env.FIRESTORE_EMULATOR_HOST || '';
@@ -24,7 +24,7 @@ function statusFor(i) {
 }
 const orderCode=i=>'KD-'+String(i+1).padStart(8,'0');
 
-function syntheticSnapshot(db) {
+function syntheticSnapshot(db, Timestamp, GeoPoint) {
   const docs=[];
   // All strings and values below are invented; no user/order data is read.
   for(let i=0;i<99;i++){
@@ -71,26 +71,29 @@ function syntheticSnapshot(db) {
   return docs;
 }
 
-function normalize(v){
+function normalize(v, Timestamp, GeoPoint){
   if(Buffer.isBuffer(v))return {bytes:v.toString('base64')};
   if(v instanceof Timestamp)return {seconds:v.seconds,nanoseconds:v.nanoseconds};
   if(v instanceof GeoPoint)return {geo:[v.latitude,v.longitude]};
   if(v && typeof v==='object' && typeof v.path==='string'
       && typeof v.firestore==='object' && typeof v.id==='string')
     return {reference:v.path};
-  if(Array.isArray(v))return v.map(normalize);
+  if(Array.isArray(v))return v.map(x=>normalize(x,Timestamp,GeoPoint));
   if(v && typeof v==='object')
     return Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))
-      .map(([k,value])=>[k,normalize(value)]));
+      .map(([k,value])=>[k,normalize(value,Timestamp,GeoPoint)]));
   return v;
 }
 
-test('254 synthetic Firestore documents restore exactly into a local emulator; no credentials',async()=>{
+test('254 synthetic Firestore documents restore exactly into a local emulator; no credentials',
+  {skip: !emulator && 'dedicated_emulator_workflow_only'},async()=>{
   allow();
+  const {initializeApp, deleteApp} = await import('firebase-admin/app');
+  const {getFirestore, Timestamp, GeoPoint} = await import('firebase-admin/firestore');
   const app=initializeApp({projectId:DEMO},'isolated-stage4-rehearsal');
   const db=getFirestore(app);
   try{
-    const records=syntheticSnapshot(db);
+    const records=syntheticSnapshot(db, Timestamp, GeoPoint);
     const batch=db.batch();
     for(const {collection,id,fields} of records)
       batch.set(db.collection(collection).doc(id),fields);
@@ -109,7 +112,7 @@ test('254 synthetic Firestore documents restore exactly into a local emulator; n
     for(const row of records) {
       const doc=byCollection[row.collection].find(x=>x.id===row.id);
       assert.ok(doc,'missing_synthetic_emulator_document');
-      assert.deepEqual(normalize(doc.data()),normalize(row.fields),
+      assert.deepEqual(normalize(doc.data(),Timestamp,GeoPoint),normalize(row.fields,Timestamp,GeoPoint),
         'typed_firestore_data_roundtrip_failed');
       verified++;
     }
