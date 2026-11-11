@@ -77,11 +77,16 @@ def verify_source(data):
         raise ValueError('unexpected_source_collections')
     return summary
 
-def run_rehearsal(data, transport=invoke, lister=list_coll):
+def run_rehearsal(data, transport=invoke, lister=list_coll, stage_callback=None):
+    # Emits only fixed stage labels; never filenames, IDs, data or exception text.
+    stage=stage_callback if stage_callback is not None else lambda _label: None
+    stage('VALIDATE_BACKUP_STRUCTURE')
     summary=verify_source(data)
+    stage('CHECK_EMPTY_EMULATOR')
     for coll in COLLECTIONS:
         if lister(coll):raise ValueError('non_empty_emulator_abort')
     for coll in COLLECTIONS:
+        stage('WRITE_'+coll.upper())
         for doc in data['collections'][coll]:
             name=doc['name']
             prefix=ROOT+coll+'/'
@@ -93,6 +98,7 @@ def run_rehearsal(data, transport=invoke, lister=list_coll):
             dest=EMULATOR_ROOT+parse.quote(coll,safe='')+'/'+parse.quote(doc_id,safe='')
             transport('PATCH',dest,{'fields':doc['fields']})
     for coll in COLLECTIONS:
+        stage('READBACK_'+coll.upper())
         expected={}
         for doc in data['collections'][coll]:
             doc_id=doc['name'][len(ROOT+coll+'/'):]
@@ -125,8 +131,10 @@ def main():
             raise ValueError('local_emulator_not_empty')
     decryptor=load('stage4_private_decryptor','owner-private-legacy-exception-docket.py')
     password=getpass.getpass('Private GPG backup passphrase (never share): ')
+    print('LOCAL_REPLAY_STAGE: DECRYPT_PRIVATE_BACKUP',flush=True)
     source=decryptor.decrypt_private_backup(BACKUP,password)
-    summary=run_rehearsal(source)
+    print('LOCAL_REPLAY_STAGE: DECRYPTION_PASS',flush=True)
+    summary=run_rehearsal(source,stage_callback=lambda label: print('LOCAL_REPLAY_STAGE: '+label,flush=True))
     print('LOCAL_EMULATOR_RESTORED_DOCUMENTS:',summary['total'])
     print('LOCAL_EMULATOR_ORDERS:',summary['orders'])
     print('LOCAL_EMULATOR_TRACKING:',summary['tracking'])
