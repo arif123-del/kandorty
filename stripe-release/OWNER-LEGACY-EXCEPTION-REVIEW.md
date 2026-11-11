@@ -3,6 +3,10 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner-reported local memory replay result — 2026-11-11
+
+Owner replied with abbreviated terminal text `CAL_IN_MEMORY_REPLAY: PAS`, apparently the tail of `LOCAL_IN_MEMORY_REPLAY: PASS`. The full output was not supplied, so this is **owner-reported** successful offline RAM roundtrip and not an independently verified restore. No private ciphertext/password/order/customer data were obtained. This step does not change the **18 unresolved cases**, nor authorize inventory, status, refunds, production Rules, Stripe Live or a release.
+
 ## Owner-only offline backup integrity replay (new, synthetic CI verified)
 
 A new script, [owner-private-local-replay.py](owner-private-local-replay.py),
@@ -27,8 +31,9 @@ claiming validation of a changed snapshot.
 [37/37 synthetic offline tests passed](https://github.com/arif123-del/kandorty/actions/runs/42964265352)
 (7 original backup, 10 risk, 7 exception docket, 6 owner triage, 7 local
 replay tests), including typed Firestore REST roundtrips and no-Firebase-call
-static checks. **CI did not inspect the real owner backup**. Until the owner
-runs this command, the real backup local replay is **not verified**.
+static checks. **CI did not inspect the real owner backup**. The owner later reported a
+truncated PASS line from the private local script; the complete terminal result
+and private backup were not independently inspected.
 
 **Crucial distinction:** SQLite RAM replay is NOT an actual Firestore restore,
 a managed point-in-time export, a protected multi-project disaster-recovery
