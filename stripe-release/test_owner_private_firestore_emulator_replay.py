@@ -78,6 +78,38 @@ class LocalPrivateEmulatorReplayTests(unittest.TestCase):
                                lister=lambda _ : [])
         self.assertEqual(calls,[])
 
+    def test_safe_phase_labels_cover_validation_write_readback(self):
+        data=fixtures.fixture()
+        database={c:{} for c in impl.COLLECTIONS}
+        stages=[]
+        def transport(method,url,payload=None):
+            suffix=url[len(impl.EMULATOR_ROOT):]
+            coll,ident=map(unquote,suffix.split('/'))
+            database[coll][ident]=copy.deepcopy(payload['fields'])
+            return {'name':url}
+        def lister(coll):
+            return [{'name':f'projects/{impl.DEMO_PROJECT}/databases/(default)/documents/{coll}/{ident}',
+                     'fields':copy.deepcopy(fields)}
+                    for ident,fields in database[coll].items()]
+        result=impl.run_rehearsal(data,transport=transport,lister=lister,stage_callback=stages.append)
+        self.assertEqual(result['total'],254)
+        self.assertEqual(stages[0:2],['VALIDATE_BACKUP_STRUCTURE','CHECK_EMPTY_EMULATOR'])
+        self.assertIn('WRITE_ORDERS',stages)
+        self.assertIn('READBACK_ORDERS',stages)
+        self.assertEqual(stages[-1],'READBACK_ORDER_LIFECYCLE')
+
+    def test_diagnostic_phase_never_emits_private_http_failure(self):
+        stages=[]
+        private='KD-PRIVATE-DATA-DO-NOT-LOG'
+        def failure(*_):
+            raise RuntimeError('private_record_error:'+private)
+        with self.assertRaises(RuntimeError):
+            impl.run_rehearsal(fixtures.fixture(),transport=failure,lister=lambda _ : [],
+                               stage_callback=stages.append)
+        self.assertEqual(stages[-1],'WRITE_ORDERS')
+        self.assertTrue(all(private not in stage for stage in stages))
+        self.assertTrue(all(not stage.startswith('projects/') for stage in stages))
+
     def test_cannot_treat_source_as_production_restore(self):
         source=(HERE/'owner-private-firestore-emulator-replay.py').read_text()
         self.assertIn("STAGE4_RELEASE_AUTHORIZED: NO",source)
