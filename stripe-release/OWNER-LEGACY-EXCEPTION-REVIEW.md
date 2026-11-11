@@ -3,6 +3,12 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Stage 4 local real-backup emulator attempt — failed after private passphrase; safe phase diagnostics added
+
+The owner ran the local fake-project `emulators:exec` backup rehearsal and entered the local GPG passphrase. The shell reported `LOCAL_STAGE4_EMULATOR_REHEARSAL_NOT_COMPLETED` and exit code 2; the emulator shut down afterward. The original generic error does **not** distinguish a GPG/decryption, source baseline, emulator HTTP write, or typed-field comparison issue. **Do not claim backup corruption or a successful real restore.**
+
+The draft branch now emits strictly fixed nonprivate `LOCAL_REPLAY_STAGE` diagnostic markers before decrypt/validate/empty-check/write/readback, plus synthetic tests for label integrity. The actual underlying failure cause remains **unverified** pending a new private owner retry. Never share private GPG password, ciphertext, order code, local emulator logs, request body or customer data. Stage 4 remains NO-GO, and no real production order, stock, Rules, Live payment, existing Worker or Ziina change is authorized.
+
 ## Stage 4 owner-only real encrypted JSON replay in an ISOLATED Firestore emulator (PREPARED / NOT OWNER-RUN)
 
 A new [local replay tool](owner-private-firestore-emulator-replay.py) and [loopback-only emulator config](stage4-private-recovery.firebase.json) are checked in on the **draft test branch**. Synthetic-only regression tests (99 fake orders / 254 fake documents, changed-source refusal, nonempty-emulator refusal, local-demo guard) were attached to the private offline workflow; **do not treat this text as a verified CI run**.
