@@ -107,9 +107,25 @@ def main():
     viewer=load('owner_legacy_status_survey_triage','owner-private-legacy-triage.py')
     source=load('owner_legacy_status_survey_docket','owner-private-legacy-exception-docket.py')
     password=getpass.getpass('Private GPG password (never share): ')
-    docket=source.decrypt_private_backup(viewer.select_private_docket(),password)
-    plan=viewer.build_evidence_plan(docket)
-    rows=case_rows(plan,group)
+    # Fixed-stage diagnostics ONLY: never disclose errors containing private data.
+    try:
+        private_path=viewer.select_private_docket()
+    except (ValueError,OSError):
+        print('PRIVATE_SURVEY_FAILED_AT_STAGE: LOCATE_DOCKET',file=sys.stderr)
+        raise
+    try:
+        docket=source.decrypt_private_backup(private_path,password)
+    except (ValueError,OSError,subprocess.TimeoutExpired,json.JSONDecodeError):
+        print('PRIVATE_SURVEY_FAILED_AT_STAGE: DECRYPT_DOCKET',file=sys.stderr)
+        raise
+    print('PRIVATE_DOCKET_DECRYPTION: PASS')
+    try:
+        plan=viewer.build_evidence_plan(docket)
+        rows=case_rows(plan,group)
+    except (ValueError,OSError):
+        print('PRIVATE_SURVEY_FAILED_AT_STAGE: VALIDATE_CASES',file=sys.stderr)
+        raise
+    print('PRIVATE_CASE_BASELINE: PASS')
     print('Private cases in group:',len(rows))
     print('Use only the status you can read in the live admin without pressing action buttons.')
     print('Choices: new | preparing | shipping | delivered | cancelled | missing | skip')
