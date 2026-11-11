@@ -115,6 +115,9 @@ encrypt/decrypt roundtrip. CI does **not** contain the real backup or
 customer data. This proves neither actual legacy-case remediation nor
 production readiness.
 
-The private GPG docket has **not** yet been generated from the owner's
-real encrypted backup by these connected tools. Until the owner runs
-the script locally, do not claim a real unique-exception count.
+**Owner-confirmed update:** The owner subsequently ran this script in their
+own Cloud Shell on the real encrypted backup and reported successful private
+GPG creation and **18 unique review cases** with 21 overlapping flag hits.
+This was owner-attested aggregate output; the assistant has not accessed the
+private report or verified the 18 individual cases. No live records were
+changed. See the execution confirmation above.
