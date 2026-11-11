@@ -3,6 +3,42 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## November 11 — owner-only 18-case evidence checklist (new offline safeguard)
+
+The additional [owner-private-legacy-triage.py](owner-private-legacy-triage.py)
+processes the owner's **already-created** private encrypted exception docket,
+validates the exact owner-reported aggregate baseline (99 historical orders,
+18 unique cases, 4 lock / 3 cancellation-request / 3 historical restoration-marker /
+11 unknown-origin flags), and produces a **second AES-256-encrypted private file**.
+It contains each original private order code, its existing coarse risk flags
+and a risk-specific **evidence checklist**, with every case explicitly marked
+`BLOCKED_PENDING_INDEPENDENT_OWNER_REVIEW`. It does not use, modify or
+re-upload the original backup or ciphertext. Any changed counts, new unrecognised
+flags, duplicates, unexpected identity metadata or approval fields cause
+fail-closed rejection; changing order counts require a new approved audit.
+
+The owner may run the following **only inside their private Cloud Shell checkout**:
+
+```bash
+cd ~/kandorty-stage4-review
+git pull --ff-only
+python3 stripe-release/owner-private-legacy-triage.py
+```
+
+The script locates the newest `legacy-manual-review-*.json.gpg` in
+`~/kandorty-private-backups/`, asks for the owner's existing private GPG
+password **locally**, and shows aggregate counts only. It writes the encrypted
+`legacy-evidence-plan-*.json.gpg` to the same protected directory; neither
+file nor password is needed by the assistant. Source backup, live Firebase,
+Stripe and current order status are not altered.
+
+This is a **manual-evidence planning tool**, not automatic reconciliation.
+It deliberately reports `CASES_NEEDING_INDEPENDENT_EVIDENCE: 18` and
+`PRODUCTION_CHANGES_AUTHORIZED: 0` even on success. The owner/operator still
+must review each case using independent trusted inventory, fulfillment,
+authenticated cancellation origin and (where relevant) Stripe provider records.
+Do not infer stock, payment, cancellation actor or refund from historic labels.
+
 ## Updated TEST-only safeguards — November 11, 2026
 
 The 18-unique / 21-overlapping category pattern has a representative
