@@ -3,6 +3,12 @@
 **Decision status: PREPARED FOR OWNER REVIEW. NO-GO FOR PRODUCTION.**
 This option is for an operator who prioritizes preservation of old orders over attempting to reconstruct untrusted customer-era lifecycle, inventory or cancellation history. It requires **no new credit card** for the already completed local encrypted backup rehearsal, but it is NOT a replacement for comprehensive managed backup/recovery or production release approval.
 
+## 2026-11-11 owner timeline clarification: these 18 COD tests predate card-checkout work
+
+The owner additionally stated that the 18 owner-created virtual COD test orders were made **before work on payment-by-card began** for Kandorty. Record this as an **owner-recalled timeline**, not an independently verified timestamp comparison. The responsible treatment is to **drop routine card-charge/refund investigation as a prerequisite for retaining those 18 test orders as unchanged read-only history**. No live Stripe payment or refund is asserted for them, and an independently encountered inconsistent payment reference would still be handled safely. Neither that recalled timeline nor the declared COD mode proves that historical test checkout/cancel flows did not change inventory.
+
+This update adds no production change, backdated lifecycle ledger, deletion, refund, payment or stock write. The 99-order/254-document private encrypted snapshot and its local emulator readback already PASSED. PR #2 remains draft and release NO-GO until inventory and old-client compatibility/recovery gates are actually validated. The new draft-only aggregate metadata reader can compare current COD labels to the private historic distribution without printing individual KD IDs; **its real CI result has not yet been verified**.
+
 ## Owner final classification — all 18 are virtual COD self-tests
 
 On 2026-11-11 the owner further clarified explicitly: **all 18 flagged orders were virtual/fictitious self-created app/web test requests, all using cash-on-delivery (COD), with no independent real customers.** Treat this as the owner's *aggregate test-origin and intended payment-mode declaration*, not as independent per-document or inventory-event verification. Do not ask them to repeat the already-completed 99-order restore or disclose private codes, and do not ask for individual genuine-customer identity or cancellation proofs merely to archive these owner-declared virtual orders.
