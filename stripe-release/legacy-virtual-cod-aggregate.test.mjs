@@ -65,6 +65,17 @@ test('deleted/changed tracking or order count forbids matching an old backup',()
   plus.orders.push({id:'KD-00000100',data:{status:'new',payment:'cod'}});
   assert.equal(audit(plus.orders,plus.tracking).aggregateResemblesEncryptedBaseline,false);
 });
+test('matching timestamp locks reduce processing flag count',()=>{
+ const f=fixture();
+ const a={seconds:1794390000,nanoseconds:1234,isEqual(b){return b.seconds===this.seconds&&b.nanoseconds===this.nanoseconds;}};
+ const b={seconds:1794390000,nanoseconds:1234};
+ f.orders[0].data.cancellationLockedAt=a;
+ f.tracking[0].data.cancellationLockedAt=b;
+ const result=audit(f.orders,f.tracking);
+ assert.equal(result.currentCategoryCounts.processingLocks,3);
+ assert.equal(result.currentFlaggedOrders,17);
+ assert.equal(result.stage4ReleaseAuthorized,false);
+});
 test('unknown, duplicate or malformed identifier fails closed',()=>{
   const {orders,tracking}=fixture();
   assert.throws(()=>audit([...orders,structuredClone(orders[0])],tracking),
