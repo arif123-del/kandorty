@@ -3,6 +3,16 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner-only viewing of all 18 flagged test-order codes and reasons
+
+The owner reported all 18 flagged records are self-created app/web test orders rather than independent customer orders. A new safe [private terminal viewer](owner-private-show-18-test-orders.py) prints, **only after owner confirms YES and enters their GPG password inside Cloud Shell**, the local encrypted docket's 18 validated order codes with coarse backup statuses, payment **labels only** (not evidence of actual card charges), and human-readable reasons for each flag. Multiple flags can refer to one order: 18 distinct records / 21 category hits.
+
+```bash
+cd ~/kandorty-stage4-review && git pull --ff-only && python3 stripe-release/owner-private-show-18-test-orders.py
+```
+
+The viewer reads the existing private encrypted `legacy-manual-review-*.json.gpg` file and does not display private phone numbers, names, addresses, items, inventory quantities, money or payment tokens. It performs zero network calls or production writes. **Never screenshot, copy, paste, email, or upload the private case codes or GPG data to ChatGPT/GitHub.** If the owner wants guidance, they can send only the flag category totals or coarse payment-label counts, without individual code values. The viewer is a privacy-safe way for the owner to confirm which old app/web test transactions were flagged; it does not prove any money/stock effect or authorize changes.
+
 ## Stage 4 local real-backup emulator attempt — failed after private passphrase; safe phase diagnostics added
 
 The owner ran the local fake-project `emulators:exec` backup rehearsal and entered the local GPG passphrase. The shell reported `LOCAL_STAGE4_EMULATOR_REHEARSAL_NOT_COMPLETED` and exit code 2; the emulator shut down afterward. The original generic error does **not** distinguish a GPG/decryption, source baseline, emulator HTTP write, or typed-field comparison issue. **Do not claim backup corruption or a successful real restore.**
