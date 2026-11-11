@@ -2,6 +2,12 @@
 
 **Status: PREPARED / NO PRODUCTION MIGRATION.** This checklist is for review on GitHub PR #2. It does not authorize merging, publishing rules, enabling Live payments, or rewriting any order.
 
+## 2026-11-11 Stage 4 recovery rehearsal — only synthetic Firestore emulator data
+
+A **no-credentials local Firestore emulator** rebuilt and reread **254 fake documents** (99 synthetic orders + 99 tracking + 28 order edits + 28 access + 0 lifecycle ledgers). All Firestore typed fields, 99 order/tracking status pairs and representative 18-case overlapping exception markers were verified. [GitHub Action PASS](https://github.com/arif123-del/kandorty/actions/runs/42973868133). No production project, private owner backup, user/customer identity, Stripe key, real order, stock or Firebase Rules was used or changed.
+
+This closes only the **synthetic Firestore document reconstruction test**. It does **not** close the 18 owner-held real cases, prove a successful protected restore from the owner backup, or replace managed Firestore export/recovery rehearsal. Production remains **NO-GO** until independently evidenced reconciliation, a full protected backup/restore and old/new client compatibility approval.
+
 ## Owner-held LOCAL encrypted backup — 2026-11-10 (NOT a managed Firestore export)
 
 The owner used the owner-only Cloud Shell local JSON fallback, after confirming
