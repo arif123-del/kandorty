@@ -3,6 +3,10 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## 2026-11-11 owner-reported admin status comparison of four lock cases
+
+The owner privately located the four historical processing-lock cases in the live admin order viewer and reported that their **current statuses match the local backup** (two shipping, two delivered). This is a useful non-mutating **status consistency check**. It **does not establish valid matching cancellation/processing locks** or prove delivery, stock restoration, cancellation provenance or any financial settlement. The four cases remain flagged, and none has been remediated or authorized for live change. No order IDs, customer data or password are recorded here.
+
 ## Owner-private identification of the four processing-lock cases (read only)
 
 The three owner-shared admin order screenshots **cannot** establish which of the 4 historical lock anomalies an order belongs to. Admin pages show order details and customer contact data, not the trusted order/tracking lock provenance. **Do not send additional screenshots containing contact details, order IDs or payment data.** Do not click status, cancellation, refund or restock actions.
