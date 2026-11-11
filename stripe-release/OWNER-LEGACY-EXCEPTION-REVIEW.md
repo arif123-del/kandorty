@@ -3,6 +3,22 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner-only check of both encrypted visual surveys (READ ONLY)
+
+An offline verifier now checks the **actual encrypted** owner-held PENDING (3) and UNKNOWN (11) visual-survey files against the **same private 18-case encrypted docket**, without printing any private code or reading a remote database. It rejects case drift, duplicated cases, missing responses, modified authorization fields, and inconsistent aggregate totals. A missing encrypted PENDING result is reported **MISSING**, even if three statuses were verbally reported as matching.
+
+Run only in the owner's authenticated, private Cloud Shell checkout (not GitHub CI):
+
+```bash
+cd ~/kandorty-stage4-review
+git pull --ff-only
+python3 stripe-release/owner-private-stage4-survey-audit.py
+```
+
+Enter the local GPG password **only into the invisible terminal password prompt**. Share only aggregate markers such as `OWNER_PENDING_ENCRYPTED_SURVEY`, `OWNER_UNKNOWN_ENCRYPTED_SURVEY` and `ENCRYPTED_VISUAL_SURVEYS_VERIFIED`, never a filename, code, customer record, encrypted output, decrypted JSON or GPG password.
+
+Both surveys are *visual status observations*, not independent evidence of cancellation actor, inventory, lock integrity or payment/refund. The verifier intentionally always prints `STAGE4_RELEASE_AUTHORIZED: NO` and `MANAGED_FIRESTORE_EXPORT_AND_REAL_RESTORE_VERIFIED: NO`. Even two perfect reports **cannot close the 18 historical exceptions** or replace an owner-controlled official managed backup and protected real restore rehearsal. No original order, stock, site, Firebase Rules, Worker, Stripe Live or Ziina mutation is performed.
+
 ## 2026-11-11 owner survey failed before displaying cases; diagnostic patch & synthetic full-flow tests PASS
 
 The owner attempted the private `PENDING` (3) visual survey twice, supplying `YES` and a hidden GPG passphrase, but both runs stopped immediately after the password prompt with `OWNER_VISUAL_SURVEY_NOT_COMPLETED: private local verification failed`. **No private case codes were displayed, no visual comparison was completed, and no encrypted status-survey success was reported.** The cause is not known from the generic error: potential missing/invalid local docket, GPG password/decryption problem or failing case-baseline validation. Do not speculate or request the password or decrypted file.
