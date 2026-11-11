@@ -3,6 +3,39 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner-only offline backup integrity replay (new, synthetic CI verified)
+
+A new script, [owner-private-local-replay.py](owner-private-local-replay.py),
+validates the encrypted original **five-collection** backup locally and
+roundtrips all document IDs, Firestore REST typed field values and
+order/tracking status pairs through an ephemeral SQLite `:memory:`
+database. It creates **no plaintext backup or SQLite database file**, and
+never contacts Firestore, Stripe or any production service. It prints
+only aggregate counts and pass/fail status.
+
+The owner may run this in their existing private Cloud Shell checkout:
+
+```bash
+cd ~/kandorty-stage4-review && git pull --ff-only && python3 stripe-release/owner-private-local-replay.py
+```
+
+Enter the original backup GPG password **in Cloud Shell only**. Never share
+it, the encrypted file or decrypted order data. Expected source baseline is
+99 orders and 254 documents; a different count fails closed rather than
+claiming validation of a changed snapshot.
+
+[37/37 synthetic offline tests passed](https://github.com/arif123-del/kandorty/actions/runs/42964265352)
+(7 original backup, 10 risk, 7 exception docket, 6 owner triage, 7 local
+replay tests), including typed Firestore REST roundtrips and no-Firebase-call
+static checks. **CI did not inspect the real owner backup**. Until the owner
+runs this command, the real backup local replay is **not verified**.
+
+**Crucial distinction:** SQLite RAM replay is NOT an actual Firestore restore,
+a managed point-in-time export, a protected multi-project disaster-recovery
+rehearsal, a complete nested-subcollection/Storage/Auth/Rules backup or a
+release authorization. All 18 historical cases remain evidence-blocked;
+no restored inventory, money or order status may be inferred.
+
 ## Owner execution confirmation — November 11, 2026 (aggregate-only screenshot)
 
 The owner ran the private `owner-private-legacy-triage.py` after `git pull --ff-only` in their Cloud Shell and shared a screenshot of **only its aggregate console result**. It returned `CASES_READ_FROM_PRIVATE_DOCKET: 18`, `CASES_NEEDING_INDEPENDENT_EVIDENCE: 18`, `PRODUCTION_CHANGES_AUTHORIZED: 0` and `PRIVATE_ENCRYPTED_EVIDENCE_PLAN_CREATED: YES`. Four review flags matched the earlier private baseline (4 lock, 3 customer cancellation, 3 previous stock restoration, 11 unknown cancellation origins). It also declared `FIREBASE_STRIPE_STOCK_REFUND_WRITES: NONE` and `STAGE4_RELEASE_AUTHORIZED: NO`.
