@@ -135,16 +135,57 @@ def main():
     print('Uses the latest private expanded .json.gpg in the owner Cloud Shell.')
     print('Private codes/customer data are never displayed. Do not share password.')
     path=newest_private_backup()
+    print('EXPANDED_PRIVATE_ENCRYPTED_FILE_FOUND: YES',flush=True)
+    print('EXPANDED_REVIEW_STAGE: DECRYPTION',flush=True)
     secret=getpass.getpass('Private GPG passphrase: ')
-    result=audit(private_decrypt(path,secret))
+    data=private_decrypt(path,secret)
+    print('EXPANDED_BACKUP_DECRYPTION_AND_INTEGRITY: PASS',flush=True)
+    print('EXPANDED_REVIEW_STAGE: STRUCTURE_CHECK',flush=True)
+    result=audit(data)
     print('ENCRYPTED_EXPANDED_BACKUP_STRUCTURE: PASS')
     for key,value in result.items():print(key+':',value)
     print('ENCRYPTED_SHA256:',hashlib.sha256(path.read_bytes()).hexdigest())
     print('A successful offline structure check is not a full project restore test.')
 
+# Only print constant, predefined error tokens. Never display exception
+# messages that could contain a document path, private field, GPG stderr or code.
+SAFE_CODES=frozenset((
+    'invalid_json_root','invalid_expanded_backup_format',
+    'wrong_project_or_database','unexpected_collection_scope',
+    'invalid_collection_path','collection_not_in_document_hierarchy',
+    'invalid_documents_list','invalid_document',
+    'document_not_in_expected_source','duplicate_or_nested_document',
+    'duplicate_firestore_document','invalid_firestore_fields',
+    'order_tracking_status_invalid','document_scope_too_large',
+    'not_all_expected_nonempty_roots','root_collections_inconsistent',
+    'missing_parent_document_for_nested_collection',
+    'order_or_tracking_collection_missing',
+    'order_tracking_identity_mismatch','order_tracking_status_mismatch',
+    'snapshot_below_prior_254_document_scope',
+    'snapshot_manifest_counts_inconsistent','snapshot_consistency_claim_invalid',
+    'private_directory_missing_or_unsafe','no_expanded_backup_file_found',
+    'private_interactive_shell_only'
+))
+PRIVATE_DECRYPT_CODES=frozenset((
+    'private_backup_unavailable','private_backup_invalid_size_or_name',
+    'private_password_too_short','private_decryption_or_integrity_failed'
+))
+
+def error_code(exc):
+    if isinstance(exc,ValueError):
+        raw=str(exc)
+        if raw in SAFE_CODES:return 'STRUCTURE_'+raw.upper()
+        if raw in PRIVATE_DECRYPT_CODES:
+            if raw=='private_decryption_or_integrity_failed':
+                return 'GPG_PASSWORD_OR_FILE_INTEGRITY_FAILED'
+            if raw=='private_password_too_short':
+                return 'GPG_PASSWORD_TOO_SHORT'
+            return 'PRIVATE_ENCRYPTED_FILE_UNAVAILABLE'
+    return 'LOCAL_PRIVATE_CHECK_FAILED'
+
 if __name__=='__main__':
     try:main()
-    except (ValueError,RuntimeError,OSError,TypeError,KeyError,TimeoutError):
-        print('EXPANDED_BACKUP_OFFLINE_REVIEW_NOT_COMPLETED: safe verification failed',
+    except (ValueError,RuntimeError,OSError,TypeError,KeyError,TimeoutError,EOFError) as exc:
+        print('EXPANDED_BACKUP_OFFLINE_REVIEW_NOT_COMPLETED: '+error_code(exc),
               file=sys.stderr)
         sys.exit(2)
