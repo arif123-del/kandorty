@@ -4,7 +4,7 @@
 This is a LOCAL data-integrity roundtrip in an ephemeral SQLite :memory:
 database. It is NOT a managed Firestore export, Firestore restore, recovery
 drill, rollback, or authorization to deploy. There are no network calls and
-no filesystem writes. Never prints customer/order details or GPG password.
+no plaintext backup files or local SQLite database files. Never prints customer/order details or GPG password.
 """
 import getpass
 import hashlib
@@ -68,7 +68,8 @@ def replay_in_memory(data):
                     expected[key] = hashlib.sha256(raw).digest()
                     conn.execute('INSERT INTO snapshot_docs VALUES (?, ?, ?)',
                                  (collection, doc_id, raw))
-            conn.commit()
+            # Same private in-memory connection can read rows before the
+            # implicit context-manager commit; no explicit commit call needed.
             replayed = {collection: [] for collection in original_collections}
             seen = set()
             for collection, doc_id, raw in conn.execute(
