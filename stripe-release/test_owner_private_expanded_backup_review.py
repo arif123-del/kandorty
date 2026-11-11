@@ -107,4 +107,33 @@ class ExpandedBackupReview(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wrong_project_or_database'):
             review.audit(data)
 
+    def test_private_error_codes_are_diagnostic_without_leaking_sensitive_values(self):
+        self.assertEqual(
+            review.error_code(ValueError('private_decryption_or_integrity_failed')),
+            'GPG_PASSWORD_OR_FILE_INTEGRITY_FAILED'
+        )
+        self.assertEqual(
+            review.error_code(ValueError('missing_parent_document_for_nested_collection')),
+            'STRUCTURE_MISSING_PARENT_DOCUMENT_FOR_NESTED_COLLECTION'
+        )
+        self.assertEqual(
+            review.error_code(ValueError('private_backup_unavailable')),
+            'PRIVATE_ENCRYPTED_FILE_UNAVAILABLE'
+        )
+        self.assertEqual(
+            review.error_code(ValueError('customer-phone-SECRET-KD-PRIVATE')),
+            'LOCAL_PRIVATE_CHECK_FAILED'
+        )
+        self.assertEqual(review.error_code(OSError('private path unavailable')),
+                         'LOCAL_PRIVATE_CHECK_FAILED')
+
+    def test_reviewer_prints_stage_separation_and_never_prints_plaintext(self):
+        src=(DIR/'owner-private-expanded-backup-review.py').read_text()
+        self.assertIn('EXPANDED_BACKUP_DECRYPTION_AND_INTEGRITY: PASS',src)
+        self.assertIn('EXPANDED_REVIEW_STAGE: STRUCTURE_CHECK',src)
+        self.assertIn('EXPANDED_PRIVATE_ENCRYPTED_FILE_FOUND: YES',src)
+        self.assertNotIn('print(data)',src)
+        self.assertNotIn('print(exc)',src)
+        self.assertNotIn('traceback.print_exc',src)
+
 if __name__=='__main__':unittest.main()
