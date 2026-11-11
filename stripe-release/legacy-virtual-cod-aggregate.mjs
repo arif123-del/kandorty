@@ -10,6 +10,19 @@ export const BASELINE=Object.freeze({
 });
 const okId=id=>typeof id==='string'&&/^KD-?[A-Za-z0-9_-]{4,40}$/.test(id);
 const truthy=x=>x!==null&&x!==undefined&&x!==''&&x!==false;
+// Firestore Timestamp values may be distinct objects representing the same
+// instant. Reference inequality would wrongly report a lock mismatch.
+function equalLock(a,b){
+  if(!truthy(a)||!truthy(b))return false;
+  if(typeof a==='string'||typeof b==='string')return typeof a==='string'&&a===b;
+  if(a instanceof Date||b instanceof Date)
+    return a instanceof Date&&b instanceof Date&&Number.isFinite(a.getTime())&&a.getTime()===b.getTime();
+  if(a&&typeof a.isEqual==='function')return a.isEqual(b)===true;
+  if(a&&b&&Number.isSafeInteger(a.seconds)&&Number.isSafeInteger(a.nanoseconds)&&
+    Number.isSafeInteger(b.seconds)&&Number.isSafeInteger(b.nanoseconds))
+    return a.seconds===b.seconds&&a.nanoseconds===b.nanoseconds;
+  return false; // Unknown historical lock types: no unverified equivalence.
+}
 function checkRows(name,rows){
   if(!Array.isArray(rows)||rows.length>500)throw Error('invalid_'+name+'_size');
   const map=new Map();
@@ -34,8 +47,7 @@ export function aggregateOwnerDeclaredCodRisk(orders,tracking){
     const pending=Boolean(v.customerEdit?.cancelRequestedAt||
        t.customerEdit?.cancelRequestedAt||v.cancelRequestedAt||t.cancelRequestedAt);
     const lock=v.status==='preparing'||v.status==='shipping'||v.status==='delivered';
-    const hasLockProblem=lock&&(!truthy(v.cancellationLockedAt)||
-      !truthy(t.cancellationLockedAt)||v.cancellationLockedAt!==t.cancellationLockedAt);
+    const hasLockProblem=lock&&!equalLock(v.cancellationLockedAt,t.cancellationLockedAt);
     const previousRestock=truthy(v.cancelStockRestoredAt);
     const unknownActor=v.status==='cancelled'&&
       v.cancelledBy!=='admin'&&v.cancelledBy!=='customer';
