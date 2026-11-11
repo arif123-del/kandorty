@@ -39,5 +39,7 @@ class OwnerOnlyViewerTests(unittest.TestCase):
         self.assertIn('getpass.getpass(',source)
         self.assertIn('Type YES:',source)
         self.assertIn('DO_NOT_POST_PRIVATE_CODES_TO_CHAT_OR_GITHUB: YES',source)
+        self.assertIn("index % 3 == 0 and index < 18",source)
+        self.assertIn("Press ENTER to show the next 3",source)
 
 if __name__=='__main__':unittest.main()
