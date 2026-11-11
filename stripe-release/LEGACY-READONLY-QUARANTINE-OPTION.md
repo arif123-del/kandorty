@@ -3,6 +3,14 @@
 **Decision status: PREPARED FOR OWNER REVIEW. NO-GO FOR PRODUCTION.**
 This option is for an operator who prioritizes preservation of old orders over attempting to reconstruct untrusted customer-era lifecycle, inventory or cancellation history. It requires **no new credit card** for the already completed local encrypted backup rehearsal, but it is NOT a replacement for comprehensive managed backup/recovery or production release approval.
 
+## Owner clarification — 18 flags arose from owner's own test orders
+
+On 2026-11-11 the owner explicitly clarified in chat that **the 18 flagged orders were placed personally by the owner through the Kandorty app or website for testing, not by independent customers**. This is an **owner statement about test origin**, not independently verified matching of individual encrypted docket identifiers, payment mode, settlement, payment/refund status, stock debit/restock or processing-lock metadata. It is not permission to delete or rewrite a single order, nor blanket proof that no real card charge happened.
+
+**Adjusted safe handling:** Classify these 18 **for planning and private review only** as `OWNER_REPORTED_TEST_ORDER_ORIGIN` (aggregate-only; never write that tag to production Firestore without separate review). Do not request real-customer cancellation statements or contact customers to prove a customer action that the owner says was only a test. Retain the owner-private GPG case docket and original 99-order backup unchanged. All 18 stay fail-closed for automated legacy cancellation, restock, refunds or migration until payment/inventory effects are separately reconciled or the operator accepts an explicitly read-only archive treatment.
+
+For these test orders, the minimal remaining evidence categories are: (1) whether any **real card payments** or live refunds occurred, verified against the payment provider if applicable; (2) whether these test actions changed live stock and whether stock still matches trusted counts; (3) whether the old admin/browser cancellation and restock path can be retired safely; and (4) recovery and client-compatibility gates. If all cases remain historical read-only archive records and no money/stock action is taken, no automatic cancellation actor reconstruction is needed **for that archive-only treatment**, but production rollout still needs independent tests and owner-specific release approval.
+
 ## Verified facts
 - Owner encrypted local snapshot: **99 old orders / 254 associated documents**, across five top-level collections; exact-field replay to an isolated, loopback-only Firestore emulator passed.
 - Two private encrypted visual surveys: 3 pending and 11 unknown-origin cancellation cases, **14/14** matching previously saved statuses.
