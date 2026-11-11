@@ -8,7 +8,9 @@ This is NOT a managed export or a Firestore-emulator replay/rollback proof.
 import getpass
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
+import shutil
 import sys
 
 HERE=Path(__file__).resolve().parent
@@ -123,11 +125,29 @@ def newest_private_backup():
     return max(files,key=lambda p:p.stat().st_mtime_ns)
 
 def private_decrypt(path,password):
+    # Use the EXACT same passphrase-fd pipe helper that the expanded-backup
+    # writer used when encrypting and self-verifying the GPG file.
+    # Never print GPG stderr or decrypted content.
+    require(shutil.which('gpg') is not None,'private_backup_unavailable')
+    require(path.is_file() and not path.is_symlink() and
+            path.name.startswith(PREFIX) and path.name.endswith(SUFFIX) and
+            0<path.stat().st_size<=200*1024*1024,
+            'private_backup_invalid_size_or_name')
+    require(isinstance(password,str) and len(password)>=12,
+            'private_password_too_short')
     spec=importlib.util.spec_from_file_location(
-        'kandorty_private_gpg_reader',HERE/'owner-private-legacy-exception-docket.py')
+        'kandorty_original_backup_gpg_helper',
+        HERE/'owner-private-local-orders-backup.py')
     mod=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.decrypt_private_backup(path,password)
+    result=mod.gpg_with_secret(password,['--decrypt',str(path)])
+    require(result.returncode==0 and
+            0<len(result.stdout)<=300*1024*1024,
+            'private_decryption_or_integrity_failed')
+    try:
+        return json.loads(result.stdout)
+    except (ValueError,UnicodeError):
+        raise ValueError('expanded_decrypted_json_invalid') from None
 
 def main():
     require(len(sys.argv)==1 and sys.stdin.isatty(),'private_interactive_shell_only')
@@ -136,6 +156,8 @@ def main():
     print('Private codes/customer data are never displayed. Do not share password.')
     path=newest_private_backup()
     print('EXPANDED_PRIVATE_ENCRYPTED_FILE_FOUND: YES',flush=True)
+    print('SELECTED_NEWEST_BACKUP_SHA256_PREFIX:',
+          hashlib.sha256(path.read_bytes()).hexdigest()[:12],flush=True)
     print('EXPANDED_REVIEW_STAGE: DECRYPTION',flush=True)
     secret=getpass.getpass('Private GPG passphrase: ')
     data=private_decrypt(path,secret)
@@ -164,7 +186,7 @@ SAFE_CODES=frozenset((
     'snapshot_below_prior_254_document_scope',
     'snapshot_manifest_counts_inconsistent','snapshot_consistency_claim_invalid',
     'private_directory_missing_or_unsafe','no_expanded_backup_file_found',
-    'private_interactive_shell_only'
+    'private_interactive_shell_only','expanded_decrypted_json_invalid'
 ))
 PRIVATE_DECRYPT_CODES=frozenset((
     'private_backup_unavailable','private_backup_invalid_size_or_name',
