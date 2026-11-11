@@ -22,6 +22,7 @@ on:
       - 'stripe-release/owner-private-firestore-emulator-replay.py'
       - 'stripe-release/test_owner_private_firestore_emulator_replay.py'
       - 'stripe-release/stage4-private-recovery.firebase.json'
+      - 'stripe-release/owner-private-stage4-retry.sh'
       - '.github/workflows/stripe-owner-local-backup-review.yml'
   workflow_dispatch:
 permissions:
@@ -50,6 +51,7 @@ jobs:
           python -m unittest discover -s stripe-release -p 'test_owner_private_stage4_survey_audit.py' -v
           python -m py_compile stripe-release/owner-private-firestore-emulator-replay.py
           python -m unittest discover -s stripe-release -p 'test_owner_private_firestore_emulator_replay.py' -v
+          bash -n stripe-release/owner-private-stage4-retry.sh
       - name: Assert offline-only script has no Firestore, Firebase or cloud calls
         run: |
           python - <<'PY'
