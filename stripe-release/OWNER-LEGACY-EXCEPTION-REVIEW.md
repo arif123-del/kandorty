@@ -3,6 +3,20 @@
 **PREPARATION ONLY. NO PRODUCTION ORDER WRITES, STOCK RESTORATION,
 REFUNDS, FIREBASE RULES CHANGE OR STRIPE LIVE RELEASE.**
 
+## Owner-private identification of the four processing-lock cases (read only)
+
+The three owner-shared admin order screenshots **cannot** establish which of the 4 historical lock anomalies an order belongs to. Admin pages show order details and customer contact data, not the trusted order/tracking lock provenance. **Do not send additional screenshots containing contact details, order IDs or payment data.** Do not click status, cancellation, refund or restock actions.
+
+To identify the four exception order codes **privately on the owner's own terminal only**, there is now an explicitly opt-in [offline viewer](owner-private-show-lock-cases.py). From the private Cloud Shell checkout:
+
+```bash
+cd ~/kandorty-stage4-review && git pull --ff-only && python3 stripe-release/owner-private-show-lock-cases.py
+```
+
+The owner must type `YES` to authorize a **local display** and then privately enter the previously used GPG password. The script opens the existing owner-only encrypted manual-review docket, validates 99 orders / 18 cases / the exact four risk category counts and prints only 4 order identifiers and their coarse statuses at backup time. It does not connect to GitHub, the website or Firestore, and it does not change any source records. These order IDs are PRIVATE and should **never be copied to a chat, screenshot, email or issue**. Synthetic tests cover 4-case extraction, duplicates, unexpected counts, approval flags, opt-in display and network-free code; the [owner-only workflow](https://github.com/arif123-del/kandorty/actions/runs/42975304839) passed.
+
+The owner can visually match the four identifiers with the **private** live admin screen if necessary, without sending codes or screenshots. The live admin screen does not prove or repair a missing lock; each case still needs reliable lifecycle/cancellation evidence and independent review. This viewer does **not** resolve any of the 18 live exceptions or authorize release.
+
 ## Owner-reported local memory replay result — 2026-11-11
 
 Owner replied with abbreviated terminal text `CAL_IN_MEMORY_REPLAY: PAS`, apparently the tail of `LOCAL_IN_MEMORY_REPLAY: PASS`. The full output was not supplied, so this is **owner-reported** successful offline RAM roundtrip and not an independently verified restore. No private ciphertext/password/order/customer data were obtained. This step does not change the **18 unresolved cases**, nor authorize inventory, status, refunds, production Rules, Stripe Live or a release.
