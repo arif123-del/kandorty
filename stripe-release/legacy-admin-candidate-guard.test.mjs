@@ -35,3 +35,24 @@ test('guard does not accept empty, invalid or already transformed source',()=>{
  assert.throws(()=>guard(''),/unsafe_legacy_admin_anchor_drift/);
  assert.throws(()=>guard(guard(source())),/unsafe_legacy_admin_anchor_drift/);
 });
+
+
+test('draft admin candidate cannot auto-write untrusted totalStock baselines merely on login',()=>{
+ const before=source(),after=guard(before);
+ assert.match(before,/async function ensureProductTotalStockBaselines\(\)/);
+ assert.match(before,/ensureProductTotalStockBaselines\(\)\.catch\(\(\)=>\{\}\)/);
+ assert.doesNotMatch(after,/async function ensureProductTotalStockBaselines\(\)/);
+ assert.doesNotMatch(after,/ensureProductTotalStockBaselines\(\)\.catch\(\(\)=>\{\}\)/);
+ assert.ok(after.includes('auto stock baseline migration disabled'));
+ assert.ok(after.includes("$('productForm').onsubmit=async e=>{"));
+ assert.ok(after.includes("db.collection('orders').onSnapshot("));
+ assert.equal(source(),before,'no change to the original published admin HTML');
+});
+
+test('draft guard fails closed if any background stock migration call drifts',()=>{
+ const original=source();
+ assert.throws(()=>guard(original.replace(
+  'ensureProductTotalStockBaselines().catch(()=>{});',
+  'ensureProductTotalStockBaselines().catch(console.warn);'
+ )),/unsafe_legacy_stock_baseline_anchor_drift/);
+});
