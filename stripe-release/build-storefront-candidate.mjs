@@ -63,6 +63,11 @@ html=html.replace(cancelAnchor,cancelAnchor+`
     catch{alert('تعذر إلغاء الطلب. ربما بدأ تجهيزه؛ تواصلي مع المتجر.');}
     finally{button.disabled=false;}return;
   }
+  // Historical/unknown client orders have NO verified server manage receipt.
+  // Do not fall through to the legacy direct Firestore cancellation/restock
+  // handler when strict Rules and server-authoritative inventory are proposed.
+  alert(lang==='ar'?'لا يمكن إلغاء هذا الطلب القديم من التطبيق. يرجى التواصل مع المتجر.':'Legacy order cannot be cancelled here; please contact the store.');
+  return;
 `);
 // A separately reviewed admin page uses a verified Firebase token for state transitions.
 let admin=fs.readFileSync('admin.html','utf8');
