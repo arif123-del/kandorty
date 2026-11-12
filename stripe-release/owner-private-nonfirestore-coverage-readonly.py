@@ -40,11 +40,27 @@ def safe_read(url,token):
   data=json.loads(raw)
   require(isinstance(data,dict),'unexpected_read_only_response')
   return data
- except (HTTPError,URLError,TimeoutError,ValueError):
-  return None
+ except HTTPError as exc:
+  # The old script hid all these distinct statuses as ACCESS_UNAVAILABLE.
+  # Only a numeric category is exposed, never the API response, URL, user
+  # account, storage path, Rules contents or token.
+  code=exc.code
+  if code==400:return {'_safe_probe_error':'HTTP_400_INVALID_REQUEST'}
+  if code==401:return {'_safe_probe_error':'HTTP_401_AUTHENTICATION'}
+  if code==403:return {'_safe_probe_error':'HTTP_403_ACCESS_OR_API_DISABLED'}
+  if code==404:return {'_safe_probe_error':'HTTP_404_RESOURCE_NOT_FOUND'}
+  if code==429:return {'_safe_probe_error':'HTTP_429_RATE_LIMIT'}
+  if 500<=code<=599:return {'_safe_probe_error':'HTTP_5XX_SERVER'}
+  return {'_safe_probe_error':'OTHER_HTTP_FAILURE'}
+ except (URLError,TimeoutError):
+  return {'_safe_probe_error':'NETWORK_OR_TIMEOUT'}
+ except (ValueError,OverflowError):
+  return {'_safe_probe_error':'INVALID_RESPONSE_OR_REDIRECT'}
 
 def verdict(label,data):
- if data is None:return 'ACCESS_UNAVAILABLE'
+ if data is None:return 'ACCESS_UNAVAILABLE_UNCLASSIFIED'
+ if isinstance(data,dict) and '_safe_probe_error' in data:
+  return data['_safe_probe_error']
  if label=='AUTH':
   return 'USERS_PRESENT' if data.get('users') or data.get('accounts') else 'NO_USERS_IN_FIRST_PAGE'
  if label=='RULES':
@@ -53,7 +69,7 @@ def verdict(label,data):
 
 def main():
  print('KANDORTY_PRIVATE_RECOVERY_SCOPE: READ_ONLY_NO_PII')
- print('No files created. No production orders, storage, rules or accounts modified.')
+ print('No files created. No production orders, storage, rules or accounts modified.\nOnly safe HTTP status categories, not response details, are shown.')
  token=subprocess.run(['gcloud','auth','print-access-token'],capture_output=True,
        check=False,timeout=35,text=True)
  require(token.returncode==0 and len(token.stdout.strip())>30,'existing_gcloud_login_unavailable')
