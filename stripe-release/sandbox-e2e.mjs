@@ -54,7 +54,15 @@ async function payHosted(){
  for(const frame of page.frames()){
   try{
    const link=frame.locator('input[name="linkOptIn"]').first();
-   if(await link.count()&&await link.isVisible()&&await link.isChecked())await link.uncheck({timeout:1500});
+   if(await link.count()&&await link.isVisible()&&await link.isChecked()){
+    try{await link.uncheck({timeout:1200});}
+    catch(error){
+     // Card-method accordion may temporarily cover Link. Treat that as
+     // a non-actionable OPTIONAL control, never force-click it or enroll.
+     if(!/TimeoutError|timeout|intercepts pointer events|element was detached|frame was detached|execution context was destroyed/i.test(String(error?.name||'')+' '+String(error?.message||'')))throw error;
+     console.log('Stripe TEST optional Link opt-out not actionable; no forced click');
+    }
+   }
   }catch(error){
    if(/frame was detached|execution context was destroyed|target closed/i.test(String(error?.message||'')))continue;
    throw error;
