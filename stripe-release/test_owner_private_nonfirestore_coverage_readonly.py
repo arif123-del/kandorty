@@ -37,8 +37,9 @@ class ScopeReadOnlyTests(unittest.TestCase):
   self.assertNotIn("method='DELETE'",src)
   self.assertNotIn('print(data)',src)
   self.assertNotIn('print(token.stdout)',src)
+  self.assertIn('NoExternalRedirects',src)
  def test_deny_http_requests_not_in_exact_whitelist(self):
-  with patch.object(impl,'urlopen') as opened:
+  with patch.object(impl.OPENER,'open') as opened:
    with self.assertRaisesRegex(ValueError,'non_allowlisted_resource'):
     impl.safe_read('https://evil.example/user?token=FAKE','FAKE')
    opened.assert_not_called()
