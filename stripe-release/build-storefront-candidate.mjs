@@ -69,6 +69,33 @@ html=html.replace(cancelAnchor,cancelAnchor+`
   alert(lang==='ar'?'لا يمكن إلغاء هذا الطلب القديم من التطبيق. يرجى التواصل مع المتجر.':'Legacy order cannot be cancelled here; please contact the store.');
   return;
 `);
+// New server-backed guest orders must refresh from the per-order receipt,
+// not from legacy Firestore tracking reads. Historical orders retain cached
+// status; a typed order code is not proof of ownership.
+const refreshBegin='async function refreshCustomerOwnOrderStatuses(){';
+const refreshEnd='async function refreshMyOrders(){';
+const rb=html.indexOf(refreshBegin),re=html.indexOf(refreshEnd,rb);
+assert.ok(rb>0&&re>rb,'My Orders refresh anchors changed');
+const previous=html.slice(rb,re);
+assert.ok(previous.includes("db.collection('tracking').doc(String(o.id)).get()"),
+ 'unexpected legacy tracking implementation: require explicit migration review');
+html=html.slice(0,rb)+[
+ 'async function refreshCustomerOwnOrderStatuses(){',
+ '  const own=readCustomerOwnOrders();',
+ '  if(!own.length)return;',
+ '  const secure=await secureStripeFlow();',
+ '  const refreshed=await Promise.all(own.map(async o=>{',
+ '    if(!o?.id||!secure.ownsReceipt(String(o.id)))return o;',
+ '    try{',
+ '      const serverOrder=await secure.track(String(o.id));',
+ '      return {...o,...serverOrder};',
+ '    }catch{return o;}',
+ '  }));',
+ '  saveCustomerOwnOrders(refreshed);',
+ '}',
+ ''
+].join('\n')+html.slice(re);
+
 // A separately reviewed admin page uses a verified Firebase token for state transitions.
 let admin=fs.readFileSync('admin.html','utf8');
 assert.equal(createHash('sha256').update(admin).digest('hex'),'b073297b9289ca5846afcf6e99fe67d8acf7f93a440b3c46ba037ffae82ea669','Admin source changed');
