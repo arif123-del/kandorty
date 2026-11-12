@@ -19,7 +19,9 @@ export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,get
    const result=await client.status();
    if(!result.paid)return {paid:false};
    // Fulfillment and inventory already happened on the server. UI callback must only render/save local state.
-   confirmed(result.order);client.archiveConfirmed(result.order);return result;
+   // Persist the server-issued receipt only after validating the paid order.
+   // Never clear the cart or show a success message for an inconsistent response.
+   client.archiveConfirmed(result.order);confirmed(result.order);return result;
   },
   ownsReceipt:id=>client.hasReceipt(id),
   async track(id){const result=await client.track(id);if((!result.paid&&!result.registered)||result.order.id!==id)throw new Error('order_not_confirmed');return result.order;}
