@@ -127,6 +127,17 @@ class ExpandedEmulatorRehearsalTests(unittest.TestCase):
                                root_lister=lambda:[])
         self.assertEqual(len(touched),291)
 
+    def test_get_only_known_root_sentinels_and_forbidden_post(self):
+        from unittest.mock import patch
+        with patch.object(impl,'list_path_documents',side_effect=lambda name:
+            [{'name':'synthetic'}] if name=='orders' else []) as list_docs:
+            self.assertEqual(impl.list_root_collections(),['orders'])
+            self.assertEqual(list_docs.call_count,3)
+        with patch.object(impl,'list_path_documents',return_value=[]):
+            self.assertEqual(impl.list_root_collections(),[])
+        with self.assertRaisesRegex(ValueError,'invalid_emulator_method'):
+            impl.invoke('POST',impl.BASE_URL+':listCollectionIds',{'pageSize':10})
+
     def test_path_id_protected_and_loopback_transport_only(self):
         self.assertEqual(impl.url_coll('orders/KD-fake/nested'),
                          impl.EMULATOR_ROOT+'orders/KD-fake/nested')
