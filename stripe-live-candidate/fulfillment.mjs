@@ -98,20 +98,30 @@ export function preparePaidFulfillment({
  for(const [productId,need] of byProduct){
   const row=products[productId];
   if(!object(row)||!object(row.data)||row.data.active===false){shortages=true;continue;}
+  // A paid Stripe Session is always recorded. Unknown inventory is NOT
+  // proof of unlimited stock and must NOT be treated as a successful debit.
+  // Flag the paid order for explicit human review, without changing a product.
   const value=row.data.stock;
-  if(value!==null&&value!==undefined&&value!==""){
-   const current=numberStock(value);
-   if(current===null||current<need){shortages=true;continue;}
-   check(validVersion(row.updateTime),"missing_product_version");
-   stockDebits[productId]=need;
-   const priorTotal=Number(row.data.totalStock);
-   updates.push({
-    path:path(root,"products",productId),
-    updateTime:row.updateTime,
-    stock:current-need,
-    totalStock:Number.isSafeInteger(priorTotal)&&priorTotal>0?Math.max(priorTotal,current):current
-   });
+  if(value===null||value===undefined||value===""){
+   shortages=true;
+   continue;
   }
+  const current=numberStock(value);
+  const priorTotal=row.data.totalStock;
+  if(current===null||current<need||
+     typeof priorTotal!=="number"||!Number.isSafeInteger(priorTotal)||
+     priorTotal<current){
+   shortages=true;
+   continue;
+  }
+  check(validVersion(row.updateTime),"missing_product_version");
+  stockDebits[productId]=need;
+  updates.push({
+   path:path(root,"products",productId),
+   updateTime:row.updateTime,
+   stock:current-need,
+   totalStock:priorTotal
+  });
  }
  const inventoryStatus=shortages?"needs_review":"debited";
  const recordedDebits=shortages?{}:stockDebits;
