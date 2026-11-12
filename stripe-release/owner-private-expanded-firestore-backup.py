@@ -182,6 +182,18 @@ def crawl(list_ids, list_docs):
             'missingParentRefs':missing_parents,
             'collections':result}
 
+def verify_expanded_structure(data):
+    """Reuse the owner's offline, no-network structural validation before GPG.
+    This does not access production or print any private document data.
+    """
+    spec=importlib.util.spec_from_file_location(
+        'kandorty_expanded_private_structure_verifier',
+        BASE/'owner-private-expanded-backup-review.py')
+    mod=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.audit(data)
+
+
 def main():
     os.umask(0o077)
     require(len(sys.argv)==1 and sys.stdin.isatty(),'owner_interactive_cloud_shell_required')
@@ -211,6 +223,9 @@ def main():
         'missingParentRefs':summary['missingParentRefs'],
         'collections':summary['collections'],
     }
+    # Fail BEFORE prompting for a passphrase or creating any backup file if
+    # root/nested coverage or order/tracking identities are inconsistent.
+    expected_structure=verify_expanded_structure(export)
     plaintext=json.dumps(export,ensure_ascii=False,separators=(',',':')).encode('utf-8')
     require(len(plaintext)<=MAX_PLAINTEXT_BYTES,'snapshot_exceeds_private_memory_limit')
     password=getpass.getpass('Owner PRIVATE GPG password (12+ characters): ')
@@ -238,9 +253,16 @@ def main():
         require(decrypted.returncode==0 and
                 hashlib.sha256(decrypted.stdout).digest()==hashlib.sha256(plaintext).digest(),
                 'gpg_integrity_check_failed')
+        # A second structural check on the independently decrypted bytes makes
+        # the newly encrypted file verified in ONE owner-run, not by an extra
+        # manual password prompt or separate unverified follow-up program.
+        restored_json=json.loads(decrypted.stdout)
+        verified_structure=verify_expanded_structure(restored_json)
+        require(verified_structure==expected_structure,'gpg_restored_structure_mismatch')
     except Exception:
         file.unlink(missing_ok=True)
         raise
+    print('ENCRYPTED_EXPANDED_BACKUP_STRUCTURE: PASS')
     print('ENCRYPTED_ALL_FIRESTORE_ROOT_SNAPSHOT: VERIFIED')
     print('ROOT_COLLECTIONS_SAVED:',summary['rootCollectionCount'])
     print('INCLUDING_NESTED_COLLECTIONS:',summary['collectionCount'])
