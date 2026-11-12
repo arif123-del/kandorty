@@ -138,16 +138,21 @@ export async function prepareCodOrder({
  const stockDebits={},stockWrites=[];
  for(const [id,qty] of productQuantities){
   const row=products[id],p=row.data;
-  if(p.stock===''||p.stock===undefined||p.stock===null)continue;
+  // Stage 5 fail-closed inventory: no COD order may silently treat unknown
+  // physical stock as unlimited, and no historic totalStock baseline is
+  // fabricated from a possibly already-debited current quantity.
+  check(p.stock!==''&&p.stock!==undefined&&p.stock!==null,
+        'inventory_not_configured');
   check((typeof p.stock==='number'||typeof p.stock==='string')&&
         /^(0|[1-9]\d*)$/.test(String(p.stock)),'invalid_stock');
   const current=Number(p.stock);
   check(Number.isSafeInteger(current)&&current>=qty,'insufficient_stock');
   check(versionOK(row.updateTime),'missing_product_version');
-  const totalStock=Number(p.totalStock);
+  const totalStock=p.totalStock;
+  check(typeof totalStock==='number'&&Number.isSafeInteger(totalStock)&&
+        totalStock>=current,'inventory_total_not_configured');
   stockDebits[id]=qty;
-  stockWrites.push(updated(root,id,current-qty,
-    Number.isSafeInteger(totalStock)&&totalStock>0?Math.max(totalStock,current):current,
+  stockWrites.push(updated(root,id,current-qty,totalStock,
     nowISO,row.updateTime));
  }
  const customer=normalized.customer;
