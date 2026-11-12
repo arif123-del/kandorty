@@ -63,6 +63,17 @@ test('unpublished Stage5 web/admin review routes NEW COD+card through server, ne
   assert.match(guardedCancel,/Legacy order cannot be cancelled here/);
   assert.ok(!['db.collection','runTransaction','batch.commit','restoreCustomerCancelledStock'].some(x=>guardedCancel.includes(x)));
 
+  // The new My Orders refresh must use its private server-issued receipt
+  // rather than reading legacy Firestore tracking directly under strict Rules.
+  const refreshStart=web.indexOf('async function refreshCustomerOwnOrderStatuses(){');
+  const refreshEnd=web.indexOf('async function refreshMyOrders(){',refreshStart);
+  assert.ok(refreshStart>0&&refreshEnd>refreshStart,'My Orders refresh handler missing');
+  const refresh=web.slice(refreshStart,refreshEnd);
+  assert.ok(refresh.includes('secure.ownsReceipt(String(o.id))'));
+  assert.ok(refresh.includes('await secure.track(String(o.id))'));
+  assert.doesNotMatch(refresh,/db\.collection|runTransaction|db\.batch/);
+  assert.ok(refresh.includes('saveCustomerOwnOrders(refreshed)'));
+
   const adminStart=admin.indexOf('async function updateOrderStatus(id,status){');
   const adminEnd=admin.indexOf('const SETTINGS_KEY=',adminStart);
   assert.ok(adminStart>0&&adminEnd>adminStart);
