@@ -14,16 +14,26 @@ let ready=false;for(let i=0;i<12;i++){try{if((await api('/checkout/status',{})).
 const product='release-e2e-'+random(8);
 await store.commit([store.write('products/'+product,{nameAr:'STRIPE RELEASE TEST ONLY',price:10,stock:3,totalStock:3},{exists:false})]);
 const browser=await chromium.launch({channel:'chrome',headless:true,args:['--no-sandbox']});
-const page=await browser.newPage({locale:'en-US'});
+let page=await browser.newPage({locale:'en-US'});
 // Prevent the success page status call from doing fulfillment: webhook must register the order alone.
 await page.route(base+'/checkout/status',r=>r.abort());
 async function fillAny(selectors,value,wait=12000){const end=Date.now()+wait;while(Date.now()<end){for(const f of page.frames())for(const sel of selectors){const el=f.locator(sel).first();try{if(await el.count()&&await el.isVisible()){await el.fill(value,{timeout:1500});return true;}}catch{}}await pause(250);}return false;}
 async function payHosted(){
- assert.ok(await fillAny(['input[name="email"]','input[type="email"]','input[autocomplete="email"]'],'stripe-release-test@example.com',7000),'Sandbox email required');
- assert.ok(await fillAny(['input[name="cardNumber"]','input[autocomplete="cc-number"]'],'4242424242424242'));
- assert.ok(await fillAny(['input[name="cardExpiry"]','input[autocomplete="cc-exp"]'],'1230'));
- assert.ok(await fillAny(['input[name="cardCvc"]','input[autocomplete="cc-csc"]'],'123'));
- await fillAny(['input[name="billingName"]','input[autocomplete="cc-name"]'],'SYNTHETIC TEST',2000);
+ const emailFound=await fillAny(['input[name="email"]','input[type="email"]','input[autocomplete="email"]','input[placeholder*="mail" i]'],'stripe-release-test@example.com',13000);
+ if(!emailFound){
+  // Record only input NAMES and frame HOSTS; never log customer/card values.
+  const hosts=[],names=[];
+  for(const frame of page.frames()){
+   try{hosts.push(new URL(frame.url()).hostname);names.push(await frame.locator('input').evaluateAll(xs=>xs.filter(x=>x.offsetParent!==null).map(x=>x.getAttribute('name')).filter(Boolean).slice(0,24)));}catch{}
+  }
+  console.log('Sandbox form missing-email frame hosts:',JSON.stringify(hosts));
+  console.log('Sandbox form missing-email visible input names:',JSON.stringify(names));
+ }
+ assert.ok(emailFound,'Sandbox email required');
+ assert.ok(await fillAny(['input[name="cardNumber"]','input[name="number"]','input[autocomplete="cc-number"]'],'4242424242424242'));
+ assert.ok(await fillAny(['input[name="cardExpiry"]','input[name="expiry"]','input[autocomplete="cc-exp"]'],'1230'));
+ assert.ok(await fillAny(['input[name="cardCvc"]','input[name="cvc"]','input[autocomplete="cc-csc"]'],'123'));
+ await fillAny(['input[name="billingName"]','input[name="name"]','input[autocomplete="cc-name"]'],'SYNTHETIC TEST',3000);
  // Stripe replaces hosted-checkout iframes while the form is initializing.
  // A detached optional country frame is not a payment or form error.
  for(const frame of page.frames()){
@@ -156,6 +166,10 @@ try{
  for(const buyer of buyers){const r=await api('/create-checkout-session',buyer);assert.equal(r.status,200);checkouts.push(r.body);}
  await page.route(base+'/checkout/status',r=>r.abort());
  for(let n=0;n<2;n++){
+  // New isolated browser context for each TEST buyer: reused Stripe Link
+  // cookies may bypass email collection or alter the hosted form, making
+  // a single-page test ambiguous and not representative of two buyers.
+  await page.close();page=await browser.newPage({locale:'en-US'});
   await page.goto(checkouts[n].url,{waitUntil:'domcontentloaded'});await payHosted();
   const id=await hash(buyers[n].checkoutToken);let o;
   for(let i=0;i<30;i++){o=(await store.get('orders/'+checkouts[n].orderId))?.data;if(o&&(await store.get('stripe_webhook_receipts/'+id))?.data.paid)break;await pause(2000);}
