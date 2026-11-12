@@ -91,14 +91,24 @@ async function payHosted(){
      for(let i=0;i<total;i++){
       const button=buttons.nth(i);
       if(!(await button.isVisible())||!(await button.isEnabled()))continue;
+      // First prove that a real user could click (no force or DOM click).
+      // Never retry an ambiguous POST-triggering click: it may have sent payment.
+      try{await button.click({trial:true,timeout:1400});}
+      catch{lastReason='submit_not_actionable';continue;}
       attempted=true;
       try{
-       await button.click({timeout:6500});
+       // Checkout redirects cross-origin. Observe its return separately instead
+       // of treating Playwright's navigation wait as a failed click.
+       await button.click({timeout:6500,noWaitAfter:true});
        submitted=true;break;
-      }catch(e){
-       // Only expose sanitized failure class, NEVER Stripe field contents.
-       lastReason=/TimeoutError|timeout/i.test(String(e?.name||'')+' '+String(e?.message||''))
-        ?'click_actionability_timeout':'frame_or_navigation_transition';
+      }catch{
+       lastReason='submit_click_unconfirmed';
+       try{
+        await page.waitForURL(u=>u.origin===base,{timeout:6000,waitUntil:'domcontentloaded'});
+        submitted=true;break;
+       }catch{
+        throw new Error('sandbox_submit_ambiguous_no_second_click');
+       }
       }
      }
     }catch(e){
