@@ -31,6 +31,19 @@ test('unpublished Stage5 web/admin review routes NEW COD+card through server, ne
   assert.doesNotMatch(flow,/saveOrderWithStock\s*\(/);
   assert.doesNotMatch(flow,/db\.collection\s*\(\s*['"]orders['"]\s*\)/);
 
+  // Server-authorized new receipts can cancel; a historical/unknown order
+  // must not fall through to legacy browser Firestore cancellation and restock.
+  const cancelStart=web.indexOf('async function cancelOrderFromMyOrders(orderId,button){');
+  assert.ok(cancelStart>0,'customer cancellation handler exists');
+  const cancelGateStart=web.indexOf('  // Historical/unknown client orders have NO verified server manage receipt.',cancelStart);
+  const cancelGateEnd=web.indexOf('  return;',cancelGateStart)+ '  return;'.length;
+  assert.ok(cancelGateStart>cancelStart&&cancelGateEnd>cancelGateStart);
+  const guardedCancel=web.slice(cancelStart,cancelGateEnd);
+  assert.match(guardedCancel,/if\\(secure\\.ownsReceipt\\(orderId\\)\\)/);
+  assert.match(guardedCancel,/await secure\\.cancel\\(orderId\\)/);
+  assert.match(guardedCancel,/Legacy order cannot be cancelled here/);
+  assert.doesNotMatch(guardedCancel,/db\\.collection|runTransaction|batch\\.commit|restoreCustomerCancelledStock/);
+
   const adminStart=admin.indexOf('async function updateOrderStatus(id,status){');
   const adminEnd=admin.indexOf('const SETTINGS_KEY=',adminStart);
   assert.ok(adminStart>0&&adminEnd>adminStart);
