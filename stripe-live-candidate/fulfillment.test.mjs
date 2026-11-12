@@ -88,11 +88,28 @@ test('invalid managed stock state does not overdraw and still records paid revie
  const p=preparePaidFulfillment(f);
  assert.equal(p.inventoryStatus,'needs_review');
 });
-test('unmanaged stock never changes, managed debits are recorded accurately',()=>{
+test('a PAID card order with unknown stock is saved for manual review with NO product changes',()=>{
  const f=fixture();delete f.products.p2.data.stock;
  const p=preparePaidFulfillment(f);
- assert.deepEqual(p.order.stockDebits,{p1:3});
- assert.equal(p.writes.length,6);
+ assert.equal(p.order.paymentStatus,'paid');
+ assert.equal(p.order.inventoryStatus,'needs_review');
+ assert.equal(p.order.stockDebited,false);
+ assert.deepEqual(p.order.stockDebits,{});
+ assert.deepEqual(p.stockDebits,{});
+ assert.equal(p.writes.length,5);
+ assert.equal(p.writes.filter(x=>x.update.name.includes('/products/')).length,0);
+});
+test('PAID card order with missing or invalid totalStock needs human review, not an invented baseline',()=>{
+ const f=fixture();delete f.products.p2.data.totalStock;
+ const p=preparePaidFulfillment(f);
+ assert.equal(p.inventoryStatus,'needs_review');
+ assert.equal(p.order.paymentStatus,'paid');
+ assert.equal(p.writes.length,5);
+ assert.deepEqual(p.order.stockDebits,{});
+ const g=fixture();g.products.p1.data.totalStock=2;
+ assert.equal(preparePaidFulfillment(g).inventoryStatus,'needs_review');
+ const h=fixture();h.products.p1.data.totalStock='5';
+ assert.equal(preparePaidFulfillment(h).inventoryStatus,'needs_review');
 });
 test('wrong amount, currency, mode, test checkout or replay of unpaid checkout rejected',()=>{
  const f=fixture();
