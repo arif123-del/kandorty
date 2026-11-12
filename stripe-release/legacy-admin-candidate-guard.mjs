@@ -52,7 +52,7 @@ export function guardLegacyAdminReviewArtifact(html){
   if(!removedStockMigration.includes(proof))
    throw Error('unsafe_legacy_stock_baseline_anchor_drift');
  result=result.slice(0,bStart)+
-  '// DRAFT REVIEW ONLY: do not infer historical totalStock from client state.\\n'+
+  '// DRAFT REVIEW ONLY: do not infer historical totalStock from client state.\n'+
   result.slice(bStop);
  const baselineCall='ensureProductTotalStockBaselines().catch(()=>{});';
  const baselineCallCount=result.split(baselineCall).length-1;
