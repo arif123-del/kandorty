@@ -1,0 +1,66 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+
+const checksum=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+
+test('unpublished Stage5 web/admin review routes NEW COD+card through server, never edits published source',()=>{
+ const before={web:checksum('index.html'),admin:checksum('admin.html')};
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kandorty-stage5-review-'));
+ try{
+  const run=spawnSync(process.execPath,['stripe-release/build-storefront-candidate.mjs'],{
+   cwd:process.cwd(),env:{...process.env,STRIPE_CANDIDATE_DIR:dir},
+   encoding:'utf8',timeout:25000,maxBuffer:1024*1024});
+  assert.equal(run.status,0,'unpublished review build must pass');
+  const web=fs.readFileSync(path.join(dir,'index.html'),'utf8');
+  const admin=fs.readFileSync(path.join(dir,'admin.html'),'utf8');
+
+  // Limit assertions to the active checkout entrypoint; the legacy helper
+  // functions remain available as a distinct historical-client cutover gate.
+  const start=web.indexOf('async function submitCheckoutOrder(){');
+  const end=web.indexOf('  }catch(error){',start);
+  assert.ok(start>0&&end>start,'checkout source anchors present');
+  const flow=web.slice(start,end);
+  assert.match(flow,/secureStripeFlow\(\)\)\.start\(order\)/);
+  assert.match(flow,/secureStripeFlow\(\)\)\.startCod\(order\)/);
+  assert.doesNotMatch(flow,/submitCustomerOrder\s*\(/);
+  assert.doesNotMatch(flow,/saveOrderWithStock\s*\(/);
+  assert.doesNotMatch(flow,/db\.collection\s*\(\s*['"]orders['"]\s*\)/);
+
+  const adminStart=admin.indexOf('async function updateOrderStatus(id,status){');
+  const adminEnd=admin.indexOf('const SETTINGS_KEY=',adminStart);
+  assert.ok(adminStart>0&&adminEnd>adminStart);
+  const statusFlow=admin.slice(adminStart,adminEnd);
+  assert.match(statusFlow,/adminOrderClient/);
+  assert.doesNotMatch(statusFlow,/db\.runTransaction/);
+
+  // Old auto-cancellation/restock and guessed historical baseline removed
+  // only in this review copy; original live admin source is unchanged.
+  assert.doesNotMatch(admin,/async function ensureProductTotalStockBaselines\(\)/);
+  assert.doesNotMatch(admin,/async function restoreCustomerCancelledStock\(order\)/);
+  assert.doesNotMatch(admin,/async function finalizeCustomerCancellation\(order\)/);
+  assert.doesNotMatch(admin,/ensureProductTotalStockBaselines\(\)\.catch/);
+
+  assert.deepEqual({web:checksum('index.html'),admin:checksum('admin.html')},before,
+   'no writes to published site/admin source');
+  assert.notEqual(checksum(path.join(dir,'index.html')),before.web);
+  assert.notEqual(checksum(path.join(dir,'admin.html')),before.admin);
+ }finally{
+  fs.rmSync(dir,{recursive:true,force:true});
+ }
+});
+
+test('no old Android acceptance may be inferred from a new webview review build',()=>{
+ const docs=fs.readFileSync('stripe-release/ANDROID-APP-COMPATIBILITY.md','utf8');
+ assert.ok(docs.includes('2.3.3'));
+ assert.match(docs,/not complete payment\/order compatibility acceptance/i);
+ const rules=fs.readFileSync('stripe-live-candidate/firestore.rules','utf8');
+ assert.match(rules,/match \/orders\/\{orderId\}/);
+ assert.match(rules,/allow create, update, delete: if false;/);
+ // A passing browser build does NOT certify already-installed native apps.
+ assert.equal(false,Boolean(process.env.STAGE5_INSTALLED_ANDROID_CONFIRMED));
+});
