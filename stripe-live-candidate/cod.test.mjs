@@ -106,8 +106,8 @@ test('unknown product stock is never accepted as unlimited in COD checkout',asyn
    e.code==='inventory_not_configured');
  const g=await fixture();g.products.scarfB.data.stock='';
  await assert.rejects(prepareCodOrder(g),/inventory_not_configured/);
- const h=await fixture();g.products.scarfB.data.totalStock=undefined;
- await assert.rejects(prepareCodOrder(g),/inventory_not_configured/);
+ const h=await fixture();h.products.scarfB.data.stock=null;
+ await assert.rejects(prepareCodOrder(h),/inventory_not_configured/);
 });
 test('missing, stale or invented totalStock cannot silently establish stock history',async()=>{
  const f=await fixture();delete f.products.scarfB.data.totalStock;
