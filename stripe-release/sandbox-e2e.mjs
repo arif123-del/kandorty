@@ -37,7 +37,41 @@ async function payHosted(){
  }
  await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'00000',2000);
  await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+971500000000',2000);
- await page.locator('button[type="submit"]').filter({visible:true}).last().click();
+ // Stripe Checkout may render its submit control in a payment frame, or
+ // expose a data-testid instead of a type=submit button. Search only for
+ // explicit checkout submit controls; never click express/Google/Apple Pay.
+ const submitSelectors=['button[type="submit"]',
+  'button[data-testid="hosted-payment-submit-button"]',
+  'button[data-testid="confirm-button"]','button.PayButton-Button'];
+ let submitted=false;
+ for(let attempt=0;attempt<24&&!submitted;attempt++){
+  for(const frame of page.frames()){
+   for(const selector of submitSelectors){
+    const button=frame.locator(selector).filter({visible:true}).last();
+    try{
+     if(await button.count()&&await button.isEnabled()){
+      await button.click({timeout:1800});submitted=true;break;
+     }
+    }catch(error){
+     // Hosted Stripe frames can be replaced in the middle of card validation.
+     if(/frame was detached|execution context was destroyed|target closed|timeout/i.test(String(error?.message||'')))continue;
+     throw error;
+    }
+   }
+   if(submitted)break;
+  }
+  if(!submitted)await pause(350);
+ }
+ if(!submitted){
+  // Only selector metadata, not entered card/contact data, may be logged.
+  const metadata=[];
+  for(const frame of page.frames()){
+   try{metadata.push(await frame.locator('button').evaluateAll(xs=>xs.filter(x=>x.offsetParent!==null).map(x=>({type:x.getAttribute('type'),testid:x.getAttribute('data-testid'),disabled:x.disabled})).slice(0,8)));}catch{}
+  }
+  console.log('Stripe TEST hosted submit metadata:',JSON.stringify(metadata));
+  throw new Error('sandbox_checkout_submit_missing');
+ }
+
  try{await page.waitForURL(u=>u.origin===base,{timeout:45000,waitUntil:'domcontentloaded'});}catch{
   console.log('Sandbox checkout host:',new URL(page.url()).hostname);
   for(const frame of page.frames()){
