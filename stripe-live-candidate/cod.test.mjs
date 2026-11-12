@@ -18,7 +18,7 @@ async function fixture(){
   nowISO:when,projectId:'kandorty-production-shape',
   products:{
    dressA:{data:{stock:5,totalStock:10,price:10,nameAr:'Dress',active:true,images:['https://cdn.test/a','https://cdn.test/b']},updateTime:ver},
-   scarfB:{data:{stock:4,price:12.5,nameAr:'Scarf',active:true},updateTime:ver}
+   scarfB:{data:{stock:4,totalStock:4,price:12.5,nameAr:'Scarf',active:true},updateTime:ver}
   }
  };
 }
@@ -100,11 +100,22 @@ test('multiple variants of same product aggregate all quantities in one debit',a
  assert.equal(p.order.items.filter(i=>i.id==='dressA').length,2);
  assert.equal(p.stockDebits.dressA,3);
 });
-test('unmanaged product stock remains untouched, managed stock decrements only once',async()=>{
+test('unknown product stock is never accepted as unlimited in COD checkout',async()=>{
  const f=await fixture();delete f.products.scarfB.data.stock;
- const p=await prepareCodOrder(f);
- assert.deepEqual(p.stockDebits,{dressA:3});
- assert.equal(p.writes.length,6);
+ await assert.rejects(prepareCodOrder(f),e=>e instanceof CodFault&&
+   e.code==='inventory_not_configured');
+ const g=await fixture();g.products.scarfB.data.stock='';
+ await assert.rejects(prepareCodOrder(g),/inventory_not_configured/);
+ const h=await fixture();g.products.scarfB.data.totalStock=undefined;
+ await assert.rejects(prepareCodOrder(g),/inventory_not_configured/);
+});
+test('missing, stale or invented totalStock cannot silently establish stock history',async()=>{
+ const f=await fixture();delete f.products.scarfB.data.totalStock;
+ await assert.rejects(prepareCodOrder(f),/inventory_total_not_configured/);
+ const g=await fixture();g.products.dressA.data.totalStock=2;
+ await assert.rejects(prepareCodOrder(g),/inventory_total_not_configured/);
+ const h=await fixture();h.products.dressA.data.totalStock='10';
+ await assert.rejects(prepareCodOrder(h),/inventory_total_not_configured/);
 });
 test('client cannot claim another phone account identity',async()=>{
  await fault({verifiedIdentity:{uid:'anotherUser',phoneNumber:'+971501234568'}},'unverified_customer_identity');
