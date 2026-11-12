@@ -10,9 +10,15 @@ Only presence/access information. Not a backup or release approval.
 import json
 import subprocess
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
 import sys
+
+class NoExternalRedirects(HTTPRedirectHandler):
+ def redirect_request(self,req,fp,code,msg,headers,newurl):
+  raise ValueError('external_or_unexpected_redirect')
+
+OPENER=build_opener(NoExternalRedirects())
 
 PROJECT='kandorty-9378a'
 SOURCES={
@@ -28,11 +34,13 @@ def safe_read(url,token):
  require(url in SOURCES.values(),'non_allowlisted_resource')
  request=Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'},method='GET')
  try:
-  with urlopen(request,timeout=20) as response:
-   data=json.load(response)
+  with OPENER.open(request,timeout=20) as response:
+   raw=response.read(2*1024*1024+1)
+  require(len(raw)<=2*1024*1024,'oversized_private_metadata_response')
+  data=json.loads(raw)
   require(isinstance(data,dict),'unexpected_read_only_response')
   return data
- except (HTTPError,URLError,TimeoutError):
+ except (HTTPError,URLError,TimeoutError,ValueError):
   return None
 
 def verdict(label,data):
