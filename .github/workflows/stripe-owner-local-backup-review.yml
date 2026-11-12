@@ -28,6 +28,8 @@ on:
       - 'stripe-release/owner-private-expanded-firestore-backup.py'
       - 'stripe-release/test_owner_private_expanded_firestore_backup.py'
       - 'stripe-release/owner-private-expanded-backup-review.py'
+      - 'stripe-release/owner-private-nonfirestore-coverage-readonly.py'
+      - 'stripe-release/test_owner_private_nonfirestore_coverage_readonly.py'
       - 'stripe-release/test_owner_private_expanded_backup_review.py'
       - 'stripe-release/owner-private-expanded-firestore-emulator-replay.py'
       - 'stripe-release/test_owner_private_expanded_firestore_emulator_replay.py'
@@ -67,6 +69,8 @@ jobs:
           python -m unittest discover -s stripe-release -p 'test_owner_private_expanded_firestore_backup.py' -v
           python -m py_compile stripe-release/owner-private-expanded-backup-review.py
           python -m unittest discover -s stripe-release -p 'test_owner_private_expanded_backup_review.py' -v
+          python -m py_compile stripe-release/owner-private-nonfirestore-coverage-readonly.py
+          python -m unittest discover -s stripe-release -p 'test_owner_private_nonfirestore_coverage_readonly.py' -v
           python -m py_compile stripe-release/owner-private-expanded-firestore-emulator-replay.py
           python -m unittest discover -s stripe-release -p 'test_owner_private_expanded_firestore_emulator_replay.py' -v
           bash -n stripe-release/owner-private-expanded-firestore-recovery.sh
