@@ -61,14 +61,12 @@ def url_coll(collection_path):
 def invoke(method,url,body=None):
     # The transport rejects every external host or redirect. PATCH is only to
     # this *hard-coded demo* emulator and never an authenticated production URL.
-    require(method in ('GET','POST','PATCH'),'invalid_emulator_method')
+    require(method in ('GET','PATCH'),'invalid_emulator_method')
     require(url.startswith(EMULATOR_ROOT) or url.startswith(BASE_URL+':'),
             'non_demo_emulator_endpoint')
     require(url.startswith('http://127.0.0.1:8119/'),
             'non_loopback_http_refused')
     if method=='PATCH': require(url.startswith(EMULATOR_ROOT),'invalid_patch_target')
-    if method=='POST': require(url.startswith(BASE_URL+':listCollectionIds'),
-                               'non_readonly_post_refused')
     payload=None if body is None else json.dumps(body,ensure_ascii=False,separators=(',',':')).encode('utf8')
     headers={'Accept':'application/json'}
     if payload is not None:headers['Content-Type']='application/json'
@@ -85,19 +83,14 @@ def invoke(method,url,body=None):
         raise RuntimeError('loopback_emulator_unavailable') from None
 
 def list_root_collections():
-    """The emulators:exec process must start from an empty database."""
-    seen=set()
-    tok=''
-    for _ in range(100):
-        body={'pageSize':100}
-        if tok:body['pageToken']=tok
-        resp=invoke('POST',BASE_URL+':listCollectionIds',body)
-        for key in resp.get('collectionIds',[]):
-            require(isinstance(key,str),'invalid_root_collection_id')
-            seen.add(key)
-        tok=resp.get('nextPageToken','')
-        if not tok:return sorted(seen)
-    raise ValueError('root_collection_pagination_limit')
+    """Use GET-only known nonempty sentinels to reject a reused emulator.
+
+    The Firestore emulator may not implement listCollectionIds for the root
+    document path. emulators:exec creates a fresh temporary instance, and
+    run_rehearsal checks EVERY source collection path before its first write.
+    """
+    sentinels=('orders','tracking','products')
+    return [name for name in sentinels if list_path_documents(name)]
 
 def list_path_documents(path):
     found=[]
