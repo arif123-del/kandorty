@@ -67,36 +67,52 @@ async function payHosted(){
  // Stripe Checkout may render its submit control in a payment frame, or
  // expose a data-testid instead of a type=submit button. Search only for
  // explicit checkout submit controls; never click express/Google/Apple Pay.
- const submitSelectors=['button[type="submit"]',
-  'button[data-testid="hosted-payment-submit-button"]',
-  'button[data-testid="confirm-button"]','button.PayButton-Button'];
- let submitted=false;
- for(let attempt=0;attempt<24&&!submitted;attempt++){
+ // Prefer the actual Stripe hosted-pay button with a stable TEST id.
+ // Never force-click, invoke DOM click(), or bypass form validation/3DS.
+ const selectors=['button[data-testid="hosted-payment-submit-button"]',
+  'button[type="submit"]','button.PayButton-Button',
+  'button[data-testid="confirm-button"]'];
+ let submitted=false,attempted=false,lastReason='not_visible';
+ for(let attempt=0;attempt<20&&!submitted;attempt++){
   for(const frame of page.frames()){
-   for(const selector of submitSelectors){
-    const button=frame.locator(selector).filter({visible:true}).last();
+   for(const selector of selectors){
     try{
-     if(await button.count()&&await button.isEnabled()){
-      await button.click({timeout:1800});submitted=true;break;
+     const buttons=frame.locator(selector);
+     const total=Math.min(await buttons.count(),4);
+     for(let i=0;i<total;i++){
+      const button=buttons.nth(i);
+      if(!(await button.isVisible())||!(await button.isEnabled()))continue;
+      attempted=true;
+      try{
+       await button.click({timeout:6500});
+       submitted=true;break;
+      }catch(e){
+       // Only expose sanitized failure class, NEVER Stripe field contents.
+       lastReason=/TimeoutError|timeout/i.test(String(e?.name||'')+' '+String(e?.message||''))
+        ?'click_actionability_timeout':'frame_or_navigation_transition';
+      }
      }
-    }catch(error){
-     // Hosted Stripe frames can be replaced in the middle of card validation.
-     if(/frame was detached|execution context was destroyed|target closed|timeout/i.test(String(error?.message||'')))continue;
-     throw error;
+    }catch(e){
+     lastReason=/frame was detached|execution context was destroyed|target closed/i.test(String(e?.message||''))
+      ?'hosted_frame_replaced':'submit_lookup_failed';
     }
+    if(submitted)break;
    }
    if(submitted)break;
   }
-  if(!submitted)await pause(350);
+  if(!submitted)await pause(400);
  }
  if(!submitted){
-  // Only selector metadata, not entered card/contact data, may be logged.
   const metadata=[];
   for(const frame of page.frames()){
-   try{metadata.push(await frame.locator('button').evaluateAll(xs=>xs.filter(x=>x.offsetParent!==null).map(x=>({type:x.getAttribute('type'),testid:x.getAttribute('data-testid'),disabled:x.disabled})).slice(0,8)));}catch{}
+   try{metadata.push(await frame.locator('button').evaluateAll(xs=>xs.filter(x=>x.offsetParent!==null).map(x=>({
+    type:x.getAttribute('type'),testid:x.getAttribute('data-testid'),
+    disabled:x.disabled,ariaDisabled:x.getAttribute('aria-disabled')
+   })).slice(0,8)));}catch{}
   }
   console.log('Stripe TEST hosted submit metadata:',JSON.stringify(metadata));
-  throw new Error('sandbox_checkout_submit_missing');
+  console.log('Stripe TEST hosted submit actionability:',JSON.stringify({attempted,lastReason}));
+  throw new Error('sandbox_checkout_submit_missing_or_not_clickable');
  }
 
  try{await page.waitForURL(u=>u.origin===base,{timeout:45000,waitUntil:'domcontentloaded'});}catch{
