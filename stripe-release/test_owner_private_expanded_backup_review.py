@@ -130,6 +130,40 @@ class ExpandedBackupReview(unittest.TestCase):
                 review.private_decrypt(path,'synthetic-WRONG-password-not-real')
             self.assertEqual(review.private_decrypt(path,secret),source)
 
+    @unittest.skipUnless(shutil.which('gpg'), 'GPG not installed')
+    def test_multiple_private_candidates_stay_local_and_password_is_checked_without_cache(self):
+        spec=importlib.util.spec_from_file_location(
+            'private_writer_helper_multiple',DIR/'owner-private-local-orders-backup.py')
+        helper=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        import unittest.mock
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            a=root/'kandorty-expanded-firestore-older.json.gpg'
+            b=root/'kandorty-expanded-firestore-newer.json.gpg'
+            for p,secret in [(a,'synthetic-old-passphrase-2026'),
+                             (b,'synthetic-new-passphrase-2026')]:
+                enc=helper.gpg_with_secret(secret,
+                    ['--no-symkey-cache','--symmetric','--cipher-algo','AES256',
+                     '--output',str(p)],json.dumps(snapshot()).encode('utf-8'))
+                self.assertEqual(enc.returncode,0)
+            os.utime(a,(10000,10000))
+            os.utime(b,(20000,20000))
+            with unittest.mock.patch.object(review,'PRIVATE_DIR',root):
+                files=review.private_backup_candidates()
+                self.assertEqual(files,[b,a])
+                self.assertEqual(len(files),2)
+                with self.assertRaisesRegex(ValueError,'private_decryption_or_integrity_failed'):
+                    review.private_decrypt(b,'synthetic-old-passphrase-2026')
+                self.assertEqual(review.private_decrypt(a,'synthetic-old-passphrase-2026'),
+                                 snapshot())
+
+    def test_password_no_match_diagnostic_is_private(self):
+        self.assertEqual(
+            review.error_code(ValueError('private_password_not_matched_to_local_expanded_backup')),
+            'GPG_PASSPHRASE_DID_NOT_UNLOCK_ANY_EXPANDED_BACKUP')
+
     def test_private_error_codes_are_diagnostic_without_leaking_sensitive_values(self):
         self.assertEqual(
             review.error_code(ValueError('private_decryption_or_integrity_failed')),
@@ -155,6 +189,8 @@ class ExpandedBackupReview(unittest.TestCase):
         self.assertIn('EXPANDED_BACKUP_DECRYPTION_AND_INTEGRITY: PASS',src)
         self.assertIn('EXPANDED_REVIEW_STAGE: STRUCTURE_CHECK',src)
         self.assertIn('EXPANDED_PRIVATE_ENCRYPTED_FILE_FOUND: YES',src)
+        self.assertIn('EXPANDED_LOCAL_BACKUP_CANDIDATE_COUNT:',src)
+        self.assertIn("'--no-symkey-cache','--decrypt'",src)
         self.assertNotIn('print(data)',src)
         self.assertNotIn('print(exc)',src)
         self.assertNotIn('traceback.print_exc',src)
