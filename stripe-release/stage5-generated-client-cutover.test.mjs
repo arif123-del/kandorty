@@ -39,10 +39,10 @@ test('unpublished Stage5 web/admin review routes NEW COD+card through server, ne
   const cancelGateEnd=web.indexOf('  return;',cancelGateStart)+ '  return;'.length;
   assert.ok(cancelGateStart>cancelStart&&cancelGateEnd>cancelGateStart);
   const guardedCancel=web.slice(cancelStart,cancelGateEnd);
-  assert.match(guardedCancel,/if\\(secure\\.ownsReceipt\\(orderId\\)\\)/);
-  assert.match(guardedCancel,/await secure\\.cancel\\(orderId\\)/);
+  assert.ok(guardedCancel.includes('if(secure.ownsReceipt(orderId))'));
+  assert.ok(guardedCancel.includes('await secure.cancel(orderId)'));
   assert.match(guardedCancel,/Legacy order cannot be cancelled here/);
-  assert.doesNotMatch(guardedCancel,/db\\.collection|runTransaction|batch\\.commit|restoreCustomerCancelledStock/);
+  assert.ok(!['db.collection','runTransaction','batch.commit','restoreCustomerCancelledStock'].some(x=>guardedCancel.includes(x)));
 
   const adminStart=admin.indexOf('async function updateOrderStatus(id,status){');
   const adminEnd=admin.indexOf('const SETTINGS_KEY=',adminStart);
