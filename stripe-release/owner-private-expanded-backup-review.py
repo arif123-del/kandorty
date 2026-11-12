@@ -116,13 +116,18 @@ def audit(data):
         'PRODUCTION_RELEASE_AUTHORIZED':'NO',
     }
 
-def newest_private_backup():
+def private_backup_candidates():
+    # Private metadata only: no filenames or order codes are printed.
     require(PRIVATE_DIR.is_dir() and not PRIVATE_DIR.is_symlink(),
             'private_directory_missing_or_unsafe')
     files=[p for p in PRIVATE_DIR.glob(PREFIX+'*'+SUFFIX)
            if p.is_file() and not p.is_symlink()]
     require(bool(files),'no_expanded_backup_file_found')
-    return max(files,key=lambda p:p.stat().st_mtime_ns)
+    require(len(files)<=25,'too_many_private_backup_candidates')
+    return sorted(files,key=lambda p:p.stat().st_mtime_ns,reverse=True)
+
+def newest_private_backup():
+    return private_backup_candidates()[0]
 
 def private_decrypt(path,password):
     # Use the EXACT same passphrase-fd pipe helper that the expanded-backup
@@ -140,7 +145,9 @@ def private_decrypt(path,password):
         HERE/'owner-private-local-orders-backup.py')
     mod=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    result=mod.gpg_with_secret(password,['--decrypt',str(path)])
+    # Bypass GPG symmetric-key passphrase cache: verify the ACTUAL supplied
+    # passphrase, not a previously cached secret from another backup.
+    result=mod.gpg_with_secret(password,['--no-symkey-cache','--decrypt',str(path)])
     require(result.returncode==0 and
             0<len(result.stdout)<=300*1024*1024,
             'private_decryption_or_integrity_failed')
@@ -152,15 +159,33 @@ def private_decrypt(path,password):
 def main():
     require(len(sys.argv)==1 and sys.stdin.isatty(),'private_interactive_shell_only')
     print('KANDORTY_EXPANDED_BACKUP_OFFLINE_STRUCTURAL_REVIEW: NO NETWORK OR WRITES')
-    print('Uses the latest private expanded .json.gpg in the owner Cloud Shell.')
+    print('Checks encrypted expanded backups newest first in the owner Cloud Shell.')
     print('Private codes/customer data are never displayed. Do not share password.')
-    path=newest_private_backup()
+    candidates=private_backup_candidates()
     print('EXPANDED_PRIVATE_ENCRYPTED_FILE_FOUND: YES',flush=True)
-    print('SELECTED_NEWEST_BACKUP_SHA256_PREFIX:',
-          hashlib.sha256(path.read_bytes()).hexdigest()[:12],flush=True)
-    print('EXPANDED_REVIEW_STAGE: DECRYPTION',flush=True)
+    print('EXPANDED_LOCAL_BACKUP_CANDIDATE_COUNT:',len(candidates),flush=True)
+    print('EXPANDED_REVIEW_STAGE: DECRYPTION_WITHOUT_GPG_CACHE',flush=True)
     secret=getpass.getpass('Private GPG passphrase: ')
-    data=private_decrypt(path,secret)
+    # ONE password prompt. A previous expanded file may use this password
+    # while the newest one was created with another. Never display filenames.
+    matched=None
+    data=None
+    for index,path in enumerate(candidates,1):
+        try:
+            candidate_data=private_decrypt(path,secret)
+        except ValueError as exc:
+            if str(exc)=='private_decryption_or_integrity_failed':
+                continue
+            raise
+        matched=(index,path)
+        data=candidate_data
+        break
+    if matched is None:
+        raise ValueError('private_password_not_matched_to_local_expanded_backup')
+    index,path=matched
+    print('EXPANDED_MATCHING_BACKUP_POSITION:',index,flush=True)
+    print('SELECTED_BACKUP_SHA256_PREFIX:',
+          hashlib.sha256(path.read_bytes()).hexdigest()[:12],flush=True)
     print('EXPANDED_BACKUP_DECRYPTION_AND_INTEGRITY: PASS',flush=True)
     print('EXPANDED_REVIEW_STAGE: STRUCTURE_CHECK',flush=True)
     result=audit(data)
@@ -190,7 +215,8 @@ SAFE_CODES=frozenset((
 ))
 PRIVATE_DECRYPT_CODES=frozenset((
     'private_backup_unavailable','private_backup_invalid_size_or_name',
-    'private_password_too_short','private_decryption_or_integrity_failed'
+    'private_password_too_short','private_decryption_or_integrity_failed',
+    'private_password_not_matched_to_local_expanded_backup'
 ))
 
 def error_code(exc):
@@ -202,6 +228,8 @@ def error_code(exc):
                 return 'GPG_PASSWORD_OR_FILE_INTEGRITY_FAILED'
             if raw=='private_password_too_short':
                 return 'GPG_PASSWORD_TOO_SHORT'
+            if raw=='private_password_not_matched_to_local_expanded_backup':
+                return 'GPG_PASSPHRASE_DID_NOT_UNLOCK_ANY_EXPANDED_BACKUP'
             return 'PRIVATE_ENCRYPTED_FILE_UNAVAILABLE'
     return 'LOCAL_PRIVATE_CHECK_FAILED'
 
