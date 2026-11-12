@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 HERE=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location(
   'nonfirestore_owner_private_probe',HERE/'owner-private-nonfirestore-coverage-readonly.py')
@@ -27,7 +28,31 @@ class ScopeReadOnlyTests(unittest.TestCase):
                   'OBJECTS_PRESENT')
   self.assertEqual(impl.verdict('STORAGE_OLD',{'items':[]}),
                   'NO_OBJECTS_IN_FIRST_PAGE')
-  self.assertEqual(impl.verdict('STORAGE_NEW',None),'ACCESS_UNAVAILABLE')
+  self.assertEqual(impl.verdict('STORAGE_NEW',None),'ACCESS_UNAVAILABLE_UNCLASSIFIED')
+ def test_denials_are_safe_distinct_http_categories_without_private_response(self):
+  cases={
+   400:'HTTP_400_INVALID_REQUEST',
+   401:'HTTP_401_AUTHENTICATION',
+   403:'HTTP_403_ACCESS_OR_API_DISABLED',
+   404:'HTTP_404_RESOURCE_NOT_FOUND',
+   429:'HTTP_429_RATE_LIMIT',
+   503:'HTTP_5XX_SERVER'}
+  for status,expected in cases.items():
+   with self.subTest(status=status):
+    error=HTTPError('https://identitytoolkit.googleapis.com/SECRET_DO_NOT_LOG',
+                    status,'SENSITIVE_ERR_BODY',None,None)
+    with patch.object(impl.OPENER,'open',side_effect=error):
+     got=impl.verdict('AUTH',impl.safe_read(impl.SOURCES['AUTH'],'FAKE_TOKEN'))
+     self.assertEqual(got,expected)
+     self.assertNotIn('SENSITIVE',got)
+ def test_readonly_network_timeout_is_explicitly_distinct_from_http_denial(self):
+  with patch.object(impl.OPENER,'open',side_effect=URLError('PRIVATE_ENDPOINT')):
+   self.assertEqual(impl.verdict('RULES',impl.safe_read(
+     impl.SOURCES['RULES'],'FAKE_TOKEN')),'NETWORK_OR_TIMEOUT')
+ def test_https_get_only_probe_error_output_does_not_false_claim_absence(self):
+  for code in ('HTTP_403_ACCESS_OR_API_DISABLED','HTTP_404_RESOURCE_NOT_FOUND'):
+   self.assertEqual(impl.verdict('STORAGE_NEW',{'_safe_probe_error':code}),code)
+   self.assertNotIn('NO_OBJECTS',code)
  def test_never_uses_write_methods_or_echoes_auth_or_object_data(self):
   src=(HERE/'owner-private-nonfirestore-coverage-readonly.py').read_text()
   self.assertIn("method='GET'",src)
