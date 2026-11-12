@@ -60,10 +60,11 @@ async function payHosted(){
    throw error;
   }
  }
- // Some Sandbox configurations require an additional phone; enter synthetic
- // E.164 test-only contact in whichever visible hosted field is present.
- await fillAny(['input[name="phoneNumber"]','input[name="linkMobilePhone"]','input[autocomplete="tel"]'],'+14155550123',3500);
- // This does not alter the trusted order's UAE customer/shipping fields.
+ // Fill a standalone checkout-phone field only if it exists. The optional
+ // Link enrollment phone is NOT the customer's payment phone field and
+ // entering it after Link opt-out can trigger a blocking sign-up overlay.
+ // This does not alter trusted order customer/shipping fields.
+ await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+14155550123',1400);
  // Stripe Checkout may render its submit control in a payment frame, or
  // expose a data-testid instead of a type=submit button. Search only for
  // explicit checkout submit controls; never click express/Google/Apple Pay.
@@ -110,6 +111,16 @@ async function payHosted(){
     disabled:x.disabled,ariaDisabled:x.getAttribute('aria-disabled')
    })).slice(0,8)));}catch{}
   }
+  // Metadata only: do not log card, contact, tokens, network headers or values.
+  const invalidFields=[],hostAlerts=[];
+  for(const frame of page.frames()){
+   try{
+    invalidFields.push(await frame.locator('input').evaluateAll(xs=>xs.filter(x=>x.offsetParent!==null&&x.getAttribute('aria-invalid')==='true').map(x=>({name:x.getAttribute('name'),type:x.type,invalid:true})).slice(0,12)));
+    hostAlerts.push((await frame.locator('[role=alert],.InputError').allTextContents()).map(x=>x.slice(0,140)).slice(0,5));
+   }catch{}
+  }
+  console.log('Stripe TEST form invalid field NAMES:',JSON.stringify(invalidFields));
+  console.log('Stripe TEST form validation alerts:',JSON.stringify(hostAlerts));
   console.log('Stripe TEST hosted submit metadata:',JSON.stringify(metadata));
   console.log('Stripe TEST hosted submit actionability:',JSON.stringify({attempted,lastReason}));
   throw new Error('sandbox_checkout_submit_missing_or_not_clickable');
