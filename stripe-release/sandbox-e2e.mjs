@@ -35,12 +35,25 @@ async function payHosted(){
    throw error;
   }
  }
- await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'94105',2500);
- await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+14155550123',2500);
- // Use matching synthetic US test billing details because Stripe's hosted
- // validation rejects ZIP 00000 and may treat an AE-formatted phone as
- // incomplete when its phone-country selector stays at the default US.
- // This does NOT modify the Kandorty order shipping address or customer.
+ // Checkout's hosted payment-frame fields have evolved: test logs show
+ // input[name=postalCode] and the optional Link input[name=linkMobilePhone].
+ // Prefer the exact visible fields instead of silently leaving them empty.
+ assert.ok(await fillAny(['input[name="postalCode"]','input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'94105',6000),'Synthetic Sandbox ZIP field unavailable');
+ // This flow tests the plain TEST card, NOT Link. Uncheck optional Link opt-in
+ // when present, to prevent accidental Link signup or phone verification.
+ for(const frame of page.frames()){
+  try{
+   const link=frame.locator('input[name="linkOptIn"]').first();
+   if(await link.count()&&await link.isVisible()&&await link.isChecked())await link.uncheck({timeout:1500});
+  }catch(error){
+   if(/frame was detached|execution context was destroyed|target closed/i.test(String(error?.message||'')))continue;
+   throw error;
+  }
+ }
+ // Some Sandbox configurations require an additional phone; enter synthetic
+ // E.164 test-only contact in whichever visible hosted field is present.
+ await fillAny(['input[name="phoneNumber"]','input[name="linkMobilePhone"]','input[autocomplete="tel"]'],'+14155550123',3500);
+ // This does not alter the trusted order's UAE customer/shipping fields.
  // Stripe Checkout may render its submit control in a payment frame, or
  // expose a data-testid instead of a type=submit button. Search only for
  // explicit checkout submit controls; never click express/Google/Apple Pay.
