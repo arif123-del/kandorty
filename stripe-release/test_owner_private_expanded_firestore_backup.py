@@ -102,6 +102,47 @@ class SafeExpandedFirestoreBackupTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'nested_depth_limit'):
             module.crawl(deep_ids,deep_docs)
 
+    def test_expanded_backup_is_structurally_checked_before_and_after_gpg(self):
+        ids,docs=fixtures(nested=True)
+        def enough_docs(parent,collection):
+            rows=docs(parent,collection)
+            if parent==ROOT and collection in ('order_edits','order_access'):
+                rows.extend(row(ROOT,collection,'safe-'+str(i)) for i in range(23))
+            return rows
+        data=module.crawl(ids,enough_docs)
+        export={
+            'format':'kandorty-private-all-firestore-collections-json-v1',
+            'sourceProject':'kandorty-9378a',
+            'database':'(default)',
+            'rootCollectionCount':data['rootCollectionCount'],
+            'collectionCount':data['collectionCount'],
+            'documentCount':data['documentCount'],
+            'consistency':'SEQUENTIAL READS - NOT TRANSACTIONAL / NOT POINT IN TIME',
+            'collections':data['collections'],
+        }
+        original=copy.deepcopy(export)
+        result=module.verify_expanded_structure(export)
+        self.assertEqual(result['ROOT_COLLECTIONS_VERIFIED'],11)
+        self.assertEqual(result['ORDERS_VERIFIED'],99)
+        self.assertEqual(result['TRACKING_VERIFIED'],99)
+        self.assertEqual(result['DOCUMENTS_VERIFIED'],254)
+        self.assertEqual(export,original)
+        # This structural preflight intentionally refuses an incomplete
+        # or inconsistent source *before* any encrypted backup is written.
+        export['collections']['tracking'][0]['fields']['status']={
+            'stringValue':'cancelled'}
+        with self.assertRaisesRegex(ValueError,'order_tracking_status_mismatch'):
+            module.verify_expanded_structure(export)
+
+    def test_cache_free_writer_self_checks_both_decryption_and_structure(self):
+        text=(HERE/'owner-private-expanded-firestore-backup.py').read_text()
+        self.assertIn("expected_structure=verify_expanded_structure(export)",text)
+        self.assertIn("verified_structure=verify_expanded_structure(restored_json)",text)
+        self.assertIn("verified_structure==expected_structure",text)
+        self.assertIn("print('ENCRYPTED_EXPANDED_BACKUP_STRUCTURE: PASS')",text)
+        self.assertIn("'--no-symkey-cache','--decrypt'",text)
+        self.assertIn("'--no-symkey-cache','--symmetric'",text)
+
     def test_no_firestore_mutations_or_plaintext_backup_files(self):
         src=(HERE/'owner-private-expanded-firestore-backup.py').read_text()
         self.assertIn("path.endswith(':listCollectionIds')",src)
