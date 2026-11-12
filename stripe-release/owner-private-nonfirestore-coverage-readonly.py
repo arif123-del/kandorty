@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Kandorty owner-only READ ONLY non-Firestore recovery scope access check.
+
+Run locally in owner's already-authenticated Google Cloud Shell. It uses
+gcloud's existing login. No new service-account key, password or billing card.
+It NEVER writes to production, downloads user data to a file, or prints Auth
+accounts, private object names, rules contents, UIDs, emails or tokens.
+Only presence/access information. Not a backup or release approval.
+"""
+import json
+import subprocess
+from urllib.parse import quote
+from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.error import HTTPError, URLError
+import sys
+
+class NoExternalRedirects(HTTPRedirectHandler):
+ def redirect_request(self,req,fp,code,msg,headers,newurl):
+  raise ValueError('external_or_unexpected_redirect')
+
+OPENER=build_opener(NoExternalRedirects())
+
+PROJECT='kandorty-9378a'
+SOURCES={
+ 'AUTH':'https://identitytoolkit.googleapis.com/v1/projects/'+PROJECT+'/accounts:batchGet?maxResults=1',
+ 'RULES':'https://firebaserules.googleapis.com/v1/projects/'+PROJECT+'/releases?pageSize=10',
+ 'STORAGE_NEW':'https://storage.googleapis.com/storage/v1/b/'+quote(PROJECT+'.firebasestorage.app',safe='')+'/o?maxResults=1',
+ 'STORAGE_OLD':'https://storage.googleapis.com/storage/v1/b/'+quote(PROJECT+'.appspot.com',safe='')+'/o?maxResults=1',
+}
+def require(x,msg):
+ if not x:raise ValueError(msg)
+
+def safe_read(url,token):
+ require(url in SOURCES.values(),'non_allowlisted_resource')
+ request=Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'},method='GET')
+ try:
+  with OPENER.open(request,timeout=20) as response:
+   raw=response.read(2*1024*1024+1)
+  require(len(raw)<=2*1024*1024,'oversized_private_metadata_response')
+  data=json.loads(raw)
+  require(isinstance(data,dict),'unexpected_read_only_response')
+  return data
+ except HTTPError as exc:
+  # The old script hid all these distinct statuses as ACCESS_UNAVAILABLE.
+  # Only a numeric category is exposed, never the API response, URL, user
+  # account, storage path, Rules contents or token.
+  code=exc.code
+  if code==400:return {'_safe_probe_error':'HTTP_400_INVALID_REQUEST'}
+  if code==401:return {'_safe_probe_error':'HTTP_401_AUTHENTICATION'}
+  if code==403:return {'_safe_probe_error':'HTTP_403_ACCESS_OR_API_DISABLED'}
+  if code==404:return {'_safe_probe_error':'HTTP_404_RESOURCE_NOT_FOUND'}
+  if code==429:return {'_safe_probe_error':'HTTP_429_RATE_LIMIT'}
+  if 500<=code<=599:return {'_safe_probe_error':'HTTP_5XX_SERVER'}
+  return {'_safe_probe_error':'OTHER_HTTP_FAILURE'}
+ except (URLError,TimeoutError):
+  return {'_safe_probe_error':'NETWORK_OR_TIMEOUT'}
+ except (ValueError,OverflowError):
+  return {'_safe_probe_error':'INVALID_RESPONSE_OR_REDIRECT'}
+
+def verdict(label,data):
+ if data is None:return 'ACCESS_UNAVAILABLE_UNCLASSIFIED'
+ if isinstance(data,dict) and '_safe_probe_error' in data:
+  return data['_safe_probe_error']
+ if label=='AUTH':
+  return 'USERS_PRESENT' if data.get('users') or data.get('accounts') else 'NO_USERS_IN_FIRST_PAGE'
+ if label=='RULES':
+  return 'RELEASES_PRESENT' if data.get('releases') else 'NO_RELEASES_LISTED'
+ return 'OBJECTS_PRESENT' if data.get('items') else 'NO_OBJECTS_IN_FIRST_PAGE'
+
+def main():
+ print('KANDORTY_PRIVATE_RECOVERY_SCOPE: READ_ONLY_NO_PII')
+ print('No files created. No production orders, storage, rules or accounts modified.\nOnly safe HTTP status categories, not response details, are shown.')
+ token=subprocess.run(['gcloud','auth','print-access-token'],capture_output=True,
+       check=False,timeout=35,text=True)
+ require(token.returncode==0 and len(token.stdout.strip())>30,'existing_gcloud_login_unavailable')
+ for label,url in SOURCES.items():
+  print('NONFIRESTORE_'+label+': '+verdict(label,safe_read(url,token.stdout.strip())))
+ print('AUTH_USER_EXPORT_COMPLETED: NO')
+ print('CLOUD_STORAGE_OBJECT_BACKUP_COMPLETED: NO')
+ print('DEPLOYED_RULES_SOURCE_BACKUP_COMPLETED: NO')
+ print('MANAGED_RESTORE_COMPLETED: NO')
+ print('PRODUCTION_WRITES: NONE')
+ print('STAGE4_RELEASE_APPROVED: NO')
+
+if __name__=='__main__':
+ try:main()
+ except (ValueError,OSError,TimeoutError,TypeError):
+  print('NONFIRESTORE_SCOPE_PROBE: BLOCKED_NO_DETAILS',file=sys.stderr)
+  sys.exit(2)

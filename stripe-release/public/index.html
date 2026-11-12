@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kandorty Stripe TEST ONLY</title><style>body{font:18px system-ui;max-width:640px;margin:3rem auto;padding:1rem}input,button{display:block;padding:12px;margin:12px 0;width:100%;box-sizing:border-box}pre{white-space:pre-wrap}</style><h1>Kandorty — TEST ONLY</h1><p>Isolated Stripe Sandbox checkout. Synthetic orders only. No real charges.</p><label>Private staging access<input id="gate" type="password" autocomplete="off"></label><label>Test product ID<input id="product" autocomplete="off"></label><button id="start">Pay AED 35 in Sandbox</button><button id="refresh">Check my order</button><button id="cod">Create COD TEST order</button><button id="cod-track">Track COD TEST order</button><button id="cod-cancel">Cancel COD TEST order</button><pre id="status" role="status"></pre><script type="module">
+import {stripeCheckoutClient} from './browser-client.mjs';
+const status=document.querySelector('#status'),gate=document.querySelector('#gate'),product=document.querySelector('#product');
+gate.value=sessionStorage.getItem('stripe_test_gate')||'';product.value=sessionStorage.getItem('stripe_test_product')||'';
+const client=stripeCheckoutClient({endpoint:location.origin,storage:localStorage});
+async function refresh(){try{const r=await client.status(gate.value);status.textContent=r.paid?'Order registered: '+r.order.id+' | '+r.order.inventoryStatus:'Payment pending';}catch(e){status.textContent=e.message;}}
+document.querySelector('#refresh').onclick=refresh;
+document.querySelector('#start').onclick=async()=>{try{sessionStorage.setItem('stripe_test_gate',gate.value);sessionStorage.setItem('stripe_test_product',product.value);const r=await client.start({stagingKey:gate.value,customer:{name:'SYNTHETIC TEST',phone:'+971500000000',city:'Dubai',location:'TEST ONLY'},items:[{id:product.value,qty:1}]});if(r.url)location.assign(r.url);else await refresh();}catch(e){status.textContent=e.message;}};
+// Test-only COD controls use the SAME isolated Worker and a server-issued receipt.
+const lastCodKey='kandorty_last_test_cod_order_id';
+function codId(){
+ const id=localStorage.getItem(lastCodKey)||'';
+ if(!/^KD-\d{8}$/.test(id)||!client.hasReceipt(id))throw new Error('missing_synthetic_cod_receipt');
+ return id;
+}
+function rememberTestSettings(){
+ sessionStorage.setItem('stripe_test_gate',gate.value);
+ sessionStorage.setItem('stripe_test_product',product.value);
+}
+function testOrder(){
+ return {stagingKey:gate.value,
+  customer:{name:'SYNTHETIC COD TEST',phone:'+971500000000',city:'Dubai',location:'TEST ONLY'},
+  items:[{id:product.value,qty:1}]};
+}
+document.querySelector('#cod').onclick=async()=>{
+ try{
+  rememberTestSettings();
+  const r=await client.startCod(testOrder());
+  localStorage.setItem(lastCodKey,r.order.id);
+  status.textContent='COD TEST registered: '+r.order.id+' | server total AED '+r.order.total;
+ }catch(e){status.textContent=e.message;}
+};
+document.querySelector('#cod-track').onclick=async()=>{
+ try{const id=codId(),r=await client.track(id,gate.value);
+  if(r?.order?.id!==id||!r.registered)throw new Error('cod_status_not_confirmed');
+  status.textContent='COD TEST status: '+r.order.id+' | '+r.order.status;
+ }catch(e){status.textContent=e.message;}
+};
+document.querySelector('#cod-cancel').onclick=async()=>{
+ try{const id=codId(),r=await client.cancel(id,gate.value);
+  status.textContent='COD TEST cancelled: '+r.order.id;
+ }catch(e){status.textContent=e.message;}
+};
+if(new URLSearchParams(location.search).get('stripe')==='success')refresh();
+</script></html>

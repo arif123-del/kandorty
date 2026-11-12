@@ -1,0 +1,37 @@
+name: Stripe Live prerequisites presence only - NO API CALLS
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths: ['.github/workflows/stripe-release-live-readiness.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  presence-only:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Report named secret readiness without printing or using secrets
+        env:
+          LIVE_KEY: ${{ secrets.STRIPE_LIVE_SECRET_KEY }}
+          GENERIC_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          LIVE_WEBHOOK: ${{ secrets.STRIPE_LIVE_WEBHOOK_SECRET }}
+          BOT_SECRET: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          BOT_SITE: ${{ secrets.TURNSTILE_SITE_KEY }}
+          LIVE_DATABASE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const e=process.env;
+          let project='';try{project=JSON.parse(e.LIVE_DATABASE||'{}').project_id||'';}catch{}
+          const report={
+            liveStripeKeyInNamedRepositorySecrets:/^sk_live_/.test((e.LIVE_KEY||e.GENERIC_KEY||'').trim()),
+            dedicatedLiveWebhookSecret:/^whsec_/.test((e.LIVE_WEBHOOK||'').trim()),
+            turnstileSecretPresent:!!e.BOT_SECRET,
+            turnstileSiteKeyPresent:!!e.BOT_SITE,
+            productionServiceAccountPresent:project==='kandorty-9378a'
+          };
+          for(const [name,ready] of Object.entries(report)){const line=name+': '+(ready?'PRESENT (not validated with provider)':'MISSING from checked names');console.log(line);fs.appendFileSync(e.GITHUB_STEP_SUMMARY,line+'\n\n');}
+          console.log('No key values, provider requests, deployment, production mutation or Live activation.');
+          JS

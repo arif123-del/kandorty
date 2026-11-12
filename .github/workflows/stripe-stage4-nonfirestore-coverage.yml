@@ -1,0 +1,53 @@
+name: Kandorty Stage4 Auth Storage Rules recovery coverage READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/workflows/stripe-stage4-nonfirestore-coverage.yml'
+      - '.github/scripts/stripe-stage4-nonfirestore-coverage-readonly.mjs'
+      - 'stripe-release/nonfirestore-recovery-gate.mjs'
+      - 'stripe-release/nonfirestore-recovery-gate.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nonfirestore-coverage-metadata-only:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify no false Auth Storage Rules recovery claims
+        run: node --test stripe-release/nonfirestore-recovery-gate.test.mjs
+      - name: Check access script has only read-only metadata operations
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const s=fs.readFileSync('.github/scripts/stripe-stage4-nonfirestore-coverage-readonly.mjs','utf8');
+          for(const bad of ['.createUser(','.deleteUser(','.updateUser(',
+              '.createWriteStream(','.save(','.upload(','.deleteFiles(',
+              '.makePublic(','.setMetadata(','.setCustomUserClaims(',
+              'method:\'POST\'', 'method:\'PUT\'', 'method:\'PATCH\'']){
+            assert.ok(!s.includes(bad),'write operation not allowed in metadata probe');
+          }
+          assert.ok(s.includes('listUsers(1)'));
+          assert.ok(s.includes('getFiles({'));
+          assert.ok(s.includes('method:\'GET\''));
+          assert.ok(!s.includes('console.log(first.users)'));
+          console.log('AUTH_STORAGE_RULES_METADATA_PROBE: READ_ONLY_NO_PII');
+          JS
+      - name: Install scoped Firebase Admin metadata reader
+        run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Read only non-Firestore recovery gap - never print user data or tokens
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-stage4-nonfirestore-coverage-readonly.mjs
+      - name: Preserve no-live-action boundary
+        if: always()
+        run: echo 'Only metadata GET/list operations; no Auth export, Storage object backup, rules source backup, writes, Stripe Live or release authorized.'

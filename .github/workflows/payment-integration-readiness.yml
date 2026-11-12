@@ -1,0 +1,31 @@
+name: Joint payment test credential readiness (read only)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths: ['.github/workflows/payment-integration-readiness.yml']
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Report credential presence only
+        env:
+          STRIPE: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+          ZIINA_TEST: ${{ secrets.ZIINA_TEST_API_KEY }}
+          ZIINA: ${{ secrets.ZIINA_API_KEY }}
+          FIREBASE: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import os,json
+          print('Stripe Sandbox key: '+('ready' if os.getenv('STRIPE','').startswith('sk_test_') else 'missing'))
+          print('Ziina test key: '+('ready' if os.getenv('ZIINA_TEST') else 'missing'))
+          print('Ziina existing repo key: '+('ready' if os.getenv('ZIINA') else 'missing'))
+          try:
+              sa=json.loads(os.getenv('FIREBASE','{}'))
+              ready=sa.get('project_id')=='kandorty-stripe-test-5f8af'
+          except Exception:
+              ready=False
+          print('Isolated Firebase credential: '+('ready' if ready else 'missing'))
+          PY

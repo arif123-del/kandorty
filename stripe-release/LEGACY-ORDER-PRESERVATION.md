@@ -1,0 +1,270 @@
+# Kandorty historical-order preservation — release blocker
+
+**Status: PREPARED / NO PRODUCTION MIGRATION.** This checklist is for review on GitHub PR #2. It does not authorize merging, publishing rules, enabling Live payments, or rewriting any order.
+
+## 2026-11-11 Stage 4 recovery rehearsal — only synthetic Firestore emulator data
+
+A **no-credentials local Firestore emulator** rebuilt and reread **254 fake documents** (99 synthetic orders + 99 tracking + 28 order edits + 28 access + 0 lifecycle ledgers). All Firestore typed fields, 99 order/tracking status pairs and representative 18-case overlapping exception markers were verified. [GitHub Action PASS](https://github.com/arif123-del/kandorty/actions/runs/42973868133). No production project, private owner backup, user/customer identity, Stripe key, real order, stock or Firebase Rules was used or changed.
+
+This closes only the **synthetic Firestore document reconstruction test**. It does **not** close the 18 owner-held real cases, prove a successful protected restore from the owner backup, or replace managed Firestore export/recovery rehearsal. Production remains **NO-GO** until independently evidenced reconciliation, a full protected backup/restore and old/new client compatibility approval.
+
+## Owner-held LOCAL encrypted backup — 2026-11-10 (NOT a managed Firestore export)
+
+The owner used the owner-only Cloud Shell local JSON fallback, after confirming
+the production project has no listed Cloud Storage bucket and Cloud Billing
+is disabled. The owner reported the downloaded encrypted GPG file is **7.1 MB**
+and successfully decrypted/parsed it **in their own Cloud Shell**, showing
+`ORDERS_SAVED: 99` and `TOTAL_DOCUMENTS: 254` across five top-level
+collections: `orders`, `tracking`, `order_edits`, `order_access`, and
+`order_lifecycle`. No customer contact fields or plaintext files were shared
+with ChatGPT or uploaded to GitHub. This is owner-reported verification,
+**not** a connector-observed read of the private backup, nor a restoration test.
+
+The backup is a sequential, read-only JSON extraction encrypted locally
+with a password known only to the owner, and a second encrypted file copy
+was downloaded to their device. It is **not** a Firestore managed export,
+not a point-in-time snapshot, and does **not** include every collection,
+nested subcollections, Storage objects, Auth users or Firebase Rules.
+Google Cloud billing and bucket remain unconfigured; the official protected
+managed export remains **NOT DONE**. The owner must safely retain the
+password and separately verify retained off-Cloud-Shell file readability.
+No production cutover may treat this partial backup as a full recovery plan.
+
+## 2026-11-11 non-mutating exception coverage and conservative TEST-only blocking
+
+A new synthetic 99-order test reproduces **18 unique flagged cases
+with 21 overlapping category hits** (4 locks, 3 cancellation requests,
+11 unknown origins, 3 stock-restoration evidence markers overlapping
+cancelled cases). The owner's actual private overlap relationships are
+unknown and were not exported. [Offline CI 42899068800](https://github.com/arif123-del/kandorty/actions/runs/42899068800)
+passed 24 synthetic checks. Also, the isolated TEST-only legacy
+status-transition policy refuses otherwise-active legacy records if
+historical `cancelledBy` or `cancelStockRestoredAt` evidence appears,
+preventing silent escalation or reuse of questionable stock history.
+[Release readiness CI 42899322217](https://github.com/arif123-del/kandorty/actions/runs/42899322217)
+passed. Nothing was modified in production.
+
+This is additional **prepared code safety**, not reconciliation of a
+single live case or proof of a full recoverable backup. All 18 real
+cases remain unreviewed and NO-GO persists.
+
+## 2026-11-11 owner-confirmed generation of a private encrypted manual-review docket (READ ONLY)
+
+The owner has now run the locally checked-out exception-docket tool with their own private GPG password in Cloud Shell. Their **aggregate-only** terminal report says:
+
+- `BACKUP_ORDERS_INSPECTED: 99`
+- `UNIQUE_ORDERS_REQUIRING_REVIEW: 18`
+- Review categories: 4 processing lock, 3 pending customer cancellations, 3 stock-restoration-evidence markers, 11 unknown cancellation origins.
+- `PRIVATE_ENCRYPTED_DOCKET_CREATED: YES`
+- `PRODUCTION_ORDER_CHANGES: NONE`; `LIVE_RELEASE_OR_AUTOMATIC_RESTOCK_AUTHORIZED: NO`.
+
+Flag hits total 21 across just 18 unique orders and therefore **overlap**. It does not establish exactly which categories share a record, nor permission to attribute stock restoration, payment, cancellation actor or refund. The private encrypted docket remains **only in the owner's Cloud Shell**, with no order IDs, contact details, decryption password or ciphertext sent to the assistant or GitHub. This is owner-attested file creation, not a managed Firestore export, real restore test or live order reconciliation.
+
+**Status remains NO-GO** for production. The 18 cases must be privately assessed without auto-updating any historical order/stock/payment fields. The document below retains the preparation record for audit history.
+
+## 2026-11-11 — private encrypted exception docket is prepared (NOT EXECUTED ON REAL BACKUP)
+
+A new [owner-only offline GPG exception docket tool](owner-private-legacy-exception-docket.py)
+was added along with [private run and review instructions](OWNER-LEGACY-EXCEPTION-REVIEW.md).
+It validates the 99-order encrypted snapshot structure before classifying
+individual cases, combines overlapping flags into one entry per order,
+and encrypts **only** the order code, coarse status/method and manual-review
+tags to a new local AES-256 .gpg file. No customer names, phone numbers,
+delivery details, item quantities, payment proofs, contact metadata or
+plaintext report files are created. Its console output contains aggregate
+counts only. The existing source backup is never modified.
+
+[23 synthetic offline tests PASSED](https://github.com/arif123-del/kandorty/actions/runs/42895639209):
+7 backup-structure, 10 overlap-risk and 6 new docket tests, including
+a GPG encryption/decryption roundtrip. This is **not** validation of
+the real private backup or permission to change any live status, inventory,
+refund or payments. Owner's separate Cloud Shell execution is still
+required for the real per-case encrypted queue; none has run via these
+connected tools.
+
+## 2026-11-10 — Owner-only offline cancellation/lock verification (NO MUTATION)
+
+The owner executed the checked-in `owner-private-legacy-risk-report.py`
+locally in Cloud Shell against their private AES-256-encrypted backup
+and provided a screenshot of aggregate counts only. **99 orders and
+254 related top-level documents** were read, not written.
+
+- 4 processing/delivery orders have missing or mismatched cancellation locks.
+- 3 pending customer cancellation indicators were detected.
+- 3 customer-cancelled records carry historical stock-restoration markers;
+  no such record was found missing a marker.
+- 11 cancelled records have no recognized `cancelledBy` source.
+- 0 cancelled card-payment-review flags, 0 invalid payment labels,
+  and 0 trusted `order_lifecycle` documents.
+
+**Do not treat these groups as disjoint:** pending cancellation and stock
+restoration may overlap. The marker shows a historical action was recorded,
+not that product stock quantities, card settlement or refunds were correct.
+Unknown cancellation origin is not evidence of customer or administrator action.
+
+**Safe handling policy until coordinated cutover:**
+
+1. Maintain order and tracking status as found; never backfill cancellation
+   lock metadata automatically for the 4 processing cases.
+2. Review 3 cancellation-request cases under authenticated owner control;
+   do not auto-finalize or restock from client-authored quantities.
+3. Preserve the 3 historical restock markers exactly; do not replay a stock
+   increment without independent product stock debit/credit evidence.
+4. Keep the 11 unknown-origin cancellations in a manual exception queue.
+   Never resurrect or reclassify them merely from old status fields.
+5. No retroactive trusted lifecycle ledger, card-payment proof, refund or
+   inventory debit can be synthesized from client-era documents.
+6. Continue to require signed operator identity, isolated fixture verification,
+   an Android compatibility cutover, protected recovery validation and
+   explicit separate production approval.
+
+The checker has [8 successful synthetic offline CI tests](https://github.com/arif123-del/kandorty/actions/runs/42850577369),
+but this reported private aggregate run is owner-attested, not a
+cloud-connected production audit or independent restore test.
+No passwords, customers or order IDs were exported into GitHub.
+
+## 2026-11-10 — Conservative legacy exception collision testing (TEST ONLY)
+
+The server-only legacy status service has **four additional regression tests**
+covering a concurrent customer cancellation request racing an administrator
+status change, four distinct synthetic processing-lock gaps, 11 synthetic
+unknown-origin cancelled orders, and a malicious client-authored quantity
+inside a pending cancellation. A concurrent client edit invalidates the
+transactional read and forces a retry that **rejects** the status change;
+no stock, payment, tracking, cancellation or audit mutation is committed.
+
+[180/180 source tests passed](https://github.com/arif123-del/kandorty/actions/runs/42877834722),
+plus independent proposed Rules emulator checks. These are synthetic
+nonproduction tests; they do **not** unlock the four real processing orders
+or reclassify the 11 unknown-origin cancellations.
+
+The owner-only encrypted backup risk counter now includes cross-cutting
+aggregates so the three cancellation requests cannot be assumed to be
+the same as the three historical stock-restoration markers. It distinguishes
+missing `cancelledBy` fields **including** pending cancellations from
+the previous `cancelled_unknown_origin` category, which excluded cancelled
+orders bearing a pending customer cancellation. Exact per-order overlap
+remains **unknown** until the owner runs the updated private checker.
+
+[17/17 synthetic offline backup and risk tests passed](https://github.com/arif123-del/kandorty/actions/runs/42878539922),
+and output still contains no identifiers, customer data, inventory changes
+or refunded amounts. No live order or Firebase Rules change was made.
+
+## 2026-11-10 — TEST-only masked-write safety improvement
+
+The isolated `legacyStatusTestService` now uses a limited Firestore
+`updateMask` for status, cancellation lock, operator cancellation marker
+and `updatedAt`, instead of rewriting entire historical order and tracking
+documents. This prevents destroying unrelated Firestore-typed fields
+such as timestamps, bytes, geolocations and references from converting
+through the REST JSON packing/unpacking path. The helper rejects all
+production project roots, unrelated collections, paths, arbitrary client
+fields and money/stock/refund mutations. This remains TEST-only;
+the production legacy status UI is **not** migrated.
+
+[Latest source tests](https://github.com/arif123-del/kandorty/actions/runs/42836875133):
+**176/176 passed** plus separate proposed Rules emulator success.
+No live order, original Firebase Rule, Stripe Live or Ziina mutation
+was authorized or performed. Installed Android 2.3.0 remains untested
+against a candidate rollout; old customer cancellation and missing
+processing locks still need an owner-reviewed policy and nonproduction
+acceptance.
+
+## Confirmed snapshot (read-only, 2026-10-29)
+
+- The production project contained **98 orders** in the bounded read-only audit.
+- All 98 were missing matching **trusted** `order_lifecycle` records.
+- 86 were tagged COD and 12 card; status groups were 77 new, 2 preparing, 2 shipping, 3 delivered and 14 cancelled.
+- This is a historical snapshot, **not** a new live count or evidence of payment settlement, available stock, or successful legacy migration.
+
+## Updated production snapshot (READ ONLY, 2026-11-09 UTC)
+
+[Read-only audited GitHub Action](https://github.com/arif123-del/kandorty/actions/runs/42699507328) scanned **99 orders**, versus 98 in the 2026-10-29 baseline. There are now **86 COD and 13 card** by stored payment label, with statuses: **78 new, 2 preparing, 2 shipping, 3 delivered and 14 cancelled**. All 99 have matching tracking statuses, **zero missing tracking documents** and **zero matching trusted `order_lifecycle` ledgers**.
+
+This is a **count-level snapshot**, not identity-by-identity comparison of the original 98, proof of actual paid card settlement, a cryptographic backup or approval to change any record. The audit never printed customer data or any order ID and made **no production writes**.
+
+Consequently, the new-order management endpoint is intentionally unable to update **all 99 currently observed legacy orders**. Before any publication of client-deny Firestore Rules, provide a safe reviewed legacy-only status/cancellation path, verify old Android/WebView compatibility, and obtain a protected owner-held backup. No stock or refund ledger should be inferred.
+
+## 2026-11-10 — additional TEST-only protection work
+
+The future legacy-admin status path now has a **separate TEST-only Firestore REST read-write transaction** in `legacy-status-service.mjs`. The Worker route `/admin/legacy/orders/status` is off unless two private TEST gates are explicitly set, requires existing Firebase ID-token administrator verification and rejects LIVE unconditionally even with those gates. It cannot be used to modify the 99 current production historical orders.
+
+The service atomically reads the order, tracking and trusted lifecycle ledger (including absence), then changes only order/tracking status/lock metadata and creates an immutable audit. It does **not** refund card payments, infer trusted inventory debits, modify product stock, grant customer edit tokens or enable guest cancellation. Ambiguous payment labels, pending customer cancellation, already-processed or cancelled states and ledger-backed orders fail closed.
+
+[Authentic isolated TEST Firestore smoke](https://github.com/arif123-del/kandorty/actions/runs/42703622080) **PASS**: synthetic order + tracking status and audit changed in one transaction; a duplicate status was a no-op. TEST fixtures and obsolete synthetic audit markers were deleted. [169 code tests plus Firestore Rules compatibility](https://github.com/arif123-del/kandorty/actions/runs/42703984347) **PASS**. No production orders, production Rules, main store, Stripe Live or Ziina were changed.
+
+**Still blocked:** controlled backup/export of the current 99 under the owner's protected cloud storage; review and approval of exactly how historical cancellation and stock reconciliation must work; proven compatibility for installed Android 2.3.0 and older embedded fallback/guest order routes; final coordinated production authorization. The deployed legacy admin, consumer cancellation and order-edit flows cannot be silently replaced by the disabled TEST-only route.
+
+## Owner-protected backup procedure (prepared, NOT EXECUTED)
+
+The GitHub CI service account does **not** have permission to list Cloud Storage buckets in the production project. [Read-only destination check](https://github.com/arif123-del/kandorty/actions/runs/42705205226) returned `NO_BUCKET_METADATA_PERMISSION`. Therefore **no production customer-data backup has been exported**, and no bucket/security policy was modified.
+
+`stripe-release/owner-private-firestore-backup.sh` is an owner-only, **interactive Cloud Shell** script. It checks that an **existing** destination bucket belongs to project `kandorty-9378a`, enforces public-access prevention, uses uniform IAM and is not requester-pays. It refuses to run in CI, requires the owner to type `EXPORT_LEGACY_BACKUP`, and then uses Google Cloud's official managed Firestore export to that owner's bucket. It never logs, downloads or uploads customer details to GitHub or ChatGPT. It neither creates nor changes bucket IAM, does not enable Stripe Live, and does not modify production Firestore documents or Rules.
+
+**Backup script hardening (2026-11-10):** the owner-only export now waits for the managed export command to succeed and additionally verifies a `.overall_export_metadata` manifest inside the private destination without printing the bucket listing or customer data. [Static safety check](https://github.com/arif123-del/kandorty/actions/runs/42713117247) passed; [170 code tests and candidate Rules compatibility](https://github.com/arif123-del/kandorty/actions/runs/42713117522) also passed. These tests **do not** perform an export, prove the owner has a suitable bucket, or certify the installed Android app.
+
+**Owner prerequisite:** a suitable privately controlled Cloud Storage bucket and an authenticated Google Cloud identity with `datastore.databases.export` and destination access. Google's managed export may incur read/storage charges and is *not* a perfect instantaneous database snapshot. Verify the completed export job and secure destination before any coordinated client/Rules cutover. Do not claim stage 4 complete merely because this script exists.
+
+From an authenticated Cloud Shell with the PR branch checked out:
+```bash
+bash stripe-release/owner-private-firestore-backup.sh
+```
+
+## Fresh cancellation/lock aggregates (READ ONLY)
+
+[2026-11-09 Firebase cancellation metadata audit](https://github.com/arif123-del/kandorty/actions/runs/42705735191): 99 total orders; **3 customer-cancelled** records with stock-restoration *flags*; **3 cancellation requests** across statuses, none still marked `new`; and **4 processing/shipping/delivered records without a stored cancellation lock**. There are 28 `order_edits` and 28 `order_access` documents, which does **not** certify that all 99 legacy customers can authenticate or cancel. A historical stock-restoration flag is not a trusted stock-debit ledger; never restock those 3 again based only on quantities/flags.
+
+The TEST-only legacy transition planner now explicitly refuses automatic advancement when a preparing/shipping order is missing a consistent cancellation lock. The 4 live records need owner-authorized, individually documented reconciliation after a protected backup; no payment or stock mutation is justified by this aggregate report.
+
+## Exact incompatibility
+
+The existing production `admin.html` changes order/tracking status using a browser Firestore transaction. The new **unpublished** candidate admin page routes updates through `/admin/orders/status`; its server `lifecycle.change` refuses any order without a trusted `order_lifecycle` document. Proposed rules also deny direct client writes to orders/tracking. **Publishing the candidate without a legacy policy would prevent normal state changes for all 98 historical orders.** Existing browser tracking and customer cancellation flows also require separate compatibility verification. The **archived native Android V1 source** has Firestore SDK access, order collection references, transaction and write-call code (see read-only archive scan below); the installed Android app may contain later modifications and **is not certified**.
+
+This failure-closed behavior protects stock and payment records; do **not** disable it by inventing ledger debits or treating client-authored payment fields as proof of payment.
+
+## Required pre-release decisions and checks
+
+1. Record a new **read-only** snapshot of legacy statuses/payment methods and client compatibility. Keep a backup/export under the owner's protected account, never in a public PR, chat, logs, or CI artifacts.
+2. Choose an explicit **legacy-only management policy** approved by the store owner: e.g. a separately authenticated, narrowly scoped server endpoint for pre-cutover order status updates with an immutable audit log. It must reject stock/payment/refund changes when their trusted history is unavailable, and must preserve the previous cancellation-lock semantics.
+3. Keep the new Stripe/COD lifecycle endpoint exclusively for orders with the trusted server ledger. Never infer a ledger from historical order totals, quantities, browser flags or Stripe-looking fields.
+4. Exercise the old-admin workflow, old customer order/tracking/cancellation flow, existing Android release and new COD/Stripe flow against isolated non-production fixtures. Confirm no historical state, paid flag or stock is silently changed.
+5. Reconcile the real admin identity **only for the previously configured storefront administrator**, with verified ownership and owner-controlled credentials. New Firebase Auth accounts or Google Cloud IAM Owner membership do not constitute an approved storefront-admin replacement.
+6. Assign an operator and test alert delivery for pending/paid review and refund queues. Agree on a small staged cutover, rollback and the last explicit owner approval; preserve webhook reconciliation if checkout is disabled.
+
+## Automated regression boundary
+
+`stripe-release/release.test.mjs` includes a regression showing that an old order without a trusted lifecycle ledger cannot be prepared/cancelled by the new server API, and that the historical order/tracking/stock remain unchanged. This **does not** assert that all historical orders are already manageable: it is a deliberate fail-closed protection test.
+
+## No-Go until verified
+
+The existing site, Ziina workers, current Firebase Rules and all 98 historical orders must remain untouched. PR #2 stays Draft and unmerged. Stripe Live, production routes, rules and live-payment/refund checks require **separate, specific final approval** after a verified compatibility plan.
+
+## Source-level client compatibility evidence (2026-10-30 review)
+
+- Current `index.html` includes `saveOrderWithStock()` using `db.runTransaction()` for browser-side order/stock writes. It also includes `cancelOrderFromMyOrders()` and `requestOrderCancellation()` that depend on browser reads/writes for legacy proofs and order status.
+- Current `admin.html` includes `updateOrderStatus()` with a browser Firestore transaction and `finalizeCustomerCancellation()` with another browser transaction. The latter recognizes legacy `customerEdit.cancelRequestedAt` and proof matching the order's edit token.
+- Draft `stripe-release/build-storefront-candidate.mjs` replaces the new checkout/COD and ordinary admin status update routes with server endpoints, but does **not** prove that the existing 98 orders or the released Android client can complete all legacy tracking, cancellation and status workflows.
+- Draft `stripe-live-candidate/firestore.rules` intentionally denies browser writes to `orders`, `tracking`, `order_edits` and `order_access`. This is incompatible with the current legacy browser workflow unless a separate, verified compatibility path is added first.
+
+**Release acceptance requirement:** on isolated fixtures representing pre-cutover and new orders, verify customer order history, guest tracking, customer cancellation before processing, admin cancellation/processing status changes, no status resurrection after cancellation, no stock increments without trusted debits, refund review and existing Android behavior. Record owner-approved legacy handling before replacing the public site or publishing these Rules. This source-level audit did not run client/device acceptance tests and did not modify production records.
+
+## Android archived source — actual read-only analysis (2026-10-30)
+
+- Source already available in repo: `KandortyAndroid_v1_source.zip` (no user re-upload needed). GitHub Action [41092909870](https://github.com/arif123-del/kandorty/actions/runs/41092909870) **PASS**, no archive extraction to public output, no production writes or credentials.
+- ZIP: 34 entries, 31 text files, **11 Kotlin**, 15 XML, Android manifest and Gradle project; not a Flutter app. Static scan detected native Firebase Authentication and Firestore SDK, `orders`/`tracking` collection access, transaction and write APIs, the `kandorty.online` host, and COD references. No native WebView, Stripe or Ziina reference detected by those patterns (absence of a pattern is not proof of absence of runtime behavior).
+- **Safety consequence:** the unpublished Rules deny all client mutations to `orders`/`tracking`; any direct order/tracking/stock write paths in the released Android build would break. This ZIP only certifies the archived **V1 source inventory**, not which APK the owner currently has installed, or complete runtime compatibility. Do not publish the new Rules while Android release provenance and order/payment write migration remain unverified.
+- Next gate: audit current installed version/source and run old-Android fixture tests against the proposed rules and safe server endpoints. Do not silently upgrade, route card payments, delete Android orders, or enable Live while blocked.
+
+## Owner-installed app version and later CodeAssist source (2026-10-31)
+
+- Owner's Samsung Android application settings screenshot shows **Kandorty installed app version 2.3.0**; installed from **CodeAssist**. This does **not** match the older GitHub archived V1 source versionName 1.1.0 / versionCode 2.
+- Located a separate, previously supplied **CodeAssist V22 project ZIP** in the owner's ChatGPT Library, `KandortyAndroid_V22_ENGLISH_LOGO_CodeAssist(1).zip`, approximately 628 KB. Local read-only inspection of this archive found the Gradle metadata **versionName 3.2.0 / versionCode 22**, two Java files, an Android WebView wrapper that loads `kandorty.online`, and bundled `index-fast-start.html`. **It must not be called the installed app's confirmed source**: 3.2.0 differs from owner's installed 2.3.0, and a file label V22 does not authenticate the installed binary.
+- The bundled HTML in that later archive still includes `saveOrderWithStock()`, a Firestore `runTransaction()`, and direct `orders` collection operations; the WebView wrapper enables JavaScript and DOM storage. Thus the proposed deny-client-order-writes Firestore Rules can also break **embedded WebView client** versions, not only native Kotlin clients. A new checkout adapter only on the live website would not automatically repair copies of the storefront HTML already embedded in released APKs.
+- Before any site/rules cutover, inventory the actual installed 2.3.0 build's checkout/order paths, update the approved application source(s) to use server-authoritative COD/card/payment status, and test both direct native and embedded WebView legacy clients against isolated fixtures. Keep all old order records and Ziina unchanged. **No production orders, APK, Rules or Live systems were changed during this inspection.**
+
+## Matching CodeAssist 2.3.0 project recovered from prior files (2026-10-31)
+
+- Located an additional owner-provided Library archive: `KandortyAndroid_WEB_EXACT_v13_CENTER_DOT_FULLSCREEN_IMAGE.zip`. Its Gradle version is **versionName 2.3.0 / versionCode 13**, which **matches the owner-reported installed app version 2.3.0**. This is stronger provenance than the older V1 or V22 sources; an identical versionName alone still does not cryptographically prove this exact ZIP produced the installed APK.
+- Read-only local analysis: 16 archive entries; 2 Java files, 1 embedded HTML, Android project metadata. `MainActivity` uses a WebView with JavaScript and DOM storage, loads **https://kandorty.online/**, and on page-load error falls back to local `file:///android_asset/index-fast-start.html`.
+- **Critical compatibility finding:** the embedded HTML still contains `saveOrderWithStock()`, `submitCustomerOrder()`, direct Firestore `orders`/`tracking` collection accesses and a `db.runTransaction()` stock/order write path. Candidate production Rules deny direct client writes, so failure/legacy WebView fallbacks (and any other installed app version with bundled HTML) will break when those Rules publish. Routing only the current online site through the new Stripe/COD Worker is insufficient.
+- Safe remediation plan: release a backwards-compatible updated app with the authoritative server adapter and no stale client-side order/stock fallback; preserve existing orders and Ziina; validate old installed build and new build through isolated browser/Android smoke tests before coordinated Rules/site rollout. **No installed APK, Firestore records, Rules, production site, Stripe Live or Ziina were changed by this source review.**

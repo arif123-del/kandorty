@@ -1,0 +1,32 @@
+name: Restore isolated Kandorty TEST alert settings from owner dashboard history
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/restore-isolated-test-alerts.mjs'
+      - '.github/workflows/stripe-test-restore-alerts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restore-exact-test-alerts:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check isolated restore script syntax
+        run: node --check .github/scripts/restore-isolated-test-alerts.mjs
+      - name: Restore only 3 previous TEST alert settings from Cloudflare Worker version history
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node .github/scripts/restore-isolated-test-alerts.mjs
+      - name: State release safety boundary
+        if: always()
+        run: echo 'Only isolated Kandorty TEST alert settings may be restored. No production Stripe, storefront, Firebase Rules, legacy orders or Ziina changes.'
