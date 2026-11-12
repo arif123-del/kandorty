@@ -23,3 +23,50 @@ test('changed cart does not silently replace a pending payment receipt',async()=
 test('deployed test browser adapter is identical to reviewed client',async()=>{
  const fs=await import('node:fs/promises');assert.equal(await fs.readFile(new URL('./public/browser-client.mjs',import.meta.url),'utf8'),await fs.readFile(new URL('./browser-client.mjs',import.meta.url),'utf8'));
 });
+
+test('Stage 5 COD rejects malformed server acknowledgements without losing retry authority',async()=>{
+ const cases=[
+  {order:{id:'KD-12345678',payment:'card'},receipt:'signed',manageToken:'manage'},
+  {order:{id:'KD-12345678',payment:'cod'},receipt:'',manageToken:'manage'},
+  {order:{id:'KD-12345678',payment:'cod'},receipt:'signed',manageToken:''},
+  {order:{id:'invalid-order-id',payment:'cod'},receipt:'signed',manageToken:'manage'},
+  {receipt:'signed',manageToken:'manage'}
+ ];
+ for(const reply of cases){
+  const data=new Map(),calls=[];
+  const storage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+  const client=stripeCheckoutClient({endpoint:'https://kandorty-stripe-release-test.aliyajan200011.workers.dev',storage,
+   net:async(url,opts)=>{calls.push(JSON.parse(opts.body));return Response.json(reply);}
+  });
+  await assert.rejects(client.startCod({customer:{name:'TEST'},items:[{id:'p',qty:1}]}),/invalid_cod_response/);
+  assert.ok(data.get('kandorty_server_stripe_v1_cod'),'keep the same retry token');
+  assert.equal(calls.length,1);
+  assert.equal(data.has('kandorty_stripe_receipt_KD-12345678'),false);
+  assert.equal(data.has('kandorty_order_manage_KD-12345678'),false);
+  assert.equal(data.has('kandorty_stripe_receipt_undefined'),false);
+ }
+});
+
+test('Stage 5 card checkout rejects missing signed receipt or server order ID before redirect',async()=>{
+ for(const reply of [{orderId:'KD-12345678',receipt:''},{orderId:'wrong',receipt:'signed'},{receipt:'signed'}]){
+  const data=new Map(),storage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+  const client=stripeCheckoutClient({endpoint:'https://kandorty-stripe-release-test.aliyajan200011.workers.dev',storage,
+   net:async()=>Response.json(reply)});
+  await assert.rejects(client.start({customer:{},items:[{id:'p',qty:1}]}),/invalid_checkout_response/);
+  const pending=JSON.parse(data.get('kandorty_server_stripe_v1'));
+  assert.ok(pending.checkoutToken,'retain idempotent retry');
+  assert.equal(pending.receipt,undefined,'do not persist an unverified receipt');
+ }
+});
+
+test('Stage 5 cannot display cancellation of a different server order as success',async()=>{
+ const data=new Map([
+  ['kandorty_stripe_receipt_KD-12345678','signed'],
+  ['kandorty_order_manage_KD-12345678','manage']
+ ]);
+ const storage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+ const c=stripeCheckoutClient({endpoint:'https://kandorty-stripe-release-test.aliyajan200011.workers.dev',storage,
+  net:async()=>Response.json({order:{id:'KD-87654321',status:'cancelled'}})});
+ await assert.rejects(c.cancel('KD-12345678'),/invalid_cancellation_response/);
+ assert.equal(data.get('kandorty_stripe_receipt_KD-12345678'),'signed');
+});
