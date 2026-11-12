@@ -29,14 +29,18 @@ async function payHosted(){
  for(const frame of page.frames()){
   try{
    const country=frame.locator('select[name="billingCountry"],select[autocomplete="country"]').first();
-   if(await country.count()&&await country.isVisible())await country.selectOption('AE',{timeout:1500});
+   if(await country.count()&&await country.isVisible())await country.selectOption('US',{timeout:1500});
   }catch(error){
    if(/frame was detached|execution context was destroyed|target closed/i.test(String(error?.message||'')))continue;
    throw error;
   }
  }
- await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'00000',2000);
- await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+971500000000',2000);
+ await fillAny(['input[name="billingPostalCode"]','input[autocomplete="postal-code"]'],'94105',2500);
+ await fillAny(['input[name="phoneNumber"]','input[autocomplete="tel"]'],'+14155550123',2500);
+ // Use matching synthetic US test billing details because Stripe's hosted
+ // validation rejects ZIP 00000 and may treat an AE-formatted phone as
+ // incomplete when its phone-country selector stays at the default US.
+ // This does NOT modify the Kandorty order shipping address or customer.
  // Stripe Checkout may render its submit control in a payment frame, or
  // expose a data-testid instead of a type=submit button. Search only for
  // explicit checkout submit controls; never click express/Google/Apple Pay.
