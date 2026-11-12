@@ -3,6 +3,8 @@
 export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=>crypto.getRandomValues(new Uint8Array(32))}){
  if(!['https://kandorty-stripe-release.aliyajan200011.workers.dev','https://kandorty-stripe-release-test.aliyajan200011.workers.dev'].includes(endpoint))throw new Error('invalid_stripe_endpoint');
  const key='kandorty_server_stripe_v1';
+ const validId=id=>typeof id==='string'&&/^KD-\d{8}$/.test(id);
+ const validSecret=value=>typeof value==='string'&&value.length>0;
  const read=()=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
  async function post(path,body,headers={}){
   const r=await net(endpoint+path,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
@@ -15,6 +17,8 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
    if(state&&state.fingerprint!==fingerprint)throw new Error('pending_checkout_changed');
    if(!state){state={fingerprint,checkoutToken:Array.from(randomBytes(),b=>b.toString(16).padStart(2,'0')).join('')};storage.setItem(key,JSON.stringify(state));}
    const result=await post('/create-checkout-session',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
+   if(!validId(result?.orderId)||!validSecret(result?.receipt))throw new Error('invalid_checkout_response');
+   // Preserve the request idempotency token on invalid responses; never store bogus receipts.
    storage.setItem(key,JSON.stringify({...state,receipt:result.receipt,manageToken:result.manageToken,orderId:result.orderId}));
    return result;
   },
@@ -24,12 +28,16 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
    if(state&&state.fingerprint!==fingerprint)throw new Error('pending_checkout_changed');
    if(!state){state={fingerprint,checkoutToken:Array.from(randomBytes(),b=>b.toString(16).padStart(2,'0')).join('')};storage.setItem(codKey,JSON.stringify(state));}
    const r=await post('/cod/orders',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
+   if(!validId(r?.order?.id)||r.order.payment!=='cod'||!validSecret(r.receipt)||!validSecret(r.manageToken))throw new Error('invalid_cod_response');
+   // Never acknowledge a COD order or delete its retry key without a matching server receipt.
    storage.setItem('kandorty_stripe_receipt_'+r.order.id,r.receipt);storage.setItem('kandorty_order_manage_'+r.order.id,r.manageToken);storage.removeItem(codKey);return r;
   },
   async cancel(orderId,stagingKey){
    const p=read(),receipt=storage.getItem('kandorty_stripe_receipt_'+orderId)||(p?.orderId===orderId?p.receipt:null),manageToken=storage.getItem('kandorty_order_manage_'+orderId)||(p?.orderId===orderId?p.manageToken:null);
    if(!receipt||!manageToken)throw new Error('missing_manage_authority');
-   return post('/orders/cancel',{orderId,manageToken},{Authorization:'Bearer '+receipt,...(stagingKey?{'X-Staging-Key':stagingKey}:{})});
+   const result=await post('/orders/cancel',{orderId,manageToken},{Authorization:'Bearer '+receipt,...(stagingKey?{'X-Staging-Key':stagingKey}:{})});
+   if(result?.order?.id!==orderId||result.order.status!=='cancelled')throw new Error('invalid_cancellation_response');
+   return result;
   },
   async status(stagingKey){
    const s=read();if(!s?.receipt)throw new Error('missing_checkout_receipt');
