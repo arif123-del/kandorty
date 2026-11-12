@@ -29,14 +29,16 @@ test('all 99 synthetic historic orders can be archived without manufacturing lif
   const docs=Array.from({length:99},(_,i)=>({
     operation:'read',order:{status:states[i%5],payment:i<18?'cod':i<86?'cod':'card'},
     tracking:{status:states[i%5]},lifecycle:null,
-    ownerDeclaresVirtualCod:i<18
+    ownerDeclaresVirtualCod:i<18,ownerDeclaresVirtualTestOrder:true
   }));
   const before=structuredClone(docs);
   for(const d of docs){
     const x=plan(d);
+    assert.equal(x.userReportedVirtualTestOrder,true);
     assert.equal(x.canCancel,false);
     assert.equal(x.canRestoreStock,false);
     assert.equal(x.canIssueRefund,false);
+    assert.equal(x.canBackfillLifecycle,false);
   }
   assert.deepEqual(docs,before);
 });
@@ -71,4 +73,30 @@ test('archive decision never includes private identifiers, money or product data
   const v=JSON.stringify(plan(d));
   for(const forbidden of ['SYNTHETIC_PRIVATE_555','KD-PRIVATETEST','1200','FAKE','quantity'])
     assert.equal(v.includes(forbidden),false);
+});
+
+
+test('all 99 self-tests remain read-only even with mixed COD/card payment labels',()=>{
+ const statuses=['new','preparing','shipping','delivered','cancelled'];
+ const plans=Array.from({length:99},(_,i)=>{
+  const payment=i%3===0?'card':'cod';
+  return plan({
+   operation:'read',
+   order:{status:statuses[i%5],payment,
+          customer:{phone:'SYNTHETIC_PRIVATE_PHONE'},
+          items:[{quantity:7}]},
+   tracking:{status:statuses[i%5]},
+   lifecycle:null,
+   ownerDeclaresVirtualTestOrder:true,
+   ownerDeclaresVirtualCod:i<18
+  });
+ });
+ assert.equal(plans.length,99);
+ assert.equal(plans.filter(x=>x.userReportedVirtualTestOrder).length,99);
+ assert.equal(plans.filter(x=>x.sourcePaymentLabel==='card').length,33);
+ assert.equal(plans.filter(x=>x.userReportedVirtualCod).length,18);
+ assert.ok(plans.every(x=>x.access==='ARCHIVE_READ_ONLY' &&
+  !x.canEdit&&!x.canCancel&&!x.canRestoreStock&&!x.canIssueRefund&&
+  !x.canBackfillLifecycle&&!x.canActivateLive));
+ assert.ok(plans.every(x=>!JSON.stringify(x).includes('SYNTHETIC_PRIVATE_PHONE')));
 });
