@@ -5,6 +5,9 @@ on:
     paths:
       - 'stripe-release/**'
       - 'stripe-live-candidate/fulfillment.mjs'
+      - 'stripe-live-candidate/fulfillment.test.mjs'
+      - 'stripe-live-candidate/cod.mjs'
+      - 'stripe-live-candidate/cod.test.mjs'
       - '.github/workflows/stripe-release-readiness.yml'
   workflow_dispatch:
 permissions:
