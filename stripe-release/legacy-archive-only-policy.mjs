@@ -9,7 +9,8 @@ export class LegacyArchiveDenied extends Error{
 const statuses=new Set(['new','preparing','shipping','delivered','cancelled']);
 const fail=code=>{throw new LegacyArchiveDenied(code);};
 export function planLegacyArchiveAccess({
-  operation,order,tracking,lifecycle,ownerDeclaresVirtualCod=false
+  operation,order,tracking,lifecycle,ownerDeclaresVirtualCod=false,
+  ownerDeclaresVirtualTestOrder=false
 }={}){
   // Explicitly treat every user-reported historic test label as descriptive
   // only. It must never confer mutation privileges.
@@ -26,6 +27,7 @@ export function planLegacyArchiveAccess({
     access:LEGACY_ARCHIVE_ONLY,
     archivedStatus:order.status,
     // Owner assertion does not rewrite original payment, provenance or money.
+    userReportedVirtualTestOrder:ownerDeclaresVirtualTestOrder===true || ownerDeclaresVirtualCod===true,
     userReportedVirtualCod:ownerDeclaresVirtualCod===true,
     sourcePaymentLabel:order.payment,
     canEdit:false,
