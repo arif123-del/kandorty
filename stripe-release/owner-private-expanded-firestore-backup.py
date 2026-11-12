@@ -226,11 +226,15 @@ def main():
     require(not file.exists(),'encrypted_output_exists')
     try:
         encrypted=helper.gpg_with_secret(password,
-                  ['--symmetric','--cipher-algo','AES256','--output',str(file)],
+                  ['--no-symkey-cache','--symmetric','--cipher-algo','AES256',
+                   '--output',str(file)],
                   plaintext)
         require(encrypted.returncode==0 and file.is_file(),'gpg_encrypt_failed')
         file.chmod(0o600)
-        decrypted=helper.gpg_with_secret(password,['--decrypt',str(file)])
+        # Ensure the user-entered passphrase really opens the file; do not let
+        # GPG's symmetric-key cache create a misleading VERIFIED result.
+        decrypted=helper.gpg_with_secret(password,
+                  ['--no-symkey-cache','--decrypt',str(file)])
         require(decrypted.returncode==0 and
                 hashlib.sha256(decrypted.stdout).digest()==hashlib.sha256(plaintext).digest(),
                 'gpg_integrity_check_failed')
