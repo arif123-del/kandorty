@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import vm from 'node:vm';
 
 const checksum=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 
@@ -18,6 +19,26 @@ test('unpublished Stage5 web/admin review routes NEW COD+card through server, ne
   assert.equal(run.status,0,'unpublished review build must pass');
   const web=fs.readFileSync(path.join(dir,'index.html'),'utf8');
   const admin=fs.readFileSync(path.join(dir,'admin.html'),'utf8');
+
+  // Compile ALL executable inline scripts in both generated pages. Prior
+  // regression used a literal backslash-n in the guard, swallowing the
+  // product editor's onsubmit handler inside a one-line JS comment. Simple
+  // text-presence assertions missed it; vm.Script syntax checks alone also
+  // miss comment-swallowed code, so assert the onsubmit is on a live line.
+  for (const [name,markup,minScripts] of [['web',web,15],['admin',admin,2]]) {
+    let checked=0;
+    for (const m of markup.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script\\s*>/gi)) {
+      const attrs=m[1],code=m[2];
+      if (/\\bsrc\\s*=|\\btype\\s*=\\s*['"](?:application\\/json|module)/i.test(attrs)||!code.trim())continue;
+      assert.doesNotThrow(()=>new vm.Script(code,{filename:name+'-inline-'+checked+'.js'}));
+      checked++;
+    }
+    assert.ok(checked>=minScripts,name+' expected executable inline scripts missing');
+  }
+  assert.ok(admin.includes("// DRAFT REVIEW ONLY: do not infer historical totalStock from client state.\\n$('productForm').onsubmit=async e=>{"),
+    'admin product form onsubmit MUST start on its own line after safety comment');
+  assert.doesNotMatch(admin,/totalStock from client state\\.\\\\n\\$\\('productForm'\\)/,
+    'literal escaped newline must not comment out the product editor');
 
   // Limit assertions to the active checkout entrypoint; the legacy helper
   // functions remain available as a distinct historical-client cutover gate.
