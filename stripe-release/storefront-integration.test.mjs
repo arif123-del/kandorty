@@ -67,3 +67,26 @@ test('unknown legacy receipt cannot be tracked or cancelled by new server adapte
  await assert.rejects(flow.cancel('KD-09876543'),/missing_manage_authority/);
  assert.equal(networkCalls,0,'no server call when guest has no verified order receipt');
 });
+
+test('inconsistent server paid response does not render confirmation or discard pending receipt',async()=>{
+ for(const order of [
+  {id:'KD-12345678',paymentStatus:'unpaid'},
+  {id:'KD-87654321',paymentStatus:'paid'}
+ ]){
+  const saved=new Map(),confirmed=[];
+  const storage={getItem:k=>saved.get(k)||null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)};
+  const flow=createStorefrontStripe({
+   storage,getTurnstileToken:async()=>'test-proof',
+   redirect:()=>{},confirmed:o=>confirmed.push(o),
+   net:async(url)=>Response.json(url.endsWith('/checkout/status')
+    ?{paid:true,order}
+    :{orderId:'KD-12345678',receipt:'test-server-issued-receipt',manageToken:'test-manage-token',url:'https://checkout.stripe.com/c/pay/cs_test_fixture'})
+  });
+  await flow.start({customer:{name:'TEST'},items:[{id:'p1',qty:1}],notes:''});
+  await assert.rejects(flow.finish(),/order_not_confirmed/,
+   'a contradictory server status must not show success');
+  assert.equal(confirmed.length,0,'never clear cart/render confirmation before validating');
+  assert.ok(saved.get('kandorty_server_stripe_v1'),'keep pending receipt for a later valid server check');
+  assert.equal(saved.has('kandorty_stripe_receipt_KD-12345678'),false);
+ }
+});
