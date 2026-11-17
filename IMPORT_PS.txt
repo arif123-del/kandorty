@@ -1,0 +1,8 @@
+د Kandorty اصلاح شوې پروژه
+1. په CodeAssist کې Import Project / Import .caproj وټاکئ او دا .caproj فایل انتخاب کړئ.
+2. Run Debug / Build APK ووهئ. دا فایل پخپله APK نه دی.
+3. اصلي نصب شوی اپ مه حذفوی؛ Preview نسخه د اصلي اپ تر څنګ نصبېدلی شي.
+4. اپ خلاص کړئ؛ باید اصلي kandorty.online پلورنځی ښکاره شي.
+5. انټرنېټ قطع او وصل کړئ او د خطا/Retry پاڼه وګورئ.
+6. د ازموینې لپاره حقیقي فرمایش او د کارت تادیه مه کوئ.
+No backend, Stripe Live, Firebase Rules, or production website changes were made.
