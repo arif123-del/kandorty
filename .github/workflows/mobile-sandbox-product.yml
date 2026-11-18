@@ -1,0 +1,36 @@
+name: Prepare mobile Sandbox product
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/mobile-sandbox-product.yml]
+permissions:
+  contents: read
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify mobile fixture in test Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {createStore} from './stripe-release/firestore.mjs';
+          const project = 'kandorty-stripe-test-5f8af';
+          assert.equal(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON).project_id,project);
+          const store = createStore({STRIPE_MODE:'test',LIVE_RELEASE_APPROVAL:'NOT_APPROVED',FIREBASE_PROJECT_ID:project,
+            STRIPE_SECRET_KEY:'sk_test_fixture', STRIPE_WEBHOOK_SECRET:'whsec_fixture',STRIPE_RECEIPT_SECRET:'b'.repeat(64),
+            STAGING_ACCESS_SECRET:'a'.repeat(64),FIREBASE_SERVICE_ACCOUNT_JSON:process.env.FIREBASE_SERVICE_ACCOUNT_JSON});
+          const path='products/mobile-test-35-nov18';
+          if (!await store.get(path)) await store.commit([store.write(path,{nameAr:'Kandorty mobile TEST ONLY',price:10,stock:3,totalStock:3},{exists:false})]);
+          const {data}=await store.get(path);
+          assert.equal(data.nameAr,'Kandorty mobile TEST ONLY');assert.equal(data.price,10);assert.ok(data.stock>0 && data.totalStock>=data.stock);
+          console.log('Verified mobile-test-35-nov18');
+          JS
