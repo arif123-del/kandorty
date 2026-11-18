@@ -1,6 +1,8 @@
 package online.kandorty.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.webkit.JsResult;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.ConnectivityManager;
@@ -34,10 +36,15 @@ import android.widget.Toast;
 /** WebView for the public Kandorty storefront. No payment or database logic in this app. */
 public class MainActivity extends Activity {
     private static final String STORE_URL =
-            "https://kandorty-stripe-release-test.aliyajan200011.workers.dev/";
+            "https://kandorty.online/";
     private static final String OFFLINE_URL = "file:///android_asset/index-fast-start.html";
     private static final int FILE_CHOOSER_REQUEST = 1201;
     private static final long NETWORK_WATCHDOG_MS = 500L;
+    private static final long LOAD_TIMEOUT_MS = 18000L;
+    private boolean paymentReturnPage;
+    private boolean mainPageFinished = false;
+    private final Handler pageTimeoutHandler = new Handler(Looper.getMainLooper());
+    private Runnable pageTimeout;
 
     private WebView webView;
     private LinearLayout loadingOverlay;
@@ -48,6 +55,12 @@ public class MainActivity extends Activity {
     private boolean offlinePageShown;
     private boolean destroyed;
     private boolean foreground;
+    // Initialized after all state fields are declared to avoid illegal forward references.
+    private void initPageTimeout() {
+        pageTimeout = () -> {
+            if (!destroyed && !mainPageFinished && !offlinePageShown) showOfflinePage();
+        };
+    }
     private final Handler connectivityWatchdog = new Handler(Looper.getMainLooper());
     private final Runnable connectionWatch = new Runnable() {
         @Override public void run() {
@@ -60,6 +73,7 @@ public class MainActivity extends Activity {
     };
 
     @Override protected void onCreate(Bundle savedInstanceState) {
+        initPageTimeout();
         super.onCreate(savedInstanceState);
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(
@@ -108,8 +122,6 @@ public class MainActivity extends Activity {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
                 if (scheme.equals("http") || scheme.equals("https")) {
-                    String host = uri.getHost();
-                    if (!scheme.equals("https") || host == null || !(host.equalsIgnoreCase("kandorty-stripe-release-test.aliyajan200011.workers.dev") || host.equalsIgnoreCase("checkout.stripe.com") || host.equalsIgnoreCase("hooks.stripe.com"))) return true;
                     if (!hasValidatedInternet()) {
                         showOfflinePage();
                         return true;
@@ -128,18 +140,28 @@ public class MainActivity extends Activity {
             @Override public void onPageStarted(WebView view, String url,
                     android.graphics.Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
+                Uri page = Uri.parse(url);
+                paymentReturnPage = isStorePage(page)
+                        && "success".equals(page.getQueryParameter("stripe"));
                 offlinePageShown = OFFLINE_URL.equals(url);
-                if (!offlinePageShown && loadingOverlay != null) loadingOverlay.setVisibility(View.VISIBLE);
-                if (!offlinePageShown && !hasValidatedInternet()) showOfflinePage();
+                pageTimeoutHandler.removeCallbacks(pageTimeout);
+                if (!offlinePageShown) {
+                    mainPageFinished = false;
+                    pageTimeoutHandler.postDelayed(pageTimeout, LOAD_TIMEOUT_MS);
+                    if (loadingOverlay != null) loadingOverlay.setVisibility(View.VISIBLE);
+                    if (!hasValidatedInternet()) showOfflinePage();
+                }
             }
 
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                pageTimeoutHandler.removeCallbacks(pageTimeout);
                 if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE);
                 if (OFFLINE_URL.equals(url)) {
                     offlinePageShown = true;
                     return;
                 }
+                mainPageFinished = true;
                 if (!hasValidatedInternet()) showOfflinePage();
                 // Keep storefront behavior exactly as served from kandorty.online.
 
@@ -162,6 +184,13 @@ public class MainActivity extends Activity {
                 }
             }
 
+            @Override public boolean onRenderProcessGone(WebView view,
+                    android.webkit.RenderProcessGoneDetail detail) {
+                pageTimeoutHandler.removeCallbacks(pageTimeout);
+                if (!destroyed) view.post(() -> recreate());
+                return true;
+            }
+
             @Override public void onReceivedSslError(WebView view,
                     SslErrorHandler handler, SslError error) {
                 // Never bypass TLS verification, especially on checkout screens.
@@ -172,6 +201,25 @@ public class MainActivity extends Activity {
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onJsAlert(WebView view, String url, String message,
+                    JsResult result) {
+                if (!isStorePage(Uri.parse(url))
+                        || !isOrderConfirmation(message, paymentReturnPage)) {
+                    return super.onJsAlert(view, url, message, result);
+                }
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setCancelable(false)
+                        .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                            result.confirm();
+                            // A fresh storefront WebView has no completed Stripe page in its history.
+                            startActivity(new Intent(MainActivity.this, MainActivity.class));
+                            finish();
+                        })
+                        .show();
+                return true;
+            }
+
             @Override public boolean onShowFileChooser(WebView view,
                     ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (filePathCallback != null) filePathCallback.onReceiveValue(null);
@@ -179,6 +227,7 @@ public class MainActivity extends Activity {
                 try {
                     startActivityForResult(params.createIntent(), FILE_CHOOSER_REQUEST);
                 } catch (ActivityNotFoundException e) {
+                    if (filePathCallback != null) filePathCallback.onReceiveValue(null);
                     filePathCallback = null;
                     Toast.makeText(MainActivity.this,
                             "لا يوجد مدير ملفات", Toast.LENGTH_SHORT).show();
@@ -206,6 +255,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    private static boolean isStorePage(Uri page) {
+        return "https".equalsIgnoreCase(page.getScheme())
+                && ("kandorty.online".equalsIgnoreCase(page.getHost())
+                    || "www.kandorty.online".equalsIgnoreCase(page.getHost()))
+                && (page.getPort() == -1 || page.getPort() == 443);
+    }
+
+    private static boolean isOrderConfirmation(String message, boolean paymentReturnPage) {
+        if (message == null) return false;
+        return message.startsWith("✅ تم الدفع وتسجيل الطلب بنجاح.")
+                || message.startsWith("✅ Payment and order registration succeeded.")
+                || (paymentReturnPage && (message.startsWith("تم تسجيل الطلب. رقم الطلب:")
+                    || message.startsWith("Order registered:")));
+    }
+
     private boolean hasValidatedInternet() {
         try {
             if (connectivityManager == null) {
@@ -225,6 +289,8 @@ public class MainActivity extends Activity {
     private void showOfflinePage() {
         if (destroyed || webView == null || offlinePageShown) return;
         offlinePageShown = true;
+        mainPageFinished = true;
+        pageTimeoutHandler.removeCallbacks(pageTimeout);
         if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE);
         webView.stopLoading();
         webView.loadUrl(OFFLINE_URL);
@@ -295,6 +361,7 @@ public class MainActivity extends Activity {
         destroyed = true;
         foreground = false;
         connectivityWatchdog.removeCallbacks(connectionWatch);
+        pageTimeoutHandler.removeCallbacks(pageTimeout);
         if (networkListenerRegistered && connectivityManager != null && networkCallback != null) {
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback);

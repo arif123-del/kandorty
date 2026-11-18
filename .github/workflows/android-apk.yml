@@ -1,7 +1,7 @@
-name: Kandorty TEST APK
+name: Kandorty Android APK
 on:
   push:
-    branches: [kandorty-android-test-build]
+    branches: [kandorty-android-2.3.7-apk]
 permissions:
   contents: read
 jobs:
@@ -19,6 +19,6 @@ jobs:
       - run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Kandorty-2.3.6-TEST-APK
+          name: Kandorty-2.3.7-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

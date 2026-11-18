@@ -1,14 +1,11 @@
-# Kandorty Android — fixed WebView source (2.3.6)
+# Kandorty Android — 2.3.7 source
 
-- App package: `online.kandorty.app`
-- App name: `Kandorty`
-- Storefront: `https://kandorty.online/` (PUBLIC WEBSITE, NOT a Stripe sandbox endpoint)
-- Correct Java path: `app/src/main/java/online/kandorty/app/MainActivity.java`
-- Splash: original uploaded animation/artwork preserved.
-- Safe offline/error fallback: `app/src/main/assets/index-fast-start.html`
-- The loading view is shown while the website starts. No change to Firebase, Stripe, Ziina, or hosted website.
-- This is a CodeAssist source project, **not** an APK. Requires importing/building on the device.
+This uploaded project wraps the PUBLIC https://kandorty.online/ website, not the isolated Stripe sandbox TEST worker.
 
-This standard package uses the original ID. An existing APK may have a different signing certificate; NEVER uninstall the existing app just to make the new one install.
+Version 2.3.7 opens a fresh storefront when the customer acknowledges a successful card order.
 
-IMPORTANT: Opening the public website exposes whatever payment and ordering UI is already live there. Do not run a real payment as a test. Use read-only browsing for validation.
+Earlier fixes: 18-second loading timeout, readable offline/error fallback, WebView renderer recovery, preserved splash and logos, one MainActivity source file.
+
+Import the full folder as a NEW CodeAssist project, not over the old project. Do not uninstall your existing app to resolve signing conflicts. No production server, Stripe, Firebase or Ziina configuration was changed.
+
+Android build and runtime behavior have NOT been verified on a device.

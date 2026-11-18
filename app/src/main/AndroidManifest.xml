@@ -5,7 +5,7 @@
     <application
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
-        android:label="Kandorty TEST"
+        android:label="Kandorty"
         android:icon="@drawable/kandorty_icon"
         android:roundIcon="@drawable/kandorty_icon"
         android:theme="@style/Theme.Kandorty">
