@@ -5,12 +5,13 @@
     <application
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
-        android:label="Kandorty"
+        android:label="Kandorty 2.3.8"
         android:icon="@drawable/kandorty_icon"
         android:roundIcon="@drawable/kandorty_icon"
         android:theme="@style/Theme.Kandorty">
         <activity
             android:name=".MainActivity"
+            android:enableOnBackInvokedCallback="false"
             android:exported="false" />
         <activity
             android:name=".SplashActivity"

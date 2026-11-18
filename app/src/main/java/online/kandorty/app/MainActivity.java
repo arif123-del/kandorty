@@ -42,6 +42,8 @@ public class MainActivity extends Activity {
     private static final long NETWORK_WATCHDOG_MS = 500L;
     private static final long LOAD_TIMEOUT_MS = 18000L;
     private boolean paymentReturnPage;
+    private boolean clearingCheckoutHistory;
+    private boolean keepHomeOnNextBack;
     private boolean mainPageFinished = false;
     private final Handler pageTimeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable pageTimeout;
@@ -75,6 +77,10 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         initPageTimeout();
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            clearingCheckoutHistory = savedInstanceState.getBoolean("clearingCheckoutHistory");
+            keepHomeOnNextBack = savedInstanceState.getBoolean("keepHomeOnNextBack");
+        }
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -163,7 +169,10 @@ public class MainActivity extends Activity {
                 }
                 mainPageFinished = true;
                 if (!hasValidatedInternet()) showOfflinePage();
-                // Keep storefront behavior exactly as served from kandorty.online.
+                if (clearingCheckoutHistory && STORE_URL.equals(url) && url.equals(view.getUrl())) {
+                    view.clearHistory();
+                    clearingCheckoutHistory = false;
+                }
 
             }
 
@@ -211,10 +220,12 @@ public class MainActivity extends Activity {
                         .setMessage(message)
                         .setCancelable(false)
                         .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                            clearingCheckoutHistory = true;
+                            keepHomeOnNextBack = true;
                             result.confirm();
-                            // A fresh storefront WebView has no completed Stripe page in its history.
-                            startActivity(new Intent(MainActivity.this, MainActivity.class));
-                            finish();
+                            view.post(() -> {
+                                if (!destroyed && clearingCheckoutHistory) view.loadUrl(STORE_URL);
+                            });
                         })
                         .show();
                 return true;
@@ -344,6 +355,8 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean("clearingCheckoutHistory", clearingCheckoutHistory);
+        outState.putBoolean("keepHomeOnNextBack", keepHomeOnNextBack);
         if (webView != null) webView.saveState(outState);
         super.onSaveInstanceState(outState);
     }
@@ -351,6 +364,12 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() {
         if (!hasValidatedInternet()) {
             showOfflinePage();
+            return;
+        }
+        if (clearingCheckoutHistory) return;
+        if (keepHomeOnNextBack && webView != null && STORE_URL.equals(webView.getUrl())) {
+            keepHomeOnNextBack = false;
+            webView.clearHistory();
             return;
         }
         if (webView != null && webView.canGoBack()) webView.goBack();

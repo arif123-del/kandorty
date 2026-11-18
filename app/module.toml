@@ -45,13 +45,13 @@ resources = ["src/test/resources"]
 
 [android]
 namespace = "online.kandorty.app"
-applicationId = "online.kandorty.app"
+applicationId = "online.kandorty.app.preview238"
 compileSdk = 35
 minSdk = 24
 targetSdk = 35
 manifest = "src/main/AndroidManifest.xml"
-versionCode = 20
-versionName = "2.3.7"
+versionCode = 21
+versionName = "2.3.8"
 isApplication = true
 manifestPlaceholders = []
 buildConfigFields = []
