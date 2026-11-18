@@ -20,3 +20,21 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: node .github/scripts/stripe-stage4-nonfirestore-coverage-readonly.mjs
+      - name: Identify recovery access using aggregate HTTP status only
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          node --input-type=module <<'JS'
+          import {cert} from 'firebase-admin/app';
+          const c=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),p='kandorty-9378a';
+          if(c.project_id!==p) throw Error('unexpected project');
+          const t=await cert(c).getAccessToken();
+          for(const [name,url] of Object.entries({
+            RULES:'https://firebaserules.googleapis.com/v1/projects/'+p+'/releases?pageSize=1&fields=releases(name)',
+            MEDIA:'https://storage.googleapis.com/storage/v1/b/'+p+'.firebasestorage.app/o?maxResults=1&fields=items(generation)',
+          })){
+            const r=await fetch(url,{headers:{authorization:'Bearer '+t.access_token},redirect:'error'});
+            let reason='';if(!r.ok){const j=await r.json();reason=j.error?.details?.find(x=>x.reason)?.reason??j.error?.errors?.[0]?.reason??'';}
+            console.log('COVERAGE_'+name+' '+r.status+' '+(/^[a-zA-Z_]{1,60}$/.test(reason)?reason:''));
+          }
+          JS
