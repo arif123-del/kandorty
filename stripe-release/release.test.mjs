@@ -41,6 +41,9 @@ async function signedEvent(f,s,patch={}){
 test('Sandbox health check reports readiness without accessing customer or payment data',async()=>{
  const run=handler({store:()=>{throw Error('unexpected_store_access');}});
  assert.equal((await run(new Request(base+'/health'),environment())).status,200);
+ const head=await run(new Request(base+'/health',{method:'HEAD'}),environment());
+ assert.equal(head.status,200);
+ assert.equal(await head.text(),'');
  assert.equal((await run(new Request(base+'/health'),{...environment(),STRIPE_SECRET_KEY:''})).status,503);
 });
 test('Sandbox dispute alert requires a valid signature, retries failure, and deduplicates accepted mail',async()=>{

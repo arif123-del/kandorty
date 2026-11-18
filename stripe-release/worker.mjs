@@ -25,7 +25,10 @@ export function handler(factories={}){return async(request,env)=>{
    const response=await env.ASSETS.fetch(request);const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('Referrer-Policy','no-referrer');h.set('X-Content-Type-Options','nosniff');return new Response(response.body,{status:response.status,headers:h});
   }
   if(url.search)throw new Fault('invalid_endpoint',403);
-  if(!cfg.live&&url.pathname==='/health'&&request.method==='GET')return reply({ok:true});
+  if(!cfg.live&&url.pathname==='/health'){
+   if(request.method==='HEAD')return new Response(null,{headers});
+   if(request.method==='GET')return reply({ok:true});
+  }
   const isWebhook=url.pathname==='/webhook';
   if(!isWebhook){
    if(!cfg.origins.includes(origin))throw new Fault('origin_forbidden',403);
