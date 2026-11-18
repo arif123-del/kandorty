@@ -15,7 +15,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '26'
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -26,7 +26,7 @@ jobs:
           folder=$(mktemp -d)
           mkdir -p "$folder/data/assets" "$folder/bin"
           echo '{"releases":[{"name":"projects/demo/releases/cloud.firestore","rulesetName":"fixture"}],"rulesets":{"fixture":{"source":{"files":[{"name":"firestore.rules","content":"rules_version = '\''2'\''; service cloud.firestore { match /databases/{database}/documents { match /{doc=**} { allow read, write: if false; } } }"}]}}}}' > "$folder/data/published-rules.json"
-          echo '[{"localId":"fixture-profile","email":"fixture@example.test","emailVerified":true,"disabled":false,"customAttributes":"{\"admin\":true}"}]' > "$folder/data/auth-profiles.json"
+          echo '[{"localId":"fixture-profile","email":"fixture@example.test","emailVerified":true,"disabled":false,"customAttributes":"{\"admin\":true}","providerUserInfo":[{"providerId":"password","rawId":"fixture@example.test","email":"fixture@example.test"}]},{"localId":"federated","email":"other@example.test","providerUserInfo":[{"providerId":"google.com","rawId":"fixture-google","email":"other@example.test"}]}]' > "$folder/data/auth-profiles.json"
           h=$(printf 'image' | sha256sum | cut -d' ' -f1)
           printf 'image' > "$folder/data/assets/$h"
           printf '{"entries":[["products/fixture","%s"]]}' "$h" > "$folder/data/asset-index.json"
