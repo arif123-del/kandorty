@@ -2,7 +2,7 @@
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createHash} from 'node:crypto';
 import {guardLegacyAdminReviewArtifact} from './legacy-admin-candidate-guard.mjs';
 const source=fs.readFileSync('index.html','utf8');
-const expected='dbabdbc414e49ad3f571373e6e7b1bfdea3fc8d31d5046dad16c873d8aa0bd82';assert.equal(createHash('sha256').update(source).digest('hex'),expected,'Storefront changed: review replacement anchors before rebuilding');
+const expected='d85e75e51d4da6c8ee0b06dda33357552aa629967ed9349e37d4cdf6bb582b97';assert.equal(createHash('sha256').update(source).digest('hex'),expected,'Storefront changed: review replacement anchors before rebuilding');
 let html=source;
 // Turnstile site key is PUBLIC and is used only in the unpublished storefront candidate.
 // The separate Turnstile secret remains encrypted in Cloudflare; never put it here.
@@ -33,7 +33,7 @@ function secureStripeFlow(){
 }
 async function completeStripeCheckoutReturn(){
   if(new URLSearchParams(location.search).get('stripe')!=='success')return;
-  try{const r=await (await secureStripeFlow()).finish();if(!r.paid)alert(lang==='ar'?'الدفع قيد التأكيد. يرجى التحقق من الطلب لاحقاً.':'Payment confirmation pending. Check your order shortly.');}
+  try{const r=await (await secureStripeFlow()).finish();if(r.paid){window.location.replace('/');return;}alert(lang==='ar'?'الدفع قيد التأكيد. يرجى التحقق من الطلب لاحقاً.':'Payment confirmation pending. Check your order shortly.');}
   catch{alert(lang==='ar'?'تعذر التحقق من الطلب. لا تعيدي الدفع؛ تحققي من الطلب أو تواصلي مع المتجر.':'Unable to verify. Do not pay again; check your order or contact the store.');}
 }
 
