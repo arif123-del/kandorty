@@ -4486,6 +4486,7 @@ async function completeStripeCheckoutReturn(){
       (lang==='ar'?'\n\nاحتفظي بهذا الرقم لتتبع الطلب.':'\n\nKeep this number to track your order.')+
       (submitResult?.editReady?(lang==='ar'?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'\nYou can edit the order from Track order while its status is New order.'):'')
     );
+    window.location.replace('/');
   }catch(error){
     console.error('Stripe return verification error:',error);
     alert((lang==='ar'
