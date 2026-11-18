@@ -33,6 +33,9 @@ export function operationalEmail(report){
 export async function sendOperationalEmail(report,env,transport=fetch){
  const message=operationalEmail(report);
  if(!message)return Object.freeze({status:'healthy_no_send'});
+ return sendOperatorEmail(message,env,transport);
+}
+export async function sendOperatorEmail(message,env,transport=fetch){
  // Intentional default OFF. Only an explicitly authorized and secured future
  // operator job may turn this on; this module does not schedule any work.
  if(env?.ALERT_DELIVERY_ENABLED!=='true')return Object.freeze({status:'disabled_no_send'});

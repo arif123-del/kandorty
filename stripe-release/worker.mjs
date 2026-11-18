@@ -1,5 +1,6 @@
 import {verifyAdmin} from './admin-auth.mjs';
 import {runScheduledAlert} from './alert-scheduler.mjs';
+import {sendOperatorEmail} from './operations-email.mjs';
 import {auditResendDelivery} from './resend-delivery-audit.mjs';
 import {lifecycle} from './lifecycle.mjs';
 import {legacyStatusTestService} from './legacy-status-service.mjs';
@@ -24,6 +25,7 @@ export function handler(factories={}){return async(request,env)=>{
    const response=await env.ASSETS.fetch(request);const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('Referrer-Policy','no-referrer');h.set('X-Content-Type-Options','nosniff');return new Response(response.body,{status:response.status,headers:h});
   }
   if(url.search)throw new Fault('invalid_endpoint',403);
+  if(!cfg.live&&url.pathname==='/health'&&request.method==='GET')return reply({ok:true});
   const isWebhook=url.pathname==='/webhook';
   if(!isWebhook){
    if(!cfg.origins.includes(origin))throw new Fault('origin_forbidden',403);
@@ -36,7 +38,23 @@ export function handler(factories={}){return async(request,env)=>{
   const raw=await rawBody(request,isWebhook?65536:16384);
   if(isWebhook)await verifyWebhook(raw,request.headers.get('Stripe-Signature'),String(env.STRIPE_WEBHOOK_SECRET).trim());
   let body;try{body=JSON.parse(raw);}catch{throw new Fault('invalid_json',400);}
-  const store=(factories.store||createStore)(env),stripe=(factories.stripe||stripeClient)(cfg),service=createService(cfg,store,stripe);
+  const store=(factories.store||createStore)(env);
+  if(isWebhook&&!cfg.live&&body?.type==='charge.dispute.created'){
+   if(body.livemode!==false)throw new Fault('event_mode_mismatch',400);
+   if(typeof body.id!=='string'||!/^evt_[A-Za-z0-9]{1,100}$/.test(body.id))throw new Fault('invalid_event',400);
+   const eventHash=await hash(body.id);
+   const path='stripe_operator_alerts/dispute-'+eventHash;
+   if(await store.get(path))return reply({received:true});
+   const result=await sendOperatorEmail({
+    subject:'[Kandorty TEST] Stripe dispute opened',
+    text:'A dispute was opened in the Kandorty Stripe Sandbox. Review the Disputes page in the Sandbox dashboard.'
+   },{...env,ALERT_EVENT_KEY:'kandorty-test-dispute-'+eventHash},factories.alertNet||fetch);
+   if(result.status!=='accepted_by_provider_not_delivered')throw new Fault('alert_delivery_disabled',503);
+   try{await store.commit([store.write(path,{status:'accepted'},{exists:false})]);}
+   catch(e){if(e?.message!=='write_conflict'||!(await store.get(path)))throw e;}
+   return reply({received:true});
+  }
+  const stripe=(factories.stripe||stripeClient)(cfg),service=createService(cfg,store,stripe);
   if(isWebhook){
    if(STRIPE_REFUND_EVENTS.includes(body.type)){
     if(body.livemode!==cfg.live)throw new Fault('event_mode_mismatch',400);

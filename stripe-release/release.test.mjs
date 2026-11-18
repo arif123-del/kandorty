@@ -34,10 +34,35 @@ function fixture(stock=5,live=false){
  return {env,cfg,store,rows,sessions,stripe,service,run,http,pay};
 }
 async function signedEvent(f,s,patch={}){
- const raw=JSON.stringify({type:'checkout.session.completed',livemode:false,data:{object:f.sessions.get(s.sessionId)},...patch});
+ const raw=JSON.stringify({type:'checkout.session.completed',livemode:false,data:{object:f.sessions.get(s?.sessionId)},...patch});
  const t=Math.floor(Date.now()/1000),signature='t='+t+',v1='+await sign(f.env.STRIPE_WEBHOOK_SECRET,t+'.'+raw);
  return f.http('/webhook',raw,{'Stripe-Signature':signature});
 }
+test('Sandbox health check reports readiness without accessing customer or payment data',async()=>{
+ const run=handler({store:()=>{throw Error('unexpected_store_access');}});
+ assert.equal((await run(new Request(base+'/health'),environment())).status,200);
+ assert.equal((await run(new Request(base+'/health'),{...environment(),STRIPE_SECRET_KEY:''})).status,503);
+});
+test('Sandbox dispute alert requires a valid signature, retries failure, and deduplicates accepted mail',async()=>{
+ const f=fixture();
+ Object.assign(f.env,{ALERT_DELIVERY_ENABLED:'true',ALERT_EMAIL_TO:'operator@example.test',
+  ALERT_EMAIL_FROM:'alerts@example.test',RESEND_API_KEY:'re_fixture1234'});
+ const attempts=[];
+ const run=handler({store:()=>f.store,alertNet:async(_url,request)=>{
+  attempts.push(request);
+  return {ok:attempts.length>1};
+ }});
+ const event={type:'charge.dispute.created',id:'evt_fixture',data:{object:{id:'du_private'}}};
+ assert.equal((await run(f.http('/webhook',event),f.env)).status,400);
+ assert.equal((await run(await signedEvent(f,null,{...event,livemode:true}),f.env)).status,400);
+ assert.equal(attempts.length,0);
+ for(const status of [503,200,200]){
+  assert.equal((await run(await signedEvent(f,null,event),f.env)).status,status);
+ }
+ assert.equal(attempts.length,2);
+ assert.equal(attempts[0].headers['Idempotency-Key'],attempts[1].headers['Idempotency-Key']);
+ assert.doesNotMatch(attempts[1].body,/du_private|evt_fixture/);
+});
 test('configuration cannot mix test/live keys or projects and Live stays blocked without explicit gate',()=>{
  const e=environment();assert.equal(releaseConfig(e).live,false);
  for(const patch of [{STRIPE_MODE:'disabled'},{STRIPE_SECRET_KEY:'sk_live_fixture'},{FIREBASE_PROJECT_ID:LIVE_PROJECT},{STRIPE_MODE:'live',FIREBASE_PROJECT_ID:LIVE_PROJECT,STRIPE_SECRET_KEY:'sk_live_fixture'}])assert.throws(()=>releaseConfig({...e,...patch}));
