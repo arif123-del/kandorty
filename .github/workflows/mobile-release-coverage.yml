@@ -1,0 +1,22 @@
+name: Current Firebase release coverage read only
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/mobile-release-coverage.yml]
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Check Auth Storage and Rules coverage without writes
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-stage4-nonfirestore-coverage-readonly.mjs
