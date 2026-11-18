@@ -1,0 +1,37 @@
+name: Encrypted synthetic recovery in demo emulators
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/private-replay-emulator.yml, stripe-release/private-archive-replay.py]
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+      - name: Restore a synthetic archive
+        run: |
+          set -eu
+          folder=$(mktemp -d)
+          mkdir -p "$folder/data/assets" "$folder/bin"
+          echo '{"releases":[{"name":"projects/demo/releases/cloud.firestore","rulesetName":"fixture"}],"rulesets":{"fixture":{"source":{"files":[{"name":"firestore.rules","content":"rules_version = '\''2'\''; service cloud.firestore { match /databases/{database}/documents { match /{doc=**} { allow read, write: if false; } } }"}]}}}}' > "$folder/data/published-rules.json"
+          echo '[{"localId":"fixture-profile","email":"fixture@example.test","emailVerified":true,"disabled":false,"customAttributes":"{\"admin\":true}"}]' > "$folder/data/auth-profiles.json"
+          h=$(printf 'image' | sha256sum | cut -d' ' -f1)
+          printf 'image' > "$folder/data/assets/$h"
+          printf '{"entries":[["products/fixture","%s"]]}' "$h" > "$folder/data/asset-index.json"
+          tar -C "$folder/data" -cf "$folder/f.tar" auth-profiles.json published-rules.json asset-index.json "assets/$h"
+          /usr/bin/gpg --batch --pinentry-mode loopback --passphrase synthetic --symmetric --output "$folder/f.gpg" "$folder/f.tar"
+          printf '%s\n' '#!/bin/sh' 'exec /usr/bin/gpg --batch --passphrase synthetic "$@"' > "$folder/bin/gpg"
+          chmod +x "$folder/bin/gpg"
+          PATH="$folder/bin:$PATH" python3 stripe-release/private-archive-replay.py "$folder/f.gpg"
