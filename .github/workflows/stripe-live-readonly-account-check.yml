@@ -1,0 +1,23 @@
+name: Production payment credential read only
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/stripe-live-readonly-account-check.yml]
+permissions: {}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read account status without creating any Stripe object
+        env:
+          LIVE_KEY: ${{ secrets.STRIPE_LIVE_SECRET_KEY }}
+          GENERIC_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          const key=[process.env.LIVE_KEY,process.env.GENERIC_KEY].find(k=>/^(sk|rk)_live_/.test(k||''));
+          if(!key){console.log('LIVE_CHECK REPO_KEY_UNAVAILABLE');process.exit(0)}
+          const r=await fetch('https://api.stripe.com/v1/account',{redirect:'error',headers:{Authorization:'Bearer '+key}});
+          if(!r.ok){console.log('LIVE_CHECK ACCOUNT_READ_HTTP_'+r.status);process.exit(0)}
+          const a=await r.json();
+          console.log('LIVE_CHECK '+(a.id==='acct_1UFC553sGbTcMOYO'&&a.charges_enabled===true?'ACCOUNT_AND_CHARGES_VERIFIED':'ACCOUNT_OR_CHARGES_UNVERIFIED'));
+          JS
