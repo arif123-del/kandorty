@@ -1,0 +1,31 @@
+name: Kandorty owner-only Firestore backup script STATIC REVIEW
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - 'stripe-release/owner-private-firestore-backup.sh'
+      - '.github/workflows/stripe-owner-backup-static.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate Bash syntax only, NEVER run Google Cloud export
+        run: bash -n stripe-release/owner-private-firestore-backup.sh
+      - name: Assert production project guard and owner confirmation before export
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const c=fs.readFileSync('stripe-release/owner-private-firestore-backup.sh','utf8');
+          for(const keyword of ["PROJECT='kandorty-9378a'","EXPORT_LEGACY_BACKUP",
+               "publicAccessPrevention","uniformBucketLevelAccess",
+               "if [[ ! -t 0 ]]","gcloud firestore export"])
+            assert.ok(c.includes(keyword),'missing safety gate');
+          assert.ok(c.indexOf('EXPORT_LEGACY_BACKUP')<c.indexOf('gcloud firestore export'));
+          console.log('STATIC ONLY: interactive backup guarded; zero production work');
+          JS

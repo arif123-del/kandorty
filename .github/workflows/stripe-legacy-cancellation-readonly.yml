@@ -1,0 +1,41 @@
+name: Kandorty legacy customer cancellation metadata READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/stripe-legacy-cancellation-readonly.mjs'
+      - '.github/workflows/stripe-legacy-cancellation-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safe-cancellation-inventory:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assert read-only and no customer personal fields
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const s=fs.readFileSync('.github/scripts/stripe-legacy-cancellation-readonly.mjs','utf8');
+          for(const p of [/\.set\s*\(/,/\.update\s*\(/,/\.delete\s*\(/,/\.commit\s*\(/,/\.create\s*\(/,/\.batch\s*\(/])
+            assert.ok(!p.test(s),'not read only');
+          assert.ok(s.includes(".collection('orders').select("));
+          console.log('SAFE: aggregate-only and no Firebase writes');
+          JS
+      - name: Install Firebase Admin SDK
+        run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Read only legacy order cancellation and proof coverage counts
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-legacy-cancellation-readonly.mjs
+      - name: Security boundary
+        if: always()
+        run: echo 'Aggregate only, zero production writes, no customer identities/phone/order references or payment credentials in logs.'

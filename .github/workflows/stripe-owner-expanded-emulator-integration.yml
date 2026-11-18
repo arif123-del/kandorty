@@ -1,0 +1,59 @@
+name: Kandorty Stage4 expanded backup 291 SYNTHETIC emulator integration
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/workflows/stripe-owner-expanded-emulator-integration.yml'
+      - 'stripe-release/owner-private-expanded-firestore-emulator-replay.py'
+      - 'stripe-release/test_owner_private_expanded_firestore_emulator_replay.py'
+      - 'stripe-release/run_synthetic_expanded_emulator_integration.py'
+      - 'stripe-release/stage4-private-recovery.firebase.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-291-document-local-emulator-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run offline synthetic tests without Firebase credentials
+        run: python3 -m unittest discover -s stripe-release -p 'test_owner_private_expanded_firestore_emulator_replay.py' -v
+      - name: Verify synthetic integration is isolated and cannot use secrets
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/stripe-owner-expanded-emulator-integration.yml').read_text()
+          src=Path('stripe-release/run_synthetic_expanded_emulator_integration.py').read_text()
+          emulator=Path('stripe-release/owner-private-expanded-firestore-emulator-replay.py').read_text()
+          assert 'demo-kandorty-stage4-recovery' in w
+          assert "unittest discover" in w
+          assert "synthetic_291()" in src
+          assert "firebase_admin" not in src
+          assert 'https://firestore.googleapis.com' not in emulator
+          assert '127.0.0.1:8119' in emulator
+          print('CI_SYNTHETIC_ONLY_NO_PRODUCTION_CREDS: PASS')
+          PY
+      - name: Exercise real Firestore emulator REST PATCH and readback on 291 fake documents
+        run: |
+          env -u GOOGLE_APPLICATION_CREDENTIALS -u FIREBASE_SERVICE_ACCOUNT_JSON \
+            -u FIREBASE_TOKEN -u STRIPE_SECRET_KEY -u STRIPE_WEBHOOK_SECRET \
+            npx --yes firebase-tools@14 emulators:exec \
+            --only firestore --project demo-kandorty-stage4-recovery \
+            --config stripe-release/stage4-private-recovery.firebase.json \
+            'env -u GOOGLE_APPLICATION_CREDENTIALS -u FIREBASE_SERVICE_ACCOUNT_JSON -u FIREBASE_TOKEN -u STRIPE_SECRET_KEY -u STRIPE_WEBHOOK_SECRET GCLOUD_PROJECT=demo-kandorty-stage4-recovery GOOGLE_CLOUD_PROJECT=demo-kandorty-stage4-recovery FIRESTORE_EMULATOR_HOST=127.0.0.1:8119 python3 stripe-release/run_synthetic_expanded_emulator_integration.py'
+      - name: Never authorize production
+        if: always()
+        run: echo 'Synthetic demo emulator only. No production payment, order, stock, Firebase Rules or site deployment.'

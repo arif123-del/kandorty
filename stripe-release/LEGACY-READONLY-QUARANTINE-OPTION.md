@@ -1,0 +1,59 @@
+# Kandorty Stage 4 — archive-only quarantine alternative (DRAFT / NOT DEPLOYED)
+
+**Decision status: PREPARED FOR OWNER REVIEW. NO-GO FOR PRODUCTION.**
+This option is for an operator who prioritizes preservation of old orders over attempting to reconstruct untrusted customer-era lifecycle, inventory or cancellation history. It requires **no new credit card** for the already completed local encrypted backup rehearsal, but it is NOT a replacement for comprehensive managed backup/recovery or production release approval.
+
+## 2026-11-12 owner superseding clarification: ALL 99 legacy orders were virtual tests
+
+The owner has now explicitly stated: **every one of the 99 historic orders is a fictitious app/site test created by the owner, not by a genuine customer**. This supersedes the prior operational assumption that only 18 could be classified as tests, or that 81 might be genuine customer orders. The 18 anomalous COD cases are **a subset of those 99**; the 81 remaining test orders can contain different payment method labels. This is owner-attested origin, not independent transaction, stock, order-ID, payment-provider or audit-log proof.
+
+**Non-destructive policy:** Treat **all 99** as `OWNER_DECLARED_VIRTUAL_TEST_ORDER` **only for draft archival/read-only planning**, preserving their exact original statuses and typed fields; do not add Firestore flags, delete, cancel, refund or automatically restock any. A historic 'card' label is not evidence of a real charge, but do not assert there were no real charges without checking the provider if a relevant reference appears. Do **not** request individual real-customer cancellation statements or contact customers for these tests. Prior 99/254 and 291 encrypted backup work must not be repeated.
+
+**Still release-blocking:** products are real catalog entries (10/11 currently lack explicit stock fields), prior tests may have affected live quantities; deployed old Android/web/admin clients still write directly, candidate strict Rules could break them; Firestore GPG snapshot does not prove Firebase Auth, Cloud Storage and deployed Rules restoration. No deployment/merge/Stripe Live/Firebase Rules changes authorized.
+
+## 2026-11-11 owner approximate timeline: these 18 COD tests likely predate card-checkout work
+
+The owner recalled that the 18 owner-created virtual COD test orders were **probably placed before work on payment-by-card began** for Kandorty. Record this as an **approximate owner recollection**, not an independently verified timestamp comparison. The responsible treatment is to **drop routine card-charge/refund investigation as a prerequisite for retaining those 18 test orders as unchanged read-only history**. No live Stripe payment or refund is asserted for them, and an independently encountered inconsistent payment reference would still be handled safely. Neither that recalled timeline nor the declared COD mode proves that historical test checkout/cancel flows did not change inventory.
+
+This update adds no production change, backdated lifecycle ledger, deletion, refund, payment or stock write. The 99-order/254-document private encrypted snapshot and its local emulator readback already PASSED. PR #2 remains draft and release NO-GO until inventory and old-client compatibility/recovery gates are actually validated. The new draft-only aggregate metadata reader can compare current COD labels to the private historic distribution without printing individual KD IDs; **its real CI result has not yet been verified**.
+
+## Owner final classification — all 18 are virtual COD self-tests
+
+On 2026-11-11 the owner further clarified explicitly: **all 18 flagged orders were virtual/fictitious self-created app/web test requests, all using cash-on-delivery (COD), with no independent real customers.** Treat this as the owner's *aggregate test-origin and intended payment-mode declaration*, not as independent per-document or inventory-event verification. Do not ask them to repeat the already-completed 99-order restore or disclose private codes, and do not ask for individual genuine-customer identity or cancellation proofs merely to archive these owner-declared virtual orders.
+
+**Proposed non-destructive administrative classification:** `OWNER_DECLARED_VIRTUAL_COD_TEST` (documentation/owner-private docket only; not a new production field). **Superseded by the newer 2026-11-12 owner statement:** the remaining 81 historical orders are also owner-created virtual tests, not genuine customer orders. All 99 remain preserved in their original statuses, and the 18 flagged cases remain blocked from automatic stock restoration, order cancellation, refunds, re-opening and fabricated lifecycle backfills. An archived test label does **not** prove that past test clicks did not affect real stock: review inventory effects and old client write paths before actual rollout. The owner-stated COD mode means no genuine customer/card-dispute follow-up is requested for these 18 as a default, but an unexpected actual card charge found later must still be handled based on provider evidence. Full project recovery/client compatibility remain release blockers.
+
+## Owner clarification — 18 flags arose from owner's own test orders
+
+On 2026-11-11 the owner explicitly clarified in chat that **the 18 flagged orders were placed personally by the owner through the Kandorty app or website for testing, not by independent customers**. This is an **owner statement about test origin**, not independently verified matching of individual encrypted docket identifiers, payment mode, settlement, payment/refund status, stock debit/restock or processing-lock metadata. It is not permission to delete or rewrite a single order, nor blanket proof that no real card charge happened.
+
+**Adjusted safe handling:** Classify these 18 **for planning and private review only** as `OWNER_REPORTED_TEST_ORDER_ORIGIN` (aggregate-only; never write that tag to production Firestore without separate review). Do not request real-customer cancellation statements or contact customers to prove a customer action that the owner says was only a test. Retain the owner-private GPG case docket and original 99-order backup unchanged. All 18 stay fail-closed for automated legacy cancellation, restock, refunds or migration until payment/inventory effects are separately reconciled or the operator accepts an explicitly read-only archive treatment.
+
+For these test orders, the minimal remaining evidence categories are: (1) whether any **real card payments** or live refunds occurred, verified against the payment provider if applicable; (2) whether these test actions changed live stock and whether stock still matches trusted counts; (3) whether the old admin/browser cancellation and restock path can be retired safely; and (4) recovery and client-compatibility gates. If all cases remain historical read-only archive records and no money/stock action is taken, no automatic cancellation actor reconstruction is needed **for that archive-only treatment**, but production rollout still needs independent tests and owner-specific release approval.
+
+## Verified facts
+- Owner encrypted local snapshot: **99 old orders / 254 associated documents**, across five top-level collections; exact-field replay to an isolated, loopback-only Firestore emulator passed.
+- Two private encrypted visual surveys: 3 pending and 11 unknown-origin cancellation cases, **14/14** matching previously saved statuses.
+- **18 distinct historical exception records (21 overlapping flags)**: 4 processing locks, 3 cancellation requests, 3 stock-restoration markers and 11 cancellation-origin unknown. Visual status and archived field equality do not resolve these cases.
+- New backend's trusted lifecycle ledger is absent for legacy orders. Do not synthesize ledgers, stock balances, proof of refund or cancellation actors.
+
+## A conservative alternative to inventing historical truth
+1. **Preserve all 99 historic order/tracking documents as they are.** Do not auto-backfill missing locks, replay historical stock credits, automatically cancel, re-open an order, assert card payments or issue refunds. Never delete historic orders merely to finish migration.
+2. **Mark the 18 private exceptions as evidence-blocked, solely in the owner-held encrypted review docket**; do not add an invented `quarantined` status or any order ID/PII to public code, logs or customer views. The other 81 are also NOT automatically authorized for new lifecycle writes.
+3. Prepare a **future read-only historic-order archive view** with customer/admin access checked independently. A historical order without a trusted ledger must not use the new-order server mutation API. If support requires a status update or cancellation, send it to separately authenticated manual review, not the old browser stock-restock path.
+4. A coordinated future cutover must **retire or fully isolate all direct client writes**, including old WebView offline fallbacks and still-installed APKs. Merely changing Firebase Rules today would break old orders, and simply publishing a new site would leave old clients active. Do not publish anything yet.
+5. Keep Stripe Sandbox/new-order functionality test-only until client/server/Rules acceptance and alerting pass; keep Live webhook disabled and dedicated production Worker detached.
+6. For final release readiness, obtain owner acceptance for the exact archive behavior and limitations, independent proof/reconciliation for any old order that must be mutated, a protected verified recovery/rollback plan for production-owned data, and separately authorized coordinated release. **No user instruction to “finish Stage 4” substitutes for explicit approval to enable live checkout or publish strict Rules.**
+
+## Failsafe acceptance criteria
+- All 99 historic orders remain readable in a nonproduction acceptance test without changing source status, tracking or inventory.
+- Every missing/inconsistent lock, pending cancel, restored marker and unknown-origin cancel is blocked from automatic mutation; no test derives stock from historical items/qty or finance truth from payment labels.
+- Guests, old Android/WebView versions, current admin and customer flows are checked against a proposed *compatible* read-only archive; preserve or clearly surface unsupported old operations without altering records.
+- Realistic backup/recovery coverage beyond the five currently exported collections (subcollections/Auth/Storage/Rules) and documented rollback remain required for coordinated production rollout.
+- There is no production Firebase write, Stripe Live activity, deployment, PR merge, Ziina activity or automatic exception closure from preparing this option.
+
+## Current disposition
+**Technically prepared: owner-attested local recovery plus conservative archive/quarantine design.**
+**Not performed: historical archive UI, full supported-client end-to-end acceptance, true full-project managed recovery, independent adjudication of the 18 historical exceptions, and production rollout.**
+
+This is a reversible, fail-closed *proposal*, not a code path currently activated in Kandorty. There is no basis to call all Stage 4 release gates complete yet. See [Stage 4 issue](https://github.com/arif123-del/kandorty/issues/3), [seven-stage status](SEVEN-STAGE-STATUS.md) and [PR #2](https://github.com/arif123-del/kandorty/pull/2).

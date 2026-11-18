@@ -1,0 +1,36 @@
+name: Kandorty synthetic legacy transaction smoke TEST ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/legacy-test-transaction-smoke.mjs'
+      - '.github/workflows/stripe-legacy-synthetic-transaction-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kandorty-test-legacy-transaction-smoke
+  cancel-in-progress: false
+jobs:
+  isolated-test-transaction:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate synthetic-only transaction smoke script
+        run: node --check .github/scripts/legacy-test-transaction-smoke.mjs
+      - name: Install ephemeral Firebase Admin SDK for TEST fixture creation and cleanup
+        run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Create and remove synthetic order/tracking in isolated TEST Firebase only
+        env:
+          STRIPE_TEST_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/legacy-test-transaction-smoke.mjs
+      - name: Safety boundary
+        if: always()
+        run: echo 'TEST ONLY. No site, rules, production Firebase/order, Stripe Live, Ziina or Android update.'

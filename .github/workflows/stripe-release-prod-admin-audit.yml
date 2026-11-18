@@ -1,0 +1,40 @@
+name: Stripe production Firebase admin identity READ ONLY (NO CLAIM GRANT)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/workflows/stripe-release-prod-admin-audit.yml'
+      - '.github/scripts/stripe-prod-admin-readonly.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production-admin-audit:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify audit source contains no privileged mutations
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const src=fs.readFileSync('.github/scripts/stripe-prod-admin-readonly.mjs','utf8');
+          for(const unsafe of [/setCustomUserClaims\s*\(/, /createUser\s*\(/, /deleteUser\s*\(/,
+           /revokeRefreshTokens\s*\(/, /\.set\s*\(/, /\.update\s*\(/, /\.delete\s*\(/,
+           /\.create\s*\(/, /\.commit\s*\(/, /admin\.auth\(\)\.setCustom/])
+           assert.ok(!unsafe.test(src),'Forbidden mutation call in read-only audit');
+          assert.ok(src.includes('getUserByEmail(')&&src.includes(".doc('admin_access/'+user.uid).get()"));
+          console.log('PASS: script uses read-only Firebase Auth lookup and Firestore membership GET');
+          JS
+      - name: Install Firebase Admin SDK only in ephemeral runner
+        run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Audit current Firebase Admin identity and server membership (NO WRITE)
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-prod-admin-readonly.mjs

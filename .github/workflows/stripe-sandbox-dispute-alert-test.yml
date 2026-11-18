@@ -1,0 +1,46 @@
+name: Kandorty Sandbox dispute alert test
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths: ['.github/workflows/stripe-sandbox-dispute-alert-test.yml']
+permissions:
+  contents: read
+concurrency:
+  group: kandorty-sandbox-dispute-alert-test
+  cancel-in-progress: false
+jobs:
+  dispute-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate one synthetic dispute in the Kandorty Sandbox
+        env:
+          STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const key = process.env.STRIPE_SANDBOX_SECRET_KEY?.trim();
+          assert.ok(/^sk_test_[A-Za-z0-9]+$/.test(key ?? ''), 'A Sandbox key is required');
+          const headers = { Authorization: 'Bearer ' + key };
+          const account = await fetch('https://api.stripe.com/v1/account', {
+            headers, redirect: 'error', signal: AbortSignal.timeout(15000)
+          });
+          assert.ok(account.ok, 'Sandbox account verification failed: HTTP ' + account.status);
+          assert.ok((await account.json()).id === 'acct_1UFC6NKau5PSUWJN', 'Unexpected Stripe account');
+          const result = await fetch('https://api.stripe.com/v1/payment_intents', {
+            method: 'POST',
+            headers: { ...headers, 'Idempotency-Key': 'kandorty-stage6-dispute-' + process.env.GITHUB_SHA },
+            body: new URLSearchParams({
+              amount: '350', currency: 'aed', confirm: 'true', 'payment_method_types[]': 'card',
+              payment_method: 'pm_card_createDispute', description: 'Kandorty Stage 6 synthetic dispute alert'
+            }),
+            redirect: 'error', signal: AbortSignal.timeout(15000)
+          });
+          assert.ok(result.ok, 'Synthetic payment failed: HTTP ' + result.status);
+          const payment = await result.json();
+          assert.ok(payment.livemode === false && payment.status === 'succeeded', 'Synthetic payment was not confirmed');
+          console.log('Sandbox synthetic payment confirmed');
+          NODE

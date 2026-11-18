@@ -1,0 +1,14 @@
+{
+  "name": "kandorty-cod-orders-test",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  "observability": {"enabled": false},
+  "vars": {"COD_MODE":"test", "STRIPE_TEST_PROJECT_ID":"kandorty-stripe-test-5f8af"},
+  "ratelimits": [
+    {"name":"IP_LIMITER","namespace_id":"927102701","simple":{"limit":120,"period":60}},
+    {"name":"PHONE_LIMITER","namespace_id":"927102702","simple":{"limit":30,"period":60}}
+  ]
+}

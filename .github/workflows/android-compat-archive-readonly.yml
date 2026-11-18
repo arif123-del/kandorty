@@ -1,0 +1,33 @@
+name: Kandorty Android archived source compatibility READ ONLY (NO DEPLOY)
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - '.github/scripts/android-compat-archive-audit.py'
+      - '.github/scripts/android-checkout-compat-readonly.py'
+      - '.github/workflows/android-compat-archive-readonly.yml'
+      - 'KandortyAndroid_v1_source.zip'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive-static-audit:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate audit script without running Android or Firebase clients
+        run: python3 -m py_compile .github/scripts/android-compat-archive-audit.py
+      - name: Read ZIP directly and print only non-sensitive aggregate compatibility signals
+        run: python3 .github/scripts/android-compat-archive-audit.py
+      - name: Read-only checkout and direct Firestore operation inventory
+        run: |
+          python3 -m py_compile .github/scripts/android-checkout-compat-readonly.py
+          python3 .github/scripts/android-checkout-compat-readonly.py
+      - name: Explain actual version and safety limits
+        run: |
+          echo 'Historical V1 ZIP static audit ONLY; cannot certify the current installed Android APK.'
+          echo 'No Firebase credentials, deployment, production writes, Android build, Stripe Live or Ziina changes.'

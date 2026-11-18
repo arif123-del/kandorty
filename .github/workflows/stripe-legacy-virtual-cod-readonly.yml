@@ -1,0 +1,87 @@
+name: Kandorty Stage4 owner virtual COD aggregate audit READ ONLY
+on:
+  push:
+    branches: [stripe-live-fulfillment-hardening]
+    paths:
+      - 'stripe-release/legacy-virtual-cod-aggregate.mjs'
+      - 'stripe-release/legacy-virtual-cod-aggregate.test.mjs'
+      - 'stripe-release/legacy-archive-only-policy.mjs'
+      - 'stripe-release/legacy-archive-only-policy.test.mjs'
+      - '.github/scripts/stripe-legacy-virtual-cod-readonly.mjs'
+      - '.github/scripts/stripe-stage4-backup-coverage-readonly.mjs'
+      - '.github/scripts/stripe-stage4-stock-health-readonly.mjs'
+      - '.github/workflows/stripe-legacy-virtual-cod-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-and-aggregate-only:
+    if: github.ref == 'refs/heads/stripe-live-fulfillment-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic 99-order and 18-case privacy regression
+        run: node --test stripe-release/legacy-virtual-cod-aggregate.test.mjs stripe-release/legacy-archive-only-policy.test.mjs
+      - name: Assert strictly read-only Firebase metadata projection
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const s=fs.readFileSync('.github/scripts/stripe-legacy-virtual-cod-readonly.mjs','utf8');
+          for(const pattern of [/\.set\s*\(/,/\.update\s*\(/,/\.delete\s*\(/,
+            /\.create\s*\(/,/\.commit\s*\(/,/\.batch\s*\(/,
+            /\.runTransaction\s*\(/,/\.bulkWriter\s*\(/,/\.add\s*\(/,
+            /\.doc\s*\(\s*\)\.set/]){
+            assert.ok(!pattern.test(s),'No Firestore writes permitted in this job');
+          }
+          assert.ok(s.includes("db.collection(kind).select(...expected[kind]).limit(501).get()"));
+          assert.ok(!s.includes("select('*')"));
+          console.log('STRICT_FIRESTORE_METADATA_PROJECTION: READ_ONLY');
+          JS
+      - name: Install scoped Firebase Admin reader
+        run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Compare current aggregate COD labels, without IDs or private details
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-legacy-virtual-cod-readonly.mjs
+      - name: Confirm coverage script is bounded and read only
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const s=fs.readFileSync('.github/scripts/stripe-stage4-backup-coverage-readonly.mjs','utf8');
+          for(const bad of [/\.set\s*\(/,/\.update\s*\(/,/\.delete\s*\(/,/\.commit\s*\(/,
+            /\.create\s*\(/,/\.batch\s*\(/,/\.runTransaction\s*\(/,
+            /\.bulkWriter\s*\(/])assert.ok(!bad.test(s),'No writes permitted');
+          assert.ok(s.includes('db.listCollections()'));
+          assert.ok(s.includes('db.collection(name).count().get()'));
+          JS
+      - name: Read only scoped Firestore root coverage counts
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-stage4-backup-coverage-readonly.mjs
+      - name: Assert stock health reader is bounded and write-free
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const s=fs.readFileSync('.github/scripts/stripe-stage4-stock-health-readonly.mjs','utf8');
+          for(const bad of [/\.set\s*\(/,/\.update\s*\(/,/\.delete\s*\(/,/\.commit\s*\(/,
+            /\.create\s*\(/,/\.batch\s*\(/,/\.runTransaction\s*\(/,
+            /\.bulkWriter\s*\(/])
+            assert.ok(!bad.test(s),'Stock audit cannot write Firestore');
+          assert.ok(s.includes("db.collection('products').select('stock','totalStock').limit(1001).get()"));
+          JS
+      - name: Read only aggregate product stock-field health
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-stage4-stock-health-readonly.mjs
+      - name: Explicit data and activation boundary
+        if: always()
+        run: echo 'No order IDs, customer info, stock updates, actual refund checks, release approval, website/Rules/Live activity or Ziina changes.'
