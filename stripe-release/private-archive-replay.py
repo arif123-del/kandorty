@@ -43,7 +43,16 @@ def check():
         step("AUTH_CLAIMS")
         need(json.loads(u.get("customAttributes") or "{}")==json.loads(v.get("customAttributes") or "{}"))
         step("AUTH_PROVIDERS")
-        need({(i["providerId"],i.get("rawId")) for i in u.get("providerUserInfo",[])}=={(i["providerId"],i.get("rawId")) for i in v.get("providerUserInfo",[])})
+        # The profile-only export deliberately has no password hash. The emulator
+        # cannot reconstruct a password login from the provider label alone.
+        def linked_providers(user):
+            return {(i["providerId"],i.get("rawId")) for i in user.get("providerUserInfo",[])
+                    if i["providerId"]!="password"}
+        need(linked_providers(u)==linked_providers(v))
+        for provider in u.get("providerUserInfo",[]):
+            if provider["providerId"]=="password":
+                need(bool(v.get("email")) and all(value==v["email"] for value in
+                     (provider.get("email"),provider.get("rawId")) if value))
     step("RULES_RELEASE_TYPE")
     archive=json.loads(ROOT("published-rules.json").read_text())
     count=0
@@ -110,6 +119,7 @@ def run(archive):
                         if hint in logs:stage=label;break
                 raise RuntimeError("emulator failed")
             n,r,m,h=json.loads((work/"verified.json").read_text())
+            print("AUTH_PASSWORD_LOGIN_RESTORE_NOT_TESTED")
             print("ISOLATED_RESTORE_PASS","PROFILES",n,"RULES",r,"LOCAL_MEDIA",m,"OTHER_LINK_HOSTS",h)
         except Exception:
             print("RESTORE_STOPPED",stage);raise SystemExit(1)
