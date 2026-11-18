@@ -1,0 +1,15 @@
+name: Verify private recovery archive on synthetic records
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/private-recovery-fixture.yml]
+permissions:
+  contents: read
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 stripe-release/test-private-auth-media-rules.py
