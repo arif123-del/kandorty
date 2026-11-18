@@ -1,0 +1,19 @@
+name: Verify audit principal match
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/verify-production-audit-principal.yml]
+permissions: {}
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare project and principal without exposing credential values
+        env:
+          AUDIT_CREDENTIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          node <<'JS'
+          const credential=JSON.parse(process.env.AUDIT_CREDENTIAL);
+          if(credential.project_id!=='kandorty-9378a'||credential.client_email!=='kandorty-stripe-orders@kandorty-9378a.iam.gserviceaccount.com') process.exit(1);
+          console.log('Principal matches');
+          JS
