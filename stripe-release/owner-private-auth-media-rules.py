@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 import pathlib
+import re
+import urllib.error
 import subprocess
 import sys
 import tarfile
@@ -30,8 +32,23 @@ def api(url, params=None):
     if params:
         url += "?" + urllib.parse.urlencode(params, doseq=True)
     token = subprocess.check_output(["gcloud","auth","print-access-token"], stderr=subprocess.DEVNULL, text=True).strip()
-    with opener.open(urllib.request.Request(url, headers={"Authorization":"Bearer "+token}),timeout=90) as response:
-        return json.load(response)
+    request = urllib.request.Request(url, headers={"Authorization":"Bearer "+token,
+                                                "X-Goog-User-Project":PROJECT})
+    try:
+        with opener.open(request,timeout=90) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        try:
+            info=json.load(error).get("error",{})
+            details=next((v for v in info.get("details",[]) if v.get("@type","").endswith(".ErrorInfo")), {})
+            reason=details.get("reason") or info.get("status","UNKNOWN")
+            permission=details.get("metadata",{}).get("permission","")
+        except (TypeError,ValueError,AttributeError):
+            reason,permission="UNKNOWN",""
+        reason=reason if re.fullmatch("[A-Z_]{1,80}",reason) else "UNKNOWN"
+        permission=permission if re.fullmatch("[A-Za-z.]{1,100}",permission) else ""
+        print("BLOCKED",host,error.code,reason,permission,file=sys.stderr)
+        raise
 
 def pages(url, key, params, cursor="pageToken"):
     args = dict(params)
