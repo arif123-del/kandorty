@@ -1,0 +1,52 @@
+name: Verify mobile order and production prerequisites read only
+on:
+  push:
+    branches: [sandbox-mobile-product-nov18]
+    paths: [.github/workflows/mobile-payment-readonly.yml]
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify test order, payment, inventory and 3DS
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.STRIPE_TEST_SERVICE_ACCOUNT_JSON }}
+          TEST_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {createStore} from './stripe-release/firestore.mjs';
+          const store=createStore({STRIPE_MODE:'test',FIREBASE_PROJECT_ID:'kandorty-stripe-test-5f8af',STRIPE_SECRET_KEY:'sk_test_fixture',STRIPE_WEBHOOK_SECRET:'whsec_fixture',STRIPE_RECEIPT_SECRET:'b'.repeat(64),STAGING_ACCESS_SECRET:'a'.repeat(64),FIREBASE_SERVICE_ACCOUNT_JSON:process.env.FIREBASE_SERVICE_ACCOUNT_JSON});
+          const o=(await store.get('orders/KD-30857468'))?.data;
+          assert.ok(o && o.total===35 && o.paymentStatus==='paid' && o.inventoryStatus==='debited' && o.items.some(i=>i.id==='mobile-test-35-nov18'));
+          console.log('TEST_FIRESTORE_PAID_35_AND_STOCK_DEBIT PASS');
+          assert.ok(/^cs_test_[a-zA-Z0-9]+$/.test(o.stripeSessionId));
+          assert.ok(/^(sk|rk)_test_/.test(process.env.TEST_KEY));
+          const res=await fetch('https://api.stripe.com/v1/checkout/sessions/'+o.stripeSessionId+'?expand[]=payment_intent.latest_charge',{headers:{Authorization:'Bearer '+process.env.TEST_KEY},redirect:'error'});
+          assert.ok(res.ok); const s=await res.json();
+          assert.ok(s.livemode===false && s.currency==='aed' && s.amount_total===3500 && s.payment_status==='paid' && s.client_reference_id==='KD-30857468');
+          console.log('TEST_STRIPE_PAYMENT PASS');
+          const a=s.payment_intent.latest_charge.payment_method_details?.card?.three_d_secure;
+          console.log('TEST_3DS_AUTHENTICATED '+(a?.result==='authenticated'?'YES':'NOT_CONFIRMED'));
+          JS
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock --ignore-scripts firebase-admin@13
+      - name: Check production admin readiness without making changes
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node .github/scripts/stripe-prod-admin-readonly.mjs
