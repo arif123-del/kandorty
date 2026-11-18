@@ -17,6 +17,13 @@ jobs:
         with:
           gradle-version: '8.9'
       - run: gradle --no-daemon :app:assembleDebug
+      - name: Verify APK signature and version
+        run: |
+          tools_dir=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          "$tools_dir/apksigner" verify "$apk"
+          "$tools_dir/aapt" dump badging "$apk" > "$RUNNER_TEMP/kandorty-badging"
+          grep -F "package: name='online.kandorty.app' versionCode='20' versionName='2.3.7'" "$RUNNER_TEMP/kandorty-badging"
       - uses: actions/upload-artifact@v4
         with:
           name: Kandorty-2.3.7-APK
