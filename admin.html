@@ -470,18 +470,18 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   background:#fffafa;
 }
 .order-product-image{
-  width:62px;
-  height:76px;
-  flex:0 0 62px;
+  width:76px;
+  height:94px;
+  flex:0 0 76px;
   object-fit:cover;
   border-radius:9px;
   background:#f3eff0;
   border:1px solid var(--line);
 }
 .order-product-noimage{
-  width:62px;
-  height:76px;
-  flex:0 0 62px;
+  width:76px;
+  height:94px;
+  flex:0 0 76px;
   border-radius:9px;
   background:#f3eff0;
   display:grid;
@@ -817,9 +817,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminOrdersTab .customer-file-status{font-size:13px;padding:5px 9px;background:#f6f0f2;border-radius:7px;font-weight:700}
 #adminOrdersTab .customer-file-status.cancelled{color:#a11c29;background:#ffe7e7}
 #adminOrdersTab .customer-file-meta{line-height:1.9;font-size:14px;overflow-wrap:anywhere}
-#adminOrdersTab .customer-file-order .order-product-image{width:82px;height:102px;flex:0 0 82px}
-#adminOrdersTab .customer-file-order .order-product-noimage{width:82px;height:102px;flex:0 0 82px}
-@media(max-width:560px){#adminOrdersTab .customer-file-data{grid-template-columns:1fr}#adminOrdersTab .customer-file-order{padding:11px}#adminOrdersTab .customer-file-order .order-product-image{width:72px;height:92px;flex-basis:72px}#adminOrdersTab .customer-file-heading{font-size:19px}}
+#adminOrdersTab .customer-file-order .order-product-image{width:100px;height:126px;flex:0 0 100px}
+#adminOrdersTab .customer-file-order .order-product-noimage{width:100px;height:126px;flex:0 0 100px}
+@media(max-width:560px){#adminOrdersTab .customer-file-data{grid-template-columns:1fr}#adminOrdersTab .customer-file-order{padding:11px}#adminOrdersTab .customer-file-order :is(.order-product-image,.order-product-noimage){width:90px;height:114px;flex-basis:90px}#adminOrdersTab .customer-file-heading{font-size:19px}}
 #adminOrdersTab .order-folder-status-select{padding:9px;border:1px solid #dbc8d0;border-radius:10px;background:white;max-width:180px}
 #adminOrdersTab .customer-file-heading .admin-current-order-status{display:block;min-width:180px;max-width:100%;padding:12px 16px;font-size:17px;font-weight:800;color:#861531;border:2px solid #dbc8d0;border-radius:13px;cursor:pointer}
 @media(max-width:520px){#adminOrdersTab .customer-file-header{align-items:stretch}#adminOrdersTab .customer-file-heading{flex:1 1 165px}#adminOrdersTab .customer-file-heading .admin-current-order-status{width:100%;min-width:0}}#adminOrdersTab .order-folder-note{margin:8px 0;color:#97192a;font-weight:800;font-size:13px}#adminOrdersTab .order-folder-hint{color:#72636b;font-size:13px;margin:10px 0 14px}</style>
@@ -1453,6 +1453,7 @@ function load(){
 
       render();
       renderAdminList();
+      if(selectedOrdersCustomer)renderOpenedOrdersCustomer();
       /* DRAFT REVIEW: auto stock baseline migration disabled */
     },
     error=>{
@@ -3058,25 +3059,39 @@ function renderOrderCustomerHtml(order){
   </div>`;
 }
 
-function orderItemImage(item){
-  if(item?.imageUrl)return String(item.imageUrl);
-  const p=(Array.isArray(products)?products:[]).find(x=>String(x.id||'')===String(item?.id||''));
-  const imgs=Array.isArray(p?.images)?p.images.filter(Boolean):[];
-  const idx=Math.max(0,Number(item?.imageIndex)||0);
-  return String(imgs[idx]||imgs[0]||'');
+function catalogOrderImage(id,code,index){
+  const product=products.find(p=>String(p.id)===id)
+    || (code && products.find(p=>p.code===code));
+  const image=product?.images?.[index];
+  return typeof image==='string'?image.trim():'';
+}
+function showOrderImageFallback(img){
+  const fallback=catalogOrderImage(img.dataset.productId,img.dataset.productCode,Number(img.dataset.imageIndex));
+  if(fallback && img.getAttribute('src')!==fallback){
+    img.src=fallback;
+    return;
+  }
+  const placeholder=document.createElement('div');
+  placeholder.className='order-product-noimage';
+  placeholder.textContent='بدون صورة';
+  img.replaceWith(placeholder);
 }
 function renderOrderItemsHtml(order){
   const normalized=normalizeOrderShape(order);
   const items=Array.isArray(normalized.items)?normalized.items:[];
   if(!items.length)return '<div class="customer-edit-note">لا توجد تفاصيل منتجات محفوظة لهذا الطلب القديم.</div>';
   return `<div class="order-products">${items.map(item=>{
-    const image=orderItemImage(item);
+    const index=Number(item.imageIndex??0);
+    const saved=typeof item.imageUrl==='string'?item.imageUrl.trim():'';
+    // Server order snapshots cap image strings at 1200 characters.
+    const truncated=saved.length===1200 && /^data:image\//i.test(saved);
+    const image=(!truncated && saved) || catalogOrderImage(String(item.id),item.code,index);
     const name=item?.name||item?.nameAr||item?.code||'منتج';
     const code=item?.code||'';
     const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
     return `<div class="order-product-row">
       ${image
-        ? `<img class="order-product-image" src="${esc(image)}" alt="">`
+        ? `<img class="order-product-image" src="${esc(image)}" data-product-id="${esc(item.id)}" data-product-code="${esc(code)}" data-image-index="${esc(index)}" onerror="showOrderImageFallback(this)" alt="${esc(name)}">`
         : `<div class="order-product-noimage">بدون صورة</div>`}
       <div class="order-product-info">
         <div class="order-product-name">${esc(name)}</div>
