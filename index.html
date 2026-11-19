@@ -2188,7 +2188,7 @@ body.kandorty-cart-open #cartBtn{
 <div id="cartItems"></div>
 <div id="cartDeliveryBreakdown" style="margin-top:15px;font-size:14px;line-height:2">
 <div style="display:flex;justify-content:space-between"><span>قيمة المنتجات</span><b id="cartSubtotal">0 د.إ</b></div>
-<div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><b id="cartDeliveryFee">25 د.إ</b></div>
+<div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><b id="cartDeliveryFee">—</b></div>
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-weight:700">
 <span>الإجمالي</span><span id="cartTotal" class="price">0 د.إ</span>
@@ -2231,9 +2231,9 @@ body.kandorty-cart-open #cartBtn{
 <textarea id="orderNotes" class="full" rows="3" placeholder="ملاحظات الطلب (اختياري)"></textarea>
 <div class="full" id="checkoutPriceBreakdown" style="padding:10px;border:1px solid #eadfe1;border-radius:12px;line-height:2">
 <div style="display:flex;justify-content:space-between"><span>المنتجات</span><strong id="checkoutSubtotal">0 د.إ</strong></div>
-<div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><strong id="checkoutDeliveryFee">25 د.إ</strong></div>
+<div style="display:flex;justify-content:space-between"><span>رسوم التوصيل</span><strong id="checkoutDeliveryFee">—</strong></div>
 <div style="display:flex;justify-content:space-between"><span>الإجمالي مع التوصيل</span><strong id="checkoutGrandTotal">0 د.إ</strong></div>
-<div id="stripeDeliveryNotice" style="font-size:12px;color:#8b311e" hidden>عند الدفع بالبطاقة، رسوم التوصيل 25 د.إ مشمولة في المبلغ المدفوع بالبطاقة.</div>
+<div id="stripeDeliveryNotice" style="font-size:12px;color:#8b311e" hidden>عند الدفع بالبطاقة، رسوم التوصيل مشمولة في المبلغ المدفوع بالبطاقة.</div>
 </div>
 <div id="checkoutStatus" class="full" style="min-height:22px;font-size:13px;font-weight:700"></div>
 <button id="confirmOrderBtn" class="btn primary full" type="button">تأكيد الطلب</button>
@@ -4220,10 +4220,19 @@ function cartData(){
     product:products.find(p=>String(p.id)===String(i.id))
   })).filter(x=>x.product);
 }
-const KANDORTY_DELIVERY_FEE=25;
+function cartDeliveryFils(settings = {}) {
+  const note = String(settings.cartButtonNote || settings.cartCustomText || '').trim()
+    .replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 0x660))
+    .replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 0x6f0))
+    .replace(/٫/g, '.');
+  if (/^(?:التوصيل|توصيل)\s+مجاني$|^free delivery$/i.test(note)) return 0;
+  const amount = note.match(/^(?:(?:التوصيل|توصيل|delivery)\s*(?:ب|:)?\s*)?(\d{1,5}(?:\.\d{1,2})?)\s*(?:درهم|د\.?إ\.?|AED)?$/i);
+  return amount ? Math.round(Number(amount[1]) * 100) : 2500;
+}
+function deliveryCharge(){return cartDeliveryFils(settings)/100;}
 function kandortyCartSubtotal(rows){return rows.reduce((sum,x)=>sum+Number(x.product.salePrice||x.product.price)*(Number(x.item.qty)||0),0);}
 function refreshCheckoutDelivery(){
- const rows=cartData(), subtotal=kandortyCartSubtotal(rows),fee=rows.length?KANDORTY_DELIVERY_FEE:0;
+ const rows=cartData(), subtotal=kandortyCartSubtotal(rows),fee=rows.length?deliveryCharge():0;
  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.innerHTML=moneyHtml(v);};
  set("checkoutSubtotal",subtotal);set("checkoutDeliveryFee",fee);set("checkoutGrandTotal",subtotal+fee);
  const notice=document.getElementById("stripeDeliveryNotice");if(notice)notice.hidden=document.getElementById("paymentMethod")?.value!=="card";
@@ -4243,7 +4252,7 @@ function renderCart(){
       <div class="qty"><button onclick="changeCartQty(${cartIndex},-1)">−</button><span>${item.qty}</span><button onclick="changeCartQty(${cartIndex},1)">+</button><button onclick="removeCartItem(${cartIndex})">×</button></div>
     </div>`;
   }).join(''):'<div class="empty">السلة فارغة</div>';
-  const subtotal=kandortyCartSubtotal(rows),delivery=rows.length?KANDORTY_DELIVERY_FEE:0;
+  const subtotal=kandortyCartSubtotal(rows),delivery=rows.length?deliveryCharge():0;
   $('cartTotal').innerHTML=moneyHtml(subtotal+delivery);
   $('cartSubtotal').innerHTML=moneyHtml(subtotal);
   $('cartDeliveryFee').innerHTML=moneyHtml(delivery);
@@ -4349,7 +4358,7 @@ async function submitCheckoutOrder(){
   }
 
   const subtotal=kandortyCartSubtotal(rows);
-  const deliveryFee=KANDORTY_DELIVERY_FEE;
+  const deliveryFee=deliveryCharge();
   const total=subtotal+deliveryFee;
   const verifiedPhone=customerAuthUser?.phoneNumber||'';
   const order={
@@ -4405,6 +4414,10 @@ async function submitCheckoutOrder(){
       checkoutMessage(lang==='ar'?'أحد منتجات السلة غير متاح بالكمية المطلوبة. راجعي السلة.':'A cart item is unavailable in the requested quantity. Please review your cart.',true);
       return;
     }
+    if(msg==='delivery_fee_changed'){
+      checkoutMessage(lang==='ar'?'تغيرت رسوم التوصيل. راجعي الإجمالي وأعيدي المحاولة.':'Delivery has changed. Review the total and try again.',true);
+      return;
+    }
     if(msg==='invalid_customer_phone'){
       checkoutMessage(lang==='ar'?'أدخلي رقم الهاتف مع رمز المنطقة أو الدولة، مثل 050 123 4567.':'Enter a phone number including the area or country code, for example 050 123 4567.',true);
       $('customerPhone').focus();
@@ -4433,7 +4446,7 @@ $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
 let secureStripePromise;
 function secureStripeFlow(){
-  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs?v=retry3').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
+  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs?v=delivery1').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
     storage:localStorage,redirect:url=>window.location.assign(url),
     confirmResume:()=>{checkoutMessage('');return window.confirm(lang==='ar'?'توجد محاولة سابقة ببيانات مختلفة. هل تريدين متابعة الطلب السابق ببياناته الأصلية؟':'A previous checkout already exists with different details. Resume it with its original details?');},
     getTurnstileToken:()=>turnstileToken('0x4AAAAAAFroUm7gBp-V9_Ta'),
@@ -4626,6 +4639,7 @@ function renderCachedStoreSettingsNow(){
       settings={...getDefaultStoreSettings(),...cached};
       renderSocialLinks();
       renderCartCustomNote();
+      renderCart();
       renderHomeBanner();
       renderHomeVideo();
     }
@@ -4642,6 +4656,7 @@ function loadSettings(){
       try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}
       renderSocialLinks();
       renderCartCustomNote();
+      renderCart();
       renderHomeBanner();
       renderHomeVideo();
     },
@@ -5618,7 +5633,7 @@ $('customerOrderEditForm').onsubmit=async e=>{
 
 function buildWhatsAppMessage(){
   const rows=cartData();
-  const subtotal=kandortyCartSubtotal(rows),delivery=rows.length?KANDORTY_DELIVERY_FEE:0,total=subtotal+delivery;
+  const subtotal=kandortyCartSubtotal(rows),delivery=rows.length?deliveryCharge():0,total=subtotal+delivery;
   return [
     'طلب جديد من Kandorty',
     '',

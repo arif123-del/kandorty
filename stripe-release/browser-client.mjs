@@ -38,18 +38,18 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
   const data=await r.json();if(!r.ok)throw new Error(data.error||'stripe_unavailable');return data;
  }
  return {
-  async start({customer,items,note='',turnstileToken,stagingKey}){
+  async start({customer,items,note='',expectedDeliveryFils,turnstileToken,stagingKey}){
    const {request,state,fingerprint}=checkoutRequest(customer,items,note,key);
-   const result=await post('/create-checkout-session',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
+   const result=await post('/create-checkout-session',{...request,expectedDeliveryFils,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
    if(!validId(result?.orderId)||!validSecret(result?.receipt))throw new Error('invalid_checkout_response');
    // Preserve the request idempotency token on invalid responses; never store bogus receipts.
    storage.setItem(key,JSON.stringify({checkoutToken:state.checkoutToken,fingerprint,receipt:result.receipt,manageToken:result.manageToken,orderId:result.orderId}));
    return result;
   },
-  async startCod({customer,items,note='',turnstileToken,stagingKey}){
+  async startCod({customer,items,note='',expectedDeliveryFils,turnstileToken,stagingKey}){
    const codKey=key+'_cod';
    const {request,state}=checkoutRequest(customer,items,note,codKey);
-   const r=await post('/cod/orders',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
+   const r=await post('/cod/orders',{...request,expectedDeliveryFils,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
    if(!validId(r?.order?.id)||r.order.payment!=='cod'||!validSecret(r.receipt)||!validSecret(r.manageToken))throw new Error('invalid_cod_response');
    // Never acknowledge a COD order or delete its retry key without a matching server receipt.
    storage.setItem('kandorty_stripe_receipt_'+r.order.id,r.receipt);storage.setItem('kandorty_order_manage_'+r.order.id,r.manageToken);storage.removeItem(codKey);return r;
