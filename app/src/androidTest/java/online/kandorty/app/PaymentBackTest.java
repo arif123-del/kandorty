@@ -35,6 +35,43 @@ public class PaymentBackTest {
         return null;
     }
 
+    @Test public void returnFromBackgroundRecoversOfflinePage() throws Exception {
+        android.app.Instrumentation ins = InstrumentationRegistry.getInstrumentation();
+        Context ctx = ins.getTargetContext();
+        MainActivity activity = (MainActivity)ins.startActivitySync(
+                new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        CountDownLatch offline = new CountDownLatch(1), recovered = new CountDownLatch(1);
+        try {
+            ins.runOnMainSync(() -> {
+                WebView w = findWebView(activity.getWindow().getDecorView());
+                WebViewClient actual = w.getWebViewClient();
+                w.stopLoading();
+                ins.callActivityOnPause(activity);
+                w.setWebViewClient(new WebViewClient() {
+                    @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
+                        if (!HOME.equals(req.getUrl().toString())) return null;
+                        return new WebResourceResponse("text/html","utf-8",new ByteArrayInputStream(
+                                "<html>Home</html>".getBytes(StandardCharsets.UTF_8)));
+                    }
+                    @Override public void onPageStarted(WebView v,String url,Bitmap icon) {
+                        actual.onPageStarted(v,url,icon);
+                    }
+                    @Override public void onPageFinished(WebView v,String url) {
+                        actual.onPageFinished(v,url);
+                        if (url.startsWith("file:///android_asset/")) offline.countDown();
+                        if (offline.getCount()==0 && HOME.equals(url)) recovered.countDown();
+                    }
+                });
+                w.loadUrl("file:///android_asset/index-fast-start.html");
+            });
+            assertTrue(offline.await(20,TimeUnit.SECONDS));
+            ins.runOnMainSync(() -> ins.callActivityOnResume(activity));
+            assertTrue(recovered.await(20,TimeUnit.SECONDS));
+        } finally {
+            ins.runOnMainSync(activity::finish);
+        }
+    }
+
     @Test public void acknowledgeThenSystemBackStaysHome() throws Exception {
         android.app.Instrumentation ins = InstrumentationRegistry.getInstrumentation();
         Context ctx = ins.getTargetContext();

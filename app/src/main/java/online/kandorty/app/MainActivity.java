@@ -57,17 +57,19 @@ public class MainActivity extends Activity {
     private boolean offlinePageShown;
     private boolean destroyed;
     private boolean foreground;
+    private boolean retryOfflinePage;
+    private long disconnectedSince = -1;
     // Initialized after all state fields are declared to avoid illegal forward references.
     private void initPageTimeout() {
         pageTimeout = () -> {
-            if (!destroyed && !mainPageFinished && !offlinePageShown) showOfflinePage();
+            if (!destroyed && foreground && !mainPageFinished && !offlinePageShown) showOfflinePage();
         };
     }
     private final Handler connectivityWatchdog = new Handler(Looper.getMainLooper());
     private final Runnable connectionWatch = new Runnable() {
         @Override public void run() {
             if (destroyed || !foreground || webView == null) return;
-            if (!hasValidatedInternet()) showOfflinePage();
+            updateConnectivity();
             if (!destroyed && foreground) {
                 connectivityWatchdog.postDelayed(this, NETWORK_WATCHDOG_MS);
             }
@@ -155,7 +157,7 @@ public class MainActivity extends Activity {
                     mainPageFinished = false;
                     pageTimeoutHandler.postDelayed(pageTimeout, LOAD_TIMEOUT_MS);
                     if (loadingOverlay != null) loadingOverlay.setVisibility(View.VISIBLE);
-                    if (!hasValidatedInternet()) showOfflinePage();
+                    if (!hasValidatedInternet()) updateConnectivity();
                 }
             }
 
@@ -164,11 +166,11 @@ public class MainActivity extends Activity {
                 pageTimeoutHandler.removeCallbacks(pageTimeout);
                 if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE);
                 if (OFFLINE_URL.equals(url)) {
-                    offlinePageShown = true;
+                    offlinePageShown = OFFLINE_URL.equals(view.getUrl());
                     return;
                 }
                 mainPageFinished = true;
-                if (!hasValidatedInternet()) showOfflinePage();
+                if (!hasValidatedInternet()) updateConnectivity();
                 if (clearingCheckoutHistory && STORE_URL.equals(url) && url.equals(view.getUrl())) {
                     view.clearHistory();
                     clearingCheckoutHistory = false;
@@ -262,7 +264,7 @@ public class MainActivity extends Activity {
         } else if (savedInstanceState == null) {
             webView.loadUrl(STORE_URL);
         } else {
-            webView.restoreState(savedInstanceState);
+            if (webView.restoreState(savedInstanceState) == null) webView.loadUrl(STORE_URL);
         }
     }
 
@@ -307,10 +309,27 @@ public class MainActivity extends Activity {
         webView.loadUrl(OFFLINE_URL);
     }
 
+    private void updateConnectivity() {
+        if (!foreground || destroyed || webView == null) return;
+        if (!hasValidatedInternet()) {
+            retryOfflinePage = true;
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (disconnectedSince < 0) disconnectedSince = now;
+            if (now - disconnectedSince >= 2000) showOfflinePage();
+            return;
+        }
+        disconnectedSince = -1;
+        if (retryOfflinePage && OFFLINE_URL.equals(webView.getUrl())) {
+            retryOfflinePage = false;
+            offlinePageShown = false;
+            webView.loadUrl(STORE_URL);
+        } else if (!offlinePageShown && mainPageFinished) {
+            retryOfflinePage = false;
+        }
+    }
+
     private void checkConnectivityOnUiThread() {
-        runOnUiThread(() -> {
-            if (!destroyed && !hasValidatedInternet()) showOfflinePage();
-        });
+        runOnUiThread(this::updateConnectivity);
     }
 
     private void startNetworkMonitoring() {
@@ -335,12 +354,19 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         foreground = true;
+        retryOfflinePage = true;
+        disconnectedSince = -1;
+        if (!mainPageFinished && !offlinePageShown) {
+            pageTimeoutHandler.removeCallbacks(pageTimeout);
+            pageTimeoutHandler.postDelayed(pageTimeout, LOAD_TIMEOUT_MS);
+        }
         connectivityWatchdog.removeCallbacks(connectionWatch);
         connectionWatch.run();
     }
 
     @Override protected void onPause() {
         foreground = false;
+        pageTimeoutHandler.removeCallbacks(pageTimeout);
         connectivityWatchdog.removeCallbacks(connectionWatch);
         super.onPause();
     }
