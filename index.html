@@ -4391,6 +4391,10 @@ async function submitCheckoutOrder(){
       $('customerPhone').focus();
       return;
     }
+    if(msg==='checkout_expired'||msg==='checkout_conflict'){
+      checkoutMessage(lang==='ar'?'تعذرت متابعة الطلب السابق. تواصلي مع المتجر للتحقق من حالته.':'The earlier order could not be resumed. Contact the store to check its status.',true);
+      return;
+    }
     checkoutMessage(lang==='ar'?'تعذر تسجيل الطلب. حاولي مرة أخرى.':'Could not submit the order. Please try again.',true);
     alert((lang==='ar'?'❌ لم يتم تسجيل الطلب.\n\n':'❌ Order was not registered.\n\n')+msg);
   }finally{
@@ -4410,8 +4414,9 @@ $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
 let secureStripePromise;
 function secureStripeFlow(){
-  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs?v=phone2').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
+  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs?v=retry3').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
     storage:localStorage,redirect:url=>window.location.assign(url),
+    confirmResume:()=>{checkoutMessage('');return window.confirm(lang==='ar'?'توجد محاولة سابقة ببيانات مختلفة. هل تريدين متابعة الطلب السابق ببياناته الأصلية؟':'A previous checkout already exists with different details. Resume it with its original details?');},
     getTurnstileToken:()=>turnstileToken('0x4AAAAAAFroUm7gBp-V9_Ta'),
     confirmed:order=>{
       localStorage.setItem('kandorty_last_order_id',order.id);saveCustomerOwnOrders([order,...readCustomerOwnOrders().filter(o=>o.id!==order.id)]);
