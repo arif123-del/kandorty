@@ -1,18 +1,38 @@
 // Invoked only by the generated, unpublished storefront candidate.
-import {stripeCheckoutClient} from './browser-client.mjs?v=phone2';
-export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,getTurnstileToken,endpoint='https://kandorty-stripe-release.aliyajan200011.workers.dev'}){
+import {stripeCheckoutClient} from './browser-client.mjs?v=retry3';
+export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,confirmResume,getTurnstileToken,endpoint='https://kandorty-stripe-release.aliyajan200011.workers.dev'}){
  const client=stripeCheckoutClient({endpoint,storage,net});
+ async function submit(method,order){
+  const send=async request=>{
+   const turnstileToken=await getTurnstileToken();
+   if(!turnstileToken)throw new Error('anti_bot_required');
+   return client[method]({...request,turnstileToken});
+  };
+  try{return await send({customer:order.customer,items:order.items,note:order.notes||''});}
+  catch(error){
+   if(error.message!=='checkout_conflict')throw error;
+   if(!confirmResume?.())return null;
+   // A confirmed conflict means this token is already bound on the server.
+   // Replaying a matching request recovers that checkout, including its receipt.
+   for(const saved of client.savedRequests(method==='start'?'card':'cod')){
+    try{return await send(saved);}catch(retryError){
+     if(retryError.message!=='checkout_conflict')throw retryError;
+    }
+   }
+   throw error;
+  }
+ }
  return {
   async start(order){
-   const token=await getTurnstileToken();
-   if(!token)throw new Error('anti_bot_required');
-   const result=await client.start({customer:order.customer,items:order.items,note:order.notes||'',turnstileToken:token});
+   const result=await submit('start',order);
+   if(!result)return;
    if(result.url){const u=new URL(result.url);if(u.protocol!=='https:'||u.hostname!=='checkout.stripe.com')throw new Error('invalid_checkout_url');redirect(u.href);return;}
    return this.finish();
   },
   async startCod(order){
-   const token=await getTurnstileToken();if(!token)throw new Error('anti_bot_required');
-   const r=await client.startCod({customer:order.customer,items:order.items,note:order.notes||'',turnstileToken:token});confirmed(r.order);return r;
+   const r=await submit('startCod',order);
+   if(r)confirmed(r.order);
+   return r;
   },
   async cancel(id){return client.cancel(id);},
   async finish(){

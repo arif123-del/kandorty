@@ -19,21 +19,19 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
    // Keep the original representation for an existing retry if the server accepts it.
    if(phone.length>30)request.customer.phone=(phone.startsWith('+')?'+':'')+digits;
    const fingerprint=JSON.stringify(request);
-   if(state&&state.fingerprint!==fingerprint){
-     let previousPhone;
-     try{previousPhone=JSON.parse(state.fingerprint).customer.phone;}catch{}
-     const previousDigits=typeof previousPhone==='string'?previousPhone.replace(/\D/g,'').length:null;
-     // The server rejects these phone values before reading or writing any order.
-     if(state.receipt||state.orderId||state.manageToken||previousDigits===null||
-        (previousDigits>=6&&previousDigits<=18&&previousPhone.length<=30))
-       throw new Error('pending_checkout_changed');
-     state=null;
-   }
+   // Reuse the attempt token for edits. Only the server knows whether an
+   // earlier request reached it. Its fingerprint check is atomic with creation.
    if(!state){
      state={fingerprint,checkoutToken:Array.from(randomBytes(),b=>b.toString(16).padStart(2,'0')).join('')};
      storage.setItem(storageKey,JSON.stringify(state));
    }
-   return {request,state};
+   if(state.fingerprint!==fingerprint && !state.receipt && !state.orderId){
+     // Keep both candidates if the reply is lost after the edited request commits.
+     const previous=state.previousFingerprints||[];
+     state={...state,previousFingerprints:[...new Set([...previous,state.fingerprint])],fingerprint};
+     storage.setItem(storageKey,JSON.stringify(state));
+   }
+   return {request,state,fingerprint};
  }
  async function post(path,body,headers={}){
   const r=await net(endpoint+path,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
@@ -41,11 +39,11 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
  }
  return {
   async start({customer,items,note='',turnstileToken,stagingKey}){
-   const {request,state}=checkoutRequest(customer,items,note,key);
+   const {request,state,fingerprint}=checkoutRequest(customer,items,note,key);
    const result=await post('/create-checkout-session',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
    if(!validId(result?.orderId)||!validSecret(result?.receipt))throw new Error('invalid_checkout_response');
    // Preserve the request idempotency token on invalid responses; never store bogus receipts.
-   storage.setItem(key,JSON.stringify({...state,receipt:result.receipt,manageToken:result.manageToken,orderId:result.orderId}));
+   storage.setItem(key,JSON.stringify({checkoutToken:state.checkoutToken,fingerprint,receipt:result.receipt,manageToken:result.manageToken,orderId:result.orderId}));
    return result;
   },
   async startCod({customer,items,note='',turnstileToken,stagingKey}){
@@ -55,6 +53,10 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
    if(!validId(r?.order?.id)||r.order.payment!=='cod'||!validSecret(r.receipt)||!validSecret(r.manageToken))throw new Error('invalid_cod_response');
    // Never acknowledge a COD order or delete its retry key without a matching server receipt.
    storage.setItem('kandorty_stripe_receipt_'+r.order.id,r.receipt);storage.setItem('kandorty_order_manage_'+r.order.id,r.manageToken);storage.removeItem(codKey);return r;
+  },
+  savedRequests(method){
+   const state=JSON.parse(storage.getItem(method==='card'?key:key+'_cod')||'null');
+   return (state?[state.fingerprint,...(state.previousFingerprints||[]).slice().reverse()]:[]).map(f=>JSON.parse(f));
   },
   async cancel(orderId,stagingKey){
    const p=read(),receipt=storage.getItem('kandorty_stripe_receipt_'+orderId)||(p?.orderId===orderId?p.receipt:null),manageToken=storage.getItem('kandorty_order_manage_'+orderId)||(p?.orderId===orderId?p.manageToken:null);
