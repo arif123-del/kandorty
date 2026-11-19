@@ -59,10 +59,14 @@ public class MainActivity extends Activity {
     private boolean foreground;
     private boolean retryOfflinePage;
     private long disconnectedSince = -1;
+    private boolean recoverOnResume;
+    private long resumeRetryUntil;
     // Initialized after all state fields are declared to avoid illegal forward references.
     private void initPageTimeout() {
         pageTimeout = () -> {
-            if (!destroyed && foreground && !mainPageFinished && !offlinePageShown) showOfflinePage();
+            if (!destroyed && foreground && !mainPageFinished && !offlinePageShown
+                    && !hasValidatedInternet()) showOfflinePage();
+            else if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE);
         };
     }
     private final Handler connectivityWatchdog = new Handler(Looper.getMainLooper());
@@ -130,7 +134,7 @@ public class MainActivity extends Activity {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
                 if (scheme.equals("http") || scheme.equals("https")) {
-                    if (!hasValidatedInternet()) {
+                    if (request.isForMainFrame() && !hasValidatedInternet()) {
                         showOfflinePage();
                         return true;
                     }
@@ -183,6 +187,17 @@ public class MainActivity extends Activity {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame() &&
                         !OFFLINE_URL.equals(String.valueOf(request.getUrl()))) {
+                    if (!foreground) {
+                        recoverOnResume = true;
+                        return;
+                    }
+                    if (android.os.SystemClock.elapsedRealtime() < resumeRetryUntil
+                            && STORE_URL.equals(request.getUrl().toString())
+                            && hasValidatedInternet()) {
+                        resumeRetryUntil = 0;
+                        view.post(() -> { if (foreground && !destroyed) view.loadUrl(STORE_URL); });
+                        return;
+                    }
                     showOfflinePage();
                 }
             }
@@ -259,9 +274,7 @@ public class MainActivity extends Activity {
         });
 
         startNetworkMonitoring();
-        if (!hasValidatedInternet()) {
-            showOfflinePage();
-        } else if (savedInstanceState == null) {
+        if (savedInstanceState == null) {
             webView.loadUrl(STORE_URL);
         } else {
             if (webView.restoreState(savedInstanceState) == null) webView.loadUrl(STORE_URL);
@@ -315,11 +328,12 @@ public class MainActivity extends Activity {
             retryOfflinePage = true;
             long now = android.os.SystemClock.elapsedRealtime();
             if (disconnectedSince < 0) disconnectedSince = now;
-            if (now - disconnectedSince >= 2000) showOfflinePage();
+            if (!mainPageFinished && now - disconnectedSince >= LOAD_TIMEOUT_MS) showOfflinePage();
             return;
         }
         disconnectedSince = -1;
-        if (retryOfflinePage && OFFLINE_URL.equals(webView.getUrl())) {
+        if (recoverOnResume || (retryOfflinePage && OFFLINE_URL.equals(webView.getUrl()))) {
+            recoverOnResume = false;
             retryOfflinePage = false;
             offlinePageShown = false;
             webView.loadUrl(STORE_URL);
@@ -354,6 +368,7 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         foreground = true;
+        resumeRetryUntil = android.os.SystemClock.elapsedRealtime() + 6000;
         retryOfflinePage = true;
         disconnectedSince = -1;
         if (!mainPageFinished && !offlinePageShown) {
