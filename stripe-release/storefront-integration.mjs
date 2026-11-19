@@ -1,5 +1,5 @@
 // Invoked only by the generated, unpublished storefront candidate.
-import {stripeCheckoutClient} from './browser-client.mjs?v=retry3';
+import {stripeCheckoutClient} from './browser-client.mjs?v=delivery1';
 export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,confirmResume,getTurnstileToken,endpoint='https://kandorty-stripe-release.aliyajan200011.workers.dev'}){
  const client=stripeCheckoutClient({endpoint,storage,net});
  async function submit(method,order){
@@ -8,7 +8,7 @@ export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,con
    if(!turnstileToken)throw new Error('anti_bot_required');
    return client[method]({...request,turnstileToken});
   };
-  try{return await send({customer:order.customer,items:order.items,note:order.notes||''});}
+  try{return await send({customer:order.customer,items:order.items,note:order.notes||'',expectedDeliveryFils:Math.round(order.deliveryFee*100)});}
   catch(error){
    if(error.message!=='checkout_conflict')throw error;
    if(!confirmResume?.())return null;
