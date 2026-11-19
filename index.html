@@ -2200,7 +2200,7 @@ body.kandorty-cart-open #cartBtn{
 <div class="modal-head"><h2>إتمام الطلب</h2><button class="x" onclick="closeCheckout()">×</button></div>
 <form id="checkoutForm" class="form-grid" novalidate>
 <input id="customerName" placeholder="الاسم" required>
-<input id="customerPhone" placeholder="رقم الهاتف" required>
+<input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="رقم الهاتف" required>
 <select id="customerCity" required>
 <option value="">اختاري الإمارة</option>
 <option>دبي</option><option>أبوظبي</option><option>الشارقة</option><option>عجمان</option>
@@ -4386,6 +4386,11 @@ async function submitCheckoutOrder(){
   }catch(error){
     console.error('Order submit error:',error);
     const msg=error?.message||'';
+    if(msg==='invalid_customer_phone'){
+      checkoutMessage(lang==='ar'?'أدخلي رقم الهاتف مع رمز المنطقة أو الدولة، مثل 050 123 4567.':'Enter a phone number including the area or country code, for example 050 123 4567.',true);
+      $('customerPhone').focus();
+      return;
+    }
     checkoutMessage(lang==='ar'?'تعذر تسجيل الطلب. حاولي مرة أخرى.':'Could not submit the order. Please try again.',true);
     alert((lang==='ar'?'❌ لم يتم تسجيل الطلب.\n\n':'❌ Order was not registered.\n\n')+msg);
   }finally{
@@ -4405,7 +4410,7 @@ $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
 let secureStripePromise;
 function secureStripeFlow(){
-  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
+  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs?v=phone2').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
     storage:localStorage,redirect:url=>window.location.assign(url),
     getTurnstileToken:()=>turnstileToken('0x4AAAAAAFroUm7gBp-V9_Ta'),
     confirmed:order=>{

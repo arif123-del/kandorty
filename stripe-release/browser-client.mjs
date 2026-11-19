@@ -6,16 +6,42 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
  const validId=id=>typeof id==='string'&&/^KD-\d{8}$/.test(id);
  const validSecret=value=>typeof value==='string'&&value.length>0;
  const read=()=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
+ function checkoutRequest(customer,items,note,storageKey){
+   const phone=String(customer.phone??'').trim()
+     .replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660))
+     .replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x6f0))
+     .replace(/[\u200e\u200f\u061c]/g,'');
+   const digits=phone.replace(/\D/g,'');
+   if(!/^[+0-9() .-]+$/.test(phone)||digits.length<6||digits.length>18)
+     throw new Error('invalid_customer_phone');
+   let state=JSON.parse(storage.getItem(storageKey)||'null');
+   const request={customer:{...customer,phone},items:items.map(i=>({id:i.id,qty:i.qty,imageIndex:i.imageIndex??0})),note};
+   // Keep the original representation for an existing retry if the server accepts it.
+   if(phone.length>30)request.customer.phone=(phone.startsWith('+')?'+':'')+digits;
+   const fingerprint=JSON.stringify(request);
+   if(state&&state.fingerprint!==fingerprint){
+     let previousPhone;
+     try{previousPhone=JSON.parse(state.fingerprint).customer.phone;}catch{}
+     const previousDigits=typeof previousPhone==='string'?previousPhone.replace(/\D/g,'').length:null;
+     // The server rejects these phone values before reading or writing any order.
+     if(state.receipt||state.orderId||state.manageToken||previousDigits===null||
+        (previousDigits>=6&&previousDigits<=18&&previousPhone.length<=30))
+       throw new Error('pending_checkout_changed');
+     state=null;
+   }
+   if(!state){
+     state={fingerprint,checkoutToken:Array.from(randomBytes(),b=>b.toString(16).padStart(2,'0')).join('')};
+     storage.setItem(storageKey,JSON.stringify(state));
+   }
+   return {request,state};
+ }
  async function post(path,body,headers={}){
   const r=await net(endpoint+path,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
   const data=await r.json();if(!r.ok)throw new Error(data.error||'stripe_unavailable');return data;
  }
  return {
   async start({customer,items,note='',turnstileToken,stagingKey}){
-   const request={customer,items:items.map(i=>({id:i.id,qty:i.qty,imageIndex:i.imageIndex??0})),note};
-   const fingerprint=JSON.stringify(request);let state=read();
-   if(state&&state.fingerprint!==fingerprint)throw new Error('pending_checkout_changed');
-   if(!state){state={fingerprint,checkoutToken:Array.from(randomBytes(),b=>b.toString(16).padStart(2,'0')).join('')};storage.setItem(key,JSON.stringify(state));}
+   const {request,state}=checkoutRequest(customer,items,note,key);
    const result=await post('/create-checkout-session',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
    if(!validId(result?.orderId)||!validSecret(result?.receipt))throw new Error('invalid_checkout_response');
    // Preserve the request idempotency token on invalid responses; never store bogus receipts.
@@ -23,10 +49,8 @@ export function stripeCheckoutClient({endpoint,storage,net=fetch,randomBytes=()=
    return result;
   },
   async startCod({customer,items,note='',turnstileToken,stagingKey}){
-   const request={customer,items:items.map(i=>({id:i.id,qty:i.qty,imageIndex:i.imageIndex??0})),note};
-   const fingerprint=JSON.stringify(request),codKey=key+'_cod';let state=JSON.parse(storage.getItem(codKey)||'null');
-   if(state&&state.fingerprint!==fingerprint)throw new Error('pending_checkout_changed');
-   if(!state){state={fingerprint,checkoutToken:Array.from(randomBytes(),b=>b.toString(16).padStart(2,'0')).join('')};storage.setItem(codKey,JSON.stringify(state));}
+   const codKey=key+'_cod';
+   const {request,state}=checkoutRequest(customer,items,note,codKey);
    const r=await post('/cod/orders',{...request,checkoutToken:state.checkoutToken,...(turnstileToken?{turnstileToken}:{})},stagingKey?{'X-Staging-Key':stagingKey}:{});
    if(!validId(r?.order?.id)||r.order.payment!=='cod'||!validSecret(r.receipt)||!validSecret(r.manageToken))throw new Error('invalid_cod_response');
    // Never acknowledge a COD order or delete its retry key without a matching server receipt.

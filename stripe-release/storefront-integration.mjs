@@ -1,5 +1,5 @@
 // Invoked only by the generated, unpublished storefront candidate.
-import {stripeCheckoutClient} from './browser-client.mjs';
+import {stripeCheckoutClient} from './browser-client.mjs?v=phone2';
 export function createStorefrontStripe({storage,net=fetch,redirect,confirmed,getTurnstileToken,endpoint='https://kandorty-stripe-release.aliyajan200011.workers.dev'}){
  const client=stripeCheckoutClient({endpoint,storage,net});
  return {
