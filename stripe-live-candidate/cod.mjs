@@ -88,7 +88,7 @@ export function normalizeCodRequest(input){
  */
 export async function prepareCodOrder({
  request,projectId,orderId,editToken,accessKey,products,
- nowISO,testOnly=false,existingIntent=null,existingOrder=null,verifiedIdentity=null
+ nowISO,deliveryFils=2500,testOnly=false,existingIntent=null,existingOrder=null,verifiedIdentity=null
 }){
  const normalized=normalizeCodRequest(request);
  check(/^[a-z][a-z0-9-]{4,60}$/.test(projectId||'')&&
@@ -133,7 +133,7 @@ export async function prepareCodOrder({
    imageUrl:String(images[item.imageIndex]||'').slice(0,1200)
   });
  }
- const totalFils=subtotal+2500;
+ const totalFils=subtotal+deliveryFils;
  check(totalFils<=100000000,'invalid_total');
  const stockDebits={},stockWrites=[];
  for(const [id,qty] of productQuantities){
@@ -161,7 +161,7 @@ export async function prepareCodOrder({
   customerPhone:customer.phone,customerCity:customer.city,
   customerLocation:customer.location,createdAt:nowISO,status:'new',
   payment:'cod',paymentStatus:'unpaid',
-  subtotal:subtotal/100,deliveryFee:25,deliveryPayment:'with_order',
+  subtotal:subtotal/100,deliveryFee:deliveryFils/100,deliveryPayment:'with_order',
   total:totalFils/100,notes:normalized.note,
   items,stockDebits,inventoryStatus:'debited',
   stockDebited:Object.keys(stockDebits).length>0,editToken

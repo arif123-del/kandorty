@@ -1,3 +1,4 @@
+import {cartDeliveryFils} from './delivery.mjs';
 import {syncRefunds} from './refunds.mjs';
 import {Fault,hash,random} from '../cod-staging/security.mjs';
 import {normalizeCodRequest,prepareCodOrder} from '../stripe-live-candidate/cod.mjs';
@@ -19,17 +20,20 @@ export function createService(cfg,store,stripe){
   }throw new Fault('database_busy',503);
  }
  return {
-  async create(request){
+  async create({expectedDeliveryFils,...request}){
    const normalized=normalizeCodRequest(request),checkoutId=await hash(request.checkoutToken),fingerprint=await hash(JSON.stringify(normalized));
    let row=await store.get('stripe_checkout_sessions/'+checkoutId),s=row?.data;
    if(!s){
     const products={};for(const id of new Set(normalized.items.map(i=>i.id))){const p=await store.get('products/'+id);if(p)products[id]={data:p.data,updateTime:p.version};}
     const orderId='KD-'+String(10000000+crypto.getRandomValues(new Uint32Array(1))[0]%90000000),accessKey=await hash(orderId+'|'+normalized.customer.phone.replace(/\D/g,''));
-    const plan=await prepareCodOrder({request,projectId:cfg.projectId,testOnly:!cfg.live,orderId,editToken:random(24),accessKey,products,nowISO:new Date().toISOString()});
-    s={checkoutId,fingerprint,orderId,createdAt:plan.order.createdAt,customer:normalized.customer,note:normalized.note,totalFils:Math.round(plan.order.total*100),items:plan.order.items.map(i=>({...i,unitAmount:Math.round(i.price*100)})),mode:cfg.mode,fulfilled:false,reconcilePending:true,editToken:plan.order.editToken,accessKey};
+    const deliveryFils=cartDeliveryFils((await store.get('settings/store'))?.data);
+    check((expectedDeliveryFils??2500)===deliveryFils,'delivery_fee_changed');
+    const plan=await prepareCodOrder({deliveryFils,request,projectId:cfg.projectId,testOnly:!cfg.live,orderId,editToken:random(24),accessKey,products,nowISO:new Date().toISOString()});
+    s={checkoutId,fingerprint,orderId,createdAt:plan.order.createdAt,customer:normalized.customer,note:normalized.note,deliveryFils,totalFils:Math.round(plan.order.total*100),items:plan.order.items.map(i=>({...i,unitAmount:Math.round(i.price*100)})),mode:cfg.mode,fulfilled:false,reconcilePending:true,editToken:plan.order.editToken,accessKey};
     try{await store.commit([store.write('stripe_checkout_sessions/'+checkoutId,s,{exists:false})]);}catch(e){if(e.message!=='write_conflict')throw e;s=(await store.get('stripe_checkout_sessions/'+checkoutId))?.data;}
    }
    check(s&&s.fingerprint===fingerprint&&s.mode===cfg.mode,'checkout_conflict');
+   if(!s.fulfilled)check((expectedDeliveryFils??2500)===(s.deliveryFils??2500),'delivery_fee_changed');
    if(s.fulfilled)return {snapshot:s,complete:true};
    check(Date.now()-Date.parse(s.createdAt)<1800000,'checkout_expired');
    const p=s.sessionId?await stripe.retrieve(s.sessionId):await stripe.create(s);bound(cfg,s,p);

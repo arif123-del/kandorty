@@ -1,16 +1,19 @@
+import {cartDeliveryFils} from './delivery.mjs';
 import {prepareCodOrder,normalizeCodRequest,CodFault} from '../stripe-live-candidate/cod.mjs';
 import {Fault,hash,random} from '../cod-staging/security.mjs';
 import {publicOrder} from './service.mjs';
 export function codService(cfg,store){
  if(store.root!==`projects/${cfg.projectId}/databases/(default)/documents`)throw new Fault('store_project_mismatch',503);
- return {async create(input){
+ return {async create({expectedDeliveryFils,...input}){
   const normalized=normalizeCodRequest(input),checkoutId=await hash(input.checkoutToken);
   for(let n=0;n<5;n++){
    const intent=(await store.get('cod_checkout_intents/'+checkoutId))?.data||null,orderId=intent?.orderId||'KD-'+String(10000000+crypto.getRandomValues(new Uint32Array(1))[0]%90000000);
    const existing=intent?(await store.get('orders/'+orderId))?.data:null,products={};
    if(!intent)for(const id of new Set(normalized.items.map(i=>i.id))){const p=await store.get('products/'+id);if(p)products[id]={data:p.data,updateTime:p.version};}
    const accessKey=await hash(orderId+'|'+normalized.customer.phone.replace(/\D/g,''));let plan;
-   try{plan=await prepareCodOrder({request:input,projectId:cfg.projectId,testOnly:!cfg.live,orderId,editToken:random(24),accessKey,products,nowISO:new Date().toISOString(),existingIntent:intent,existingOrder:existing});}
+   const deliveryFils=intent?undefined:cartDeliveryFils((await store.get('settings/store'))?.data);
+   if(!intent&&(expectedDeliveryFils??2500)!==deliveryFils)throw new Fault('delivery_fee_changed',409);
+   try{plan=await prepareCodOrder({deliveryFils,request:input,projectId:cfg.projectId,testOnly:!cfg.live,orderId,editToken:random(24),accessKey,products,nowISO:new Date().toISOString(),existingIntent:intent,existingOrder:existing});}
    catch(e){if(!intent&&e instanceof CodFault&&['insufficient_stock','unavailable_product'].includes(e.code)&&await store.get('cod_checkout_intents/'+checkoutId))continue;throw e;}
    if(!plan.replay)plan.writes.push(store.write('order_lifecycle/'+orderId,{orderId,checkoutId,payment:'cod',stockDebits:plan.stockDebits,manageTokenHash:await hash(plan.order.editToken)},{exists:false}));
    try{if(plan.writes.length)await store.commit(plan.writes);}catch(e){if(e.message==='write_conflict')continue;throw e;}
