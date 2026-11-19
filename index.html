@@ -4378,42 +4378,11 @@ async function submitCheckoutOrder(){
   try{
     if(order.payment==='card'){
       checkoutMessage(lang==='ar'?'جارٍ فتح صفحة الدفع الآمن...':'Opening secure payment page...');
-      localStorage.setItem('kandorty_pending_stripe_order_v1',JSON.stringify(order));
-
-      const stripeResponse=await fetch('https://kandorty-stripe.aliyajan200011.workers.dev/create-checkout-session',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          orderId:order.id,
-          items:order.items.map(item=>({id:item.id,qty:item.qty,imageIndex:item.imageIndex||0}))
-        })
-      });
-      const stripeData=await stripeResponse.json().catch(()=>({}));
-      if(!stripeResponse.ok||!stripeData.url){
-        throw new Error(stripeData.error||'تعذر فتح Stripe Checkout.');
-      }
-      window.location.assign(stripeData.url);
+      await (await secureStripeFlow()).start(order);
       return;
     }
 
-    checkoutMessage(lang==='ar'?'جارٍ تسجيل الطلب...':'Saving order...');
-    const submitResult=await submitCustomerOrder(order);
-
-    if(customerAuthUser?.uid){
-      customerCloudOrders=[order,...customerCloudOrders.filter(o=>o.id!==order.id)];
-    }
-
-    localStorage.setItem('kandorty_last_order_id',order.id);
-    cart=[];
-    saveCart();
-    $('checkoutForm').reset();
-    closeCheckout();
-
-    alert(
-      (lang==='ar'?'✅ تم تسجيل الطلب بنجاح\n\nرقم الطلب: ':'✅ Order registered successfully.\n\nOrder number: ')+order.id+
-      (lang==='ar'?'\n\nاحتفظي بهذا الرقم لتتبع الطلب.':'\n\nKeep this number to track your order.')+
-      (submitResult?.editReady?(lang==='ar'?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'\nYou can edit the order from Track order while its status is New order.'):'')
-    );
+    await (await secureStripeFlow()).startCod(order);
   }catch(error){
     console.error('Order submit error:',error);
     const msg=error?.message||'';
@@ -4434,65 +4403,23 @@ $('checkoutForm').onsubmit=e=>{
 };
 $('confirmOrderBtn').onclick=submitCheckoutOrder;
 
-async function completeStripeCheckoutReturn(){
-  const params=new URLSearchParams(window.location.search);
-  const stripeState=params.get('stripe');
-  const sessionId=params.get('session_id');
-  if(stripeState!=='success'||!sessionId)return;
-
-  try{history.replaceState({},document.title,window.location.pathname+window.location.hash);}catch(_){}
-
-  let order=null;
-  try{order=JSON.parse(localStorage.getItem('kandorty_pending_stripe_order_v1')||'null');}catch(_){order=null;}
-  if(!order?.id){
-    alert(lang==='ar'
-      ?'تم الدفع، لكن تعذر العثور على بيانات الطلب المحفوظة. يرجى التواصل مع المتجر.'
-      :'Payment succeeded, but the saved order data could not be found. Please contact the store.');
-    return;
-  }
-
-  try{
-    const verifyResponse=await fetch('https://kandorty-stripe.aliyajan200011.workers.dev/verify-checkout-session',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({session_id:sessionId})
-    });
-    const verified=await verifyResponse.json().catch(()=>({}));
-    if(!verifyResponse.ok)throw new Error(verified.error||'تعذر التحقق من الدفع.');
-    if(verified.payment_status!=='paid')throw new Error('لم يتم تأكيد الدفع بعد.');
-    if(String(verified.orderId||'')!==String(order.id))throw new Error('رقم الطلب لا يطابق عملية الدفع.');
-    if(String(verified.currency||'').toLowerCase()!=='aed'||Number(verified.amount_total)!==Math.round(Number(order.total)*100))throw new Error('المبلغ المدفوع لا يطابق إجمالي الطلب مع رسوم التوصيل. يرجى التواصل مع المتجر.');
-
-    order.payment='card';
-    order.stripeSessionId=sessionId;
-    order.paymentStatus='paid';
-    order.paidAt=new Date().toISOString();
-
-    const submitResult=await submitCustomerOrder(order);
-
-    if(customerAuthUser?.uid){
-      customerCloudOrders=[order,...customerCloudOrders.filter(o=>o.id!==order.id)];
+let secureStripePromise;
+function secureStripeFlow(){
+  if(!secureStripePromise)secureStripePromise=import('./stripe-release/storefront-integration.mjs').then(({createStorefrontStripe,turnstileToken})=>createStorefrontStripe({
+    storage:localStorage,redirect:url=>window.location.assign(url),
+    getTurnstileToken:()=>turnstileToken('0x4AAAAAAFroUm7gBp-V9_Ta'),
+    confirmed:order=>{
+      localStorage.setItem('kandorty_last_order_id',order.id);saveCustomerOwnOrders([order,...readCustomerOwnOrders().filter(o=>o.id!==order.id)]);
+      cart=[];saveCart();closeCheckout();
+      alert((lang==='ar'?'تم تسجيل الطلب. رقم الطلب: ':'Order registered: ')+order.id+(order.inventoryStatus==='needs_review'?(lang==='ar'?' — الطلب قيد المراجعة، يرجى التواصل مع المتجر.':' — Under review; please contact the store.') : ''));
     }
-
-    localStorage.setItem('kandorty_last_order_id',order.id);
-    localStorage.removeItem('kandorty_pending_stripe_order_v1');
-    cart=[];
-    saveCart();
-    try{$('checkoutForm').reset();}catch(_){}
-    closeCheckout();
-
-    alert(
-      (lang==='ar'?'✅ تم الدفع وتسجيل الطلب بنجاح.\n\nرقم الطلب: ':'✅ Payment and order registration succeeded.\n\nOrder number: ')+order.id+
-      (lang==='ar'?'\n\nاحتفظي بهذا الرقم لتتبع الطلب.':'\n\nKeep this number to track your order.')+
-      (submitResult?.editReady?(lang==='ar'?'\nيمكنك تعديل الطلب من «تتبع الطلب» طالما حالته طلب جديد.':'\nYou can edit the order from Track order while its status is New order.'):'')
-    );
-    window.location.replace('/');
-  }catch(error){
-    console.error('Stripe return verification error:',error);
-    alert((lang==='ar'
-      ?'❌ تم الرجوع من صفحة الدفع، لكن تعذر تأكيد الطلب.\n\n'
-      :'❌ Returned from payment, but the order could not be confirmed.\n\n')+(error?.message||''));
-  }
+  }));
+  return secureStripePromise;
+}
+async function completeStripeCheckoutReturn(){
+  if(new URLSearchParams(location.search).get('stripe')!=='success')return;
+  try{const r=await (await secureStripeFlow()).finish();if(r.paid){window.location.replace('/');return;}alert(lang==='ar'?'الدفع قيد التأكيد. يرجى التحقق من الطلب لاحقاً.':'Payment confirmation pending. Check your order shortly.');}
+  catch{alert(lang==='ar'?'تعذر التحقق من الطلب. لا تعيدي الدفع؛ تحققي من الطلب أو تواصلي مع المتجر.':'Unable to verify. Do not pay again; check your order or contact the store.');}
 }
 
 setTimeout(()=>{completeStripeCheckoutReturn();},150);
@@ -5336,6 +5263,13 @@ async function loadEditableOrder(orderId,phone){
 
 async function trackOrder(){
   const num=$('trackingNumber').value.trim().toUpperCase();
+  const secure=await secureStripeFlow();
+  if(secure.ownsReceipt(num)){
+    activeEditableOrder=null;activeOrderAccessKey='';
+    try{renderTrackingResult(await secure.track(num));}catch{ $('trackingResult').textContent='تعذر التحقق من الطلب. يرجى التواصل مع المتجر.'; }
+    return;
+  }
+
   const phone=$('trackingPhone')?.value.trim()||'';
 
   activeEditableOrder=null;
@@ -7416,19 +7350,15 @@ function renderMyOrders(){
 async function refreshCustomerOwnOrderStatuses(){
   const own=readCustomerOwnOrders();
   if(!own.length)return;
-  const updated=await Promise.all(own.map(async o=>{
+  const secure=await secureStripeFlow();
+  const refreshed=await Promise.all(own.map(async o=>{
+    if(!o?.id||!secure.ownsReceipt(String(o.id)))return o;
     try{
-      const snap=await db.collection('tracking').doc(String(o.id)).get();
-      if(!snap.exists)return o;
-      const tracking=snap.data()||{};
-      const statuses=['new','preparing','shipping','delivered','cancelled'];
-      return {...o,
-        status:statuses.includes(tracking.status)?tracking.status:o.status,
-        ...(tracking.cancellationLockedAt?{cancellationLockedAt:tracking.cancellationLockedAt}:{})
-      };
-    }catch(error){return o;}
+      const serverOrder=await secure.track(String(o.id));
+      return {...o,...serverOrder};
+    }catch{return o;}
   }));
-  saveCustomerOwnOrders(updated);
+  saveCustomerOwnOrders(refreshed);
 }
 async function refreshMyOrders(){
   const modal=document.getElementById('myOrdersModal');
@@ -7455,6 +7385,19 @@ function openMyOrders(){
 }
 // Cancel directly from "طلباتي": do not redirect customers to order tracking.
 async function cancelOrderFromMyOrders(orderId,button){
+  const secure=await secureStripeFlow();
+  if(secure.ownsReceipt(orderId)){
+    button.disabled=true;
+    try{const result=await secure.cancel(orderId);saveCustomerOwnOrders(readCustomerOwnOrders().map(o=>o.id===orderId?{...o,...result.order}:o));renderMyOrders();alert(result.order.payment==='card'?'تم إلغاء الطلب. حالة الاسترداد: '+result.order.refundStatus:'تم إلغاء الطلب.');}
+    catch{alert('تعذر إلغاء الطلب. ربما بدأ تجهيزه؛ تواصلي مع المتجر.');}
+    finally{button.disabled=false;}return;
+  }
+  // Historical/unknown client orders have NO verified server manage receipt.
+  // Do not fall through to the legacy direct Firestore cancellation/restock
+  // handler when strict Rules and server-authoritative inventory are proposed.
+  alert(lang==='ar'?'لا يمكن إلغاء هذا الطلب القديم من التطبيق. يرجى التواصل مع المتجر.':'Legacy order cannot be cancelled here; please contact the store.');
+  return;
+
   const code=String(orderId||'').trim().toUpperCase();
   if(!/^KD-[A-Za-z0-9_-]{4,40}$/.test(code)||button.disabled)return;
   button.disabled=true;

@@ -1453,7 +1453,7 @@ function load(){
 
       render();
       renderAdminList();
-      ensureProductTotalStockBaselines().catch(()=>{});
+      /* DRAFT REVIEW: auto stock baseline migration disabled */
     },
     error=>{
       console.error('Firestore products read error:',error);
@@ -1871,7 +1871,7 @@ auth.onAuthStateChanged(user=>{
   if(isAdminUser){
     // Realtime admin data.
     startAdminOrdersListener();
-    ensureProductTotalStockBaselines().catch(()=>{});
+    /* DRAFT REVIEW: auto stock baseline migration disabled */
     startAdminCustomersListener();
     unlockOrderSound(false).catch(()=>{});
   }else{
@@ -2065,35 +2065,7 @@ function calculateProductTotalStock(oldProduct,newStock){
 }
 
 let totalStockBaselineMigrationRunning=false;
-async function ensureProductTotalStockBaselines(){
-  if(totalStockBaselineMigrationRunning || !auth.currentUser)return;
-  if((auth.currentUser.email||'').toLowerCase()!==ADMIN_EMAIL)return;
-
-  const missing=products.filter(p=>{
-    const stock=getProductStock(p);
-    return stock!==null && !(Number.isFinite(Number(p.totalStock)) && Number(p.totalStock)>=0);
-  });
-  if(!missing.length)return;
-
-  totalStockBaselineMigrationRunning=true;
-  try{
-    const batch=db.batch();
-    missing.forEach(p=>{
-      const stock=getProductStock(p);
-      batch.set(db.collection('products').doc(p.id),{
-        totalStock:Math.max(0,Math.floor(Number(stock)||0)),
-        updatedAt:new Date().toISOString()
-      },{merge:true});
-    });
-    await batch.commit();
-    console.log('Sales progress initialized for',missing.length,'products');
-  }catch(err){
-    console.warn('Could not initialize sales progress totals:',err);
-  }finally{
-    totalStockBaselineMigrationRunning=false;
-  }
-}
-
+// DRAFT REVIEW ONLY: do not infer historical totalStock from client state.
 $('productForm').onsubmit=async e=>{
   e.preventDefault();
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
@@ -2618,66 +2590,8 @@ function alertNewCustomerCancellationRequests(docs){
 }
 
 const customerCancelFinalizing=new Set();
-async function finalizeCustomerCancellation(order){
-  const id=String(order?.id||'');
-  if(!id||customerCancelFinalizing.has(id)||!isPendingCustomerCancellation(order)||order.status!=='new')return;
-  customerCancelFinalizing.add(id);
-  try{
-    const orderRef=db.collection('orders').doc(id),trackRef=db.collection('tracking').doc(id);
-    await db.runTransaction(async tx=>{
-      const snap=await tx.get(orderRef);
-      if(!snap.exists)return;
-      const latest={id,...snap.data()};
-      if(!isPendingCustomerCancellation(latest)||latest.status!=='new')return;
-      const canceledAt=String(latest.customerEdit.cancelRequestedAt);
-      tx.update(orderRef,{status:'cancelled',cancelledBy:'customer',cancelledAt:canceledAt});
-      tx.set(trackRef,{id,status:'cancelled',cancelledAt:canceledAt},{merge:true});
-    });
-  }catch(error){console.warn('Auto-finalize customer cancellation failed for '+id,error);}
-  finally{customerCancelFinalizing.delete(id);}
-}
-const cancelStockRestoreInProgress=new Set();
-// Returning canceled items to stock must use the admin's product permissions.
-// A transaction marker on the order prevents double restoration across admin tabs.
-async function restoreCustomerCancelledStock(order){
-  const id=String(order?.id||'');
-  if(!id||cancelStockRestoreInProgress.has(id)||order?.status!=='cancelled'||
-     !(order?.cancelledBy==='customer'||isPendingCustomerCancellation(order))||
-     order?.cancelStockRestoredAt)return;
-  cancelStockRestoreInProgress.add(id);
-  try{
-    const orderRef=db.collection('orders').doc(id);
-    await db.runTransaction(async tx=>{
-      const snap=await tx.get(orderRef);
-      if(!snap.exists)return;
-      const latest=snap.data()||{};
-      if(latest.status!=='cancelled'||latest.cancelStockRestoredAt||
-         !(latest.cancelledBy==='customer'||isPendingCustomerCancellation({...latest,id})))return;
-      const qtyById=new Map();
-      (Array.isArray(latest.items)?latest.items:[]).forEach(item=>{
-        const productId=String(item?.id||'');
-        const qty=Math.max(0,Math.floor(Number(item?.qty)||0));
-        if(productId&&qty)qtyById.set(productId,(qtyById.get(productId)||0)+qty);
-      });
-      if(!qtyById.size)return;
-      const rows=[];
-      for(const [productId,qty] of qtyById){
-        const ref=db.collection('products').doc(productId);
-        const productSnap=await tx.get(ref);
-        rows.push({ref,qty,productSnap});
-      }
-      for(const {ref,qty,productSnap} of rows){
-        if(!productSnap.exists)continue;
-        const p=productSnap.data()||{};
-        if(p.stock===null||p.stock===undefined||p.stock===''||!Number.isFinite(Number(p.stock)))continue;
-        const next=Math.max(0,Math.floor(Number(p.stock)))+qty;
-        tx.update(ref,{stock:next,totalStock:Math.max(Number(p.totalStock)||0,next)});
-      }
-      tx.update(orderRef,{cancelStockRestoredAt:new Date().toISOString()});
-    });
-  }catch(error){console.warn('Cancelled order stock restoration failed:',id,error);}
-  finally{cancelStockRestoreInProgress.delete(id);}
-}
+// DRAFT REVIEW ONLY: historical customer-cancel auto-finalization and
+// old client-quantity restocking removed; handle manually after review.
 function startAdminOrdersListener(){
   if(adminOrdersUnsubscribe||!auth.currentUser)return;
 
@@ -2717,14 +2631,14 @@ function startAdminOrdersListener(){
       orders=docs;
       // Alert even on the next admin login if the customer requested cancellation while away.
       alertNewCustomerCancellationRequests(docs);
-      docs.filter(o=>o.status==='new'&&isPendingCustomerCancellation(o)).forEach(o=>finalizeCustomerCancellation(o));
-      docs.filter(o=>o.status==='cancelled'&&(o.cancelledBy==='customer'||isPendingCustomerCancellation(o))).forEach(o=>restoreCustomerCancelledStock(o));
+      /* DRAFT REVIEW: legacy auto-write deliberately disabled pending safe server migration */
+      /* DRAFT REVIEW: legacy auto-write deliberately disabled pending safe server migration */
       try{localStorage.removeItem(ORDERS_KEY);}catch(error){console.warn('Old order cache cleanup skipped:',error);}
-      ensureCustomerEditForOldOrders(orders).catch(console.warn);
+      /* DRAFT REVIEW: legacy auto-write deliberately disabled pending safe server migration */
       renderOrders();
       renderProfileOrders();
       renderCustomers();
-      syncOrdersToTracking(orders);
+      /* DRAFT REVIEW: legacy auto-write deliberately disabled pending safe server migration */
 
       hydrateAdminOrderDetails(orders).then(hydrated=>{
         if(!Array.isArray(hydrated))return;
@@ -3423,41 +3337,9 @@ function backToOrderFolders(){
   });
 })();
 async function updateOrderStatus(id,status){
-  const current=orders.find(o=>String(o.id)===String(id));
-  if(!current||!auth.currentUser)return;
-  if(isPendingCustomerCancellation(current)&&status!=='cancelled'){
-    alert('العميل ألغى الطلب بالفعل؛ لا يمكن تحويله إلى التجهيز أو التوصيل.');
-    renderOrders();return;
-  }
-  if(status==='cancelled'&&current.payment==='card'&&current.paymentStatus==='paid'){
-    if(!confirm('إلغاء الطلب لا يعيد المبلغ تلقائياً إلى البطاقة. يجب مراجعة الاسترداد في Stripe. هل تودين المتابعة؟')){
-      renderOrders();return;
-    }
-  }
-  try{
-    const orderRef=db.collection('orders').doc(id),trackRef=db.collection('tracking').doc(id);
-    await db.runTransaction(async tx=>{
-      const snap=await tx.get(orderRef);
-      if(!snap.exists)throw new Error('الطلب غير موجود.');
-      const latest={id,...snap.data()};
-      if(isPendingCustomerCancellation(latest)&&status!=='cancelled')
-        throw new Error('العميل ألغى الطلب بالفعل.');
-      if(latest.status==='cancelled'&&status!=='cancelled')
-        throw new Error('الطلب ملغي ولا يمكن إرساله.');
-      // Once one of the three processing states was selected, cancellation
-      // stays locked even if admin later changes the visible status back.
-      const lock=latest.cancellationLockedAt||(['preparing','shipping','delivered'].includes(status)?new Date().toISOString():'');
-      tx.update(orderRef,{status,...(lock?{cancellationLockedAt:lock}:{})});
-      tx.set(trackRef,{id,status,createdAt:latest.createdAt||'',...(lock?{cancellationLockedAt:lock}:{})},{merge:true});
-    });
-    orders=orders.map(o=>String(o.id)===String(id)?{...o,status}:o);
-    try{localStorage.removeItem(ORDERS_KEY);}catch(_){}
-    renderOrders();renderProfileOrders();
-  }catch(error){
-    console.error('Order status update error:',error);
-    alert('تعذر تحديث حالة الطلب: '+(error?.message||''));
-    renderOrders();
-  }
+ if(!auth.currentUser)return;
+ try{const {adminOrderClient}=await import('./stripe-release/admin-client.mjs');const updated=await adminOrderClient({getIdToken:force=>auth.currentUser.getIdToken(force)}).change(id,status);orders=orders.map(o=>o.id===id?{...o,...updated}:o);renderOrders();renderProfileOrders();}
+ catch(error){alert('تعذر تحديث الطلب: '+error.message);renderOrders();}
 }
 
 const SETTINGS_KEY='kandorty_settings_v1';
