@@ -90,7 +90,8 @@ export function preparePaidFulfillment({
   subtotal+=item.unitAmount*item.qty;
   check(Number.isSafeInteger(subtotal),"invalid_total");
  }
- check(subtotal+2500===snapshot.totalFils,"snapshot_total_mismatch");
+ const deliveryFils=snapshot.deliveryFils??2500;
+ check(Number.isSafeInteger(deliveryFils)&&deliveryFils>=0&&subtotal+deliveryFils===snapshot.totalFils,"snapshot_total_mismatch");
  // A successful payment must ALWAYS be recorded, even if stock became unavailable after checkout.
  // In that case do not debit ANY stock, mark the paid order for manual review/refund.
  const stockDebits={},updates=[];
@@ -136,7 +137,7 @@ export function preparePaidFulfillment({
    price:i.unitAmount/100,qty:i.qty,variantKey:i.id+"__img"+(i.imageIndex??0),
    imageIndex:i.imageIndex??0,imageUrl:String(i.imageUrl||"").slice(0,1200)
   })),
-  subtotal:subtotal/100,deliveryFee:25,deliveryPayment:"with_card",
+  subtotal:subtotal/100,deliveryFee:deliveryFils/100,deliveryPayment:"with_card",
   total:snapshot.totalFils/100,
   notes:String(snapshot.note||"").slice(0,15),
   status:"new",inventoryStatus,

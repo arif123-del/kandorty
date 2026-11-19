@@ -317,3 +317,26 @@ test('legacy admin status HTTP route is disabled by default in Sandbox and uncon
  assert.deepEqual(await liveResult.json(),{error:'legacy_production_disabled'});
  assert.equal(live.rows.size,1);
 });
+
+test('checkout and fulfillment keep the quoted cart delivery fee',async()=>{
+ const f=fixture();
+ f.store.put('products/p1',{nameAr:'Dress',price:2,stock:5,totalStock:5});
+ f.store.put('settings/store',{cartButtonNote:'توصيل ب 15 درهم'});
+ const req={...input(),expectedDeliveryFils:1500};
+ await assert.rejects(f.service.create({...req,expectedDeliveryFils:0}),/delivery_fee_changed/);
+ const {snapshot:s}=await f.service.create(req);
+ assert.equal(s.totalFils,1700);
+ await stripeClient(f.cfg,async(url,opts)=>{
+  assert.equal(opts.body.get('line_items[1][price_data][unit_amount]'),'1500');
+  return Response.json({id:s.sessionId});
+ }).create(s);
+ const cod=await codService(f.cfg,f.store).create({...input(),expectedDeliveryFils:1500});
+ assert.equal(cod.order.total,17);
+ f.store.put('settings/store',{cartButtonNote:'توصيل ٢٠ درهم'});
+ f.pay(s);
+ const {order}=await f.service.fulfill(s.checkoutId,s.sessionId);
+ assert.equal(order.deliveryFee,15);
+ assert.equal(order.total,17);
+ const next=await f.service.create({...input(),expectedDeliveryFils:2000});
+ assert.equal(next.snapshot.totalFils,2200);
+});
