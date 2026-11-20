@@ -59,7 +59,14 @@ export function handler(factories={}){return async(request,env,ctx)=>{
    return reply({received:true});
   }
   if(cfg.live&&url.pathname==='/admin/order-push'){
-   await requireOrderReader(request,cfg);
+   // A Firestore-permitted orders reader OR a server-verified active admin
+   // can register Web Push. Both are independently authenticated; never
+   // bypass authorization on a Firestore outage or any unexpected error.
+   try{await requireOrderReader(request,cfg);}
+   catch(error){
+    if(error?.message!=='admin_authorization_required')throw error;
+    await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
+   }
    if(body?.action==='key')return reply({publicKey:(await pushKeys(store)).publicKey});
    if(body?.action!=='subscribe'||typeof body.endpoint!=='string')throw new Fault('invalid_request');
    await enroll(store,body.endpoint);return reply({enabled:true});
