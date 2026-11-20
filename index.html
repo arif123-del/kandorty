@@ -4155,6 +4155,21 @@ async function submitCustomerOrder(order){
   }
   // The server-side Firestore transaction below is the authoritative stock guard.
   await saveOrderWithStock(order);
+  // Stock and order are committed *before* asking the notification service.
+  // This auxiliary request can never block checkout and carries no customer
+  // names, phone numbers, addresses or order line items.
+  void fetch('https://kandorty-stripe-release.aliyajan200011.workers.dev/orders/direct-push',{
+    method:'POST',
+    mode:'cors',
+    cache:'no-store',
+    keepalive:true,
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({orderId:order.id,editToken:order.editToken}),
+    signal:AbortSignal.timeout(10000)
+  }).then(response=>{
+    if(!response.ok)console.warn('Order alert server rejected a notification request:',response.status);
+  }).catch(error=>console.warn('Order saved, but notification request could not be completed.'));
+
   signalSavedOrderToAdmin(order);
   // This happens for both cash-on-delivery and verified Stripe payments.
   rememberCustomerOwnOrder(order);
