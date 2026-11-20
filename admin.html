@@ -1068,7 +1068,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <select id="category"></select>
 <input id="price" type="number" min="0" step="0.01" placeholder="السعر AED" required>
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
-<input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة"><div class="stock-admin-note">إذا وصل العدد إلى 0 سيظهر تلقائياً أن المنتج نفد من المخزون.</div>
+<input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">الكمية مطلوبة لإتاحة الطلب. إذا وصلت إلى 0 سيظهر أن المنتج نفد من المخزون. إضافة فيديو لا تغيّر الكمية.</div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
@@ -2114,7 +2114,16 @@ $('productForm').onsubmit=async e=>{
 
     setUploadProgress(84,'يتم التحقق من حجم بيانات المنتج...');
 
-    const cleanedStock=sanitizeStock($('stock')?.value);
+    // Product media edits must not silently clear valid stock and disable checkout.
+    // A new product (or legacy product without inventory) needs an explicit quantity.
+    const stockValue=String($('stock')?.value??'').trim();
+    const existingStock=old && Number.isSafeInteger(old.stock) && old.stock>=0 ? old.stock : null;
+    const cleanedStock=stockValue==='' && existingStock!==null
+      ? existingStock
+      : sanitizeStock(stockValue);
+    if(cleanedStock===null){
+      throw new Error('أدخلي كمية المنتج أولاً (0 إذا نفد من المخزون). لا يمكن إتاحة الطلب بدون كمية.');
+    }
     const calculatedTotalStock=calculateProductTotalStock(old,cleanedStock);
 
     const p={
@@ -2130,7 +2139,9 @@ $('productForm').onsubmit=async e=>{
       isNew:$('isNew').checked,
       active:$('active').checked,
       images,
-      productVideoUrl:String(window.pendingProductVideoUrl||old?.productVideoUrl||'').trim(),
+      // The pending URL already includes the old value in edit mode.
+      // Preserve an intentional removal instead of restoring the old video.
+      productVideoUrl:String(window.pendingProductVideoUrl??old?.productVideoUrl??'').trim(),
       imagePaths:[],
       imageMode:'firestore-spark',
       imageCount:images.length,
