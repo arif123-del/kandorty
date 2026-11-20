@@ -57,10 +57,10 @@ jobs:
           "$tools_dir/apksigner" verify "$apk"
           "$tools_dir/aapt" dump badging "$apk" > "$RUNNER_TEMP/kandorty-badging"
           grep -F "package: name='online.kandorty.admin' versionCode='4' versionName='1.2.0'" "$RUNNER_TEMP/kandorty-badging"
-          test -f app/build/generated/res/google-services/debug/values/values.xml
-          grep -q 'google_app_id' app/build/generated/res/google-services/debug/values/values.xml
-          grep -q 'gcm_defaultSenderId' app/build/generated/res/google-services/debug/values/values.xml
-          grep -q 'firebase_database_url\|google_api_key' app/build/generated/res/google-services/debug/values/values.xml
+          "$tools_dir/aapt" dump resources "$apk" > "$RUNNER_TEMP/kandorty-resources"
+          grep -q 'google_app_id' "$RUNNER_TEMP/kandorty-resources"
+          grep -q 'gcm_defaultSenderId' "$RUNNER_TEMP/kandorty-resources"
+          grep -q 'google_api_key' "$RUNNER_TEMP/kandorty-resources"
       - uses: actions/upload-artifact@v4
         with:
           name: Kandorty-Admin-Firebase-1.2.0-APK
