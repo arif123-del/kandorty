@@ -4133,6 +4133,21 @@ async function saveOrderWithStock(order){
   render();
   renderAdminList();
 }
+
+function signalSavedOrderToAdmin(order){
+  // Best-effort alert signal only. The order/stock transaction is already
+  // committed. The Worker independently checks this random edit token and
+  // verifies the saved order before notifying the admin.
+  if(!order || !/^KD-\d{8}$/.test(String(order.id||'')) ||
+     !/^[a-f0-9]{48}$/.test(String(order.editToken||'')))return;
+  fetch('https://kandorty-stripe-release.aliyajan200011.workers.dev/orders/direct-push',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({orderId:order.id,editToken:order.editToken}),
+    mode:'cors',credentials:'omit',keepalive:true
+  }).catch(()=>{});
+}
+
 async function submitCustomerOrder(order){
   const orderBytes=new TextEncoder().encode(JSON.stringify(order)).length;
   if(orderBytes>700*1024){
@@ -4140,6 +4155,7 @@ async function submitCustomerOrder(order){
   }
   // The server-side Firestore transaction below is the authoritative stock guard.
   await saveOrderWithStock(order);
+  signalSavedOrderToAdmin(order);
   // This happens for both cash-on-delivery and verified Stripe payments.
   rememberCustomerOwnOrder(order);
   orders=[order,...orders.filter(o=>o.id!==order.id)];
