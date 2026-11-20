@@ -213,6 +213,9 @@ public class MainActivity extends Activity {
             }
         });
 
+        // Establish our notification channel before a background FCM arrives.
+        AdminMessagingService.ensureNotificationChannel(this);
+
         // Firebase Cloud Messaging is optional at build time: the native app
         // already runs alone, but real background push needs an Android app
         // registered in the Firebase project and a secured server enrollment.
@@ -304,8 +307,25 @@ public class MainActivity extends Activity {
             int status = connection.getResponseCode();
             if (status == 200) {
                 lastNativePushEnrollmentAt = System.currentTimeMillis();
+                boolean wasRegistered=getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .getBoolean("registration_confirmed",false);
                 getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                        .edit().putLong("last_registration", lastNativePushEnrollmentAt).apply();
+                        .edit().putLong("last_registration", lastNativePushEnrollmentAt)
+                        .putBoolean("registration_confirmed",true).apply();
+                if(!wasRegistered)runOnUiThread(() -> Toast.makeText(this,
+                        "✅ تم تسجيل الجهاز لاستقبال إشعارات الطلبات", Toast.LENGTH_LONG).show());
+            } else {
+                // A user-visible status helps diagnose a 403/429 without logging
+                // Firebase JWTs or per-device FCM registration tokens.
+                int lastError=getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .getInt("last_enrollment_http_error",0);
+                if(lastError!=status) {
+                    getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                            .edit().putInt("last_enrollment_http_error",status).apply();
+                    runOnUiThread(() -> Toast.makeText(this,
+                            "تعذّر تفعيل إشعارات الخلفية (HTTP " + status + ")",
+                            Toast.LENGTH_LONG).show());
+                }
             }
             // Do not log JWTs or FCM tokens, including in error handling.
         } catch (Exception ignored) {
