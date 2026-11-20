@@ -1,7 +1,7 @@
 name: Native Android FCM server safety
 on:
   push:
-    branches: [fix/admin-fcm-test-endpoint-20261120, fix/native-fcm-admin-reader-503-20261120]
+    branches: [fix/admin-fcm-test-endpoint-20261120, fix/native-fcm-admin-reader-503-20261120, fix/native-fcm-admin-email-auth-403-20261121]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +17,7 @@ jobs:
         run: |
           node --check stripe-release/worker.mjs
           node --check stripe-release/native-push.mjs
+          node --check stripe-release/admin-auth.mjs
       - name: Verify native FCM guards without contacting production
         run: node --test stripe-release/native-push.test.mjs stripe-release/admin-auth.test.mjs stripe-release/order-push.test.mjs
       - name: Verify existing Stripe + COD release behavior
