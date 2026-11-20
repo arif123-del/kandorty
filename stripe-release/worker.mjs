@@ -66,7 +66,12 @@ export function handler(factories={}){return async(request,env,ctx)=>{
    // bypass authorization on a Firestore outage or any unexpected error.
    try{await requireOrderReader(request,cfg);}
    catch(error){
-    if(error?.message!=='admin_authorization_required')throw error;
+    // A Firestore read probe may fail on an upstream 5xx/429 while the
+    // server-owned admin membership store remains healthy. Fall back ONLY to
+    // fully validated Firebase signature + admin custom claim + active
+    // server-side membership. Never trust an unverified JWT or an email match.
+    if(!['admin_authorization_required','admin_reader_unavailable'].includes(error?.message))
+     throw error;
     await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
    }
    if(body?.action==='key')return reply({publicKey:(await pushKeys(store)).publicKey});
@@ -78,7 +83,12 @@ export function handler(factories={}){return async(request,env,ctx)=>{
   if(cfg.live&&url.pathname==='/admin/native-push'){
    try{await requireOrderReader(request,cfg);}
    catch(error){
-    if(error?.message!=='admin_authorization_required')throw error;
+    // A Firestore read probe may fail on an upstream 5xx/429 while the
+    // server-owned admin membership store remains healthy. Fall back ONLY to
+    // fully validated Firebase signature + admin custom claim + active
+    // server-side membership. Never trust an unverified JWT or an email match.
+    if(!['admin_authorization_required','admin_reader_unavailable'].includes(error?.message))
+     throw error;
     await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
    }
    const uid=nativePushUserId(request.headers.get('Authorization'),cfg);
