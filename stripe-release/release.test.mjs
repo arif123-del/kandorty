@@ -340,3 +340,20 @@ test('checkout and fulfillment keep the quoted cart delivery fee',async()=>{
  const next=await f.service.create({...input(),expectedDeliveryFils:2000});
  assert.equal(next.snapshot.totalFils,2200);
 });
+
+test('new COD and paid orders signal once after commit across retries',async()=>{
+ const f=fixture();let n=0;
+ const cod=codService(f.cfg,f.store,()=>n++),req=input();
+ await cod.create(req);await cod.create(req);assert.equal(n,1);
+ const service=createService(f.cfg,f.store,f.stripe,()=>n++);
+ const {snapshot:s}=await service.create(input());assert.equal(n,1);
+ f.pay(s);await service.fulfill(s.checkoutId,s.sessionId);await service.fulfill(s.checkoutId,s.sessionId);assert.equal(n,2);
+});
+test('push transport uses a signed high urgency request and drops expired devices',async()=>{
+ const {pushKeys,enroll,sendOrderPush}=await import('./order-push.mjs');
+ const f=fixture();await pushKeys(f.store);const url='https://fcm.googleapis.com/fcm/send/test-fixture';
+ await enroll(f.store,url);await enroll(f.store,url);
+ let calls=0;
+ await sendOrderPush(f.store,async(endpoint,opts)=>{calls++;assert.equal(endpoint,url);assert.equal(opts.headers.Urgency,'high');assert.match(opts.headers.Authorization,/^vapid t=/);return new Response(null,{status:410});});
+ assert.equal(calls,1);assert.deepEqual(f.rows.get('admin_push_config/devices').data.endpoints,[]);
+});
