@@ -96,7 +96,7 @@ public class SplashActivity extends Activity {
 
             // Arabic subtitle only; no English text.
             subtitlePaint.setTextSize(Math.max(16f * getResources().getDisplayMetrics().scaledDensity, w * 0.042f));
-            canvas.drawText("أناقة إماراتية بتفاصيل مميزة", w / 2f,
+            canvas.drawText("لوحة الإدارة", w / 2f,
                     logoTop + logoH + h * 0.065f, subtitlePaint);
 
             // Target is the original red-dot location in the Kandorty logo image.

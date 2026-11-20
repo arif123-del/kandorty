@@ -7,12 +7,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "online.kandorty.app.preview2310"
+        applicationId = "online.kandorty.admin"
         minSdk = 24
         targetSdk = 35
-        versionCode = 23
+        versionCode = 1
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionName = "2.3.10"
+        versionName = "1.0.0"
     }
 
     compileOptions {
@@ -22,6 +22,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.browser:browser:1.8.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
