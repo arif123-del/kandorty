@@ -939,6 +939,12 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminFormTab .photo-stock-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:8px}
 #adminFormTab .photo-stock-label input{width:100%;min-width:0;padding:8px;border-radius:8px;border:1px solid #c7b8bc;text-align:center}
 #stock[readonly]{background:#f5f5f5;opacity:.85}
+#adminProductQuickAccess{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 15px}
+#adminProductQuickAccess .btn{padding:9px 11px}
+#adminFormTab .images-preview .preview-item{min-width:0}
+#adminFormTab .images-preview .preview-item .photo-qty-input{font-size:16px;min-height:42px}
+#adminFormTab .images-preview .preview-item .photo-qty-input:invalid{border-color:#b40018;background:#fff4f4}
+#adminDiscountsTab .admin-item{flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -1069,6 +1075,11 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </aside>
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
 <div id="adminCurrentSection" class="admin-current-section">إضافة منتج</div>
+<div id="adminProductQuickAccess" class="admin-product-quick-access">
+  <button type="button" class="btn ghost" onclick="showAdminTab('form',this)">＋ إضافة منتج</button>
+  <button type="button" class="btn ghost" onclick="showAdminTab('discounts',this)">🏷️ تخفيضات</button>
+  <button type="button" class="btn ghost" onclick="showAdminTab('list',this)">📦 المنتجات</button>
+</div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -1090,7 +1101,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="progress-wrap"><div id="uploadProgress" class="progress-bar"></div></div>
 <div id="uploadStatus" class="upload-status">اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.</div>
 </div>
-<div id="imagePreview" class="images-preview full"></div>
+<div class="full" style="font-size:13px;color:#76545a;font-weight:700">⬇ الكمية لكل صورة / هر عکس لپاره جلا شمېر</div>
+<div id="imagePreview" class="images-preview full" aria-live="polite"></div>
 
 <div class="full upload-box" id="productVideoAdminBox">
   <label for="productVideoFile"><b>فيديو المنتج — اختياري، يظهر بعد آخر صورة</b></label>
@@ -1897,7 +1909,9 @@ auth.onAuthStateChanged(user=>{
   if(isAdminUser){
     // Realtime admin data.
     startAdminOrdersListener();
-    if(new URLSearchParams(location.search).get('view')==='orders')showAdminTab('orders',$('ordersTabBtn'));
+    const requestedView=new URLSearchParams(location.search).get('view');
+    if(requestedView==='orders')showAdminTab('orders',$('ordersTabBtn'));
+    if(requestedView==='discounts')showAdminTab('discounts',document.querySelector('#adminNavDrawer .admin-tabs .tab[onclick*="discounts"]'));
     /* DRAFT REVIEW: auto stock baseline migration disabled */
     startAdminCustomersListener();
     unlockOrderSound(false).catch(()=>{});
@@ -1980,7 +1994,7 @@ function capturePreviewPhotoQuantities(){
   });
 }
 function imageQtyField(source){
-  const saved=pendingPhotoQuantities.has(source)?pendingPhotoQuantities.get(source):'0';
+  const saved=pendingPhotoQuantities.has(source)?pendingPhotoQuantities.get(source):'';
   return '<label class="photo-stock-label">الكمية <input class="photo-qty-input" type="number" min="0" step="1" inputmode="numeric" required aria-label="كمية هذه الصورة" value="'+esc(String(saved))+'"></label>';
 }
 function updateAggregateStockInput(){
@@ -1991,7 +2005,7 @@ function updateAggregateStockInput(){
   if(hasPhotos){
     let sum=0;
     for(const source of lastPhotoPreviewSources){
-      const raw=String(pendingPhotoQuantities.get(source)??'0').trim();
+      const raw=String(pendingPhotoQuantities.get(source)??'').trim();
       if(!/^(0|[1-9]\d*)$/.test(raw)){input.value='';return;}
       sum+=Number(raw);
       if(!Number.isSafeInteger(sum)){input.value='';return;}
@@ -2171,7 +2185,7 @@ $('productForm').onsubmit=async e=>{
     capturePreviewPhotoQuantities();
     const originalSources=[...pendingImages,...allEntries,...pendingImageFiles];
     const quantities=originalSources.map((source,index)=>{
-      const raw=String(pendingPhotoQuantities.get(source)??'0').trim();
+      const raw=String(pendingPhotoQuantities.get(source)??'').trim();
       if(!/^(0|[1-9]\d*)$/.test(raw))throw new Error('الكمية للصورة رقم '+(index+1)+' يجب أن تكون عدداً صحيحاً يساوي صفر أو أكثر.');
       const n=Number(raw);
       if(!Number.isSafeInteger(n))throw new Error('كمية الصورة رقم '+(index+1)+' كبيرة جداً.');
