@@ -924,7 +924,9 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 <style>
-.order-photo-button{display:inline-flex;flex:none;padding:0;border:0;background:transparent;border-radius:9px;cursor:zoom-in}
+.order-photo-button{position:relative;display:inline-flex;flex:none;padding:0;border:0;background:transparent;border-radius:9px;cursor:zoom-in}
+.order-photo-button::after{content:"⤢";position:absolute;bottom:4px;left:4px;color:#fff;background:#252125cc;border-radius:50%;width:24px;line-height:24px;text-align:center;font-size:18px;pointer-events:none}
+#orderPhotoDialog[open]{display:block;z-index:2147483647}
 #orderPhotoDialog{position:fixed;inset:0;margin:auto;padding:0;border:0;width:100%;max-width:none;height:100%;max-height:none;background:#161315;color:white}
 #orderPhotoDialog::backdrop{background:#161315}
 #orderPhotoDialog img{display:block;width:100%;height:100%;object-fit:contain}
@@ -3083,14 +3085,6 @@ function showOrderImageFallback(img){
   placeholder.textContent='بدون صورة';
   (img.closest('.order-photo-button') || img).replaceWith(placeholder);
 }
-function openOrderPhoto(button){
-  const thumb=button.querySelector('img');
-  const dialog=document.getElementById('orderPhotoDialog');
-  const photo=dialog.querySelector('img');
-  photo.alt=thumb.alt;
-  photo.src=thumb.currentSrc || thumb.src;
-  dialog.showModal();
-}
 function renderOrderItemsHtml(order){
   const normalized=normalizeOrderShape(order);
   const items=Array.isArray(normalized.items)?normalized.items:[];
@@ -3106,7 +3100,7 @@ function renderOrderItemsHtml(order){
     const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
     return `<div class="order-product-row">
       ${image
-        ? `<button type="button" class="order-photo-button" aria-label="تكبير صورة ${esc(name)}" onclick="openOrderPhoto(this)"><img class="order-product-image" src="${esc(image)}" data-product-id="${esc(item.id)}" data-product-code="${esc(code)}" data-image-index="${esc(index)}" onerror="showOrderImageFallback(this)" alt="${esc(name)}"></button>`
+        ? `<button type="button" class="order-photo-button" aria-label="تكبير صورة ${esc(name)}" aria-haspopup="dialog"><img class="order-product-image" src="${esc(image)}" data-product-id="${esc(item.id)}" data-product-code="${esc(code)}" data-image-index="${esc(index)}" onerror="showOrderImageFallback(this)" alt="${esc(name)}"></button>`
         : `<div class="order-product-noimage">بدون صورة</div>`}
       <div class="order-product-info">
         <div class="order-product-name">${esc(name)}</div>
@@ -5007,8 +5001,39 @@ loadCategoryCards();
 loadCommerce();
 load();
 </script>
-<dialog id="orderPhotoDialog" aria-label="صورة المنتج" onclose="this.querySelector('img').removeAttribute('src')">
+<dialog id="orderPhotoDialog" aria-label="صورة المنتج">
   <img alt="">
-  <button type="button" autofocus aria-label="إغلاق الصورة" onclick="this.closest('dialog').close()">×</button>
+  <button type="button" autofocus aria-label="إغلاق الصورة">×</button>
 </dialog>
+<script>
+(() => {
+  const viewer = document.getElementById('orderPhotoDialog');
+  const photo = viewer.querySelector('img');
+  const closeButton = viewer.querySelector('button');
+  let opener;
+  function finish() {
+    photo.removeAttribute('src');
+    if (opener?.isConnected) opener.focus({preventScroll:true});
+    opener = null;
+  }
+  function close() {
+    if (typeof viewer.close === 'function') viewer.close();
+    else { viewer.removeAttribute('open'); finish(); }
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('.order-photo-button');
+    if (!button || viewer.open) return;
+    const image = button.querySelector('img');
+    if (!image) return;
+    opener = button;
+    photo.alt = image.alt;
+    photo.src = image.currentSrc || image.src;
+    if (typeof viewer.showModal === 'function') viewer.showModal();
+    else viewer.setAttribute('open', '');
+    closeButton.focus();
+  }, true);
+  closeButton.addEventListener('click', close);
+  viewer.addEventListener('close', finish);
+})();
+</script>
 </body></html>
