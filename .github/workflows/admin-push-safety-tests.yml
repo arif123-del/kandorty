@@ -1,0 +1,22 @@
+name: Admin Web Push safety tests (isolated)
+on:
+  push:
+    branches:
+      - fix/admin-push-permission-20261120
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safe-push-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate order-push module
+        run: node --check stripe-release/order-push.mjs
+      - name: Validate Worker syntax
+        run: node --check stripe-release/worker.mjs
+      - name: Run isolated admin push tests
+        run: node --test stripe-release/order-push.test.mjs
