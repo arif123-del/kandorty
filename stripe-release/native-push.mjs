@@ -126,3 +126,33 @@ export async function sendNativeOrderPush(store,env,net=fetch,now=Date.now()){
  if(sent===0)throw new Fault('native_push_delivery_failed',503);
  return {sent};
 }
+
+/**
+ * Explicit owner-only Firebase test for exactly one already enrolled handset.
+ * No order is created, modified, or read. Never exposes a device token.
+ */
+export async function sendNativeTestPush(store,env,uid,deviceToken,net=fetch,now=Date.now()){
+ if(!UID_PATTERN.test(uid||'')||!TOKEN_PATTERN.test(deviceToken||''))
+   throw new Fault('invalid_native_push_device',400);
+ const row=await store.get(devicesPath);
+ const list=Array.isArray(row?.data?.devices)?row.data.devices:[];
+ if(!list.some(d=>d?.uid===uid && d?.token===deviceToken && d?.expiresAt>now))
+   throw new Fault('native_push_device_not_registered',409);
+ const access=await firebaseMessagingAccess(env,net,now);
+ const endpoint='https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send';
+ const resp=await net(endpoint,{method:'POST',redirect:'error',
+   headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},
+   body:JSON.stringify({message:{
+     token:deviceToken,
+     notification:{title:'🔔 اختبار إشعار كندورتي',body:'اختبار إشعار Firebase للجهاز'},
+     data:{kind:'kandorty_push_test'},
+     android:{
+       priority:'high',ttl:'120s',
+       notification:{channel_id:'kandorty_admin_orders_v2',
+         notification_priority:'PRIORITY_HIGH',sound:'default'}
+     }
+   }}),
+   signal:AbortSignal.timeout(12000)});
+ if(!resp.ok)throw new Fault('native_push_test_send_failed',503);
+ return {sent:true};
+}

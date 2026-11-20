@@ -1,7 +1,7 @@
 name: Native Android FCM server safety
 on:
   push:
-    branches: [feature/admin-fcm-server-20261120]
+    branches: [fix/admin-fcm-test-endpoint-20261120]
   workflow_dispatch:
 permissions:
   contents: read

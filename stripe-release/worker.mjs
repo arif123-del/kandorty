@@ -1,5 +1,5 @@
 import {pushKeys,enroll,sendOrderPush,requireOrderReader} from './order-push.mjs';
-import {nativePushUserId,nativePushDevice,sendNativeOrderPush} from './native-push.mjs';
+import {nativePushUserId,nativePushDevice,sendNativeOrderPush,sendNativeTestPush} from './native-push.mjs';
 import {claimDirectOrderNotification,deliverClaimedOrderNotification} from './direct-order-push.mjs';
 import {verifyAdmin} from './admin-auth.mjs';
 import {runScheduledAlert} from './alert-scheduler.mjs';
@@ -82,6 +82,8 @@ export function handler(factories={}){return async(request,env,ctx)=>{
     await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
    }
    const uid=nativePushUserId(request.headers.get('Authorization'),cfg);
+   if(body?.action==='test' && typeof body?.token==='string')
+    return reply(await sendNativeTestPush(store,env,uid,body.token,factories.nativePushNet||fetch));
    if(!['register','remove'].includes(body?.action)||typeof body?.token!=='string')
     throw new Fault('invalid_native_push_action',400);
    return reply(await nativePushDevice(store,uid,body.token,body.action));

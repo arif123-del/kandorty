@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {nativePushUserId,nativePushDevice,sendNativeOrderPush} from './native-push.mjs';
+import {nativePushUserId,nativePushDevice,sendNativeOrderPush,sendNativeTestPush} from './native-push.mjs';
 
 const cfg={projectId:'kandorty-9378a'};
 function fakeJWT(claims){
@@ -100,5 +100,49 @@ test('FCM HTTP v1 sends only a generic order signal using server credentials',as
  const result=await sendNativeOrderPush(db,env,mockNet,now);
  assert.deepEqual(result,{sent:1});
  assert.equal(oauth,1);
+ assert.equal(fcm,1);
+});
+
+test('FCM self-test needs registered token belonging to same admin UID',async()=>{
+ const db=store();
+ await assert.rejects(sendNativeTestPush(db,{},'admin-test',token,
+   async()=>{throw Error('network forbidden')}),/native_push_device_not_registered/);
+ await nativePushDevice(db,'admin-test',token,'register',Date.now());
+ await assert.rejects(sendNativeTestPush(db,{},'another-admin',token,
+   async()=>{throw Error('network forbidden')}),/native_push_device_not_registered/);
+ await assert.rejects(sendNativeTestPush(db,{},'admin-test','wrong',
+   async()=>{throw Error('network forbidden')}),/invalid_native_push_device/);
+});
+test('FCM self-test sends a visible high-priority test to enrolled phone only',async()=>{
+ const db=store(),now=Date.now();
+ await nativePushDevice(db,'admin-test',token,'register',now);
+ const rsa=await crypto.subtle.generateKey({
+   name:'RSASSA-PKCS1-v1_5',modulusLength:2048,
+   publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'
+ },true,['sign','verify']);
+ const raw=new Uint8Array(await crypto.subtle.exportKey('pkcs8',rsa.privateKey));
+ const pem='-----BEGIN PRIVATE KEY-----\n'+
+   Buffer.from(raw).toString('base64').match(/.{1,64}/g).join('\n')+
+   '\n-----END PRIVATE KEY-----';
+ const env={FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({
+   project_id:'kandorty-9378a',private_key:pem,
+   client_email:'native-test@test.iam.gserviceaccount.com'
+ })};
+ let fcm=0;
+ const mockNet=async (url,options)=>{
+   if(url==='https://oauth2.googleapis.com/token')
+     return Response.json({access_token:'verified-service-access',expires_in:1200});
+   assert.equal(url,'https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send');
+   assert.match(options.headers.Authorization,/^Bearer (verified-service-access|sandbox-token)$/);
+   const body=JSON.parse(options.body);
+   assert.equal(body.message.token,token);
+   assert.deepEqual(body.message.data,{kind:'kandorty_push_test'});
+   assert.equal(body.message.android.notification.channel_id,'kandorty_admin_orders_v2');
+   assert.equal(body.message.android.notification.sound,'default');
+   assert.match(body.message.notification.title,/اختبار/);
+   fcm++;
+   return Response.json({name:'projects/kandorty-9378a/messages/fixture'});
+ };
+ assert.deepEqual(await sendNativeTestPush(db,env,'admin-test',token,mockNet,now),{sent:true});
  assert.equal(fcm,1);
 });
