@@ -4,6 +4,8 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
+import android.media.AudioAttributes;
 import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -18,7 +20,7 @@ import com.google.firebase.messaging.RemoteMessage;
  * server-side order events. Never accept client-created or public topics.
  */
 public class AdminMessagingService extends FirebaseMessagingService {
-    private static final String CHANNEL = "kandorty_admin_orders_v1";
+    public static final String CHANNEL = "kandorty_admin_orders_v2";
 
     @Override public void onNewToken(String token) {
         super.onNewToken(token);
@@ -43,17 +45,26 @@ public class AdminMessagingService extends FirebaseMessagingService {
         notifyOrder(orderCode);
     }
 
+    /** Initialize before first FCM message, so Android can ring even with the app closed. */
+    public static void ensureNotificationChannel(Context app) {
+        NotificationManager nm=(NotificationManager)app.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(nm==null || Build.VERSION.SDK_INT<26)return;
+        NotificationChannel channel=new NotificationChannel(CHANNEL,
+                "طلبات كندورتي الجديدة",NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("صوت وتنبيه عند وصول طلب جديد حتى عند إغلاق التطبيق");
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0,380,180,380,180,380});
+        AudioAttributes audio=new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
+        channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),audio);
+        nm.createNotificationChannel(channel);
+    }
+
     private void notifyOrder(String orderCode) {
+        ensureNotificationChannel(this);
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm == null) return;
-        if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL, "إشعارات الطلبات الجديدة",
-                    NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("إشعارات الطلبات الجديدة من إدارة كندورتي");
-            channel.enableVibration(true);
-            channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null);
-            nm.createNotificationChannel(channel);
-        }
 
         Intent launch = new Intent(this, MainActivity.class);
         launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -70,6 +81,7 @@ public class AdminMessagingService extends FirebaseMessagingService {
                         "طلب جديد: " + orderCode)
                 .setContentIntent(tap)
                 .setAutoCancel(true)
+                .setCategory(Notification.CATEGORY_MESSAGE)
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setDefaults(Notification.DEFAULT_SOUND | Notification.DEFAULT_VIBRATE);
         nm.notify((int) (System.currentTimeMillis() & 0x7fffffff), b.build());
