@@ -1,0 +1,80 @@
+name: Kandorty Admin — Firebase Registered APK
+on:
+  push:
+    branches: [feature/admin-fcm-config-20261120]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Materialize the public Firebase Android client configuration only during CI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          # Firebase Android client identifiers are public client configuration,
+          # not administrator service-account credentials or server secrets.
+          # The JSON file itself is never committed to the repository.
+          project = 'kandorty-9378a'
+          sender = '306390258306'
+          package = 'online.kandorty.admin'
+          app = '1:306390258306:android:ec5909ec2cd87a3bceda9b'
+          public_api_key = 'AIzaSyCBu8YVTYoyxC_oCUtlFnl5rkasrXP6skE'
+          data = {
+              'project_info': {
+                'project_number':sender, 'project_id':project,
+                'storage_bucket':'kandorty-9378a.firebasestorage.app'
+              },
+              'client':[{
+                'client_info':{
+                  'mobilesdk_app_id':app,
+                  'android_client_info':{'package_name':package}
+                },
+                'api_key':[{'current_key':public_api_key}]
+              }],
+              'configuration_version':'1'
+          }
+          Path('app/google-services.json').write_text(json.dumps(data, separators=(',',':'))+'\n')
+          assert data['client'][0]['client_info']['android_client_info']['package_name'] == package
+          PY
+      - name: Build configured native FCM APK
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Check package and SDK registration
+        run: |
+          tools_dir=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          "$tools_dir/apksigner" verify "$apk"
+          "$tools_dir/aapt" dump badging "$apk" > "$RUNNER_TEMP/kandorty-badging"
+          grep -F "package: name='online.kandorty.admin' versionCode='4' versionName='1.2.0'" "$RUNNER_TEMP/kandorty-badging"
+          "$tools_dir/aapt" dump resources "$apk" > "$RUNNER_TEMP/kandorty-resources"
+          grep -q 'google_app_id' "$RUNNER_TEMP/kandorty-resources"
+          grep -q 'gcm_defaultSenderId' "$RUNNER_TEMP/kandorty-resources"
+          grep -q 'google_api_key' "$RUNNER_TEMP/kandorty-resources"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kandorty-Admin-Firebase-1.2.0-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      - name: Test standalone admin WebView with Firebase configured
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: gradle --no-daemon :app:connectedDebugAndroidTest
+      - name: Never retain generated Android config file
+        if: always()
+        run: rm -f app/google-services.json

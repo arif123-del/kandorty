@@ -9,6 +9,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+import org.json.JSONTokener;
+import org.json.JSONObject;
+import javax.net.ssl.HttpsURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -44,6 +51,17 @@ public class MainActivity extends Activity {
     private ProgressBar progress;
     private LinearLayout offline;
     private ValueCallback<Uri[]> fileCallback;
+    private final Handler nativePushHandler = new Handler(Looper.getMainLooper());
+    private long lastNativePushEnrollmentAt = 0L;
+    private boolean nativePushEnrollmentRunning = false;
+    private final Runnable nativePushTicker = new Runnable() {
+        @Override public void run() {
+            registerNativePushWhenSignedIn();
+            nativePushHandler.postDelayed(this, 30000);
+        }
+    };
+    private static final String FCM_ENROLLMENT_URL =
+            "https://kandorty-stripe-release.aliyajan200011.workers.dev/admin/native-push";
 
     private static boolean isTrusted(Uri uri) {
         return uri != null && "https".equalsIgnoreCase(uri.getScheme())
@@ -122,6 +140,7 @@ public class MainActivity extends Activity {
                 // PushManager. Keep the working in-page order sound control,
                 // without prompting for unsupported browser background push.
                 if (isTrusted(Uri.parse(url)) && url.contains("/admin.html")) {
+                    nativePushHandler.postDelayed(() -> registerNativePushWhenSignedIn(), 4000);
                     view.evaluateJavascript(
                         "(function(){" +
                         "const b=document.getElementById('orderSoundBtn');" +
@@ -202,9 +221,11 @@ public class MainActivity extends Activity {
                     != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, ASK_NOTIFICATIONS);
             }
-            FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token ->
-                    getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                            .edit().putString("pending_fcm_token", token).apply());
+            FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
+                getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .edit().putString("pending_fcm_token", token).apply();
+                nativePushHandler.postDelayed(() -> registerNativePushWhenSignedIn(), 1500);
+            });
         }
 
         openAdmin();
@@ -213,6 +234,85 @@ public class MainActivity extends Activity {
     private void openAdmin() {
         offline.setVisibility(View.GONE);
         web.loadUrl(ADMIN_URL);
+    }
+
+    /**
+     * The Firebase web Auth session lives in WebView. Read the *signed-in*
+     * user's short-lived ID token only on the trusted administration origin.
+     * No JS interface is exposed to arbitrary frames or remote content.
+     */
+    private void registerNativePushWhenSignedIn() {
+        if (!BuildConfig.NATIVE_FCM_CONFIGURED || web == null || web.getUrl() == null
+                || !isTrusted(Uri.parse(web.getUrl()))
+                || !web.getUrl().contains("/admin.html")
+                || nativePushEnrollmentRunning) return;
+        long now = System.currentTimeMillis();
+        if (now - lastNativePushEnrollmentAt < 15 * 60 * 1000L) return;
+        String deviceToken = getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                .getString("pending_fcm_token", "");
+        if (deviceToken.isEmpty()) return;
+        nativePushEnrollmentRunning = true;
+        web.evaluateJavascript(
+            "(function(){try{" +
+            "if(typeof auth==='undefined'||!auth.currentUser)return 'NO_LOGIN';" +
+            "window.__kandortyNativeFcmLoginToken='';" +
+            "auth.currentUser.getIdToken().then(function(t){" +
+              "window.__kandortyNativeFcmLoginToken=t;" +
+            "}).catch(function(){window.__kandortyNativeFcmLoginToken='';});" +
+            "return 'PENDING';}catch(e){return 'FAILED';}})()",
+            result -> nativePushHandler.postDelayed(() -> {
+                if (web == null || web.getUrl() == null ||
+                        !isTrusted(Uri.parse(web.getUrl()))) {
+                    nativePushEnrollmentRunning = false;
+                    return;
+                }
+                web.evaluateJavascript(
+                    "(function(){const t=window.__kandortyNativeFcmLoginToken||'';" +
+                    "window.__kandortyNativeFcmLoginToken='';return t;})()",
+                    value -> {
+                        nativePushEnrollmentRunning = false;
+                        String idToken;
+                        try {
+                            Object parsed = new JSONTokener(value).nextValue();
+                            idToken = parsed instanceof String ? (String) parsed : "";
+                        } catch (Exception ignored) { return; }
+                        if (!idToken.matches("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
+                                || idToken.length() > 12000) return;
+                        new Thread(() -> enrollDeviceOverHttps(idToken, deviceToken),
+                                "kandorty-native-push-enroll").start();
+                    });
+            }, 1300));
+    }
+
+    private void enrollDeviceOverHttps(String idToken, String deviceToken) {
+        HttpsURLConnection connection = null;
+        try {
+            URL endpoint = new URL(FCM_ENROLLMENT_URL);
+            connection = (HttpsURLConnection) endpoint.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(10000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Origin", "https://kandorty.online");
+            connection.setRequestProperty("Authorization", "Bearer " + idToken);
+            byte[] payload = new JSONObject()
+                    .put("action", "register").put("token", deviceToken)
+                    .toString().getBytes(StandardCharsets.UTF_8);
+            connection.getOutputStream().write(payload);
+            int status = connection.getResponseCode();
+            if (status == 200) {
+                lastNativePushEnrollmentAt = System.currentTimeMillis();
+                getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .edit().putLong("last_registration", lastNativePushEnrollmentAt).apply();
+            }
+            // Do not log JWTs or FCM tokens, including in error handling.
+        } catch (Exception ignored) {
+            // Try again on the next authenticated page/foreground session.
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -236,14 +336,20 @@ public class MainActivity extends Activity {
         else super.onBackPressed();
     }
     @Override protected void onPause() {
+        nativePushHandler.removeCallbacks(nativePushTicker);
         if (web != null) web.onPause();
         super.onPause();
     }
     @Override protected void onResume() {
         super.onResume();
-        if (web != null) web.onResume();
+        if (web != null) {
+            web.onResume();
+            nativePushHandler.removeCallbacks(nativePushTicker);
+            nativePushHandler.postDelayed(nativePushTicker, 3500);
+        }
     }
     @Override protected void onDestroy() {
+        nativePushHandler.removeCallbacksAndMessages(null);
         if (fileCallback != null) fileCallback.onReceiveValue(null);
         if (web != null) web.destroy();
         super.onDestroy();

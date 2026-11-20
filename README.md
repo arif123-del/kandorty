@@ -15,7 +15,7 @@ A dedicated Android package `online.kandorty.admin`. It renders **https://kandor
 
 ## What is NOT active yet
 
-**No Google Firebase Android configuration exists in this public repository** for package `online.kandorty.admin`. The CI APK is a working independent admin interface but **does NOT receive native background order push yet**. It is not appropriate to mark the native notifications as enabled until the missing pieces are provisioned and verified:
+The Firebase Android application `online.kandorty.admin` is now registered in project `kandorty-9378a`, and the dedicated CI workflow temporarily generates `google-services.json` during build. The config file is **not committed**. The APK can obtain an FCM registration token, but native background order delivery still depends on deploying the authenticated native-push backend and validating delivery to a real Android handset. It is not appropriate to mark the native notifications as enabled until the missing pieces are provisioned and verified:
 
 1. In the existing Firebase project **kandorty-9378a** (not the Stripe TEST project), register Android app with package `online.kandorty.admin`. Obtain its genuine `google-services.json`.
 2. Supply `app/google-services.json` to a secure Android build, keeping it out of the public repository. The `com.google.gms.google-services` plugin applies automatically when the file exists. The build flag `NATIVE_FCM_CONFIGURED` will become true.
@@ -38,3 +38,12 @@ This build is an independent **Android user interface**. It still requires the i
 ## Install
 
 Build and install the APK. If an old APK with `online.kandorty.admin` was signed with a different debug key, Android may refuse an upgrade. In that case uninstall *only that separate admin APK*, then install 1.1.0. It does not remove your website's data or customer orders, but the embedded browser sign-in will be independent and must be completed again.
+
+
+## Firebase-enabled build (v1.2.0)
+
+- `feature/admin-fcm-config-20261120` builds the same independent WebView app with Firebase Messaging configuration for package `online.kandorty.admin`.
+- `google-services.json` is generated only within GitHub Actions and removed after the job; the Android SDK client identifiers are public by design, unlike service-account private keys.
+- The admin WebView requests a short-lived Firebase ID token from its signed-in user. The native app sends that token plus its FCM registration token by TLS to the protected `/admin/native-push` endpoint. It does not expose a JavaScript bridge to third-party pages.
+- Server implementation and tests are developed separately on `feature/admin-fcm-server-20261120`. Do not claim live background notifications until that backend is deployed and a new order is received while the app is closed.
+- This APK has only the standard debug signing key and requires uninstall/reinstall if Android refuses to upgrade an older debug-key build.
