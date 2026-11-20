@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private ProgressBar progress;
+    private TextView fcmStatus;
     private LinearLayout offline;
     private ValueCallback<Uri[]> fileCallback;
     private final Handler nativePushHandler = new Handler(Looper.getMainLooper());
@@ -133,6 +134,51 @@ public class MainActivity extends Activity {
                     : "الإشعارات محظورة. افتحي إعدادات التطبيق وفعّلي تنبيهات طلبات كندورتي.",
                     Toast.LENGTH_LONG).show();
         });
+        Button checkFirebase = new Button(this);
+        checkFirebase.setText("📡 فحص Firebase");
+        checkFirebase.setTextSize(12f);
+        checkFirebase.setAllCaps(false);
+        FrameLayout.LayoutParams firebasePosition = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.LEFT);
+        firebasePosition.setMargins(12*dp, 0, 0, 154*dp);
+        root.addView(checkFirebase, firebasePosition);
+        checkFirebase.setOnClickListener(v -> {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED) {
+                showFcmStatus("إذن الإشعارات غير مفعّل");
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        ASK_NOTIFICATIONS);
+                return;
+            }
+            if (!BuildConfig.NATIVE_FCM_CONFIGURED || FirebaseApp.getApps(this).isEmpty()) {
+                showFcmStatus("Firebase غير مهيأ في نسخة التطبيق");
+                return;
+            }
+            showFcmStatus("جاري فحص رمز الجهاز...");
+            FirebaseMessaging.getInstance().getToken()
+                .addOnSuccessListener(token -> {
+                    getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .edit().putString("pending_fcm_token",token)
+                        .putBoolean("fcm_test_sent_20261120",false).apply();
+                    lastNativePushEnrollmentAt = 0L;
+                    showFcmStatus("رمز الجهاز جاهز؛ جاري فحص دخول الإدارة...");
+                    registerNativePushWhenSignedIn();
+                })
+                .addOnFailureListener(error ->
+                    showFcmStatus("فشل الحصول على رمز Firebase من خدمات Google"));
+        });
+        fcmStatus = new TextView(this);
+        fcmStatus.setTextSize(11f);
+        fcmStatus.setTextColor(0xFF202020);
+        fcmStatus.setPadding(8*dp, 3*dp, 8*dp, 3*dp);
+        fcmStatus.setBackgroundColor(0xEEFFFFFF);
+        fcmStatus.setText("Firebase: اضغطي فحص Firebase بعد تسجيل الدخول");
+        FrameLayout.LayoutParams statusPosition = new FrameLayout.LayoutParams(
+                -2, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT);
+        statusPosition.setMargins(12*dp, 0, 12*dp, 212*dp);
+        root.addView(fcmStatus,statusPosition);
         setContentView(root);
 
         WebSettings settings = web.getSettings();
@@ -301,47 +347,92 @@ public class MainActivity extends Activity {
      * user's short-lived ID token only on the trusted administration origin.
      * No JS interface is exposed to arbitrary frames or remote content.
      */
+    private void showFcmStatus(String message) {
+        runOnUiThread(() -> {
+            if (fcmStatus != null) fcmStatus.setText("Firebase: " + message);
+        });
+    }
+
     private void registerNativePushWhenSignedIn() {
-        if (!BuildConfig.NATIVE_FCM_CONFIGURED || web == null || web.getUrl() == null
-                || !isTrusted(Uri.parse(web.getUrl()))
-                || !web.getUrl().contains("/admin.html")
-                || nativePushEnrollmentRunning) return;
-        long now = System.currentTimeMillis();
-        if (now - lastNativePushEnrollmentAt < 15 * 60 * 1000L) return;
+        if (!BuildConfig.NATIVE_FCM_CONFIGURED || web == null) {
+            showFcmStatus("إعداد Firebase غير متاح");
+            return;
+        }
+        if (web.getUrl() == null || !isTrusted(Uri.parse(web.getUrl()))
+                || !web.getUrl().contains("/admin.html")) {
+            showFcmStatus("افتحي صفحة إدارة كندورتي أولاً");
+            return;
+        }
+        if (nativePushEnrollmentRunning) return;
+        if (System.currentTimeMillis() - lastNativePushEnrollmentAt < 15 * 60 * 1000L) return;
         String deviceToken = getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                .getString("pending_fcm_token", "");
-        if (deviceToken.isEmpty()) return;
+                .getString("pending_fcm_token","");
+        if (deviceToken.isEmpty()) {
+            showFcmStatus("رمز Firebase غير متوفر؛ اضغطي فحص Firebase");
+            return;
+        }
         nativePushEnrollmentRunning = true;
         web.evaluateJavascript(
             "(function(){try{" +
             "if(typeof auth==='undefined'||!auth.currentUser)return 'NO_LOGIN';" +
             "window.__kandortyNativeFcmLoginToken='';" +
+            "window.__kandortyNativeFcmLoginStatus='PENDING';" +
             "auth.currentUser.getIdToken().then(function(t){" +
-              "window.__kandortyNativeFcmLoginToken=t;" +
-            "}).catch(function(){window.__kandortyNativeFcmLoginToken='';});" +
-            "return 'PENDING';}catch(e){return 'FAILED';}})()",
-            result -> nativePushHandler.postDelayed(() -> {
-                if (web == null || web.getUrl() == null ||
-                        !isTrusted(Uri.parse(web.getUrl()))) {
+                "window.__kandortyNativeFcmLoginToken=t;" +
+                "window.__kandortyNativeFcmLoginStatus='READY';" +
+            "}).catch(function(){window.__kandortyNativeFcmLoginStatus='AUTH_FAILED';});" +
+            "return 'PENDING';}catch(e){return 'AUTH_FAILED';}})()",
+            value -> {
+                if ("\"NO_LOGIN\"".equals(value)) {
                     nativePushEnrollmentRunning = false;
+                    showFcmStatus("سجّلي دخول بريد الإدارة داخل التطبيق ثم افحصي مجدداً");
                     return;
                 }
-                web.evaluateJavascript(
-                    "(function(){const t=window.__kandortyNativeFcmLoginToken||'';" +
-                    "window.__kandortyNativeFcmLoginToken='';return t;})()",
-                    value -> {
-                        nativePushEnrollmentRunning = false;
-                        String idToken;
-                        try {
-                            Object parsed = new JSONTokener(value).nextValue();
-                            idToken = parsed instanceof String ? (String) parsed : "";
-                        } catch (Exception ignored) { return; }
-                        if (!idToken.matches("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
-                                || idToken.length() > 12000) return;
-                        new Thread(() -> enrollDeviceOverHttps(idToken, deviceToken),
-                                "kandorty-native-push-enroll").start();
-                    });
-            }, 1300));
+                if (!"\"PENDING\"".equals(value)) {
+                    nativePushEnrollmentRunning = false;
+                    showFcmStatus("تعذّر قراءة جلسة الإدارة");
+                    return;
+                }
+                showFcmStatus("جاري تأكيد هوية الإدارة...");
+                nativePushHandler.postDelayed(() -> pollNativeLoginToken(deviceToken,0),700);
+            });
+    }
+
+    private void pollNativeLoginToken(String deviceToken, int attempts) {
+        if (web == null || web.getUrl() == null
+                || !isTrusted(Uri.parse(web.getUrl()))
+                || !web.getUrl().contains("/admin.html")) {
+            nativePushEnrollmentRunning = false;
+            showFcmStatus("تم تغيير الصفحة أثناء فحص Firebase");
+            return;
+        }
+        web.evaluateJavascript(
+            "(function(){const t=window.__kandortyNativeFcmLoginToken||'';" +
+            "if(t){window.__kandortyNativeFcmLoginToken='';return t;}" +
+            "return window.__kandortyNativeFcmLoginStatus||'PENDING';})()",
+            value -> {
+                String result;
+                try {
+                    Object parsed = new JSONTokener(value).nextValue();
+                    result = parsed instanceof String ? (String) parsed : "";
+                } catch (Exception ignored) { result = ""; }
+                if (result.matches("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
+                        && result.length() <= 12000) {
+                    nativePushEnrollmentRunning = false;
+                    showFcmStatus("جاري تسجيل الجهاز في خادم الطلبات...");
+                    String idToken = result;
+                    new Thread(() -> enrollDeviceOverHttps(idToken,deviceToken),
+                            "kandorty-native-push-enroll").start();
+                } else if ("PENDING".equals(result) && attempts < 12) {
+                    nativePushHandler.postDelayed(
+                            () -> pollNativeLoginToken(deviceToken,attempts+1), 850);
+                } else {
+                    nativePushEnrollmentRunning = false;
+                    showFcmStatus("AUTH_FAILED".equals(result)
+                            ? "تعذّر توثيق الدخول؛ أعيدي تسجيل الدخول"
+                            : "انتهت مهلة توثيق الإدارة؛ اضغطي فحص Firebase مجدداً");
+                }
+            });
     }
 
     private void enrollDeviceOverHttps(String idToken, String deviceToken) {
@@ -363,6 +454,7 @@ public class MainActivity extends Activity {
             connection.getOutputStream().write(payload);
             int status = connection.getResponseCode();
             if (status == 200) {
+                showFcmStatus("تم تسجيل الجهاز بنجاح؛ جاري اختبار وصول الإشعار...");
                 lastNativePushEnrollmentAt = System.currentTimeMillis();
                 boolean wasRegistered=getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
                         .getBoolean("registration_confirmed",false);
@@ -376,6 +468,8 @@ public class MainActivity extends Activity {
                     sendNativeTestPushOverHttps(idToken,deviceToken);
                 }
             } else {
+                showFcmStatus("فشل التسجيل: HTTP " + status +
+                        (status == 403 ? " (صلاحية الإدارة مرفوضة)" : ""));
                 // A user-visible status helps diagnose a 403/429 without logging
                 // Firebase JWTs or per-device FCM registration tokens.
                 int lastError=getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
@@ -390,7 +484,7 @@ public class MainActivity extends Activity {
             }
             // Do not log JWTs or FCM tokens, including in error handling.
         } catch (Exception ignored) {
-            // Try again on the next authenticated page/foreground session.
+            showFcmStatus("تعذّر الاتصال بخادم تسجيل إشعارات Firebase");
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -414,17 +508,20 @@ public class MainActivity extends Activity {
             c.getOutputStream().write(data);
             int status = c.getResponseCode();
             if(status == 200) {
+                showFcmStatus("تم إرسال اختبار Firebase؛ افحصي إشعارات الهاتف");
                 getSharedPreferences("kandorty_native_push",MODE_PRIVATE).edit()
                         .putBoolean("fcm_test_sent_20261120",true).apply();
                 runOnUiThread(() -> Toast.makeText(this,
                         "✅ تم إرسال اختبار Firebase للهاتف. تحقّقي من الإشعارات والصوت.",
                         Toast.LENGTH_LONG).show());
             }else {
+                showFcmStatus("فشل إرسال اختبار Firebase: HTTP " + status);
                 runOnUiThread(() -> Toast.makeText(this,
                         "اختبار Firebase لم ينجح (HTTP " + status + ").",
                         Toast.LENGTH_LONG).show());
             }
         }catch (Exception e) {
+            showFcmStatus("تعذّر الاتصال بخادم اختبار Firebase");
             runOnUiThread(() -> Toast.makeText(this,
                     "اختبار Firebase تعذّر بسبب اتصال الشبكة.",
                     Toast.LENGTH_LONG).show());
