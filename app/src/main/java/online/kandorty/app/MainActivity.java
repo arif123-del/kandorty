@@ -2,6 +2,9 @@ package online.kandorty.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.provider.Settings;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -103,7 +106,19 @@ public class MainActivity extends Activity {
         offline.addView(retry);
         root.addView(offline, new FrameLayout.LayoutParams(-1, -1));
         offline.setVisibility(View.GONE);
+        Button pushStatusButton = new Button(this);
+        pushStatusButton.setText("🔔");
+        pushStatusButton.setAllCaps(false);
+        pushStatusButton.setContentDescription("فحص تنبيهات إدارة كندورتي");
+        int dp = (int) getResources().getDisplayMetrics().density;
+        FrameLayout.LayoutParams bellPlacement = new FrameLayout.LayoutParams(60 * dp, 50 * dp,
+                Gravity.BOTTOM | Gravity.RIGHT);
+        bellPlacement.rightMargin = 8 * dp;
+        bellPlacement.bottomMargin = 12 * dp;
+        root.addView(pushStatusButton, bellPlacement);
+        pushStatusButton.setOnClickListener(v -> showPushDiagnostics());
         setContentView(root);
+        AdminMessagingService.ensureChannel(this);
 
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true); // Required for Firebase Auth and existing admin.
@@ -223,9 +238,13 @@ public class MainActivity extends Activity {
             }
             FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
                 getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                        .edit().putString("pending_fcm_token", token).apply();
+                        .edit().putString("pending_fcm_token", token)
+                        .putBoolean("fcm_token_ok", true).apply();
                 nativePushHandler.postDelayed(() -> registerNativePushWhenSignedIn(), 1500);
-            });
+            }).addOnFailureListener(error ->
+                getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .edit().putBoolean("fcm_token_ok", false)
+                        .putString("last_status", "fcm_token_error").apply());
         }
 
         openAdmin();
@@ -242,12 +261,16 @@ public class MainActivity extends Activity {
      * No JS interface is exposed to arbitrary frames or remote content.
      */
     private void registerNativePushWhenSignedIn() {
+        requestNativePush(false);
+    }
+
+    private void requestNativePush(boolean test) {
         if (!BuildConfig.NATIVE_FCM_CONFIGURED || web == null || web.getUrl() == null
                 || !isTrusted(Uri.parse(web.getUrl()))
                 || !web.getUrl().contains("/admin.html")
                 || nativePushEnrollmentRunning) return;
         long now = System.currentTimeMillis();
-        if (now - lastNativePushEnrollmentAt < 15 * 60 * 1000L) return;
+        if (!test && now - lastNativePushEnrollmentAt < 15 * 60 * 1000L) return;
         String deviceToken = getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
                 .getString("pending_fcm_token", "");
         if (deviceToken.isEmpty()) return;
@@ -278,13 +301,13 @@ public class MainActivity extends Activity {
                         } catch (Exception ignored) { return; }
                         if (!idToken.matches("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
                                 || idToken.length() > 12000) return;
-                        new Thread(() -> enrollDeviceOverHttps(idToken, deviceToken),
+                        new Thread(() -> enrollDeviceOverHttps(idToken, deviceToken, test),
                                 "kandorty-native-push-enroll").start();
                     });
             }, 1300));
     }
 
-    private void enrollDeviceOverHttps(String idToken, String deviceToken) {
+    private void enrollDeviceOverHttps(String idToken, String deviceToken, boolean test) {
         HttpsURLConnection connection = null;
         try {
             URL endpoint = new URL(FCM_ENROLLMENT_URL);
@@ -302,17 +325,85 @@ public class MainActivity extends Activity {
                     .toString().getBytes(StandardCharsets.UTF_8);
             connection.getOutputStream().write(payload);
             int status = connection.getResponseCode();
+            getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                    .edit().putInt("last_http_status", status)
+                    .putString("last_status", status == 200 ? "registered" : "server_http_" + status)
+                    .apply();
             if (status == 200) {
                 lastNativePushEnrollmentAt = System.currentTimeMillis();
                 getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
                         .edit().putLong("last_registration", lastNativePushEnrollmentAt).apply();
+                if (test) sendNativePushTest(idToken, deviceToken);
             }
-            // Do not log JWTs or FCM tokens, including in error handling.
+            // Never log Firebase JWTs, FCM tokens, or customer information.
         } catch (Exception ignored) {
-            // Try again on the next authenticated page/foreground session.
+            getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                    .edit().putString("last_status", "network_error").apply();
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    private void sendNativePushTest(String idToken, String deviceToken) {
+        HttpsURLConnection connection = null;
+        try {
+            connection = (HttpsURLConnection) new URL(FCM_ENROLLMENT_URL).openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(12000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Origin", "https://kandorty.online");
+            connection.setRequestProperty("Authorization", "Bearer " + idToken);
+            byte[] payload = new JSONObject().put("action", "test").put("token", deviceToken)
+                    .toString().getBytes(StandardCharsets.UTF_8);
+            connection.getOutputStream().write(payload);
+            int status = connection.getResponseCode();
+            getSharedPreferences("kandorty_native_push", MODE_PRIVATE).edit()
+                    .putInt("last_test_http", status)
+                    .putString("last_status", status == 200 ? "test_sent" : "fcm_send_http_" + status)
+                    .apply();
+        } catch (Exception ignored) {
+            getSharedPreferences("kandorty_native_push", MODE_PRIVATE).edit()
+                    .putString("last_status", "fcm_send_network_error").apply();
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private void showPushDiagnostics() {
+        android.content.SharedPreferences p = getSharedPreferences("kandorty_native_push", MODE_PRIVATE);
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        boolean permitted = nm != null && nm.areNotificationsEnabled()
+                && (Build.VERSION.SDK_INT < 33 ||
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED);
+        String device = p.getString("pending_fcm_token", "");
+        String http = p.contains("last_http_status") ? String.valueOf(p.getInt("last_http_status", 0)) : "—";
+        String test = p.contains("last_test_http") ? String.valueOf(p.getInt("last_test_http", 0)) : "—";
+        String message = "إذن الإشعارات: " + (permitted ? "✅ مسموح" : "❌ غير مسموح") +
+                "\nاتصال Firebase بالجهاز: " + (!device.isEmpty() ? "✅" : "❌") +
+                "\nتسجيل الجهاز بالخادم (HTTP): " + http +
+                "\nإرسال الاختبار (HTTP): " + test +
+                "\nالحالة: " + p.getString("last_status", "لم يتم المحاولة") +
+                "\n\nيجب تسجيل الدخول إلى حساب الإدارة داخل التطبيق. " +
+                "عند الضغط على الاختبار سيحاول الربط ويرسل إشعار Firebase حقيقي.";
+        new AlertDialog.Builder(this)
+                .setTitle("🔔 فحص تنبيهات كندورتي")
+                .setMessage(message)
+                .setPositiveButton("اختبار Firebase", (dialog, which) -> {
+                    lastNativePushEnrollmentAt = 0;
+                    requestNativePush(true);
+                    Toast.makeText(this, "جارٍ تجربة إرسال إشعار Firebase؛ افتحي الفحص مجدداً للنتيجة",
+                            Toast.LENGTH_LONG).show();
+                })
+                .setNeutralButton("اختبار صوت الهاتف", (dialog, which) ->
+                        AdminMessagingService.showLocalTestNotification(this))
+                .setNegativeButton("إعدادات", (dialog, which) -> {
+                    Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                    try { startActivity(intent); } catch (Exception ignored) {}
+                }).show();
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
