@@ -11,6 +11,10 @@
         android:roundIcon="@drawable/kandorty_icon"
         android:theme="@style/Theme.Kandorty">
         <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing" android:value="true" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="kandorty_admin_orders_v2" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/kandorty_icon" />
         <activity
             android:name=".MainActivity"
             android:enableOnBackInvokedCallback="false"
