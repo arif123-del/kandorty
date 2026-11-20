@@ -146,3 +146,77 @@ test('FCM self-test sends a visible high-priority test to enrolled phone only',a
  assert.deepEqual(await sendNativeTestPush(db,env,'admin-test',token,mockNet,now),{sent:true});
  assert.equal(fcm,1);
 });
+
+/**
+ * Production-Firestore read availability should not block a proven admin,
+ * and must NEVER admit a token based only on its unsigned JWT claims.
+ */
+test('native HTTP 503 fallback only grants a cryptographically verified active admin',async()=>{
+ const {handler}=await import('./worker.mjs');
+ const pair=await crypto.subtle.generateKey(
+  {name:'RSASSA-PKCS1-v1_5',modulusLength:2048,
+   publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
+ const jwk={...await crypto.subtle.exportKey('jwk',pair.publicKey),
+   kid:'admin-503-test',alg:'RS256'};
+ const now=Math.floor(Date.now()/1000),uid='test-admin-503',cfg={
+  aud:'kandorty-9378a',iss:'https://securetoken.google.com/kandorty-9378a',
+  sub:uid,admin:true,iat:now-10,auth_time:now-30,exp:now+3600
+ };
+ const jwt=async patch=>{
+  const encode=v=>Buffer.from(JSON.stringify(v)).toString('base64url');
+  const unsigned=encode({alg:'RS256',kid:'admin-503-test'})+'.'+encode({...cfg,...patch});
+  const signature=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',pair.privateKey,
+    new TextEncoder().encode(unsigned));
+  return unsigned+'.'+Buffer.from(signature).toString('base64url');
+ };
+ const env={
+  STRIPE_MODE:'live',FIREBASE_PROJECT_ID:'kandorty-9378a',
+  STRIPE_SECRET_KEY:'sk_live_placeholder',
+  STRIPE_WEBHOOK_SECRET:'whsec_placeholder',
+  STRIPE_RECEIPT_SECRET:'a'.repeat(64),
+  LIVE_RELEASE_APPROVAL:'KANDORTY_STRIPE_V1_APPROVED',
+  TURNSTILE_SECRET_KEY:'placeholder',
+  RATE_LIMITER:{limit:async()=>({success:true})}
+ };
+ const register=async(db,claimPatch,readerStatus=503)=>{
+  let reads=0,signatureChecks=0;
+  const fn=handler({
+   store:()=>db,
+   readerNet:async()=>{reads++;return new Response(null,{status:readerStatus});},
+   authNet:async url=>{
+    signatureChecks++;
+    assert.match(url,/securetoken@system\.gserviceaccount\.com/);
+    return Response.json({keys:[jwk]});
+   }
+  });
+  const bearer=await jwt(claimPatch);
+  const resp=await fn(new Request(
+   'https://kandorty-stripe-release.aliyajan200011.workers.dev/admin/native-push',{
+   method:'POST',headers:{Origin:'https://kandorty.online',
+    Authorization:'Bearer '+bearer,'Content-Type':'application/json'},
+   body:JSON.stringify({action:'register',token})
+  }),env);
+  return {status:resp.status,body:await resp.json(),reads,signatureChecks};
+ };
+ const allowed=store();
+ allowed.db.set('admin_access/'+uid,{data:{active:true,validAfter:now-90},version:'2'});
+ const ok=await register(allowed,{});
+ assert.equal(ok.status,200,JSON.stringify(ok));
+ assert.deepEqual(ok.body,{enabled:true});
+ assert.equal(ok.reads,1);
+ assert.equal(ok.signatureChecks,1);
+ assert.equal((await allowed.get('admin_native_push_config/devices')).data.devices.length,1);
+
+ for(const [name,patch,active] of [
+  ['no admin custom claim',{admin:false},true],
+  ['wrong issuer',{iss:'https://securetoken.google.com/wrong'},true],
+  ['expired token',{exp:now-5},true],
+  ['inactive membership',{},false]]){
+  const db=store();
+  db.db.set('admin_access/'+uid,{data:{active,validAfter:now-90},version:'3'});
+  const result=await register(db,patch);
+  assert.equal(result.status,403,name+': '+JSON.stringify(result));
+  assert.equal(result.body.error,'admin_authorization_required',name);
+  assert.equal(await db.get('admin_native_push_config/devices'),null,name);
+ }
+});
