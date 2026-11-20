@@ -69,9 +69,9 @@ test('FCM HTTP v1 sends only a generic order signal using server credentials',as
   publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'
  },true,['sign','verify']);
  const raw=new Uint8Array(await crypto.subtle.exportKey('pkcs8',rsa.privateKey));
- const pem='-----BEGIN PRIVATE KEY-----\\n'+
-  Buffer.from(raw).toString('base64').match(/.{1,64}/g).join('\\n')+
-  '\\n-----END PRIVATE KEY-----';
+ const pem='-----BEGIN PRIVATE KEY-----\n'+
+  Buffer.from(raw).toString('base64').match(/.{1,64}/g).join('\n')+
+  '\n-----END PRIVATE KEY-----';
  const env={FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({
   project_id:'kandorty-9378a',private_key:pem,
   client_email:'native-push-test@test.iam.gserviceaccount.com'
