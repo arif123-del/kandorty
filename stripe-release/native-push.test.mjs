@@ -210,7 +210,7 @@ test('native 403/503 registration uses signed single-owner identity and denies f
  // device-specific push without any global admin claim or membership.
  for (const readerStatus of [403,503]) {
   const db=store();
-  const r=await call(db,{}, {readerStatus});
+  const r=await call(db,{email:'Aliyajan200011@gmail.com'}, {readerStatus});
   assert.equal(r.status,200,JSON.stringify(r));
   assert.deepEqual(r.body,{enabled:true});
   assert.equal(r.checks,1);
