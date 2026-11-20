@@ -1,6 +1,13 @@
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services") version "4.6.0" apply false
 }
+
+// Android FCM credentials MUST be registered for package online.kandorty.admin.
+// Without app/google-services.json, this APK still runs as a native WebView,
+// but cannot obtain a usable device token or receive server FCM notifications.
+val hasAndroidFirebaseApp = file("google-services.json").exists()
+if (hasAndroidFirebaseApp) apply(plugin = "com.google.gms.google-services")
 
 android {
     namespace = "online.kandorty.app"
@@ -10,11 +17,12 @@ android {
         applicationId = "online.kandorty.admin"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
+        versionCode = 3
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionName = "1.0.1"
+        buildConfigField("boolean", "NATIVE_FCM_CONFIGURED", if (hasAndroidFirebaseApp) "true" else "false")
     }
-
+    buildFeatures { buildConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -22,8 +30,8 @@ android {
 }
 
 dependencies {
-    // Web Push is handled by the installed browser's notification service,
-    // not by a Custom Tab or an unconfigured Android Firebase Messaging client.
+    implementation(platform("com.google.firebase:firebase-bom:35.2.0"))
+    implementation("com.google.firebase:firebase-messaging")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")

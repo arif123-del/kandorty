@@ -1,7 +1,10 @@
-name: Kandorty Admin Android APK
+name: Kandorty Standalone Admin Android APK
 on:
   push:
-    branches: [kandorty-admin-1.0.0-apk, fix/admin-browser-push-1.0.1]
+    branches:
+      - kandorty-admin-1.0.0-apk
+      - fix/admin-browser-push-1.0.1
+      - feature/admin-native-standalone-20261120
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,22 +20,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - run: gradle --no-daemon :app:assembleDebug
-      - name: Verify APK signature and version
+      - name: Compile standalone admin
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Verify APK and independent WebView
         run: |
           tools_dir=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
           apk=app/build/outputs/apk/debug/app-debug.apk
           "$tools_dir/apksigner" verify "$apk"
           "$tools_dir/aapt" dump badging "$apk" > "$RUNNER_TEMP/kandorty-badging"
-          grep -F "package: name='online.kandorty.admin' versionCode='2' versionName='1.0.1'" "$RUNNER_TEMP/kandorty-badging"
+          grep -F "package: name='online.kandorty.admin' versionCode='3' versionName='1.1.0'" "$RUNNER_TEMP/kandorty-badging"
       - uses: actions/upload-artifact@v4
         with:
-          name: Kandorty-Admin-1.0.1-APK
+          name: Kandorty-Admin-Standalone-1.1.0-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Enable emulator acceleration
         run: sudo chmod 666 /dev/kvm
-      - name: Test admin launcher destination
+      - name: Test independent WebView
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35

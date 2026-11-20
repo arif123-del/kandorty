@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -9,6 +10,7 @@
         android:icon="@drawable/kandorty_icon"
         android:roundIcon="@drawable/kandorty_icon"
         android:theme="@style/Theme.Kandorty">
+        <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing" android:value="true" />
         <activity
             android:name=".MainActivity"
             android:enableOnBackInvokedCallback="false"
@@ -21,5 +23,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service android:name=".AdminMessagingService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
