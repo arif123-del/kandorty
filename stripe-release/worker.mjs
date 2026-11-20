@@ -1,4 +1,5 @@
 import {pushKeys,enroll,sendOrderPush,requireOrderReader} from './order-push.mjs';
+import {nativePushUserId,nativePushDevice,sendNativeOrderPush} from './native-push.mjs';
 import {verifyAdmin} from './admin-auth.mjs';
 import {runScheduledAlert} from './alert-scheduler.mjs';
 import {sendOperatorEmail} from './operations-email.mjs';
@@ -71,7 +72,24 @@ export function handler(factories={}){return async(request,env,ctx)=>{
    if(body?.action!=='subscribe'||typeof body.endpoint!=='string')throw new Fault('invalid_request');
    await enroll(store,body.endpoint);return reply({enabled:true});
   }
-  const onNewOrder=cfg.live&&ctx?()=>ctx.waitUntil(sendOrderPush(store).catch(()=>console.error('order_push_failed'))):undefined;
+  // Separate, device-specific FCM registry. Do not expose it to guests,
+  // TEST mode, or public checkout routes.
+  if(cfg.live&&url.pathname==='/admin/native-push'){
+   try{await requireOrderReader(request,cfg);}
+   catch(error){
+    if(error?.message!=='admin_authorization_required')throw error;
+    await verifyAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
+   }
+   const uid=nativePushUserId(request.headers.get('Authorization'),cfg);
+   if(!['register','remove'].includes(body?.action)||typeof body?.token!=='string')
+    throw new Fault('invalid_native_push_action',400);
+   return reply(await nativePushDevice(store,uid,body.token,body.action));
+  }
+  const onNewOrder=cfg.live&&ctx?()=>{
+   ctx.waitUntil(sendOrderPush(store).catch(()=>console.error('order_push_failed')));
+   ctx.waitUntil(sendNativeOrderPush(store,env,factories.nativePushNet||fetch).catch(()=>
+     console.error('native_order_push_failed')));
+  }:undefined;
   const stripe=(factories.stripe||stripeClient)(cfg),service=createService(cfg,store,stripe,onNewOrder);
   if(isWebhook){
    if(STRIPE_REFUND_EVENTS.includes(body.type)){
