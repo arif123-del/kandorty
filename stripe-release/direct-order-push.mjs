@@ -51,7 +51,7 @@ export async function deliverClaimedOrderNotification(store,claim,sendBrowser,se
  const outcomes=await Promise.allSettled([sendBrowser(),sendNative()]);
  // The Android notification is the primary goal. A successful browser push
  // must never hide a failed native delivery; allow a later retry of FCM.
- const delivered=outcomes[1].status==='fulfilled';
+ const delivered=outcomes[1]?.status==='fulfilled' && Number(outcomes[1].value?.sent)>0;
  const old=await store.get(claim.path);
  // If this update loses a race to a later claim, do not overwrite its status.
  if(old?.data?.state==='pending'){
