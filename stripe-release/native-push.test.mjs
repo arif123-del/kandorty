@@ -60,3 +60,42 @@ test('no registered devices means no FCM network calls or service-account use',a
  const result=await sendNativeOrderPush(db,{},async()=>{throw Error('should not fetch')});
  assert.deepEqual(result,{sent:0});
 });
+
+test('FCM HTTP v1 sends only a generic order signal using server credentials',async()=>{
+ const db=store(),now=Date.now();
+ await nativePushDevice(db,'admin-test',token,'register',now);
+ const rsa=await crypto.subtle.generateKey({
+  name:'RSASSA-PKCS1-v1_5',modulusLength:2048,
+  publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'
+ },true,['sign','verify']);
+ const raw=new Uint8Array(await crypto.subtle.exportKey('pkcs8',rsa.privateKey));
+ const pem='-----BEGIN PRIVATE KEY-----\\n'+
+  Buffer.from(raw).toString('base64').match(/.{1,64}/g).join('\\n')+
+  '\\n-----END PRIVATE KEY-----';
+ const env={FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({
+  project_id:'kandorty-9378a',private_key:pem,
+  client_email:'native-push-test@test.iam.gserviceaccount.com'
+ })};
+ let oauth=0,fcm=0;
+ const mockNet=async (url,options)=>{
+  if(url==='https://oauth2.googleapis.com/token'){
+   oauth++;
+   assert.equal(options.method,'POST');
+   assert.match(String(options.body),/jwt-bearer/);
+   return Response.json({access_token:'sandbox-token',expires_in:3000});
+  }
+  assert.equal(url,'https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send');
+  assert.equal(options.headers.Authorization,'Bearer sandbox-token');
+  const body=JSON.parse(options.body);
+  assert.deepEqual(body.message.data,{kind:'kandorty_new_order'});
+  assert.equal(body.message.token,token);
+  assert.equal(body.message.android.priority,'high');
+  assert.equal(body.message.notification,undefined);
+  fcm++;
+  return Response.json({name:'projects/kandorty-9378a/messages/test'});
+ };
+ const result=await sendNativeOrderPush(db,env,mockNet,now);
+ assert.deepEqual(result,{sent:1});
+ assert.equal(oauth,1);
+ assert.equal(fcm,1);
+});
