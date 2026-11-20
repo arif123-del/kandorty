@@ -10,7 +10,7 @@ function bound(cfg,s,p){
  check(p.client_reference_id===s.orderId&&p.metadata?.checkout_id===s.checkoutId&&p.metadata?.order_id===s.orderId&&p.metadata?.integration==='kandorty-stripe-v1','session_binding_mismatch');
  check(p.currency==='aed'&&p.amount_total===s.totalFils&&(!s.sessionId||p.id===s.sessionId),'session_amount_mismatch');
 }
-export function createService(cfg,store,stripe){
+export function createService(cfg,store,stripe,onNewOrder){
  check(store.root===`projects/${cfg.projectId}/databases/(default)/documents`,'store_project_mismatch');
  async function bind(checkoutId,p){
   for(let i=0;i<5;i++){
@@ -65,6 +65,7 @@ export function createService(cfg,store,stripe){
      const marker=plan.writes.find(w=>w.update.name===store.root+'/stripe_checkout_sessions/'+checkoutId);marker.update.fields.reconcilePending={booleanValue:false};
      if(plan.order.inventoryStatus==='needs_review')plan.writes.push(store.write('stripe_review_queue/'+s.orderId,{orderId:s.orderId,sessionId:p.id,reason:'paid_inventory_shortage',resolved:false,createdAt:new Date().toISOString()},{exists:false}));
      try{await store.commit(plan.writes);}catch(e){if(e.message==='write_conflict')continue;throw e;}
+     onNewOrder?.();
     }
     const settledOrder=stripe.refundState?await syncRefunds(store,stripe,{...s,sessionId:p.id}):plan.order;
     return {paid:true,replay:plan.replay,order:publicOrder(settledOrder),snapshot:s};

@@ -1,3 +1,4 @@
+import {pushKeys,enroll,sendOrderPush,requireOrderReader} from './order-push.mjs';
 import {verifyAdmin} from './admin-auth.mjs';
 import {runScheduledAlert} from './alert-scheduler.mjs';
 import {sendOperatorEmail} from './operations-email.mjs';
@@ -15,7 +16,7 @@ import {STRIPE_CHECKOUT_EVENTS,STRIPE_REFUND_EVENTS} from './webhook-contract.mj
 import {Fault,hash} from '../cod-staging/security.mjs';
 import {CodFault} from '../stripe-live-candidate/cod.mjs';
 import {CheckoutFault} from '../stripe-live-candidate/fulfillment.mjs';
-export function handler(factories={}){return async(request,env)=>{
+export function handler(factories={}){return async(request,env,ctx)=>{
  const headers={'Content-Type':'application/json','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Vary':'Origin'};
  const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
  try{
@@ -57,7 +58,14 @@ export function handler(factories={}){return async(request,env)=>{
    catch(e){if(e?.message!=='write_conflict'||!(await store.get(path)))throw e;}
    return reply({received:true});
   }
-  const stripe=(factories.stripe||stripeClient)(cfg),service=createService(cfg,store,stripe);
+  if(cfg.live&&url.pathname==='/admin/order-push'){
+   await requireOrderReader(request,cfg);
+   if(body?.action==='key')return reply({publicKey:(await pushKeys(store)).publicKey});
+   if(body?.action!=='subscribe'||typeof body.endpoint!=='string')throw new Fault('invalid_request');
+   await enroll(store,body.endpoint);return reply({enabled:true});
+  }
+  const onNewOrder=cfg.live&&ctx?()=>ctx.waitUntil(sendOrderPush(store).catch(()=>console.error('order_push_failed'))):undefined;
+  const stripe=(factories.stripe||stripeClient)(cfg),service=createService(cfg,store,stripe,onNewOrder);
   if(isWebhook){
    if(STRIPE_REFUND_EVENTS.includes(body.type)){
     if(body.livemode!==cfg.live)throw new Fault('event_mode_mismatch',400);
@@ -87,7 +95,7 @@ export function handler(factories={}){return async(request,env)=>{
     const proof=await r.json();if(!r.ok||proof.success!==true||!['kandorty.online','www.kandorty.online'].includes(proof.hostname)||proof.action!=='checkout')throw new Fault('anti_bot_failed',403);
    }
    if(url.pathname==='/cod/orders'){
-    const r=await codService(cfg,store).create(input);return reply({...r, snapshot:undefined,receipt:await issueReceipt(env.STRIPE_RECEIPT_SECRET,cfg,r.snapshot)},r.replay?200:201);
+    const r=await codService(cfg,store,onNewOrder).create(input);return reply({...r, snapshot:undefined,receipt:await issueReceipt(env.STRIPE_RECEIPT_SECRET,cfg,r.snapshot)},r.replay?200:201);
    }
    const r=await service.create(input);
    return reply({orderId:r.snapshot.orderId,manageToken:r.snapshot.editToken,url:r.url||null,complete:r.complete,receipt:await issueReceipt(env.STRIPE_RECEIPT_SECRET,cfg,r.snapshot)});
@@ -126,9 +134,9 @@ export function handler(factories={}){return async(request,env)=>{
   return reply({error:'service_unavailable'},503);
  }
 };}
-export default {fetch:handler(),async scheduled(event,env){
+export default {fetch:handler(),async scheduled(event,env,ctx){
  const cfg=releaseConfig(env),store=createStore(env);
- const result=await createService(cfg,store,stripeClient(cfg)).reconcile();
+ const result=await createService(cfg,store,stripeClient(cfg),cfg.live&&ctx?()=>ctx.waitUntil(sendOrderPush(store).catch(()=>console.error('order_push_failed'))):undefined).reconcile();
  // Alerts are OFF unless a private operator explicitly enables and configures
  // them. No emails are sent from default test/production deployments.
  if(env.ALERT_DELIVERY_ENABLED==='true'){

@@ -2,7 +2,7 @@ import {cartDeliveryFils} from './delivery.mjs';
 import {prepareCodOrder,normalizeCodRequest,CodFault} from '../stripe-live-candidate/cod.mjs';
 import {Fault,hash,random} from '../cod-staging/security.mjs';
 import {publicOrder} from './service.mjs';
-export function codService(cfg,store){
+export function codService(cfg,store,onNewOrder){
  if(store.root!==`projects/${cfg.projectId}/databases/(default)/documents`)throw new Fault('store_project_mismatch',503);
  return {async create({expectedDeliveryFils,...input}){
   const normalized=normalizeCodRequest(input),checkoutId=await hash(input.checkoutToken);
@@ -17,6 +17,7 @@ export function codService(cfg,store){
    catch(e){if(!intent&&e instanceof CodFault&&['insufficient_stock','unavailable_product'].includes(e.code)&&await store.get('cod_checkout_intents/'+checkoutId))continue;throw e;}
    if(!plan.replay)plan.writes.push(store.write('order_lifecycle/'+orderId,{orderId,checkoutId,payment:'cod',stockDebits:plan.stockDebits,manageTokenHash:await hash(plan.order.editToken)},{exists:false}));
    try{if(plan.writes.length)await store.commit(plan.writes);}catch(e){if(e.message==='write_conflict')continue;throw e;}
+   if(!plan.replay)onNewOrder?.();
    return {order:publicOrder(plan.order),snapshot:{orderId,checkoutId},manageToken:plan.order.editToken,replay:plan.replay};
   }throw new Fault('database_busy',503);
  },async status(claims){const i=(await store.get('cod_checkout_intents/'+claims.checkoutId))?.data,o=(await store.get('orders/'+claims.orderId))?.data;if(!i||i.orderId!==claims.orderId||!o||o.payment!=='cod')throw new Fault('invalid_receipt',401);return {paid:false,registered:true,order:publicOrder(o)};}};
