@@ -53,12 +53,22 @@ export async function sendOrderPush(store,net=fetch){
  if(expired.length)await updateDevices(store,list=>list.filter(e=>!expired.includes(e)));
  if(results.some(r=>r.status==='rejected'))throw Error('push_delivery_failed');
 }
-// Ask Firestore itself whether this session can list orders, as the dashboard does.
-// Request only a document name and discard the response.
-export async function requireOrderReader(request,cfg){
+// Authorize with the caller's Firebase ID token against the same Firestore
+// rules protecting the admin orders list. Do not read or return customer data.
+// Distinguish a genuine 403 from a Google API outage so auth fallback does
+// not silently grant access when the upstream service is unavailable.
+export async function requireOrderReader(request,cfg,net=fetch){
  const authorization=request.headers.get('Authorization')||'';
  if(!/^Bearer [^\s]{1,12000}$/.test(authorization))throw new Fault('admin_authorization_required',403);
- const r=await fetch('https://firestore.googleapis.com/v1/projects/'+cfg.projectId+'/databases/(default)/documents/orders?pageSize=1&mask.fieldPaths=id',{headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(8000)});
- await r.body?.cancel();
- if(!r.ok)throw new Fault('admin_authorization_required',403);
+ let response;
+ try{
+  response=await net('https://firestore.googleapis.com/v1/projects/'+cfg.projectId+'/databases/(default)/documents/orders?pageSize=1&mask.fieldPaths=id',
+   {headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(8000)});
+ }catch{
+  throw new Fault('admin_reader_unavailable',503);
+ }
+ try{await response.body?.cancel();}catch{/* the request's status is still authoritative */}
+ if(response.ok)return;
+ if(response.status===401||response.status===403)throw new Fault('admin_authorization_required',403);
+ throw new Fault('admin_reader_unavailable',503);
 }
