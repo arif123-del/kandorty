@@ -118,6 +118,25 @@ public class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view, String url) {
                 progress.setVisibility(View.GONE);
+                // Android WebView intentionally does not use the site's Chrome
+                // PushManager. Keep the working in-page order sound control,
+                // without prompting for unsupported browser background push.
+                if (isTrusted(Uri.parse(url)) && url.contains("/admin.html")) {
+                    view.evaluateJavascript(
+                        "(function(){" +
+                        "const b=document.getElementById('orderSoundBtn');" +
+                        "if(!b)return;" +
+                        "b.textContent='🔊 تفعيل صوت الطلبات داخل التطبيق';" +
+                        "b.onclick=function(){" +
+                        "localStorage.setItem('kandorty_order_sound_enabled_v1','1');" +
+                        "if(typeof unlockOrderSound==='function'){" +
+                        "unlockOrderSound(true).then(function(ok){" +
+                        "if(ok && typeof playNewOrderSound==='function')playNewOrderSound(true);" +
+                        "});}" +
+                        "b.textContent='🔊 صوت الطلبات مُفعّل داخل التطبيق';" +
+                        "};" +
+                        "})();", null);
+                }
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) {
