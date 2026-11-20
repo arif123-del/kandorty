@@ -2872,7 +2872,15 @@ function renderProductGallery(direction=0){
   }
 
   if(selectedNote)selectedNote.textContent='';
-  if(addBtn)addBtn.textContent=lang==='ar'?'أضيفي للسلة':'Add to cart';
+  if(addBtn){
+    // Gallery changes (including video) must not reset the stock-disabled button.
+    const current=products.find(p=>p.id===currentProductId);
+    const unavailable=!!current && isSoldOut(current);
+    addBtn.disabled=unavailable;
+    addBtn.textContent=unavailable
+      ? unavailableLabel(current)
+      : (lang==='ar'?'أضيفي للسلة':'Add to cart');
+  }
 
   if(!$('imageViewerModal').classList.contains('hidden') && !showingVideo){
     updateFullscreenProductImage(direction);
@@ -7276,11 +7284,17 @@ function renderKandortyViewerDots(){
   if(!stage||!img)return;
   let startX=0,startY=0,delta=0,drag=false,active=false,busy=false,dir=0,ghost=null,token=0;
   const photos=()=>Array.isArray(currentProductImages)?currentProductImages:[];
-  const wrap=n=>(n+photos().length)%photos().length;
+  // The storefront gallery includes product video after the final image.
+  // The fullscreen image-only viewer must continue to count images only.
+  const mediaCount=()=>fullscreen?photos().length:
+    (typeof getCurrentProductMediaCount==='function'?getCurrentProductMediaCount():photos().length);
+  const wrap=n=>mediaCount()>0?(n+mediaCount())%mediaCount():0;
+  const movesThroughVideo=nextIndex=>!fullscreen && !!currentProductVideoUrl &&
+    (currentProductImageIndex===photos().length || nextIndex===photos().length);
   function reset(){if(ghost){ghost.remove();ghost=null}img.style.setProperty('transition','none','important');img.style.transform='translate3d(0,0,0)';img.style.opacity='1';img.style.visibility='visible';active=false;drag=false;dir=0;delta=0;busy=false;}
   function adjacent(d){
    if(ghost)ghost.remove();ghost=null;dir=d;
-   if(photos().length<2)return;
+   if(mediaCount()<2 || movesThroughVideo(wrap(currentProductImageIndex+d)))return;
    const r=img.getBoundingClientRect(),sr=stage.getBoundingClientRect();
    ghost=img.cloneNode(false);ghost.removeAttribute('id');ghost.className='kandorty-swipe-next';
    ghost.src=photos()[wrap(currentProductImageIndex+d)];ghost.decoding='async';
@@ -7298,7 +7312,7 @@ function renderKandortyViewerDots(){
    if(!active||e.touches.length!==1)return;
    const x=e.touches[0].clientX-startX,y=e.touches[0].clientY-startY;
    if(!drag&&(Math.abs(x)<7||Math.abs(y)>Math.abs(x)))return;
-   if(!drag&&photos().length<2)return;
+   if(!drag&&mediaCount()<2)return;
    drag=true;e.preventDefault();e.stopImmediatePropagation();
    const d=x<0?1:-1;if(d!==dir)adjacent(d);
    delta=x;img.style.transition='none';img.style.transform='translate3d('+x+'px,0,0)';
@@ -7309,6 +7323,15 @@ function renderKandortyViewerDots(){
    if(!drag){reset();return}
    e.preventDefault();e.stopImmediatePropagation();busy=true;
    const d=dir,w=stage.clientWidth,commit=Math.abs(delta)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
+   // Video is a real final item, not an image URL. Switch media directly
+   // instead of trying to animate a cloned image into a video element.
+   if(commit && movesThroughVideo(wrap(currentProductImageIndex+d))){
+     const nextIndex=wrap(currentProductImageIndex+d);
+     reset();
+     currentProductImageIndex=nextIndex;
+     if(typeof renderProductGallery==='function')renderProductGallery();
+     return;
+   }
    const transition='transform '+ms+'ms cubic-bezier(.22,.7,.2,1)';
    img.style.setProperty('transition',transition,'important');if(ghost)ghost.style.setProperty('transition',transition,'important');
    requestAnimationFrame(()=>{
