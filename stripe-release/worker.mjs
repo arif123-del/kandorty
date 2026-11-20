@@ -64,7 +64,7 @@ export function handler(factories={}){return async(request,env,ctx)=>{
    // A Firestore-permitted orders reader OR a server-verified active admin
    // can register Web Push. Both are independently authenticated; never
    // bypass authorization on a Firestore outage or any unexpected error.
-   try{await requireOrderReader(request,cfg);}
+   try{await requireOrderReader(request,cfg,factories.readerNet||fetch);}
    catch(error){
     // A Firestore read probe may fail on an upstream 5xx/429 while the
     // server-owned admin membership store remains healthy. Fall back ONLY to
@@ -81,7 +81,7 @@ export function handler(factories={}){return async(request,env,ctx)=>{
   // Separate, device-specific FCM registry. Do not expose it to guests,
   // TEST mode, or public checkout routes.
   if(cfg.live&&url.pathname==='/admin/native-push'){
-   try{await requireOrderReader(request,cfg);}
+   try{await requireOrderReader(request,cfg,factories.readerNet||fetch);}
    catch(error){
     // A Firestore read probe may fail on an upstream 5xx/429 while the
     // server-owned admin membership store remains healthy. Fall back ONLY to
