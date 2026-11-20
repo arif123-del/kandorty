@@ -923,6 +923,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   #adminOrdersTab .customer-file-header .admin-current-order-status{font-size:12px!important;padding:9px 3px!important}
 }
 </style>
+<style>
+.order-photo-button{display:inline-flex;flex:none;padding:0;border:0;background:transparent;border-radius:9px;cursor:zoom-in}
+#orderPhotoDialog{position:fixed;inset:0;margin:auto;padding:0;border:0;width:100%;max-width:none;height:100%;max-height:none;background:#161315;color:white}
+#orderPhotoDialog::backdrop{background:#161315}
+#orderPhotoDialog img{display:block;width:100%;height:100%;object-fit:contain}
+#orderPhotoDialog button{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#222;font-size:28px;cursor:pointer}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -3074,7 +3081,15 @@ function showOrderImageFallback(img){
   const placeholder=document.createElement('div');
   placeholder.className='order-product-noimage';
   placeholder.textContent='بدون صورة';
-  img.replaceWith(placeholder);
+  (img.closest('.order-photo-button') || img).replaceWith(placeholder);
+}
+function openOrderPhoto(button){
+  const thumb=button.querySelector('img');
+  const dialog=document.getElementById('orderPhotoDialog');
+  const photo=dialog.querySelector('img');
+  photo.alt=thumb.alt;
+  photo.src=thumb.currentSrc || thumb.src;
+  dialog.showModal();
 }
 function renderOrderItemsHtml(order){
   const normalized=normalizeOrderShape(order);
@@ -3091,7 +3106,7 @@ function renderOrderItemsHtml(order){
     const qty=Math.max(1,Math.floor(Number(item?.qty)||1));
     return `<div class="order-product-row">
       ${image
-        ? `<img class="order-product-image" src="${esc(image)}" data-product-id="${esc(item.id)}" data-product-code="${esc(code)}" data-image-index="${esc(index)}" onerror="showOrderImageFallback(this)" alt="${esc(name)}">`
+        ? `<button type="button" class="order-photo-button" aria-label="تكبير صورة ${esc(name)}" onclick="openOrderPhoto(this)"><img class="order-product-image" src="${esc(image)}" data-product-id="${esc(item.id)}" data-product-code="${esc(code)}" data-image-index="${esc(index)}" onerror="showOrderImageFallback(this)" alt="${esc(name)}"></button>`
         : `<div class="order-product-noimage">بدون صورة</div>`}
       <div class="order-product-info">
         <div class="order-product-name">${esc(name)}</div>
@@ -4992,4 +5007,8 @@ loadCategoryCards();
 loadCommerce();
 load();
 </script>
+<dialog id="orderPhotoDialog" aria-label="صورة المنتج" onclose="this.querySelector('img').removeAttribute('src')">
+  <img alt="">
+  <button type="button" autofocus aria-label="إغلاق الصورة" onclick="this.closest('dialog').close()">×</button>
+</dialog>
 </body></html>
