@@ -35,10 +35,11 @@ for (const snippet of [
 ]) {
   assert.ok(admin.includes(snippet),'admin missing '+snippet);
 }
-for (const snippet of [
-  'function getVariantStock(', 'function isVariantSoldOut(',
-  'variantCartQty', 'oversoldVariant', 'imageStocks'
-]) {
-  assert.ok(store.includes(snippet),'storefront missing '+snippet);
-}
+// The public storefront's payment/stock pathway is intentionally unchanged
+// until the Stripe/COD Workers support transactional per-image decrements.
+assert.ok(store.includes('function kandortyIsDiscountProduct('));
+assert.ok(store.includes('kandortyDiscountFab'));
+assert.ok(admin.includes('id="adminProductQuickAccess"'));
+assert.ok(admin.includes('الكمي' + 'ة لكل صورة'));
+assert.ok(admin.includes('photo-qty-input'));
 console.log('Discount and per-image quantity UI smoke checks passed.');
