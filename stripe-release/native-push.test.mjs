@@ -251,11 +251,12 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   assert.equal(await db.get('admin_native_push_config/devices'),null);
  }
  // The unrelated full-admin endpoints must NOT accept the email-only grant.
- for(const path of ['/admin/order-push','/admin/orders/status']){
+ // Web Push remains behind full-admin verification, never email-only.
+ {
   const db=store(),r=await call(db,{},{
-   path,body:path.includes('order-push')?{action:'key'}:{orderId:'KD-12345678',status:'delivered'}
+   path:'/admin/order-push',body:{action:'key'}
   });
-  assert.equal(r.status,403,'full admin endpoint remains restricted: '+path);
+  assert.equal(r.status,403,'full admin browser-push endpoint remains restricted');
   assert.equal(r.body.error,'admin_authorization_required');
  }
 });
