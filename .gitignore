@@ -1,0 +1,4 @@
+# Firebase Android app configuration: supply locally/CI only
+app/google-services.json
+**/build/
+.gradle/
