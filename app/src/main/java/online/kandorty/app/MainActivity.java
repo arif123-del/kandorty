@@ -16,6 +16,9 @@ import org.json.JSONObject;
 import javax.net.ssl.HttpsURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -435,6 +438,27 @@ public class MainActivity extends Activity {
             });
     }
 
+    /** Only a fixed safe backend diagnostic code, never tokens or remote HTML. */
+    private static String safePushErrorCode(HttpsURLConnection connection) {
+        try (InputStream stream = connection.getErrorStream()) {
+            if (stream == null) return "";
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8));
+            char[] buf = new char[256];
+            StringBuilder response = new StringBuilder();
+            int amount;
+            while (response.length() < 1024 &&
+                    (amount = reader.read(buf, 0,
+                        Math.min(buf.length, 1024 - response.length()))) > 0) {
+                response.append(buf, 0, amount);
+            }
+            String code = new JSONObject(response.toString()).optString("error", "");
+            return code.matches("[a-z][a-z0-9_]{0,79}") ? code : "";
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
     private void enrollDeviceOverHttps(String idToken, String deviceToken) {
         HttpsURLConnection connection = null;
         try {
@@ -468,19 +492,15 @@ public class MainActivity extends Activity {
                     sendNativeTestPushOverHttps(idToken,deviceToken);
                 }
             } else {
-                showFcmStatus("فشل التسجيل: HTTP " + status +
-                        (status == 403 ? " (صلاحية الإدارة مرفوضة)" : ""));
-                // A user-visible status helps diagnose a 403/429 without logging
-                // Firebase JWTs or per-device FCM registration tokens.
-                int lastError=getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                        .getInt("last_enrollment_http_error",0);
-                if(lastError!=status) {
-                    getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                            .edit().putInt("last_enrollment_http_error",status).apply();
-                    runOnUiThread(() -> Toast.makeText(this,
-                            "تعذّر تفعيل إشعارات الخلفية (HTTP " + status + ")",
-                            Toast.LENGTH_LONG).show());
-                }
+                String reason = safePushErrorCode(connection);
+                String statusText = "HTTP " + status +
+                        (reason.isEmpty() ? "" : " (" + reason + ")");
+                showFcmStatus("فشل التسجيل: " + statusText);
+                getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
+                        .edit().putString("last_backend_push_error", statusText).apply();
+                runOnUiThread(() -> Toast.makeText(this,
+                        "تعذّر تسجيل Firebase: " + statusText,
+                        Toast.LENGTH_LONG).show());
             }
             // Do not log JWTs or FCM tokens, including in error handling.
         } catch (Exception ignored) {
@@ -515,7 +535,8 @@ public class MainActivity extends Activity {
                         "✅ تم إرسال اختبار Firebase للهاتف. تحقّقي من الإشعارات والصوت.",
                         Toast.LENGTH_LONG).show());
             }else {
-                showFcmStatus("فشل إرسال اختبار Firebase: HTTP " + status);
+                showFcmStatus("فشل إرسال اختبار Firebase: HTTP " + status +
+                        " (" + safePushErrorCode(c) + ")");
                 runOnUiThread(() -> Toast.makeText(this,
                         "اختبار Firebase لم ينجح (HTTP " + status + ").",
                         Toast.LENGTH_LONG).show());
