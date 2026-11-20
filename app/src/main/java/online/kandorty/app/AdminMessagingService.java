@@ -1,6 +1,8 @@
 package online.kandorty.app;
 
 import android.app.Notification;
+import android.content.Context;
+import android.media.AudioAttributes;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -18,7 +20,7 @@ import com.google.firebase.messaging.RemoteMessage;
  * server-side order events. Never accept client-created or public topics.
  */
 public class AdminMessagingService extends FirebaseMessagingService {
-    private static final String CHANNEL = "kandorty_admin_orders_v1";
+    public static final String CHANNEL = "kandorty_admin_orders_v2";
 
     @Override public void onNewToken(String token) {
         super.onNewToken(token);
@@ -43,17 +45,35 @@ public class AdminMessagingService extends FirebaseMessagingService {
         notifyOrder(orderCode);
     }
 
+    /** Create the channel on first app launch, before the first background FCM.
+     * Android does not let an app overwrite an existing channel's sound, so
+     * v2 uses its own channel ID with fresh high-importance sound defaults.
+     */
+    public static void ensureOrderChannel(Context context) {
+        if (Build.VERSION.SDK_INT < 26) return;
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null || nm.getNotificationChannel(CHANNEL) != null) return;
+        NotificationChannel channel = new NotificationChannel(
+                CHANNEL, "🔔 طلبات كندورتي الجديدة", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("تنبيه بصوت واهتزاز عند وصول طلب جديد");
+        channel.setShowBadge(true);
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0, 250, 160, 300});
+        AudioAttributes attributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+        channel.setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                attributes);
+        nm.createNotificationChannel(channel);
+    }
+
     private void notifyOrder(String orderCode) {
+        ensureOrderChannel(this);
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm == null) return;
-        if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL, "إشعارات الطلبات الجديدة",
-                    NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("إشعارات الطلبات الجديدة من إدارة كندورتي");
-            channel.enableVibration(true);
-            channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null);
-            nm.createNotificationChannel(channel);
-        }
 
         Intent launch = new Intent(this, MainActivity.class);
         launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
