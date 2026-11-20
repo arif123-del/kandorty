@@ -103,6 +103,36 @@ public class MainActivity extends Activity {
         offline.addView(retry);
         root.addView(offline, new FrameLayout.LayoutParams(-1, -1));
         offline.setVisibility(View.GONE);
+
+        // Use the real order notification channel for a safe one-tap sound test.
+        // This never creates an order or triggers a payment.
+        Button testRing = new Button(this);
+        testRing.setText("🔔 اختبار الجرس");
+        testRing.setTextSize(12f);
+        testRing.setAllCaps(false);
+        testRing.setAlpha(0.95f);
+        FrameLayout.LayoutParams testRingPosition = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.LEFT);
+        int dp = Math.round(getResources().getDisplayMetrics().density);
+        testRingPosition.setMargins(12*dp, 0, 0, 96*dp);
+        root.addView(testRing, testRingPosition);
+        testRing.setOnClickListener(v -> {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        ASK_NOTIFICATIONS);
+                Toast.makeText(this, "فعّلي إذن الإشعارات ثم اضغطي اختبار الجرس",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            boolean delivered = AdminMessagingService.showTestNotification(this);
+            Toast.makeText(this, delivered
+                    ? "أُرسل إشعار الاختبار. إذا لم تسمعي صوتاً، غيّري صوت قناة طلبات كندورتي من إعدادات الإشعارات."
+                    : "الإشعارات محظورة. افتحي إعدادات التطبيق وفعّلي تنبيهات طلبات كندورتي.",
+                    Toast.LENGTH_LONG).show();
+        });
         setContentView(root);
 
         WebSettings settings = web.getSettings();
@@ -253,7 +283,9 @@ public class MainActivity extends Activity {
                 getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
                         .edit().putString("pending_fcm_token", token).apply();
                 nativePushHandler.postDelayed(() -> registerNativePushWhenSignedIn(), 1500);
-            });
+            }).addOnFailureListener(error ->
+                Toast.makeText(this, "تعذّر الحصول على رمز إشعارات Firebase. تحقّقي من الإنترنت وخدمات Google Play.",
+                        Toast.LENGTH_LONG).show());
         }
 
         openAdmin();
@@ -339,6 +371,10 @@ public class MainActivity extends Activity {
                         .putBoolean("registration_confirmed",true).apply();
                 if(!wasRegistered)runOnUiThread(() -> Toast.makeText(this,
                         "✅ تم تسجيل الجهاز لاستقبال إشعارات الطلبات", Toast.LENGTH_LONG).show());
+                if(!getSharedPreferences("kandorty_native_push",MODE_PRIVATE)
+                        .getBoolean("fcm_test_sent_20261120",false)) {
+                    sendNativeTestPushOverHttps(idToken,deviceToken);
+                }
             } else {
                 // A user-visible status helps diagnose a 403/429 without logging
                 // Firebase JWTs or per-device FCM registration tokens.
@@ -357,6 +393,43 @@ public class MainActivity extends Activity {
             // Try again on the next authenticated page/foreground session.
         } finally {
             if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** A single authorized FCM test once the device registers, no synthetic order. */
+    private void sendNativeTestPushOverHttps(String idToken, String deviceToken) {
+        HttpsURLConnection c = null;
+        try {
+            c = (HttpsURLConnection) new URL(FCM_ENROLLMENT_URL).openConnection();
+            c.setRequestMethod("POST");
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            c.setInstanceFollowRedirects(false);
+            c.setDoOutput(true);
+            c.setRequestProperty("Content-Type", "application/json");
+            c.setRequestProperty("Origin", "https://kandorty.online");
+            c.setRequestProperty("Authorization", "Bearer " + idToken);
+            byte[] data = new JSONObject().put("action","test").put("token",deviceToken)
+                    .toString().getBytes(StandardCharsets.UTF_8);
+            c.getOutputStream().write(data);
+            int status = c.getResponseCode();
+            if(status == 200) {
+                getSharedPreferences("kandorty_native_push",MODE_PRIVATE).edit()
+                        .putBoolean("fcm_test_sent_20261120",true).apply();
+                runOnUiThread(() -> Toast.makeText(this,
+                        "✅ تم إرسال اختبار Firebase للهاتف. تحقّقي من الإشعارات والصوت.",
+                        Toast.LENGTH_LONG).show());
+            }else {
+                runOnUiThread(() -> Toast.makeText(this,
+                        "اختبار Firebase لم ينجح (HTTP " + status + ").",
+                        Toast.LENGTH_LONG).show());
+            }
+        }catch (Exception e) {
+            runOnUiThread(() -> Toast.makeText(this,
+                    "اختبار Firebase تعذّر بسبب اتصال الشبكة.",
+                    Toast.LENGTH_LONG).show());
+        }finally {
+            if(c != null)c.disconnect();
         }
     }
 
