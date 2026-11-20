@@ -144,8 +144,13 @@ export async function sendNativeTestPush(store,env,uid,deviceToken,net=fetch,now
    headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},
    body:JSON.stringify({message:{
      token:deviceToken,
+     notification:{title:'🔔 اختبار إشعار كندورتي',body:'اختبار إشعار Firebase للجهاز'},
      data:{kind:'kandorty_push_test'},
-     android:{priority:'high',ttl:'120s'}
+     android:{
+       priority:'high',ttl:'120s',
+       notification:{channel_id:'kandorty_admin_orders_v2',
+         notification_priority:'PRIORITY_HIGH',sound:'default'}
+     }
    }}),
    signal:AbortSignal.timeout(12000)});
  if(!resp.ok)throw new Fault('native_push_test_send_failed',503);
