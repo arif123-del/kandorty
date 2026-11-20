@@ -1,0 +1,21 @@
+name: Admin discounts and photo quantities
+on:
+  push:
+    branches: [feature/admin-discounts-image-quantities-20261120]
+  pull_request:
+    paths:
+      - admin.html
+      - index.html
+      - tests/admin-discounts-image-stocks.cjs
+      - .github/workflows/admin-discounts-image-stocks.yml
+permissions:
+  contents: read
+jobs:
+  static-ui-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/admin-discounts-image-stocks.cjs

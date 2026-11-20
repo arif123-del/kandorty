@@ -930,6 +930,22 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #orderPhotoDialog img{display:block;width:100%;height:100%;object-fit:contain}
 #orderPhotoDialog button{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#222;font-size:28px;cursor:pointer}
 </style>
+<style id="admin-discount-image-qty-20261120">
+#adminDiscountsTab .discount-admin-summary{margin:0 0 12px;color:#71666a;line-height:1.7}
+#adminDiscountsTab .discount-admin-actions{margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap}
+#adminFormTab .images-preview{grid-template-columns:repeat(auto-fill,minmax(126px,1fr))}
+#adminFormTab .images-preview .preview-item{padding:7px;background:#fff;border:1px solid #eadfe1;border-radius:10px}
+#adminFormTab .images-preview .preview-item img{width:100%;aspect-ratio:1;object-fit:cover}
+#adminFormTab .photo-stock-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:8px}
+#adminFormTab .photo-stock-label input{width:100%;min-width:0;padding:8px;border-radius:8px;border:1px solid #c7b8bc;text-align:center}
+#stock[readonly]{background:#f5f5f5;opacity:.85}
+#adminProductQuickAccess{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 15px}
+#adminProductQuickAccess .btn{padding:9px 11px}
+#adminFormTab .images-preview .preview-item{min-width:0}
+#adminFormTab .images-preview .preview-item .photo-qty-input{font-size:16px;min-height:42px}
+#adminFormTab .images-preview .preview-item .photo-qty-input:invalid{border-color:#b40018;background:#fff4f4}
+#adminDiscountsTab .admin-item{flex-wrap:wrap}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1035,6 +1051,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div class="admin-tabs" aria-label="أقسام الإدارة">
     <button type="button" class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button>
     <button type="button" class="tab" onclick="showAdminTab('list',this)">المنتجات</button>
+    <button type="button" class="tab" onclick="showAdminTab('discounts',this)">🏷️ تخفيضات</button>
     <button type="button" id="ordersTabBtn" class="tab" onclick="showAdminTab('orders',this)">الطلبات <span id="newOrderTabCount" class="header-count" style="display:none">0</span></button>
     <button type="button" id="customersTabBtn" class="tab" onclick="showAdminTab('customers',this)">العملاء <span id="customersTabCount" class="header-count" style="display:none">0</span></button>
     <button type="button" class="tab" onclick="showAdminTab('banner',this)">بانر الرئيسية</button>
@@ -1058,6 +1075,11 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </aside>
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
 <div id="adminCurrentSection" class="admin-current-section">إضافة منتج</div>
+<div id="adminProductQuickAccess" class="admin-product-quick-access">
+  <button type="button" class="btn ghost" onclick="showAdminTab('form',this)">＋ إضافة منتج</button>
+  <button type="button" class="btn ghost" onclick="showAdminTab('discounts',this)">🏷️ تخفيضات</button>
+  <button type="button" class="btn ghost" onclick="showAdminTab('list',this)">📦 المنتجات</button>
+</div>
 <div id="adminFormTab">
 <form id="productForm" class="form-grid">
 <input type="hidden" id="editId">
@@ -1067,7 +1089,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="price" type="number" min="0" step="0.01" placeholder="السعر AED" required>
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <div class="full" style="font-size:13px;line-height:1.8;color:#79525a;margin-top:-5px;padding:8px 11px;background:#fff6f7;border-radius:10px">لإضافة منتج إلى «تخفيضات»، أدخلي سعر تخفيض أقل من السعر الأصلي. سيظهر المنتج في قسم «تخفيضات» فقط، وليس في قائمة المنتجات العادية. اتركي هذا الحقل فارغاً للمنتجات العادية.</div>
-<input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">الكمية مطلوبة لإتاحة الطلب. إذا وصلت إلى 0 سيظهر أن المنتج نفد من المخزون. إضافة فيديو لا تغيّر الكمية.</div>
+<input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
@@ -1079,7 +1101,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="progress-wrap"><div id="uploadProgress" class="progress-bar"></div></div>
 <div id="uploadStatus" class="upload-status">اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.</div>
 </div>
-<div id="imagePreview" class="images-preview full"></div>
+<div class="full" style="font-size:13px;color:#76545a;font-weight:700">⬇ الكمية لكل صورة / هر عکس لپاره جلا شمېر</div>
+<div id="imagePreview" class="images-preview full" aria-live="polite"></div>
 
 <div class="full upload-box" id="productVideoAdminBox">
   <label for="productVideoFile"><b>فيديو المنتج — اختياري، يظهر بعد آخر صورة</b></label>
@@ -1101,6 +1124,11 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn ghost full" type="button" onclick="resetForm()">إلغاء / تنظيف</button>
 </form></div>
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
+<div id="adminDiscountsTab" class="hidden">
+  <p class="discount-admin-summary">المنتجات المخفّضة تظهر في زر «تخفيضات» فقط ولا تظهر في القائمة العادية للمتجر.</p>
+  <div class="discount-admin-actions"><button class="btn primary" type="button" onclick="openDiscountProductForm()">＋ إضافة منتج للتخفيضات</button></div>
+  <div id="adminDiscountsList" class="admin-list"></div>
+</div>
 <div id="adminOrdersTab" class="hidden">
 <div id="adminCancellationRequests" role="status" aria-live="polite"></div>
 <div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div></div>
@@ -1881,7 +1909,9 @@ auth.onAuthStateChanged(user=>{
   if(isAdminUser){
     // Realtime admin data.
     startAdminOrdersListener();
-    if(new URLSearchParams(location.search).get('view')==='orders')showAdminTab('orders',$('ordersTabBtn'));
+    const requestedView=new URLSearchParams(location.search).get('view');
+    if(requestedView==='orders')showAdminTab('orders',$('ordersTabBtn'));
+    if(requestedView==='discounts')showAdminTab('discounts',document.querySelector('#adminNavDrawer .admin-tabs .tab[onclick*="discounts"]'));
     /* DRAFT REVIEW: auto stock baseline migration disabled */
     startAdminCustomersListener();
     unlockOrderSound(false).catch(()=>{});
@@ -1904,6 +1934,9 @@ auth.onAuthStateChanged(user=>{
 // The admin modal has its own scroll container, not window/document scrolling.
 const adminTabPositions=Object.create(null);
 let activeAdminTab='form';
+let discountFormMode=false;
+function isAdminDiscountProduct(p){const original=Number(p?.price),sale=Number(p?.salePrice);return Number.isFinite(original)&&Number.isFinite(sale)&&original>0&&sale>0&&sale<original;}
+function openDiscountProductForm(){resetForm();showAdminTab('form',document.querySelector('.admin-tabs .tab'));discountFormMode=true;$('salePrice').required=true;if($('adminCurrentSection'))$('adminCurrentSection').textContent='إضافة منتج للتخفيضات';$('nameAr').focus();}
 try{history.scrollRestoration='manual';}catch(_){}
 function adminContentAnchorTop(){
   // The tab buttons now live in an off-canvas drawer, so their geometry must not scroll the page.
@@ -1929,15 +1962,16 @@ function showAdminTab(name,btn){
   if(activeAdminTab==='orders'&&selectedOrdersCustomer)
     adminTabPositions.orders=ordersFolderSavedScroll;
   activeAdminTab=name;
-  ['Form','List','Orders','Customers','Banner','Categories','Video','Settings','Backup']
+  ['Form','List','Discounts','Orders','Customers','Banner','Categories','Video','Settings','Backup']
     .forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));
   $('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');
   document.querySelectorAll('.admin-tabs .tab').forEach(x=>x.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  const labels={form:'إضافة منتج',list:'المنتجات',orders:'الطلبات',customers:'العملاء',banner:'بانر الرئيسية',categories:'صور الأقسام',video:'فيديو الرئيسية',settings:'الإعدادات',backup:'نسخة احتياطية'};
+  const labels={form:'إضافة منتج',list:'المنتجات',discounts:'تخفيضات',orders:'الطلبات',customers:'العملاء',banner:'بانر الرئيسية',categories:'صور الأقسام',video:'فيديو الرئيسية',settings:'الإعدادات',backup:'نسخة احتياطية'};
   if($('adminCurrentSection'))$('adminCurrentSection').textContent=labels[name]||'';
   closeAdminMenu();
   if(name==='list')renderAdminList();
+  if(name==='discounts')renderDiscountList();
   if(name==='orders'){selectedOrdersCustomer=null;selectedOrdersOrderId=null;renderOrders();clearNewOrderBadges();}
   if(name==='customers')renderCustomers();
   if(name==='banner')loadBannerAdmin();
@@ -1950,18 +1984,55 @@ const MAX_DIRECT_IMAGES=8;
 const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
 let previewObjectUrls=[];
+let pendingPhotoQuantities=new Map();
+let lastPhotoPreviewSources=[];
+function capturePreviewPhotoQuantities(){
+  const inputs=$('imagePreview')?.querySelectorAll('.photo-qty-input')||[];
+  Array.from(inputs).forEach((input,index)=>{
+    const source=lastPhotoPreviewSources[index];
+    if(source!==undefined)pendingPhotoQuantities.set(source,input.value);
+  });
+}
+function imageQtyField(source){
+  const saved=pendingPhotoQuantities.has(source)?pendingPhotoQuantities.get(source):'';
+  return '<label class="photo-stock-label">الكمية <input class="photo-qty-input" type="number" min="0" step="1" inputmode="numeric" required aria-label="كمية هذه الصورة" value="'+esc(String(saved))+'"></label>';
+}
+function updateAggregateStockInput(){
+  const input=$('stock');
+  if(!input)return;
+  const hasPhotos=lastPhotoPreviewSources.length>0;
+  input.readOnly=hasPhotos;
+  if(hasPhotos){
+    let sum=0;
+    for(const source of lastPhotoPreviewSources){
+      const raw=String(pendingPhotoQuantities.get(source)??'').trim();
+      if(!/^(0|[1-9]\d*)$/.test(raw)){input.value='';return;}
+      sum+=Number(raw);
+      if(!Number.isSafeInteger(sum)){input.value='';return;}
+    }
+    input.value=String(sum);
+  }
+}
+$('imagePreview').addEventListener('input',e=>{
+  if(!e.target.matches('.photo-qty-input'))return;
+  capturePreviewPhotoQuantities();
+  updateAggregateStockInput();
+});
 function getImageUrls(){
   const raw=($('imageUrls')?.value||'').split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
   return [...new Set(raw)].slice(0,MAX_DIRECT_IMAGES).filter(url=>/^https?:\/\//i.test(url));
 }
 function clearPreviewObjectUrls(){previewObjectUrls.forEach(url=>URL.revokeObjectURL(url));previewObjectUrls=[];}
 function previewImages(){
+  capturePreviewPhotoQuantities();
   clearPreviewObjectUrls();
   const manualUrls=getImageUrls();
-  const savedHtml=pendingImages.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="صورة محفوظة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeSavedImage(${n})">×</button></div>`).join('');
-  const urlHtml=manualUrls.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="رابط صورة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeManualImage(${n})">×</button></div>`).join('');
-  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button></div>`}).join('');
+  const savedHtml=pendingImages.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="صورة محفوظة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeSavedImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
+  const urlHtml=manualUrls.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="رابط صورة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeManualImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
+  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${imageQtyField(file)}</div>`}).join('');
   $('imagePreview').innerHTML=savedHtml+urlHtml+fileHtml;
+  lastPhotoPreviewSources=[...pendingImages,...manualUrls,...pendingImageFiles];
+  updateAggregateStockInput();
 }
 function removeSavedImage(index){pendingImages.splice(index,1);previewImages();}
 function removeManualImage(index){const urls=getImageUrls();urls.splice(index,1);$('imageUrls').value=urls.join('\n');previewImages();}
@@ -2111,14 +2182,38 @@ $('productForm').onsubmit=async e=>{
       if(!uploadedVideoUrl)throw new Error('لم يُرفع فيديو المنتج. لم يتم حفظ المنتج؛ أعيدي رفع الفيديو أولاً.');
     }
 
+    capturePreviewPhotoQuantities();
+    const originalSources=[...pendingImages,...allEntries,...pendingImageFiles];
+    const quantities=originalSources.map((source,index)=>{
+      const raw=String(pendingPhotoQuantities.get(source)??'').trim();
+      if(!/^(0|[1-9]\d*)$/.test(raw))throw new Error('الكمية للصورة رقم '+(index+1)+' يجب أن تكون عدداً صحيحاً يساوي صفر أو أكثر.');
+      const n=Number(raw);
+      if(!Number.isSafeInteger(n))throw new Error('كمية الصورة رقم '+(index+1)+' كبيرة جداً.');
+      return n;
+    });
+    const price=Number($('price').value);
+    const saleText=String($('salePrice').value||'').trim();
+    if((discountFormMode||saleText) && (!saleText || !Number.isFinite(Number(saleText)) || Number(saleText)<=0 || Number(saleText)>=price)){
+      throw new Error('سعر التخفيض يجب أن يكون أكبر من صفر وأقل من السعر الأصلي.');
+    }
+
     const prepared=[];
     for(let i=0;i<pendingImageFiles.length;i++){
       prepared.push(await prepareProductImage(pendingImageFiles[i],i,pendingImageFiles.length));
     }
 
-    const images=[...new Set([...pendingImages,...allEntries,...prepared])]
-      .filter(Boolean)
-      .slice(0,MAX_DIRECT_IMAGES);
+    const originalImages=[...pendingImages,...allEntries,...prepared];
+    const uniquePhotos=[];
+    const seenPhotos=new Set();
+    originalImages.forEach((src,index)=>{
+      if(!src||seenPhotos.has(src))return;
+      seenPhotos.add(src);
+      uniquePhotos.push({src,quantity:quantities[index]});
+    });
+    const images=uniquePhotos.slice(0,MAX_DIRECT_IMAGES).map(item=>item.src);
+    const imageStocks=uniquePhotos.slice(0,MAX_DIRECT_IMAGES).map(item=>item.quantity);
+    const perImageTotal=imageStocks.reduce((sum,n)=>sum+n,0);
+    if(!Number.isSafeInteger(perImageTotal))throw new Error('مجموع كمية الصور كبير جداً.');
 
     setUploadProgress(84,'يتم التحقق من حجم بيانات المنتج...');
 
@@ -2126,9 +2221,9 @@ $('productForm').onsubmit=async e=>{
     // A new product (or legacy product without inventory) needs an explicit quantity.
     const stockValue=String($('stock')?.value??'').trim();
     const existingStock=old && Number.isSafeInteger(old.stock) && old.stock>=0 ? old.stock : null;
-    const cleanedStock=stockValue==='' && existingStock!==null
-      ? existingStock
-      : sanitizeStock(stockValue);
+    const cleanedStock=images.length
+      ? perImageTotal
+      : (stockValue==='' && existingStock!==null ? existingStock : sanitizeStock(stockValue));
     if(cleanedStock===null){
       throw new Error('أدخلي كمية المنتج أولاً (0 إذا نفد من المخزون). لا يمكن إتاحة الطلب بدون كمية.');
     }
@@ -2147,6 +2242,7 @@ $('productForm').onsubmit=async e=>{
       isNew:$('isNew').checked,
       active:$('active').checked,
       images,
+      imageStocks,
       // The pending URL already includes the old value in edit mode.
       // Preserve an intentional removal instead of restoring the old video.
       productVideoUrl:String(window.pendingProductVideoUrl??old?.productVideoUrl??'').trim(),
@@ -2209,8 +2305,11 @@ function resetForm(){
   $('productForm').reset();
   $('editId').value='';
   $('active').checked=true;
-  const stockInput=$('stock'); if(stockInput)stockInput.value='';
+  discountFormMode=false;
+  $('salePrice').required=false;
+  const stockInput=$('stock'); if(stockInput){stockInput.value='';stockInput.readOnly=false;}
   pendingImages=[];pendingImageFiles=[];pendingImagePaths=[];
+  pendingPhotoQuantities=new Map();lastPhotoPreviewSources=[];$('imagePreview').innerHTML='';
   window.pendingProductVideoUrl='';
   window.uploadedProductVideoFile=null;
   const pvf=$('productVideoFile'); if(pvf)pvf.value='';
@@ -2222,7 +2321,8 @@ function resetForm(){
   setUploadProgress(0,'اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.');
 }
 function renderAdminList(){
-  $('adminList').innerHTML=products.length?products.map(p=>{
+  const regularProducts=products.filter(p=>!isAdminDiscountProduct(p));
+  $('adminList').innerHTML=regularProducts.length?regularProducts.map(p=>{
     const stock=getProductStock(p);
     const totalRaw=Number(p.totalStock);
     const total=(Number.isFinite(totalRaw)&&totalRaw>0)?Math.floor(totalRaw):(stock!==null?stock:null);
@@ -2231,15 +2331,44 @@ function renderAdminList(){
       : null;
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
     return `<div class="admin-item">${p.images?.[0]?`<img src="${p.images[0]}">`:'<div style="width:65px;height:75px;background:#eee"></div>'}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
-  }).join(''):'<div class="empty">لا توجد منتجات</div>';
+  }).join(''):'<div class="empty">لا توجد منتجات عادية</div>';
+  renderDiscountList();
+}
+function renderDiscountList(){
+  const host=$('adminDiscountsList');if(!host)return;
+  const discounted=products.filter(isAdminDiscountProduct);
+  host.innerHTML=discounted.length?discounted.map(p=>{
+    const stock=getProductStock(p);
+    return '<div class="admin-item">'+(p.images?.[0]?'<img src="'+esc(p.images[0])+'">':'<div style="width:65px;height:75px;background:#eee"></div>')+
+      '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small></div>'+
+      '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+
+      '<button class="btn ghost" onclick="toggleProduct(\''+p.id+'\')">'+(p.active===false?'إظهار':'إخفاء')+'</button>'+
+      '<button class="btn primary" onclick="deleteProduct(\''+p.id+'\')">حذف</button></div></div>';
+  }).join(''):'<div class="empty">لا توجد منتجات في التخفيضات</div>';
 }
 function editProduct(id){
   const p=products.find(x=>x.id===id);if(!p)return;
   showAdminTab('form',document.querySelector('.tab'));
+  discountFormMode=isAdminDiscountProduct(p);
+  $('salePrice').required=discountFormMode;
+  if(discountFormMode&&$('adminCurrentSection'))$('adminCurrentSection').textContent='تعديل منتج التخفيضات';
   $('editId').value=p.id;$('nameAr').value=p.nameAr;$('category').value=p.category;$('price').value=p.price;$('salePrice').value=p.salePrice||'';
   const stockInput=$('stock'); if(stockInput)stockInput.value=(p.stock===null||p.stock===undefined)?'':p.stock;
   $('description').value=p.description||'';$('isNew').checked=!!p.isNew;$('active').checked=p.active!==false;
-  const existing=p.images||[];$('imageUrls').value=existing.filter(x=>/^https?:\/\//i.test(x)).join('\n');pendingImages=existing.filter(x=>/^data:image\//i.test(x));pendingImagePaths=[];pendingImageFiles=[];$('imageFiles').value='';previewImages();
+  const existing=p.images||[];
+  pendingPhotoQuantities=new Map();lastPhotoPreviewSources=[];$('imagePreview').innerHTML='';
+  const availableStock=getProductStock(p);
+  let allowance=availableStock===null?0:availableStock;
+  existing.forEach((src,index)=>{
+    const stored=Array.isArray(p.imageStocks)?Number(p.imageStocks[index]):(index===0?allowance:0);
+    const clean=Number.isSafeInteger(stored)&&stored>=0?stored:0;
+    const current=Math.min(allowance,clean);
+    pendingPhotoQuantities.set(src,String(current));
+    allowance-=current;
+  });
+  $('imageUrls').value=existing.filter(x=>/^https?:\/\//i.test(x)).join('\n');
+  pendingImages=existing.filter(x=>/^data:image\//i.test(x));
+  pendingImagePaths=[];pendingImageFiles=[];$('imageFiles').value='';previewImages();
   window.pendingProductVideoUrl=String(p.productVideoUrl||'').trim();
   window.uploadedProductVideoFile=null;
   const pvf=$('productVideoFile'); if(pvf)pvf.value='';
