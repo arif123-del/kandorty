@@ -840,14 +840,12 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminModal>.modal-card{overflow-anchor:auto!important;scroll-behavior:auto!important}
 #adminOrdersTab .customer-only-file-shell{border:1px solid #e8d5dc;border-radius:18px;background:#fff;box-shadow:0 6px 25px #30101b0c;padding:16px;max-width:100%;min-width:0}
 #adminOrdersTab .customer-only-file-shell>.customer-file-panel{border:0;border-top:1px solid #f0e8eb;border-radius:0;margin:14px 0 0;padding:18px 0 0;box-shadow:none;background:transparent}
-#adminOrdersTab .customer-file-order-tabs{display:flex;gap:8px;overflow-x:auto;padding:5px 2px 12px;scrollbar-width:thin;overscroll-behavior-x:contain}
-#adminOrdersTab .customer-file-order-tab{flex:0 0 auto;min-width:140px;padding:10px 12px;border:1px solid #e4d7da;border-radius:12px;background:#fff;color:#292124;cursor:pointer;text-align:right;line-height:1.5}
-#adminOrdersTab .customer-file-order-tab b,#adminOrdersTab .customer-file-order-tab small{display:block}
-#adminOrdersTab .customer-file-order-tab small{font-size:12px;color:#75696c}
-#adminOrdersTab .customer-file-order-tab[aria-selected="true"]{background:#92162f;color:#fff;border-color:#92162f}
-#adminOrdersTab .customer-file-order-tab[aria-selected="true"] small{color:#ffe1e6}
-#adminOrdersTab #ordersCustomerSelectedOrder>.customer-file-order{margin:0}
-@media(max-width:600px){#adminOrdersTab .customer-only-file-shell{padding:12px}#adminOrdersTab .customer-file-order-tab{min-width:132px}}
+/* All of a customer's orders are stacked vertically; no sideways tab strip. */
+#adminOrdersTab .customer-file-order-stack{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;width:100%;min-width:0}
+#adminOrdersTab .customer-file-order-stack>.customer-file-order{min-width:0;margin:0;overflow-wrap:anywhere}
+#adminOrdersTab .customer-file-order-head .order-folder-status-select{width:auto;min-width:130px;max-width:100%}
+#adminOrdersTab .customer-file-order-head .customer-file-status{display:inline-block;margin-bottom:6px}
+@media(max-width:600px){#adminOrdersTab .customer-only-file-shell{padding:12px}#adminOrdersTab .customer-file-order-head .order-folder-status-select{min-width:120px}}
 </style>
 
 <style id="kandorty-admin-one-customer-fields-only">
@@ -1103,7 +1101,8 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 </form></div>
 <div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
 <div id="adminOrdersTab" class="hidden">
-<div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div><div id="adminCancellationRequests" role="status" aria-live="polite"></div></div>
+<div id="adminCancellationRequests" role="status" aria-live="polite"></div>
+<div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div></div>
 <section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل"><div class="customer-file-header">
 <button type="button" class="customer-file-back" onclick="backToOrderFolders()">➜ رجوع إلى الطلبات</button>
 <div class="customer-file-heading" id="ordersCustomerHeading" aria-live="polite"></div></div>
@@ -2608,28 +2607,42 @@ function isPendingCustomerCancellation(order){
   const edit=order?.customerEdit;
   return ['new','cancelled'].includes(order?.status)&&Boolean(edit?.cancelRequestedAt)&&edit?.editProof===order?.editToken;
 }
-function pendingCancellationOrders(){
-  return (Array.isArray(orders)?orders:[]).filter(isPendingCustomerCancellation);
+// Both legacy proof-based cancellations and server-authoritative checkout
+// cancellations need to appear in Admin. Unknown/admin-origin cancellations
+// remain visible, but are never incorrectly attributed to the customer.
+function isCustomerCancellation(order){
+  if(isPendingCustomerCancellation(order))return true;
+  const actor=String(order?.cancelledBy||order?.cancellationSource||order?.cancelSource||'').toLowerCase();
+  return order?.status==='cancelled'&&['customer','buyer','client'].includes(actor);
+}
+function isCancelledOrder(order){
+  return order?.status==='cancelled'||isPendingCustomerCancellation(order);
+}
+function cancellationDate(order){
+  return String(order?.customerEdit?.cancelRequestedAt||order?.cancelledAt||order?.canceledAt||'');
 }
 function renderAdminCancellationRequests(){
   const box=$('adminCancellationRequests');
   if(!box)return;
-  const canceled=pendingCancellationOrders().sort((a,b)=>
-    String(b.customerEdit?.cancelRequestedAt||b.cancelledAt||'').localeCompare(
-      String(a.customerEdit?.cancelRequestedAt||a.cancelledAt||'')));
+  const canceled=(Array.isArray(orders)?orders:[]).filter(isCancelledOrder).sort((a,b)=>
+    cancellationDate(b).localeCompare(cancellationDate(a))||
+    String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   if(!canceled.length){box.innerHTML='';return;}
-  const expanded=box.querySelector('details')?.open||false;
+  // Keep the section expanded on first render, while respecting a manual collapse.
+  const expanded=box.querySelector('details')?.open??true;
+  const latest=canceled[0],latestCustomer=latest?.customerEdit?.customer?.name||latest?.customer?.name||latest?.customerName||'العميل';
   box.innerHTML=`<details class="admin-cancel-history" ${expanded?'open':''}>
-    <summary>🔔 الطلبات الملغاة بواسطة العملاء (${canceled.length}) — عرض التفاصيل</summary>
+    <summary>🔔 الطلبات الملغاة (${canceled.length}) — آخر إلغاء: ${esc(latest.id||'-')} · ${esc(latestCustomer)}</summary>
     <div class="admin-cancel-history-list">
     ${canceled.slice(0,40).map(order=>{
       const name=order.customerEdit?.customer?.name||order.customer?.name||order.customerName||'العميل';
-      const date=order.customerEdit?.cancelRequestedAt||order.cancelledAt||'';
+      const date=cancellationDate(order);
+      const byCustomer=isCustomerCancellation(order);
       return `<div style="padding:9px 11px;background:white;border:1px solid #f1d7d7;border-radius:9px;margin-bottom:8px;overflow-wrap:anywhere">
-        <b>تم إلغاء الطلب رقم ${esc(order.id||'-')}</b>
+        <b>🔔 ${byCustomer?'ألغى العميل الطلب':'تم إلغاء الطلب'} رقم ${esc(order.id||'-')}</b>
         <div>العميل: ${esc(name)}</div>
         ${date?`<small>وقت الإلغاء: ${esc(new Date(date).toLocaleString('ar-AE'))}</small>`:''}
-        ${order.payment==='card'?'<div style="font-size:12px;font-weight:700;color:#a1282f">⚠️ الدفع بالبطاقة: راجعي الاسترداد في Stripe</div>':''}
+        ${order.payment==='card'?'<div style="font-size:12px;font-weight:700;color:#a1282f">⚠️ الدفع بالبطاقة: راجعي حالة الاسترداد في Stripe</div>':''}
       </div>`;
     }).join('')}
     ${canceled.length>40?'<small>تظهر الطلبات الأخرى ضمن ملفات العملاء.</small>':''}
@@ -2659,15 +2672,15 @@ function notifyAdminCustomerCancellation(order,count){
         (count>1?'\nطلبات ملغاة أخرى: '+(count-1):''));
 }
 function alertNewCustomerCancellationRequests(docs){
-  const pending=(Array.isArray(docs)?docs:[]).filter(isPendingCustomerCancellation);
+  const canceled=(Array.isArray(docs)?docs:[]).filter(isCustomerCancellation);
   const seen=notifiedCancellationRequests();
-  const newRequests=pending.filter(order=>{
-    const key=String(order.id)+'|'+String(order.customerEdit.cancelRequestedAt);
+  const newRequests=canceled.filter(order=>{
+    const key=String(order.id)+'|'+(cancellationDate(order)||'cancelled');
     return !seen.has(key)&&!adminCancelAlertsSession.has(key);
   });
   if(!newRequests.length)return;
   newRequests.forEach(order=>{
-    const key=String(order.id)+'|'+String(order.customerEdit.cancelRequestedAt);
+    const key=String(order.id)+'|'+(cancellationDate(order)||'cancelled');
     seen.add(key);
     adminCancelAlertsSession.add(key);
   });
@@ -2675,7 +2688,6 @@ function alertNewCustomerCancellationRequests(docs){
   catch(error){console.warn('Cancellation alert history not stored:',error);}
   notifyAdminCustomerCancellation(newRequests[0],newRequests.length);
 }
-
 const customerCancelFinalizing=new Set();
 // DRAFT REVIEW ONLY: historical customer-cancel auto-finalization and
 // old client-quantity restocking removed; handle manually after review.
@@ -3228,12 +3240,12 @@ function buildOrderCustomerGroups(){
     if(!group.location&&customer.location)group.location=customer.location;
     group.history.push(raw);
     group.total+=Number(o.total)||0;
-    if(o.status==='cancelled'||isPendingCustomerCancellation(raw))group.cancelled++;
+    if(isCancelledOrder(raw))group.cancelled++;
     if(String(o.createdAt||'')>group.latest)group.latest=String(o.createdAt||'');
   });
   for(const g of groups.values()){
     // Fulfillment work comes first; canceled orders remain in the same file below.
-    const isCanceled=o=>o.status==='cancelled'||Boolean(o.customerEdit?.cancelRequestedAt);
+    const isCanceled=isCancelledOrder;
     g.history.sort((a,b)=>Number(isCanceled(a))-Number(isCanceled(b))||
       String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   }
@@ -3253,16 +3265,21 @@ function orderCustomerFolderCard(g){
 }
 
 function orderCustomerHistoryCard(raw){
-  const o=effectiveOrderView(raw),cancelled=o.status==='cancelled'||isPendingCustomerCancellation(raw);
+  const o=effectiveOrderView(raw),cancelled=isCancelledOrder(raw);
   const note=String(o.notes||'');
-  const cancelledAt=o.customerEdit?.cancelRequestedAt||o.cancelledAt||'';
+  const cancelledAt=cancellationDate(raw);
   const date=o.createdAt?new Date(o.createdAt).toLocaleString('ar-AE'):'-';
-  return `<article class="customer-file-order">
+  const status=cancelled?'cancelled':o.status;
+  return `<article class="customer-file-order" data-customer-order-id="${esc(o.id||'')}">
     <div class="customer-file-order-head">
       <div><strong>رقم الطلب: <span dir="ltr">${esc(o.id||'')}</span></strong>
       <div style="color:#74646a;font-size:12px">${esc(date)}</div></div>
+      <div><span class="customer-file-status ${cancelled?'cancelled':''}">${esc(statusText(status))}</span>
+      <select class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="حالة الطلب ${esc(o.id||'')}" ${cancelled?'disabled title="الطلب الملغي لا يمكن إرساله"':''}>
+        ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${status===s?'selected':''}>${statusText(s)}</option>`).join('')}
+      </select></div>
     </div>
-    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب ${o.cancelledBy==='customer'||o.customerEdit?.cancelRequestedAt?'بواسطة العميل':''}</div>`:''}
+    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب ${isCustomerCancellation(raw)?'بواسطة العميل':''}</div>`:''}
     ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">✎ تم تعديل الطلب من العميل</div>':''}
     <div class="order-products-title">المنتجات المطلوبة وصورها</div>
     ${renderOrderItemsHtml(o)}
@@ -3275,50 +3292,33 @@ function orderCustomerHistoryCard(raw){
     </div>
   </article>`;
 }
-
 function renderOpenedOrdersCustomer(){
   const file=$('ordersCustomerFileView'),content=$('ordersCustomerContents');
   if(!file||!content)return;
   const group=orderCustomerGroups.get(selectedOrdersCustomer);
   if(!group){selectedOrdersCustomer=null;selectedOrdersOrderId=null;file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');return;}
-  // Only the selected customer's file is visible: never show the other customers underneath.
+  // Display one customer's orders vertically, each with its own status and items.
   const card=ordersAdminScroll();
   const wasVisible=!file.classList.contains('hidden');
   const priorScroll=card?.scrollTop||0;
   $('ordersFoldersView')?.classList.add('hidden');
   file.classList.remove('hidden');
-  const selectedOrder=group.history.find(o=>String(o.id||'')===String(selectedOrdersOrderId||''))||group.history[0]||null;
-  selectedOrdersOrderId=selectedOrder?.id||null;
-  // Put the real order status control in the header instead of a static "طلب جديد" label.
-  // Only one status selector is displayed for the currently selected order.
-  const headerOrder=selectedOrder?effectiveOrderView(selectedOrder):null;
-  $('ordersCustomerHeading').innerHTML=headerOrder
-    ? `<select class="order-folder-status-select admin-current-order-status" data-order-status-id="${esc(headerOrder.id||'')}" aria-label="حالة الطلب ${esc(headerOrder.id||'')}">
-        ${['new','preparing','shipping','delivered','cancelled'].map(status=>`<option value="${status}" ${headerOrder.status===status?'selected':''}>${statusText(status)}</option>`).join('')}
-      </select>`
-    : '';
+  $('ordersCustomerHeading').textContent='طلبات '+(group.name||'العميل');
   content.innerHTML=`<div class="customer-only-file-shell">
     <div class="customer-file-summary">
       <div><b>${group.history.length}</b><small>عدد الطلبات</small></div>
       <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
       <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
     </div>
-    ${selectedOrder?renderOrderCustomerHtml(effectiveOrderView(selectedOrder)):''}
+    ${group.history.length?renderOrderCustomerHtml(effectiveOrderView(group.history[0])):''}
     <section class="customer-file-panel">
       <h3>الطلبات</h3>
-      <div class="customer-file-order-tabs" role="tablist" aria-label="طلبات العميل" style="display:${group.history.length>1?'flex':'none'}">
-        ${group.history.map((raw,index)=>{
-          const o=effectiveOrderView(raw);
-          const active=String(o.id||'')===String(selectedOrdersOrderId||'');
-          return `<button type="button" class="customer-file-order-tab" role="tab" aria-selected="${active}" data-order-switch-id="${esc(o.id||'')}">
-            <b>الطلب ${index+1}</b><small>${esc(statusText(o.status))}</small>
-          </button>`;
-        }).join('')}
+      <div class="customer-file-order-stack" aria-label="جميع طلبات العميل">
+        ${group.history.length?group.history.map(orderCustomerHistoryCard).join(''):'<div class="empty">لا توجد طلبات</div>'}
       </div>
-      <div id="ordersCustomerSelectedOrder" role="tabpanel">${selectedOrder?orderCustomerHistoryCard(selectedOrder):'<div class="empty">لا توجد طلبات</div>'}</div>
     </section>
   </div>`;
-  // Live updates (e.g. a status changed) should never throw the user to page top.
+  // Live changes must preserve the vertical scroll position.
   if(wasVisible&&card){
     card.scrollTop=priorScroll;
     requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)card.scrollTop=priorScroll;});
@@ -3406,15 +3406,6 @@ function backToOrderFolders(){
   $('ordersList')?.addEventListener('click',e=>{
     const node=e.target.closest('[data-orders-customer]');
     if(node)openOrdersCustomer(node.dataset.ordersCustomer);
-  });
-  $('ordersCustomerContents')?.addEventListener('click',e=>{
-    const btn=e.target.closest('[data-order-switch-id]');
-    if(!btn||!selectedOrdersCustomer)return;
-    const group=orderCustomerGroups.get(selectedOrdersCustomer);
-    if(!group||!group.history.some(o=>String(o.id||'')===String(btn.dataset.orderSwitchId)))return;
-    if(String(selectedOrdersOrderId)===String(btn.dataset.orderSwitchId))return;
-    selectedOrdersOrderId=btn.dataset.orderSwitchId;
-    renderOpenedOrdersCustomer();
   });
   $('ordersCustomerFileView')?.addEventListener('change',e=>{
     const node=e.target.closest('[data-order-status-id]');
