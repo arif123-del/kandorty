@@ -35,7 +35,7 @@ export async function verifyNativePushAdmin(token,cfg,store,net=fetch,now=Math.f
   if(head.alg!=='RS256'||typeof head.kid!=='string'||head.kid.length>200||
      claim.aud!==cfg.projectId||claim.iss!=='https://securetoken.google.com/'+cfg.projectId||
      typeof claim.sub!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(claim.sub)||
-     claim.email!=='aliyajan200011@gmail.com'||
+     (typeof claim.email!=='string'||claim.email.toLowerCase()!=='aliyajan200011@gmail.com')||
      claim.admin===false||
      !['password','google.com'].includes(claim.firebase?.sign_in_provider)||
      claim.firebase?.tenant||
