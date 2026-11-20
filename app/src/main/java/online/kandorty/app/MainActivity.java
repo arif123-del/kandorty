@@ -43,7 +43,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 /** Dedicated Kandorty Admin application. Does NOT launch a browser on startup. */
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://kandorty.online/admin.html";
+    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261120";
     private static final int PICK_FILE = 401;
     private static final int ASK_NOTIFICATIONS = 402;
 
@@ -115,6 +115,15 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         if (Build.VERSION.SDK_INT >= 26) settings.setSafeBrowsingEnabled(true);
+        // Force a one-time cache reset when upgrading to the Discount/Photo quantity UI.
+        // Clear only HTTP/WebView resource cache, never web cookies, Firebase Auth,
+        // DOM storage, or the native FCM registration preferences.
+        if (!getSharedPreferences("kandorty_admin_ui", MODE_PRIVATE)
+                .getBoolean("refreshed_20261120", false)) {
+            web.clearCache(true);
+            getSharedPreferences("kandorty_admin_ui", MODE_PRIVATE)
+                    .edit().putBoolean("refreshed_20261120", true).apply();
+        }
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
 
@@ -140,6 +149,22 @@ public class MainActivity extends Activity {
                 // PushManager. Keep the working in-page order sound control,
                 // without prompting for unsupported browser background push.
                 if (isTrusted(Uri.parse(url)) && url.contains("/admin.html")) {
+                    // Detect stale dashboard HTML; retry exactly once using a fresh URL.
+                    // Do not interact with Firebase auth or native notifications.
+                    view.evaluateJavascript(
+                        "(function(){return !!(document.getElementById('adminDiscountsTab')" +
+                        "&&document.getElementById('adminProductQuickAccess')" +
+                        "&&document.getElementById('imagePreview'));})()",
+                        fresh -> {
+                            if (!"true".equals(fresh)
+                                    && !getSharedPreferences("kandorty_admin_ui", MODE_PRIVATE)
+                                    .getBoolean("retry_missing_20261120", false)) {
+                                getSharedPreferences("kandorty_admin_ui", MODE_PRIVATE)
+                                        .edit().putBoolean("retry_missing_20261120", true).apply();
+                                view.clearCache(true);
+                                view.loadUrl(ADMIN_URL + "&reload=1");
+                            }
+                        });
                     nativePushHandler.postDelayed(() -> registerNativePushWhenSignedIn(), 4000);
                     view.evaluateJavascript(
                         "(function(){" +
