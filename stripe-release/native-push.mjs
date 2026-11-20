@@ -101,11 +101,25 @@ export async function sendNativeOrderPush(store,env,net=fetch,now=Date.now()){
     headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},
     body:JSON.stringify({message:{
       token:d.token,
+      // Notification payload makes Android display the alert while the
+      // standalone admin app is backgrounded; the data signal is used by
+      // FirebaseMessagingService when it is foregrounded.
+      notification:{
+        title:'🔔 طلب جديد - كندورتي',
+        body:'وصل طلب جديد. افتحي إدارة كندورتي.'
+      },
       data:{kind:'kandorty_new_order'},
-      android:{priority:'high',ttl:'120s'}
+      android:{
+        priority:'high',ttl:'120s',
+        notification:{
+          channel_id:'kandorty_admin_orders_v2',
+          notification_priority:'PRIORITY_HIGH',
+          sound:'default'
+        }
+      }
     }}),
     signal:AbortSignal.timeout(10000)});
-  if(!response.ok)throw new Fault('native_push_provider_rejected',503);
+  if(!response.ok)throw new Fault('native_push_provider_http_'+response.status,503);
   return true;
  }));
  const sent=statuses.filter(x=>x.status==='fulfilled').length;

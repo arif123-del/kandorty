@@ -1,5 +1,6 @@
 import {pushKeys,enroll,sendOrderPush,requireOrderReader} from './order-push.mjs';
 import {nativePushUserId,nativePushDevice,sendNativeOrderPush} from './native-push.mjs';
+import {claimDirectOrderNotification,deliverClaimedOrderNotification} from './direct-order-push.mjs';
 import {verifyAdmin} from './admin-auth.mjs';
 import {runScheduledAlert} from './alert-scheduler.mjs';
 import {sendOperatorEmail} from './operations-email.mjs';
@@ -84,6 +85,23 @@ export function handler(factories={}){return async(request,env,ctx)=>{
    if(!['register','remove'].includes(body?.action)||typeof body?.token!=='string')
     throw new Fault('invalid_native_push_action',400);
    return reply(await nativePushDevice(store,uid,body.token,body.action));
+  }
+  // The public Kandorty checkout writes orders directly to Firestore; it
+  // does not pass through /cod/orders or Stripe's onNewOrder callback. An
+  // untrusted website may only request a notification by proving possession
+  // of the saved order's random edit token, and the backend checks age and
+  // deduplicates before it sends. Notifications contain no personal data.
+  if(cfg.live&&url.pathname==='/orders/direct-push'){
+   const claim=await claimDirectOrderNotification(store,body);
+   const delivery=()=>deliverClaimedOrderNotification(store,claim,
+     ()=>sendOrderPush(store,factories.pushNet||fetch),
+     ()=>sendNativeOrderPush(store,env,factories.nativePushNet||fetch));
+   if(claim.claimed&&ctx?.waitUntil){
+    ctx.waitUntil(delivery().catch(e=>console.error('direct_order_push_failed',e?.message)));
+    return reply({queued:true},202);
+   }
+   if(claim.claimed)return reply(await delivery(),202);
+   return reply({queued:false,duplicate:true},200);
   }
   const onNewOrder=cfg.live&&ctx?()=>{
    ctx.waitUntil(sendOrderPush(store).catch(()=>console.error('order_push_failed')));

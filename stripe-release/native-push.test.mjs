@@ -90,7 +90,10 @@ test('FCM HTTP v1 sends only a generic order signal using server credentials',as
   assert.deepEqual(body.message.data,{kind:'kandorty_new_order'});
   assert.equal(body.message.token,token);
   assert.equal(body.message.android.priority,'high');
-  assert.equal(body.message.notification,undefined);
+  assert.equal(body.message.notification.title,'🔔 طلب جديد - كندورتي');
+  assert.equal(body.message.android.notification.channel_id,'kandorty_admin_orders_v2');
+  assert.equal(body.message.android.notification.sound,'default');
+  assert.equal(body.message.data.kind,'kandorty_new_order');
   fcm++;
   return Response.json({name:'projects/kandorty-9378a/messages/test'});
  };

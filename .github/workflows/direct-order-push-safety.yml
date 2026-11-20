@@ -1,0 +1,26 @@
+name: Kandorty direct order native push safety
+on:
+  push:
+    branches: [fix/native-alerts-direct-orders-20261120]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source syntax
+        run: |
+          node --check stripe-release/worker.mjs
+          node --check stripe-release/direct-order-push.mjs
+          node --check stripe-release/native-push.mjs
+      - name: Test exact proof validation and direct order dispatch
+        run: node --test stripe-release/direct-order-push.test.mjs
+      - name: Verify FCM message and authorization tests
+        run: node --test stripe-release/native-push.test.mjs
+      - name: Confirm legacy payments and COD are preserved
+        run: node --test stripe-release/release.test.mjs
