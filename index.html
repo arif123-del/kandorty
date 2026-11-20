@@ -1788,7 +1788,7 @@ body.kandorty-cart-open #cartBtn{
 .kandorty-search-field input{width:100%;min-width:0;min-height:48px;border:0;outline:0;background:transparent;padding:10px 0;color:inherit}
 .kandorty-search-field .search-icon{font-size:19px;opacity:.66}
 .kandorty-products-heading{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:2px 0 15px}
-.kandorty-products-heading h3{margin:0;font-size:clamp(19px,3vw,26px)}
+.kandorty-products-heading h3{margin:0;font-size:clamp(19px,3vw,26px);scroll-margin-top:135px}
 #kandortyShowAllBtn[hidden]{display:none!important}
 .kandorty-discount-badge{position:absolute;top:10px;right:10px;z-index:3;padding:7px 10px;background:#b40018;color:#fff;border-radius:999px;font-weight:800;font-size:12px;box-shadow:0 3px 12px #0003}
 #kandortyDiscountFab{position:fixed;left:14px;bottom:104px;right:auto;z-index:92;border:2px solid #fff;border-radius:999px;background:#b40018;color:#fff;padding:13px 17px;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;box-shadow:0 6px 22px #64001559;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;max-width:calc(100vw - 24px)}
@@ -2699,7 +2699,7 @@ function kandortySetDiscountView(enabled){
   document.querySelectorAll('#categoryCardsGrid .cat').forEach(btn=>btn.classList.remove('active'));
   if($('search'))$('search').value='';
   render();
-  $('products')?.scrollIntoView({behavior:'smooth',block:'start'});
+  $('kandortyProductsTitle')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function render(){
   const q=(($('search')?.value)||'').trim().toLowerCase();
