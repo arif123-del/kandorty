@@ -213,6 +213,10 @@ public class MainActivity extends Activity {
             }
         });
 
+        // Create the high-importance Android notification channel before any
+        // background Firebase message reaches the device.
+        AdminMessagingService.ensureOrderChannel(this);
+
         // Firebase Cloud Messaging is optional at build time: the native app
         // already runs alone, but real background push needs an Android app
         // registered in the Firebase project and a secured server enrollment.
