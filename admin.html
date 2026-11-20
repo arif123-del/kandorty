@@ -1085,7 +1085,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box" id="productVideoAdminBox">
   <label for="productVideoFile"><b>فيديو المنتج — اختياري، يظهر بعد آخر صورة</b></label>
   <input id="productVideoFile" type="file" accept="video/*">
-  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية وحجم الملف حتى 40MB. الفيديو يُرفع إلى Cloudinary ولن يبطئ تحميل صور المنتجات.</p>
+  <p style="font-size:12px;color:#71666a;margin:7px 0">الحد الأقصى: 30 ثانية وحجم الملف حتى 40MB. إذا اخترتِ فيديو فسيُرفع تلقائياً عند حفظ المنتج (ويمكن رفعه مسبقاً). الفيديو يظهر بعد آخر صورة.</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button id="uploadProductVideoBtn" class="btn primary" type="button" onclick="uploadProductVideoFromPhone()">⬆ رفع فيديو المنتج</button>
     <button class="btn ghost" type="button" onclick="removeProductVideo()">حذف الفيديو</button>
@@ -2103,6 +2103,14 @@ $('productForm').onsubmit=async e=>{
       throw new Error(`الحد الأقصى ${MAX_DIRECT_IMAGES} صور للمنتج.`);
     }
 
+    // Never silently save an image-only product when a video was selected.
+    // Uploading here also supports a single 'Save product' action on mobile.
+    const selectedVideoFile=$('productVideoFile')?.files?.[0];
+    if(selectedVideoFile && window.uploadedProductVideoFile!==selectedVideoFile){
+      const uploadedVideoUrl=await uploadProductVideoFromPhone(true);
+      if(!uploadedVideoUrl)throw new Error('لم يُرفع فيديو المنتج. لم يتم حفظ المنتج؛ أعيدي رفع الفيديو أولاً.');
+    }
+
     const prepared=[];
     for(let i=0;i<pendingImageFiles.length;i++){
       prepared.push(await prepareProductImage(pendingImageFiles[i],i,pendingImageFiles.length));
@@ -2204,6 +2212,7 @@ function resetForm(){
   const stockInput=$('stock'); if(stockInput)stockInput.value='';
   pendingImages=[];pendingImageFiles=[];pendingImagePaths=[];
   window.pendingProductVideoUrl='';
+  window.uploadedProductVideoFile=null;
   const pvf=$('productVideoFile'); if(pvf)pvf.value='';
   const pvp=$('productVideoPreview'); if(pvp){pvp.pause();pvp.removeAttribute('src');pvp.load();pvp.classList.add('hidden');}
   const pvs=$('productVideoStatus'); if(pvs)pvs.textContent='لا يوجد فيديو للمنتج.';
@@ -2232,6 +2241,7 @@ function editProduct(id){
   $('description').value=p.description||'';$('isNew').checked=!!p.isNew;$('active').checked=p.active!==false;
   const existing=p.images||[];$('imageUrls').value=existing.filter(x=>/^https?:\/\//i.test(x)).join('\n');pendingImages=existing.filter(x=>/^data:image\//i.test(x));pendingImagePaths=[];pendingImageFiles=[];$('imageFiles').value='';previewImages();
   window.pendingProductVideoUrl=String(p.productVideoUrl||'').trim();
+  window.uploadedProductVideoFile=null;
   const pvf=$('productVideoFile'); if(pvf)pvf.value='';
   const pvp=$('productVideoPreview');
   const pvs=$('productVideoStatus');
@@ -3713,6 +3723,7 @@ function uploadVideoToCloudinary(file,onProgress){
 
 
 window.pendingProductVideoUrl=window.pendingProductVideoUrl||'';
+window.uploadedProductVideoFile=null;
 
 function setProductVideoProgress(percent,message){
   const bar=document.getElementById('productVideoProgress');
@@ -3737,19 +3748,19 @@ function getVideoDuration(file){
     video.src=url;
   });
 }
-async function uploadProductVideoFromPhone(){
-  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+async function uploadProductVideoFromPhone(silent=false){
+  if(!auth.currentUser){if(!silent)alert('سجلي الدخول أولاً');return null;}
   const input=document.getElementById('productVideoFile');
   const file=input?.files?.[0];
-  if(!file){alert('اختاري فيديو المنتج أولاً.');return;}
-  if(!String(file.type||'').startsWith('video/')){alert('اختاري ملف فيديو صالح.');return;}
+  if(!file){if(!silent)alert('اختاري فيديو المنتج أولاً.');return null;}
+  if(!String(file.type||'').startsWith('video/')){if(!silent)alert('اختاري ملف فيديو صالح.');return null;}
 
   const MAX_PRODUCT_VIDEO_BYTES=40*1024*1024;
   if(file.size>MAX_PRODUCT_VIDEO_BYTES){
     const mb=(file.size/1024/1024).toFixed(1);
-    alert('حجم فيديو المنتج '+mb+'MB. الحد الأقصى المسموح 40MB.');
+    if(!silent)alert('حجم فيديو المنتج '+mb+'MB. الحد الأقصى المسموح 40MB.');
     setProductVideoProgress(0,'الفيديو أكبر من 40MB.');
-    return;
+    return null;
   }
 
   const btn=document.getElementById('uploadProductVideoBtn');
@@ -3768,6 +3779,7 @@ async function uploadProductVideoFromPhone(){
     const url=String(result.secure_url||'').trim();
     if(!url)throw new Error('تم رفع الملف لكن لم يصل رابط الفيديو من Cloudinary.');
     window.pendingProductVideoUrl=url;
+    window.uploadedProductVideoFile=file;
     const preview=document.getElementById('productVideoPreview');
     if(preview){
       preview.src=url;
@@ -3777,16 +3789,19 @@ async function uploadProductVideoFromPhone(){
     setProductVideoProgress(100,'تم رفع فيديو المنتج ✅ الآن اضغطي حفظ المنتج.');
     const productVideoStatus=document.getElementById('productVideoStatus');
     if(productVideoStatus)productVideoStatus.title=window.pendingProductVideoUrl;
+    return url;
   }catch(err){
     console.error('Product video upload error:',err);
     setProductVideoProgress(0,'فشل رفع الفيديو: '+(err?.message||'خطأ غير معروف'));
-    alert(err?.message||'تعذر رفع فيديو المنتج.');
+    if(!silent)alert(err?.message||'تعذر رفع فيديو المنتج.');
+    return null;
   }finally{
     if(btn)btn.disabled=false;
   }
 }
 function removeProductVideo(){
   window.pendingProductVideoUrl='';
+  window.uploadedProductVideoFile=null;
   const input=document.getElementById('productVideoFile'); if(input)input.value='';
   const preview=document.getElementById('productVideoPreview');
   if(preview){preview.pause();preview.removeAttribute('src');preview.load();preview.classList.add('hidden');}
