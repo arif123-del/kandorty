@@ -31,7 +31,12 @@ public class AdminMessagingService extends FirebaseMessagingService {
 
     @Override public void onMessageReceived(RemoteMessage message) {
         super.onMessageReceived(message);
-        if (!"kandorty_new_order".equals(message.getData().get("kind"))) return;
+        String kind = message.getData().get("kind");
+        if ("kandorty_push_test".equals(kind)) {
+            showTestNotification(this);
+            return;
+        }
+        if (!"kandorty_new_order".equals(kind)) return;
 
         String orderCode = message.getData().get("orderId");
         if (orderCode == null || !orderCode.matches("KD-[A-Za-z0-9_-]{4,40}")) {
