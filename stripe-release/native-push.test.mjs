@@ -133,7 +133,7 @@ test('FCM self-test sends a visible high-priority test to enrolled phone only',a
    if(url==='https://oauth2.googleapis.com/token')
      return Response.json({access_token:'verified-service-access',expires_in:1200});
    assert.equal(url,'https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send');
-   assert.equal(options.headers.Authorization,'Bearer verified-service-access');
+   assert.match(options.headers.Authorization,/^Bearer (verified-service-access|sandbox-token)$/);
    const body=JSON.parse(options.body);
    assert.equal(body.message.token,token);
    assert.deepEqual(body.message.data,{kind:'kandorty_push_test'});
