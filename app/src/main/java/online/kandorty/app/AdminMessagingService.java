@@ -61,6 +61,32 @@ public class AdminMessagingService extends FirebaseMessagingService {
         nm.createNotificationChannel(channel);
     }
 
+    /** Local sound/permission diagnostic: no order is created and no customer data is read. */
+    public static boolean showTestNotification(Context app) {
+        if (Build.VERSION.SDK_INT >= 33 &&
+                app.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+        ensureNotificationChannel(app);
+        NotificationManager nm = (NotificationManager) app.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null || !nm.areNotificationsEnabled()) return false;
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = nm.getNotificationChannel(CHANNEL);
+            if (channel == null || channel.getImportance() == NotificationManager.IMPORTANCE_NONE) return false;
+        }
+        Notification.Builder alert = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(app, CHANNEL)
+                : new Notification.Builder(app);
+        alert.setSmallIcon(R.drawable.kandorty_icon)
+                .setContentTitle("🔔 اختبار جرس كندورتي")
+                .setContentText("هذا اختبار لصوت الطلبات، وليس طلباً حقيقياً.")
+                .setCategory(Notification.CATEGORY_MESSAGE)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_SOUND | Notification.DEFAULT_VIBRATE);
+        nm.notify(17401, alert.build());
+        return true;
+    }
+
     private void notifyOrder(String orderCode) {
         ensureNotificationChannel(this);
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
