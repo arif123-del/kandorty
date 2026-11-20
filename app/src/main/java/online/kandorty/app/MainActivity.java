@@ -54,6 +54,12 @@ public class MainActivity extends Activity {
     private final Handler nativePushHandler = new Handler(Looper.getMainLooper());
     private long lastNativePushEnrollmentAt = 0L;
     private boolean nativePushEnrollmentRunning = false;
+    private final Runnable nativePushTicker = new Runnable() {
+        @Override public void run() {
+            registerNativePushWhenSignedIn();
+            nativePushHandler.postDelayed(this, 30000);
+        }
+    };
     private static final String FCM_ENROLLMENT_URL =
             "https://kandorty-stripe-release.aliyajan200011.workers.dev/admin/native-push";
 
@@ -330,6 +336,7 @@ public class MainActivity extends Activity {
         else super.onBackPressed();
     }
     @Override protected void onPause() {
+        nativePushHandler.removeCallbacks(nativePushTicker);
         if (web != null) web.onPause();
         super.onPause();
     }
@@ -337,7 +344,8 @@ public class MainActivity extends Activity {
         super.onResume();
         if (web != null) {
             web.onResume();
-            nativePushHandler.postDelayed(() -> registerNativePushWhenSignedIn(), 3500);
+            nativePushHandler.removeCallbacks(nativePushTicker);
+            nativePushHandler.postDelayed(nativePushTicker, 3500);
         }
     }
     @Override protected void onDestroy() {
