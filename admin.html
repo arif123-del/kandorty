@@ -1078,7 +1078,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="price" type="number" min="0" step="0.01" placeholder="السعر AED" required>
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <div class="full" style="font-size:13px;line-height:1.8;color:#79525a;margin-top:-5px;padding:8px 11px;background:#fff6f7;border-radius:10px">لإضافة منتج إلى «تخفيضات»، أدخلي سعر تخفيض أقل من السعر الأصلي. سيظهر المنتج في قسم «تخفيضات» فقط، وليس في قائمة المنتجات العادية. اتركي هذا الحقل فارغاً للمنتجات العادية.</div>
-<input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">الكمية مطلوبة لإتاحة الطلب. إذا وصلت إلى 0 سيظهر أن المنتج نفد من المخزون. إضافة فيديو لا تغيّر الكمية.</div>
+<input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
@@ -1992,7 +1992,7 @@ function updateAggregateStockInput(){
     let sum=0;
     for(const source of lastPhotoPreviewSources){
       const raw=String(pendingPhotoQuantities.get(source)??'0').trim();
-      if(!/^(0|[1-9]\\d*)$/.test(raw)){input.value='';return;}
+      if(!/^(0|[1-9]\d*)$/.test(raw)){input.value='';return;}
       sum+=Number(raw);
       if(!Number.isSafeInteger(sum)){input.value='';return;}
     }
@@ -2172,7 +2172,7 @@ $('productForm').onsubmit=async e=>{
     const originalSources=[...pendingImages,...allEntries,...pendingImageFiles];
     const quantities=originalSources.map((source,index)=>{
       const raw=String(pendingPhotoQuantities.get(source)??'0').trim();
-      if(!/^(0|[1-9]\\d*)$/.test(raw))throw new Error('الكمية للصورة رقم '+(index+1)+' يجب أن تكون عدداً صحيحاً يساوي صفر أو أكثر.');
+      if(!/^(0|[1-9]\d*)$/.test(raw))throw new Error('الكمية للصورة رقم '+(index+1)+' يجب أن تكون عدداً صحيحاً يساوي صفر أو أكثر.');
       const n=Number(raw);
       if(!Number.isSafeInteger(n))throw new Error('كمية الصورة رقم '+(index+1)+' كبيرة جداً.');
       return n;
