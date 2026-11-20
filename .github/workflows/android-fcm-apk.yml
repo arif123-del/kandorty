@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -56,14 +56,14 @@ jobs:
           apk=app/build/outputs/apk/debug/app-debug.apk
           "$tools_dir/apksigner" verify "$apk"
           "$tools_dir/aapt" dump badging "$apk" > "$RUNNER_TEMP/kandorty-badging"
-          grep -F "package: name='online.kandorty.admin' versionCode='6' versionName='1.4.0'" "$RUNNER_TEMP/kandorty-badging"
+          grep -F "package: name='online.kandorty.admin' versionCode='7' versionName='1.4.1'" "$RUNNER_TEMP/kandorty-badging"
           "$tools_dir/aapt" dump resources "$apk" > "$RUNNER_TEMP/kandorty-resources"
           grep -q 'google_app_id' "$RUNNER_TEMP/kandorty-resources"
           grep -q 'gcm_defaultSenderId' "$RUNNER_TEMP/kandorty-resources"
           grep -q 'google_api_key' "$RUNNER_TEMP/kandorty-resources"
       - uses: actions/upload-artifact@v4
         with:
-          name: Kandorty-Admin-Discounts-1.4.0-APK
+          name: Kandorty-Admin-Ring-Test-1.4.1-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Enable emulator acceleration
