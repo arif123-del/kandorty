@@ -49,7 +49,9 @@ export async function claimDirectOrderNotification(store,input,now=Date.now()){
 export async function deliverClaimedOrderNotification(store,claim,sendBrowser,sendNative,now=Date.now()){
  if(!claim?.claimed)return {queued:false,duplicate:!!claim?.duplicate};
  const outcomes=await Promise.allSettled([sendBrowser(),sendNative()]);
- const delivered=outcomes.some(x=>x.status==='fulfilled');
+ // The Android notification is the primary goal. A successful browser push
+ // must never hide a failed native delivery; allow a later retry of FCM.
+ const delivered=outcomes[1].status==='fulfilled';
  const old=await store.get(claim.path);
  // If this update loses a race to a later claim, do not overwrite its status.
  if(old?.data?.state==='pending'){
