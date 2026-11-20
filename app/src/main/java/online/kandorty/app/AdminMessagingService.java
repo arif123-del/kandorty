@@ -55,9 +55,9 @@ public class AdminMessagingService extends FirebaseMessagingService {
         channel.enableVibration(true);
         channel.setVibrationPattern(new long[]{0,380,180,380,180,380});
         AudioAttributes audio=new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
-        channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),audio);
+        channel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),audio);
         nm.createNotificationChannel(channel);
     }
 
