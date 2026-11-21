@@ -348,3 +348,33 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   assert.equal(r.body.error,'admin_authorization_required');
  }
 });
+
+test('FCM test exposes only safe provider error classes, never credentials or payloads',async()=>{
+ const db=store(),now=Date.now();
+ await nativePushDevice(db,'admin-test',token,'register',now);
+ const rsa=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
+ const raw=new Uint8Array(await crypto.subtle.exportKey('pkcs8',rsa.privateKey));
+ const pem='-----BEGIN PRIVATE KEY-----\n'+Buffer.from(raw).toString('base64').match(/.{1,64}/g).join('\n')+'\n-----END PRIVATE KEY-----';
+ const env={FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({project_id:'kandorty-9378a',private_key:pem,client_email:'native-test@test.iam.gserviceaccount.com'})};
+ const cases=[
+ [403,{reason:'SERVICE_DISABLED'},'native_push_fcm_api_disabled'],
+ [403,{reason:'ACCESS_TOKEN_SCOPE_INSUFFICIENT'},'native_push_fcm_scope_insufficient'],
+ [403,{errorCode:'SENDER_ID_MISMATCH'},'native_push_fcm_sender_mismatch'],
+ [404,{errorCode:'UNREGISTERED'},'native_push_fcm_token_expired'],
+ [403,{},'native_push_fcm_permission_denied'],
+ [401,{},'native_push_fcm_credentials_rejected'],
+ [400,{},'native_push_fcm_invalid_argument'],
+ [429,{},'native_push_fcm_quota_exceeded'],
+ [503,{},'native_push_fcm_http_503']
+ ];
+ for(const [status,extra,expected] of cases){
+  const detail=extra.errorCode?{'@type':'type.googleapis.com/google.firebase.fcm.v1.FcmError',...extra}:{'@type':'type.googleapis.com/google.rpc.ErrorInfo',...extra};
+  const net=async(url,opts)=>{
+   assert.equal(opts.redirect,'manual');
+   if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'safe-test-value',expires_in:3600});
+   assert.equal(url,'https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send');
+   return Response.json({error:{code:status,message:'SENSITIVE_RESPONSE_TEXT',details:[detail]}},{status});
+  };
+  await assert.rejects(sendNativeTestPush(db,env,'admin-test',token,net,now),e=>e.message===expected&&!e.message.includes('SENSITIVE_RESPONSE_TEXT'));
+ }
+});
