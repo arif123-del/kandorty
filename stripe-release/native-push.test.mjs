@@ -191,6 +191,7 @@ test('native 403/503 registration uses signed single-owner identity and denies f
    authNet:async url=>{
     checks++;
     assert.match(url,/securetoken@system\.gserviceaccount\.com/);
+    if(opts.keysDown)throw Error('Google JWKS offline');
     return Response.json({keys:[jwk]});
    }
   });
@@ -231,13 +232,20 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   const db=store();
   const r=await call(db,patch);
   assert.equal(r.status,403,name+': '+JSON.stringify(r));
-  assert.equal(r.body.error,'admin_authorization_required',name);
+  const precise={
+   'wrong admin account':'native_push_owner_email_mismatch',
+   'explicitly revoked claim':'native_push_admin_claim_revoked',
+   'anonymous Firebase provider':'native_push_signin_provider_invalid',
+   'unverified Google provider':'native_push_google_email_unverified'
+  };
+  assert.equal(r.body.error,precise[name]||'admin_authorization_required',name);
   assert.equal(await db.get('admin_native_push_config/devices'),null,name);
  }
  for(const tamper of [true]){
   const db=store();
   const r=await call(db,{}, {tamper});
   assert.equal(r.status,403,'bad signature denied');
+  assert.equal(r.body.error,'admin_authorization_required');
   assert.equal(await db.get('admin_native_push_config/devices'),null);
  }
  for(const m of [
@@ -248,7 +256,22 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   db.db.set('admin_access/'+uid,{data:m,version:'1'});
   const r=await call(db);
   assert.equal(r.status,403,'revoked / post-login grant cannot enroll');
+  assert.equal(r.body.error,m.active?'native_push_fresh_login_required':'native_push_membership_inactive');
   assert.equal(await db.get('admin_native_push_config/devices'),null);
+ }
+ // Google signing-key failures must be distinguishable from caller access
+ // denial so troubleshooting never silently weakens authorization.
+ {
+  const r=await call(store(),{}, {keysDown:true});
+  assert.equal(r.status,503);
+  assert.equal(r.body.error,'native_push_google_keys_unavailable');
+ }
+ {
+  const db=store();
+  db.get=async()=>{throw Error('Google Firestore downstream unavailable')};
+  const r=await call(db);
+  assert.equal(r.status,503);
+  assert.equal(r.body.error,'native_push_membership_lookup_unavailable');
  }
  // The unrelated full-admin endpoints must NOT accept the email-only grant.
  // Web Push remains behind full-admin verification, never email-only.
