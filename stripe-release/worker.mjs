@@ -81,15 +81,12 @@ export function handler(factories={}){return async(request,env,ctx)=>{
   // Separate, device-specific FCM registry. Do not expose it to guests,
   // TEST mode, or public checkout routes.
   if(cfg.live&&url.pathname==='/admin/native-push'){
-   try{await requireOrderReader(request,cfg,factories.readerNet||fetch);}
-   catch(error){
-    // Native push only: fall back to a *signed, exact owner-email* Firebase
-    // identity after a Firestore reader error. This grants no other admin API
-    // privileges; the browser order-push and payment routes remain unchanged.
-    if(!['admin_authorization_required','admin_reader_unavailable'].includes(error?.message))
-     throw error;
-    await verifyNativePushAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
-   }
+   // Native device enrollment is a distinct, notification-only capability.
+   // Do NOT query the orders collection first: it adds an unrelated 8-second
+   // upstream dependency and can time out Android's 10-second request.
+   // Always require independently verified Firebase owner identity and
+   // server-owned revocation checks. Other admin endpoints stay unchanged.
+   await verifyNativePushAdmin(request.headers.get('Authorization')?.replace(/^Bearer /,''),cfg,store,factories.authNet||fetch);
    const uid=nativePushUserId(request.headers.get('Authorization'),cfg);
    if(body?.action==='test' && typeof body?.token==='string')
     return reply(await sendNativeTestPush(store,env,uid,body.token,factories.nativePushNet||fetch));
