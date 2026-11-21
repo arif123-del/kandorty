@@ -7,7 +7,7 @@ export async function verifyAdmin(token,cfg,store,net=fetch,now=Math.floor(Date.
   const parts=token.split('.');if(parts.length!==3)throw Error();
   const head=JSON.parse(new TextDecoder().decode(decode(parts[0]))),claim=JSON.parse(new TextDecoder().decode(decode(parts[1])));
   if(head.alg!=='RS256'||typeof head.kid!=='string'||head.kid.length>200||claim.aud!==cfg.projectId||claim.iss!=='https://securetoken.google.com/'+cfg.projectId||typeof claim.sub!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(claim.sub)||claim.firebase?.tenant||claim.admin!==true||!Number.isFinite(claim.exp)||claim.exp<=now||!Number.isFinite(claim.iat)||claim.iat>now||!Number.isFinite(claim.auth_time)||claim.auth_time>now||claim.auth_time<now-3600)throw Error();
-  const r=await net(jwksURL,{redirect:'error',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error();
+  const r=await net(jwksURL,{redirect:'manual',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error();
   const jwk=(await r.json()).keys?.find(k=>k.kid===head.kid&&k.kty==='RSA'&&k.alg==='RS256');if(!jwk)throw Error();
   const key=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
   if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,decode(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1])))throw Error();
@@ -84,7 +84,7 @@ async function verifyNativeGoogleSignature(parts,kid,net,claim){
   throw new Fault('admin_authorization_required',403);
  }
  const algo={name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'};
- const opts=()=>({redirect:'error',signal:AbortSignal.timeout(3500)});
+ const opts=()=>({redirect:'manual',signal:AbortSignal.timeout(3500)});
  const jwks=async()=>{
   const response=await net(jwksURL,opts());
   if(!response.ok)throw Error('upstream_jwks');
@@ -119,7 +119,7 @@ async function verifyNativeGoogleSignature(parts,kid,net,claim){
  // Never accept unsigned local JWT fields as proof of identity.
  try{
   const response=await net(nativeIdentityLookupURL,{
-   method:'POST',redirect:'error',signal:AbortSignal.timeout(3800),
+   method:'POST',redirect:'manual',signal:AbortSignal.timeout(3800),
    headers:{'Content-Type':'application/json'},
    body:JSON.stringify({idToken:parts.join('.')})
   });
