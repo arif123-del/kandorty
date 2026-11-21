@@ -73,7 +73,7 @@ async function firebaseMessagingAccess(env,net=fetch,now=Date.now()){
     {name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
  }catch{throw new Fault('native_push_signing_unavailable',503);}
  const jwt=part+'.'+b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,enc.encode(part)));
- const resp=await net(GOOGLE_OAUTH,{method:'POST',redirect:'error',
+ const resp=await net(GOOGLE_OAUTH,{method:'POST',redirect:'manual',
    headers:{'Content-Type':'application/x-www-form-urlencoded'},
    body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:jwt}),
    signal:AbortSignal.timeout(12000)});
@@ -97,7 +97,7 @@ export async function sendNativeOrderPush(store,env,net=fetch,now=Date.now()){
  const access=await firebaseMessagingAccess(env,net,now);
  const url='https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send';
  const statuses=await Promise.allSettled(active.map(async d=>{
-  const response=await net(url,{method:'POST',redirect:'error',
+  const response=await net(url,{method:'POST',redirect:'manual',
     headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},
     body:JSON.stringify({message:{
       token:d.token,
@@ -140,7 +140,7 @@ export async function sendNativeTestPush(store,env,uid,deviceToken,net=fetch,now
    throw new Fault('native_push_device_not_registered',409);
  const access=await firebaseMessagingAccess(env,net,now);
  const endpoint='https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send';
- const resp=await net(endpoint,{method:'POST',redirect:'error',
+ const resp=await net(endpoint,{method:'POST',redirect:'manual',
    headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},
    body:JSON.stringify({message:{
      token:deviceToken,
