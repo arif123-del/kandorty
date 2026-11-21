@@ -43,7 +43,7 @@ export async function sendOrderPush(store,net=fetch){
   const token=head+'.'+claims;
   const sig=encode(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,bytes(token)));
   for(let attempt=0;attempt<2;attempt++){
-   const response=await net(endpoint,{method:'POST',body:new Uint8Array(),redirect:'error',headers:{TTL:'3600',Urgency:'high',Authorization:'vapid t='+token+'.'+sig+', k='+keys.publicKey},signal:AbortSignal.timeout(7000)});
+   const response=await net(endpoint,{method:'POST',body:new Uint8Array(),redirect:'manual',headers:{TTL:'3600',Urgency:'high',Authorization:'vapid t='+token+'.'+sig+', k='+keys.publicKey},signal:AbortSignal.timeout(7000)});
    if(response.ok)return;
    if([404,410].includes(response.status)){expired.push(endpoint);return;}
    if(response.status<500)break;
@@ -63,7 +63,7 @@ export async function requireOrderReader(request,cfg,net=fetch){
  let response;
  try{
   response=await net('https://firestore.googleapis.com/v1/projects/'+cfg.projectId+'/databases/(default)/documents/orders?pageSize=1&mask.fieldPaths=id',
-   {headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(8000)});
+   {headers:{Authorization:authorization},redirect:'manual',signal:AbortSignal.timeout(8000)});
  }catch{
   throw new Fault('admin_reader_unavailable',503);
  }
