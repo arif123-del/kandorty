@@ -167,6 +167,22 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   firebase:{sign_in_provider:'password'},
   iat:now-10,auth_time:now-1000,exp:now+3500
  };
+ // Build a minimal DER certificate around the same generated RSA SPKI.
+ // The test verifies the official x509 fallback, not certificate issuance.
+ const der=(tag,...parts)=>{
+  const body=Buffer.concat(parts),length=body.length;
+  const header=length<128?[length]:length<256?[0x81,length]:
+    [0x82,(length>>8)&255,length&255];
+  return Buffer.concat([Buffer.from([tag,...header]),body]);
+ };
+ const seq=(...parts)=>der(0x30,...parts);
+ const spki=Buffer.from(await crypto.subtle.exportKey('spki',pair.publicKey));
+ const tbs=seq(der(0xa0,der(0x02,Buffer.from([2]))),
+   der(0x02,Buffer.from([1])),seq(),seq(),seq(),seq(),spki);
+ const pem='-----BEGIN CERTIFICATE-----\n'+
+   seq(tbs,seq(),der(0x03,Buffer.from([0]))).toString('base64')+
+   '\n-----END CERTIFICATE-----';
+
  const jwt=async (patch={},tamper=false)=>{
   const encode=v=>Buffer.from(JSON.stringify(v)).toString('base64url');
   const unsigned=encode({alg:'RS256',kid:'native-fcm-identity-test'})+
@@ -191,7 +207,13 @@ test('native 403/503 registration uses signed single-owner identity and denies f
    authNet:async url=>{
     checks++;
     assert.match(url,/securetoken@system\.gserviceaccount\.com/);
-    if(opts.keysDown)throw Error('Google JWKS offline');
+    if(opts.keysDown)throw Error('Google keys unreachable');
+    if(opts.x509Only){
+     if(url.includes('/service_accounts/v1/jwk/'))
+      return new Response(null,{status:503});
+     assert.match(url,/\/robot\/v1\/metadata\/x509\//);
+     return Response.json({[jwk.kid]:pem});
+    }
     return Response.json({keys:[jwk]});
    }
   });
@@ -216,6 +238,20 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   assert.deepEqual(r.body,{enabled:true});
   assert.equal(r.checks,1);
   assert.equal((await db.get('admin_native_push_config/devices')).data.devices.length,1);
+ }
+ // Google's documented official X.509 endpoint works even when JWKS
+ // returns a 503. It MUST still validate the same RSA signature and owner.
+ {
+  const db=store(),r=await call(db,{}, {x509Only:true});
+  assert.equal(r.status,200,'X.509 fallback: '+JSON.stringify(r));
+  assert.equal(r.checks,2,'both signing-key endpoints checked');
+  assert.equal((await db.get('admin_native_push_config/devices')).data.devices.length,1);
+ }
+ {
+  const db=store(),r=await call(db,{}, {x509Only:true,tamper:true});
+  assert.equal(r.status,403,'X.509 fallback rejects forged signature');
+  assert.equal(r.body.error,'admin_authorization_required');
+  assert.equal(await db.get('admin_native_push_config/devices'),null);
  }
  const bad=[
   ['wrong admin account',{email:'customer@example.test'}],
