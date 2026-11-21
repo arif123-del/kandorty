@@ -78,6 +78,7 @@ test('FCM HTTP v1 sends only a generic order signal using server credentials',as
  })};
  let oauth=0,fcm=0;
  const mockNet=async (url,options)=>{
+   assert.equal(options.redirect,'manual','Cloudflare Workers rejects redirect:error');
   if(url==='https://oauth2.googleapis.com/token'){
    oauth++;
    assert.equal(options.method,'POST');
@@ -130,6 +131,7 @@ test('FCM self-test sends a visible high-priority test to enrolled phone only',a
  })};
  let fcm=0;
  const mockNet=async (url,options)=>{
+   assert.equal(options.redirect,'manual','Cloudflare Workers rejects redirect:error');
    if(url==='https://oauth2.googleapis.com/token')
      return Response.json({access_token:'verified-service-access',expires_in:1200});
    assert.equal(url,'https://fcm.googleapis.com/v1/projects/kandorty-9378a/messages:send');
@@ -205,6 +207,7 @@ test('native 403/503 registration uses signed single-owner identity and denies f
    store:()=>db,
    readerNet:async()=>new Response(null,{status:opts.readerStatus??403}),
    authNet:async (url,options)=>{
+    assert.equal(options.redirect,'manual','Workers-compatible request; never follow redirects');
     checks++;
     if(url.startsWith('https://identitytoolkit.googleapis.com/')){
      assert.equal(options.method,'POST');
