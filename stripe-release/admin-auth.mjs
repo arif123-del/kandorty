@@ -25,6 +25,99 @@ export async function verifyAdmin(token,cfg,store,net=fetch,now=Math.floor(Date.
 // before showing its dashboard. Native push uses the same exact account identity
 // after independently checking Google's signature, token times, project and UID.
 // A missing admin custom claim does NOT grant Firestore or other admin authority.
+
+const firebaseCertsURL='https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
+
+// Extract SubjectPublicKeyInfo from Google's HTTPS-delivered X.509 certificate.
+// All DER length and structural checks fail closed; certificate authenticity is
+// supplied by the pinned Google HTTPS endpoint and JWT signature verification.
+function nativePushSpkiFromGoogleCert(pem){
+ if(typeof pem!=='string'||pem.length>12000||
+    !/^-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----$/.test(pem.trim()))
+  throw Error('invalid_google_certificate');
+ const base64=pem.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s+/g,'');
+ if(!/^[A-Za-z0-9+/]+={0,2}$/.test(base64))throw Error('invalid_google_certificate');
+ const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+ const part=(offset)=>{
+  if(offset<0||offset+2>bytes.length)throw Error('invalid_der');
+  const tag=bytes[offset],first=bytes[offset+1];
+  let length=0,start=offset+2;
+  if(first<128)length=first;
+  else{
+   const count=first&127;
+   if(count===0||count>4||start+count>bytes.length)throw Error('invalid_der');
+   for(let i=0;i<count;i++)length=length*256+bytes[start++];
+  }
+  if(length<0||start+length>bytes.length)throw Error('invalid_der');
+  return {tag,start,end:start+length};
+ };
+ const cert=part(0);
+ if(cert.tag!==0x30||cert.end!==bytes.length)throw Error('invalid_der');
+ const tbs=part(cert.start);
+ if(tbs.tag!==0x30||tbs.end>cert.end)throw Error('invalid_der');
+ let pos=tbs.start,item=part(pos);
+ if(item.tag===0xa0){pos=item.end;}
+ // TBSCertificate fields before SubjectPublicKeyInfo:
+ // serialNumber, signature, issuer, validity, subject.
+ for(let i=0;i<5;i++){
+  item=part(pos);
+  if(item.end>tbs.end)throw Error('invalid_der');
+  pos=item.end;
+ }
+ const spki=part(pos);
+ if(spki.tag!==0x30||spki.end>tbs.end)throw Error('invalid_der');
+ return bytes.slice(pos,spki.end);
+}
+
+// Google publishes both a JWKS and an official X.509 endpoint for Firebase
+// securetoken signing keys. Never trust any JWT without RS256 verification.
+// Fail closed if both Google endpoints are unavailable.
+async function verifyNativeGoogleSignature(parts,kid,net){
+ const data=new TextEncoder().encode(parts[0]+'.'+parts[1]);
+ const signature=decode(parts[2]);
+ const algorithm={name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'};
+ const requestOptions=()=>({redirect:'error',signal:AbortSignal.timeout(8000)});
+ let validSetSeen=false;
+ try{
+  const response=await net(jwksURL,requestOptions());
+  if(response.ok){
+   const keys=(await response.json()).keys;
+   if(Array.isArray(keys)){
+    validSetSeen=true;
+    const jwk=keys.find(k=>k?.kid===kid&&k.kty==='RSA'&&k.alg==='RS256');
+    if(jwk){
+     const key=await crypto.subtle.importKey('jwk',jwk,algorithm,false,['verify']);
+     if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,signature,data))
+      throw new Fault('admin_authorization_required',403);
+     return;
+    }
+   }
+  }
+ }catch(error){
+  if(error instanceof Fault)throw error;
+ }
+ try{
+  const response=await net(firebaseCertsURL,requestOptions());
+  if(response.ok){
+   const certs=await response.json();
+   if(certs&&typeof certs==='object'&&!Array.isArray(certs)){
+    validSetSeen=true;
+    if(Object.prototype.hasOwnProperty.call(certs,kid)){
+     const spki=nativePushSpkiFromGoogleCert(certs[kid]);
+     const key=await crypto.subtle.importKey('spki',spki,algorithm,false,['verify']);
+     if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,signature,data))
+      throw new Fault('admin_authorization_required',403);
+     return;
+    }
+   }
+  }
+ }catch(error){
+  if(error instanceof Fault)throw error;
+ }
+ throw new Fault(validSetSeen?'admin_authorization_required':
+   'native_push_google_keys_unavailable',validSetSeen?403:503);
+}
+
 export async function verifyNativePushAdmin(token,cfg,store,net=fetch,now=Math.floor(Date.now()/1000)){
  // Before Google's signature verification, never disclose token claims or
  // membership information. All public errors must remain generic.
@@ -47,25 +140,7 @@ export async function verifyNativePushAdmin(token,cfg,store,net=fetch,now=Math.f
  }catch {
   throw new Fault('admin_authorization_required',403);
  }
- let keys;
- try {
-  const r=await net(jwksURL,{redirect:'error',signal:AbortSignal.timeout(10000)});
-  if(!r.ok)throw Error();
-  keys=(await r.json()).keys;
-  if(!Array.isArray(keys))throw Error();
- }catch{
-  throw new Fault('native_push_google_keys_unavailable',503);
- }
- try {
-  const jwk=keys.find(k=>k.kid===head.kid&&k.kty==='RSA'&&k.alg==='RS256');
-  if(!jwk)throw Error();
-  const key=await crypto.subtle.importKey('jwk',jwk,
-      {name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
-  if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,decode(parts[2]),
-       new TextEncoder().encode(parts[0]+'.'+parts[1])))throw Error();
- }catch{
-  throw new Fault('admin_authorization_required',403);
- }
+ await verifyNativeGoogleSignature(parts,head.kid,net);
  // Details below are returned ONLY to a cryptographically verified Firebase
  // login; keep existing owner allowlist and revocation checks unchanged.
  if(typeof claim.email!=='string'||claim.email.toLowerCase()!=='aliyajan200011@gmail.com')
