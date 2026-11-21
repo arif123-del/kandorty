@@ -131,6 +131,26 @@ export async function sendNativeOrderPush(store,env,net=fetch,now=Date.now()){
  * Explicit owner-only Firebase test for exactly one already enrolled handset.
  * No order is created, modified, or read. Never exposes a device token.
  */
+// Expose only allowlisted provider codes and never response messages,
+// credentials, device tokens or customer data.
+async function nativeFcmFailure(resp){
+ let err;
+ try{err=(await resp.json())?.error;}catch{}
+ const detail=Array.isArray(err?.details)?err.details:[];
+ const fcm=detail.find(v=>v?.['@type']==='type.googleapis.com/google.firebase.fcm.v1.FcmError')?.errorCode;
+ const info=detail.find(v=>v?.['@type']==='type.googleapis.com/google.rpc.ErrorInfo')?.reason;
+ if(info==='SERVICE_DISABLED')return new Fault('native_push_fcm_api_disabled',503);
+ if(info==='ACCESS_TOKEN_SCOPE_INSUFFICIENT')return new Fault('native_push_fcm_scope_insufficient',503);
+ if(fcm==='SENDER_ID_MISMATCH')return new Fault('native_push_fcm_sender_mismatch',403);
+ if(fcm==='UNREGISTERED')return new Fault('native_push_fcm_token_expired',409);
+ if(resp.status===403)return new Fault('native_push_fcm_permission_denied',403);
+ if(resp.status===401)return new Fault('native_push_fcm_credentials_rejected',503);
+ if(resp.status===400)return new Fault('native_push_fcm_invalid_argument',400);
+ if(resp.status===404)return new Fault('native_push_fcm_not_found',503);
+ if(resp.status===429)return new Fault('native_push_fcm_quota_exceeded',503);
+ return new Fault('native_push_fcm_http_'+Number(resp.status),503);
+}
+
 export async function sendNativeTestPush(store,env,uid,deviceToken,net=fetch,now=Date.now()){
  if(!UID_PATTERN.test(uid||'')||!TOKEN_PATTERN.test(deviceToken||''))
    throw new Fault('invalid_native_push_device',400);
@@ -153,6 +173,6 @@ export async function sendNativeTestPush(store,env,uid,deviceToken,net=fetch,now
      }
    }}),
    signal:AbortSignal.timeout(12000)});
- if(!resp.ok)throw new Fault('native_push_test_send_failed',503);
+ if(!resp.ok)throw await nativeFcmFailure(resp);
  return {sent:true};
 }
