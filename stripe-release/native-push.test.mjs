@@ -204,10 +204,22 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   const fn=handler({
    store:()=>db,
    readerNet:async()=>new Response(null,{status:opts.readerStatus??403}),
-   authNet:async url=>{
+   authNet:async (url,options)=>{
     checks++;
+    if(url.startsWith('https://identitytoolkit.googleapis.com/')){
+     assert.equal(options.method,'POST');
+     const payload=JSON.parse(options.body);
+     assert.equal(typeof payload.idToken,'string');
+     if(opts.keysDown)throw Error('Google identity service unreachable');
+     if(opts.identityOnly){
+      if(opts.tamper)return Response.json({error:{message:'INVALID_ID_TOKEN'}},{status:400});
+      return Response.json({users:[{localId:uid,email:'aliyajan200011@gmail.com'}]});
+     }
+     throw Error('unexpected identity fallback');
+    }
     assert.match(url,/securetoken@system\.gserviceaccount\.com/);
     if(opts.keysDown)throw Error('Google keys unreachable');
+    if(opts.identityOnly)return new Response(null,{status:503});
     if(opts.x509Only){
      if(url.includes('/service_accounts/v1/jwk/'))
       return new Response(null,{status:503});
@@ -236,7 +248,7 @@ test('native 403/503 registration uses signed single-owner identity and denies f
   const r=await call(db,{email:'Aliyajan200011@gmail.com'}, {readerStatus});
   assert.equal(r.status,200,JSON.stringify(r));
   assert.deepEqual(r.body,{enabled:true});
-  assert.equal(r.checks,1);
+  assert.equal(r.checks,2);
   assert.equal((await db.get('admin_native_push_config/devices')).data.devices.length,1);
  }
  // Google's documented official X.509 endpoint works even when JWKS
@@ -250,6 +262,20 @@ test('native 403/503 registration uses signed single-owner identity and denies f
  {
   const db=store(),r=await call(db,{}, {x509Only:true,tamper:true});
   assert.equal(r.status,403,'X.509 fallback rejects forged signature');
+  assert.equal(r.body.error,'admin_authorization_required');
+  assert.equal(await db.get('admin_native_push_config/devices'),null);
+ }
+ // Both public-key endpoints can be unavailable while Google's separate
+ // Auth REST service can verify the signed ID token and account identity.
+ {
+  const db=store(),r=await call(db,{}, {identityOnly:true});
+  assert.equal(r.status,200,'REST identity fallback: '+JSON.stringify(r));
+  assert.equal(r.checks,3);
+  assert.equal((await db.get('admin_native_push_config/devices')).data.devices.length,1);
+ }
+ {
+  const db=store(),r=await call(db,{}, {identityOnly:true,tamper:true});
+  assert.equal(r.status,403,'REST identity fallback refuses invalid Firebase token');
   assert.equal(r.body.error,'admin_authorization_required');
   assert.equal(await db.get('admin_native_push_config/devices'),null);
  }
