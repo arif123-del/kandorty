@@ -13,7 +13,7 @@ test('reader accepts a permitted Firebase ID token without exposing order data',
   checked=true;
   assert.match(url,/^https:\/\/firestore\.googleapis\.com\/v1\/projects\/kandorty-9378a\/databases\/\(default\)\/documents\/orders\?/);
   assert.equal(options.headers.Authorization,'Bearer test.id.token');
-  assert.equal(options.redirect,'error');
+  assert.equal(options.redirect,'manual');
   return new Response(null,{status:200});
  });
  assert.ok(checked);
