@@ -1,7 +1,7 @@
 name: Native Android FCM server safety
 on:
   push:
-    branches: [fix/admin-fcm-test-endpoint-20261120, fix/native-fcm-admin-reader-503-20261120, fix/native-fcm-admin-email-auth-403-20261121, fix/native-fcm-email-case-20261121, fix/native-fcm-auth-reason-20261121, fix/native-fcm-google-keys-20261121]
+    branches: [fix/admin-fcm-test-endpoint-20261120, fix/native-fcm-admin-reader-503-20261120, fix/native-fcm-admin-email-auth-403-20261121, fix/native-fcm-email-case-20261121, fix/native-fcm-auth-reason-20261121, fix/native-fcm-google-keys-20261121, fix/cloudflare-native-fcm-redirect-20261121]
   workflow_dispatch:
 permissions:
   contents: read
