@@ -45,5 +45,7 @@ for(const key of ['new','preparing','shipping','delivered','cancelled']){
  assert.equal(env.koOrderStatus({status:key}),key);
 }
 assert.equal(env.koOrderStatus({status:'new',customerEdit:{cancelRequestedAt:'now'}}),'cancelled');
-assert.equal(env.koOrderStatus({status:'unknown'}),'new');
+assert.equal(env.koOrderStatus({status:'unknown'}),'unclassified');
+assert.equal(env.koOrderStatus({}), 'unclassified');
+assert.equal(env.koOrderStatus({status:''}), 'unclassified');
 console.log('Kandorty admin dashboard IDs, features, responsive styles and status safety: passed.');
