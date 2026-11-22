@@ -4272,12 +4272,18 @@ async function submitCustomerOrder(order){
   }
   return {editReady};
 }
+// Resolve the color from its saved photo, not a stale image position.
+// The admin can reorder/delete photos after an item has entered the cart.
+// A missing photo is intentionally invalid until the customer reselects it.
 function cartVariantIndex(item){
-  const n=Math.floor(Number(item?.imageIndex)||0);
-  return Number.isFinite(n)&&n>=0?n:0;
+  const p=products.find(p=>String(p.id)===String(item?.id));
+  const photos=Array.isArray(p?.images)?p.images.filter(Boolean):[];
+  const chosen=String(item?.imageUrl||'');
+  if(chosen)return photos.indexOf(chosen);
+  const n=Number(item?.imageIndex);
+  return Number.isSafeInteger(n)&&n>=0&&n<photos.length?n:-1;
 }
 function cartVariantKey(item){
-  if(item?.variantKey)return String(item.variantKey);
   return String(item?.id||'')+'__img'+cartVariantIndex(item);
 }
 function productQtyInCart(productId){
@@ -4376,9 +4382,11 @@ function renderCart(){
     const idx=cartVariantIndex(item);
     const chosenImage=item.imageUrl||p.images?.[idx]||p.images?.[0]||'';
     const colorStock=productVariantStock(p,idx);
-    const variantText=(Array.isArray(p.images)&&p.images.filter(Boolean).length>1)
-      ? `<div style="font-size:12px;color:#777;margin-top:3px">${lang==='ar'?'اللون المختار: ':'Selected color: '}${idx+1}${colorStock!==null?' · '+(lang==='ar'?'المتوفر لهذا اللون: ':'Available in this color: ')+colorStock:''}</div>`
-      : '';
+    const variantText=idx<0
+      ? `<div style="font-size:12px;color:#ae2332;margin-top:3px">${lang==='ar'?'هذا اللون تغيّر أو لم يُحمّل بعد. أعيدي اختياره قبل الطلب.':'This color changed or has not loaded. Please select it again.'}</div>`
+      : (Array.isArray(p.images)&&p.images.filter(Boolean).length>1)
+        ? `<div style="font-size:12px;color:#777;margin-top:3px">${lang==='ar'?'اللون المختار: ':'Selected color: '}${idx+1}${colorStock!==null?' · '+(lang==='ar'?'المتوفر لهذا اللون: ':'Available in this color: ')+colorStock:''}</div>`
+        : '';
     return `<div class="cart-row">
       ${chosenImage?`<img src="${chosenImage}">`:'<div style="width:64px;height:78px;background:#eee;border-radius:9px"></div>'}
       <div><b>${esc(displayProductName(p))}</b><div class="code">${esc(p.code)}</div>${variantText}<div class="price">${moneyHtml(p.salePrice||p.price)}</div></div>
@@ -4400,6 +4408,11 @@ function changeCartQty(cartIndex,d){
   const colorStock=productVariantStock(p,idx);
   let next=(Number(i.qty)||0)+d;
 
+  if(d>0 && idx<0){
+    alert(lang==='ar'?'هذا اللون تغير. احذفيه من السلة واختاري صورته من جديد.':
+      'This color changed. Remove it and select its photo again.');
+    return;
+  }
   if(d>0 && isSoldOut(p)){alert(unavailableLabel(p));return;}
   if(d>0 && colorStock!==null && variantQtyInCart(i.id,idx)+d>colorStock){
     alert(lang==='ar'?'الكمية المتاحة لهذا اللون: '+colorStock:
