@@ -7,6 +7,7 @@ on:
       - admin.html
       - admin-modern.css
       - tests/admin-orders-redesign.cjs
+      - tests/admin-contact-status-filters.cjs
       - index.html
       - tests/admin-discounts-image-stocks.cjs
       - tests/color-cart-admin-regressions.cjs
@@ -24,3 +25,4 @@ jobs:
       - run: node tests/admin-discounts-image-stocks.cjs
       - run: node tests/color-cart-admin-regressions.cjs
       - run: node tests/admin-orders-redesign.cjs
+      - run: node tests/admin-contact-status-filters.cjs

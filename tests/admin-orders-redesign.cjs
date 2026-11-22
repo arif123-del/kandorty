@@ -14,7 +14,7 @@ for(const id of ['adminOrdersTab','ordersDashboardOverview','ordersFoldersView',
 }
 for(const feature of ['function koSetOrderFilter(next)','function koOrderStatus(o)',
  'function renderOrders()','function renderOpenedOrdersCustomer()',
- 'function orderCustomerHistoryCard(raw)','function orderCustomerFolderCard(g)',
+ 'function orderCustomerHistoryCard(raw)','function orderCustomerFolderCard(g,matched)',
  'function backToOrderFolders()','function updateOrderStatus(id,status)',
  'renderOrderItemsHtml(o)','ordersCustomerFileView','data-order-status-id=',
  'onclick="koSetOrderFilter(\'cancelled\')"',
