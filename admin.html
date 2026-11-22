@@ -2385,12 +2385,12 @@ function adminProductPreviewHtml(p){
   if(!images.length)return '<div class="admin-product-no-photo">بدون صورة</div>';
   const stocks=Array.isArray(p.imageStocks)?p.imageStocks:[];
   return '<div class="admin-product-thumbs" aria-label="صور وألوان المنتج">'+
-    images.slice(0,3).map((src,index)=>
+    images.slice(0,8).map((src,index)=>
       '<button type="button" class="admin-product-thumb" onclick="openAdminProductPhoto(\''+esc(p.id)+'\','+index+')" aria-label="عرض اللون '+(index+1)+'">'+
       '<img src="'+esc(src)+'" loading="lazy" onerror="this.alt=\'تعذر عرض الصورة\'" alt="اللون '+(index+1)+'">'+
       '<span>لون '+(index+1)+(Number.isSafeInteger(stocks[index])?' · '+stocks[index]:'')+'</span></button>'
     ).join('')+
-    (images.length>3?'<span class="admin-extra-photo-count">+'+(images.length-3)+' صور</span>':'')+'</div>';
+    '</div>';
 }
 function openAdminProductPhoto(id,index){
   openProduct(id);
@@ -3007,7 +3007,7 @@ function startAdminOrdersListener(){
 
   if(localStorage.getItem(SOUND_ENABLED_KEY)==='1'){
     const btn=$('orderSoundBtn');
-    if(btn)btn.textContent=localStorage.getItem('adminPushEnabled')==='1'&&window.Notification?.permission==='granted'?'🔔 إشعارات الطلبات في الخلفية مُفعّلة':'🔔 تفعيل إشعارات الطلبات في الخلفية';
+    if(btn)btn.textContent=localStorage.getItem('adminPushEnabled')==='1'&&window.Notification?.permission==='granted'?'إشعارات الطلبات في الخلفية مُفعّلة':'تفعيل إشعارات الطلبات في الخلفية';
   }
 }
 function saveCart(){localStorage.setItem(CART_KEY,JSON.stringify(cart));updateCartCount();renderCart()}
@@ -3019,7 +3019,12 @@ async function saveOrders(){
 }
 
 function normalizeOrderPhone(value){
-  return String(value||'').replace(/\D/g,'');
+  const digits=String(value||'').replace(/\D/g,'');
+  // UAE mobile formats +971 5x, 00971 5x, 05x and 5x identify one customer.
+  if(/^00971\d{9}$/.test(digits))return '0'+digits.slice(5);
+  if(/^971\d{9}$/.test(digits))return '0'+digits.slice(3);
+  if(/^5\d{8}$/.test(digits))return '0'+digits;
+  return digits;
 }
 
 function createOrderEditToken(){
