@@ -143,3 +143,8 @@
  #adminOrdersTab .ko-action-help{width:100%}
 }
 @media(prefers-reduced-motion:reduce){#adminModal .customer-folder-card,#adminModal .btn{transition:none!important;scroll-behavior:auto!important}}
+
+/* Keep every status filter visible on small screens, especially جديد. */
+#adminOrdersTab .ko-filter-row{flex-wrap:wrap!important;overflow-x:visible!important;gap:8px!important}
+#adminOrdersTab .ko-status[data-status="unclassified"]{background:#f0f2f5;color:#535e6d}
+@media(max-width:620px){#adminOrdersTab .ko-filter{padding:8px 12px;font-size:12px}}
