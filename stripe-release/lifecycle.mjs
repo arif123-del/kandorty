@@ -32,8 +32,39 @@ export function lifecycle(cfg,store){
      }
      for(const [id,qty] of Object.entries(l.stockDebits||{})){
       check(/^[A-Za-z0-9_-]{1,150}$/.test(id)&&Number.isSafeInteger(qty)&&qty>0&&qty<=99,'invalid_recorded_debit');
-      const p=await store.get('products/'+id),stock=Number(p?.data.stock);check(p&&p.data.stock!==null&&p.data.stock!==''&&Number.isSafeInteger(stock)&&stock>=0&&Number.isSafeInteger(stock+qty),'invalid_stock');
-      writes.push(store.write('products/'+id,{...p.data,stock:stock+qty,totalStock:Math.max(Number(p.data.totalStock)||0,stock+qty),updatedAt:at},{updateTime:p.version}));
+      const p=await store.get('products/'+id),stock=Number(p?.data.stock);
+      check(p&&p.data.stock!==null&&p.data.stock!==''&&Number.isSafeInteger(stock)&&stock>=0&&Number.isSafeInteger(stock+qty),'invalid_stock');
+      const itemDebits=Object.entries(l.stockDebitsByImage||{})
+       .filter(([key])=>key.startsWith(id+'__img'));
+      let imageStocks=null;
+      if(itemDebits.length){
+       const images=Array.isArray(p.data.images)?p.data.images:[];
+       check(Array.isArray(p.data.imageStocks)&&p.data.imageStocks.length===images.length&&
+         p.data.imageStocks.every(v=>Number.isSafeInteger(v)&&v>=0)&&
+         p.data.imageStocks.reduce((sum,v)=>sum+v,0)===stock,
+         'variant_restock_requires_review');
+       imageStocks=p.data.imageStocks.slice();
+       let restored=0;
+       for(const [key,count] of itemDebits){
+        const indexString=key.slice((id+'__img').length);
+        const index=Number(indexString);
+        check(/^(0|[1-7])$/.test(indexString)&&index<imageStocks.length&&
+          Number.isSafeInteger(count)&&count>0&&count<=99&&
+          Number.isSafeInteger(imageStocks[index]+count),
+          'invalid_recorded_variant_debit');
+        imageStocks[index]+=count;
+        restored+=count;
+       }
+       check(restored===qty,'invalid_recorded_variant_debit');
+      }else if(p.data.imageStocks!==undefined&&p.data.imageStocks!==null){
+       // Legacy orders only stored a total debit, without its color.
+       // Never add a canceled unit to an unproven color.
+       throw new Fault('variant_restock_requires_review',409);
+      }
+      const restoredData={...p.data,stock:stock+qty,
+       totalStock:Math.max(Number(p.data.totalStock)||0,stock+qty),updatedAt:at};
+      if(imageStocks!==null)restoredData.imageStocks=imageStocks;
+      writes.push(store.write('products/'+id,restoredData,{updateTime:p.version}));
      }
      next.cancelledBy=actor.kind;next.cancelStockRestoredAt=at;next.inventoryStatus='restored';
      if(o.payment==='card'){
