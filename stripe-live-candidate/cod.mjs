@@ -159,7 +159,9 @@ export async function prepareCodOrder({
   // physical quantity. Never allow the aggregate stock to cover a
   // sold-out color. Legacy products without imageStocks keep old behaviour.
   let nextImageStocks=null;
-  if(p.imageStocks!==undefined&&p.imageStocks!==null){
+  if(p.imageStocks!==undefined&&p.imageStocks!==null&&
+     !(Array.isArray(p.imageStocks)&&p.imageStocks.length===0&&
+       (!Array.isArray(p.images)||p.images.length===0))){
    const photoCount=Array.isArray(p.images)?p.images.length:0;
    check(Array.isArray(p.imageStocks)&&p.imageStocks.length===photoCount &&
      p.imageStocks.every(n=>Number.isSafeInteger(n)&&n>=0),
