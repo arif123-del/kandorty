@@ -255,6 +255,27 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+<style id="admin-individual-customer-file">
+#adminCustomersTab .customer-folder-card{display:flex;align-items:center;gap:12px;width:100%;padding:16px;background:#fff;border:1px solid #e6d7db;border-radius:15px;text-align:right;color:#251c21;cursor:pointer}
+#adminCustomersTab .customer-folder-card:focus-visible,#adminCustomersTab .customer-file-back:focus-visible{outline:3px solid #b40018;outline-offset:2px}
+#adminCustomersTab .customer-folder-icon{font-size:25px;flex:none}
+#adminCustomersTab .customer-folder-info{flex:1;min-width:0}
+#adminCustomersTab .customer-folder-info strong{display:block;font-size:17px;overflow-wrap:anywhere}
+#adminCustomersTab .customer-folder-info small{display:block;font-size:13px;color:#756b70;margin-top:5px;overflow-wrap:anywhere}
+#adminCustomersTab .customer-file-back{display:inline-flex;align-items:center;padding:10px 14px;border:1px solid #d9c4ca;background:white;border-radius:12px;color:#7b112b;font-weight:700;cursor:pointer}
+#adminCustomersTab .customer-file-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+#adminCustomersTab .customer-file-heading{flex:1;margin:0;font-size:20px;color:#75142c}
+#adminCustomersTab .customer-file-panel{padding:14px;border:1px solid #e5d7dc;background:#fff;border-radius:15px;margin-bottom:13px}
+#adminCustomersTab .customer-file-panel h3{margin:0 0 12px;font-size:18px}
+#adminCustomersTab .customer-file-order{background:#fff;border:1px solid #e5d7dc;border-radius:12px;padding:13px;margin:0 0 12px;overflow-wrap:anywhere}
+#adminCustomersTab .customer-file-order-head{display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+#adminCustomersTab .customer-file-mini-profile{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:12px;border:1px solid #ebdbe0;border-radius:12px;margin:0 0 13px}
+#adminCustomersTab .customer-file-mini-profile div{min-width:0;overflow-wrap:anywhere}
+#adminCustomersTab .customer-file-mini-profile small{display:block;color:#74656b}
+#adminCustomersTab .customer-file-order-stack{display:grid;gap:10px}
+#adminCustomersTab .customer-file-status{font-weight:800;color:#79112c}
+#adminCustomersTab .customer-file-meta{font-size:13px;line-height:1.8}
+</style>
 <style id="admin-page-mode">
 #adminBtn{display:inline-flex!important}
 </style>
@@ -1138,11 +1159,20 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="ordersCustomerContents"></div></section>
 </div>
 <div id="adminCustomersTab" class="hidden">
+  <div id="adminCustomersOverview">
   <div class="notice" style="margin-bottom:14px;font-size:16px">
     إجمالي العملاء: <b id="customerTotalCount" style="font-size:22px;color:var(--red)">0</b>
     <div id="customersSummary" style="margin-top:6px;font-size:13px;color:var(--muted)">حسابات الهاتف: 0 · المشترون: 0</div>
   </div>
-  <div id="customersList" class="admin-list"></div>
+  <div id="customersList" class="customer-folder-list" aria-label="ملفات العملاء"></div>
+  </div>
+  <section id="adminCustomerFileView" class="hidden" aria-label="ملف العميل">
+    <div class="customer-file-header">
+      <button class="customer-file-back" type="button" onclick="backToAdminCustomers()">➜ رجوع إلى العملاء</button>
+      <h3 id="adminCustomerFileTitle" class="customer-file-heading"></h3>
+    </div>
+    <div id="adminCustomerFileContent"></div>
+  </section>
 </div>
 
 <div id="adminBannerTab" class="hidden">
