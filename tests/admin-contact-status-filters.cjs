@@ -105,7 +105,7 @@ assert.equal(context.koMatchingOrders(group).length,8,'All filter should show fu
 htmlSearch.value=records[2].id;
 assert.deepEqual(Array.from(context.koMatchingOrders(group),o=>o.id),[records[2].id],'Search should match one order ID');
 htmlSearch.value='Faiz';
-assert.equal(context.koMatchingOrders(group).length,5,'Customer name search should show customer orders');
+assert.equal(context.koMatchingOrders(group).length,8,'Customer name search should show customer orders, including review items');
 
 assert.ok(admin.includes("visible.map(({group,matching})=>orderCustomerFolderCard(group,matching))"),'List must render filtered order set');
 assert.ok(admin.includes("matching.map(orderCustomerHistoryCard)"),'Customer file must render filtered orders');
