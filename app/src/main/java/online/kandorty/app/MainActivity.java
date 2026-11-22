@@ -5,10 +5,12 @@ import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
 import org.json.JSONTokener;
@@ -46,13 +48,12 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 /** Dedicated Kandorty Admin application. Does NOT launch a browser on startup. */
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261120";
+    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261122";
     private static final int PICK_FILE = 401;
     private static final int ASK_NOTIFICATIONS = 402;
 
     private WebView web;
     private ProgressBar progress;
-    private TextView fcmStatus;
     private LinearLayout offline;
     private ValueCallback<Uri[]> fileCallback;
     private final Handler nativePushHandler = new Handler(Looper.getMainLooper());
@@ -108,80 +109,8 @@ public class MainActivity extends Activity {
         root.addView(offline, new FrameLayout.LayoutParams(-1, -1));
         offline.setVisibility(View.GONE);
 
-        // Use the real order notification channel for a safe one-tap sound test.
-        // This never creates an order or triggers a payment.
-        Button testRing = new Button(this);
-        testRing.setText("🔔 اختبار الجرس");
-        testRing.setTextSize(12f);
-        testRing.setAllCaps(false);
-        testRing.setAlpha(0.95f);
-        FrameLayout.LayoutParams testRingPosition = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM | Gravity.LEFT);
-        int dp = Math.round(getResources().getDisplayMetrics().density);
-        testRingPosition.setMargins(12*dp, 0, 0, 96*dp);
-        root.addView(testRing, testRingPosition);
-        testRing.setOnClickListener(v -> {
-            if (Build.VERSION.SDK_INT >= 33 &&
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                            != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                        ASK_NOTIFICATIONS);
-                Toast.makeText(this, "فعّلي إذن الإشعارات ثم اضغطي اختبار الجرس",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
-            boolean delivered = AdminMessagingService.showTestNotification(this);
-            Toast.makeText(this, delivered
-                    ? "أُرسل إشعار الاختبار. إذا لم تسمعي صوتاً، غيّري صوت قناة طلبات كندورتي من إعدادات الإشعارات."
-                    : "الإشعارات محظورة. افتحي إعدادات التطبيق وفعّلي تنبيهات طلبات كندورتي.",
-                    Toast.LENGTH_LONG).show();
-        });
-        Button checkFirebase = new Button(this);
-        checkFirebase.setText("📡 فحص Firebase");
-        checkFirebase.setTextSize(12f);
-        checkFirebase.setAllCaps(false);
-        FrameLayout.LayoutParams firebasePosition = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM | Gravity.LEFT);
-        firebasePosition.setMargins(12*dp, 0, 0, 154*dp);
-        root.addView(checkFirebase, firebasePosition);
-        checkFirebase.setOnClickListener(v -> {
-            if (Build.VERSION.SDK_INT >= 33 &&
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                            != PackageManager.PERMISSION_GRANTED) {
-                showFcmStatus("إذن الإشعارات غير مفعّل");
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                        ASK_NOTIFICATIONS);
-                return;
-            }
-            if (!BuildConfig.NATIVE_FCM_CONFIGURED || FirebaseApp.getApps(this).isEmpty()) {
-                showFcmStatus("Firebase غير مهيأ في نسخة التطبيق");
-                return;
-            }
-            showFcmStatus("جاري فحص رمز الجهاز...");
-            FirebaseMessaging.getInstance().getToken()
-                .addOnSuccessListener(token -> {
-                    getSharedPreferences("kandorty_native_push", MODE_PRIVATE)
-                        .edit().putString("pending_fcm_token",token)
-                        .putBoolean("fcm_test_sent_20261120",false).apply();
-                    lastNativePushEnrollmentAt = 0L;
-                    showFcmStatus("رمز الجهاز جاهز؛ جاري فحص دخول الإدارة...");
-                    registerNativePushWhenSignedIn();
-                })
-                .addOnFailureListener(error ->
-                    showFcmStatus("فشل الحصول على رمز Firebase من خدمات Google"));
-        });
-        fcmStatus = new TextView(this);
-        fcmStatus.setTextSize(11f);
-        fcmStatus.setTextColor(0xFF202020);
-        fcmStatus.setPadding(8*dp, 3*dp, 8*dp, 3*dp);
-        fcmStatus.setBackgroundColor(0xEEFFFFFF);
-        fcmStatus.setText("Firebase: اضغطي فحص Firebase بعد تسجيل الدخول");
-        FrameLayout.LayoutParams statusPosition = new FrameLayout.LayoutParams(
-                -2, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT);
-        statusPosition.setMargins(12*dp, 0, 12*dp, 212*dp);
-        root.addView(fcmStatus,statusPosition);
+        // Keep native FCM enrollment and background notifications, but do not
+        // overlay the real admin page with diagnostic buttons or status labels.
         setContentView(root);
 
         WebSettings settings = web.getSettings();
@@ -279,7 +208,22 @@ public class MainActivity extends Activity {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = callback;
                 try {
-                    Intent picker = params.createIntent();
+                    String[] accepted = params.getAcceptTypes();
+                    boolean photosOnly = params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE
+                            && accepted != null && java.util.Arrays.stream(accepted)
+                            .anyMatch(t -> t != null && t.startsWith("image/"));
+                    Intent picker;
+                    if (photosOnly) {
+                        // Samsung/Google Photos return ClipData for multi-image selection.
+                        // The stock WebView picker can return only one photo.
+                        picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        picker.setType("image/*");
+                        picker.addCategory(Intent.CATEGORY_OPENABLE);
+                        picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    } else {
+                        picker = params.createIntent();
+                    }
+                    picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     startActivityForResult(picker, PICK_FILE);
                 } catch (Exception error) {
                     fileCallback.onReceiveValue(null);
@@ -351,9 +295,8 @@ public class MainActivity extends Activity {
      * No JS interface is exposed to arbitrary frames or remote content.
      */
     private void showFcmStatus(String message) {
-        runOnUiThread(() -> {
-            if (fcmStatus != null) fcmStatus.setText("Firebase: " + message);
-        });
+        // Diagnostics stay out of the admin UI. Do not log Firebase tokens.
+        Log.i("KandortyPush", message);
     }
 
     private void registerNativePushWhenSignedIn() {
@@ -487,10 +430,8 @@ public class MainActivity extends Activity {
                         .putBoolean("registration_confirmed",true).apply();
                 if(!wasRegistered)runOnUiThread(() -> Toast.makeText(this,
                         "✅ تم تسجيل الجهاز لاستقبال إشعارات الطلبات", Toast.LENGTH_LONG).show());
-                if(!getSharedPreferences("kandorty_native_push",MODE_PRIVATE)
-                        .getBoolean("fcm_test_sent_20261120",false)) {
-                    sendNativeTestPushOverHttps(idToken,deviceToken);
-                }
+                // A successful enrollment is not an invitation to create an
+                // unsolicited test bell. Real order FCM notifications remain active.
             } else {
                 String reason = safePushErrorCode(connection);
                 String statusText = "HTTP " + status +
@@ -554,15 +495,27 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == PICK_FILE && fileCallback != null) {
-            Uri[] selected = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
-            if (selected != null) {
-                java.util.ArrayList<Uri> safe = new java.util.ArrayList<>();
-                for (Uri u : selected) {
-                    if (u != null && "content".equalsIgnoreCase(u.getScheme())) safe.add(u);
+            java.util.LinkedHashSet<Uri> safe = new java.util.LinkedHashSet<>();
+            if (resultCode == RESULT_OK && data != null) {
+                ClipData clip = data.getClipData();
+                if (clip != null) {
+                    for (int i = 0; i < clip.getItemCount(); i++) {
+                        Uri u = clip.getItemAt(i).getUri();
+                        if (u != null && "content".equalsIgnoreCase(u.getScheme())) safe.add(u);
+                    }
                 }
-                selected = safe.isEmpty() ? null : safe.toArray(new Uri[0]);
+                Uri direct = data.getData();
+                if (direct != null && "content".equalsIgnoreCase(direct.getScheme())) safe.add(direct);
+                if (safe.isEmpty()) {
+                    Uri[] parsed = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                    if (parsed != null) {
+                        for (Uri u : parsed) {
+                            if (u != null && "content".equalsIgnoreCase(u.getScheme())) safe.add(u);
+                        }
+                    }
+                }
             }
-            fileCallback.onReceiveValue(selected);
+            fileCallback.onReceiveValue(safe.isEmpty() ? null : safe.toArray(new Uri[0]));
             fileCallback = null;
         }
     }
