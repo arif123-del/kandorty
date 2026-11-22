@@ -48,7 +48,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 /** Dedicated Kandorty Admin application. Does NOT launch a browser on startup. */
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261122";
+    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261123&dialer=1";
     private static final int PICK_FILE = 401;
     private static final int ASK_NOTIFICATIONS = 402;
 
