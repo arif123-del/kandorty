@@ -3461,7 +3461,8 @@ function renderOrderCustomerHtml(order){
       <div><small>الإمارة والعنوان</small><b>${esc(locationText)}</b></div>
     </div>
     <div class="ko-contact-actions" aria-label="التواصل مع العميل">
-      ${contacts.tel?`<a class="ko-call" href="tel:${esc(contacts.tel)}" aria-label="اتصال بالعميل على الرقم ${esc(phone)}">اتصال بالعميل</a>`
+      ${contacts.tel?`<a class="ko-call" href="tel:${esc(contacts.tel)}" data-dial-customer-phone="${esc(contacts.tel)}" aria-label="اتصال بالعميل على الرقم ${esc(phone)}">اتصال بالعميل</a>
+        <button type="button" class="ko-copy-contact" data-copy-customer-phone="${esc(contacts.tel)}" aria-label="نسخ رقم العميل">نسخ الرقم</button>`
         :'<span class="ko-unavailable-contact">رقم الهاتف غير صالح للاتصال</span>'}
       ${contacts.whatsapp?`<a class="ko-wa" href="https://api.whatsapp.com/send?phone=${contacts.whatsapp}" rel="external" aria-label="فتح محادثة واتساب مع العميل">واتساب</a>`
         :'<span class="ko-unavailable-contact">واتساب غير متاح لهذا الرقم</span>'}
@@ -3810,7 +3811,49 @@ function backToOrderFolders(){
   }
   returnToOrdersList();
 }
+async function koCopyCustomerPhone(phone){
+  const normalized=String(phone||'').trim();
+  if(!/^\\+?[0-9]{6,15}$/.test(normalized))return false;
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(normalized);
+      return true;
+    }
+  }catch(error){console.warn('Clipboard API unavailable:',error);}
+  const field=document.createElement('textarea');
+  field.value=normalized;
+  field.setAttribute('readonly','');
+  field.style.position='fixed';
+  field.style.opacity='0';
+  document.body.appendChild(field);
+  field.select();
+  let copied=false;
+  try{copied=document.execCommand('copy');}
+  catch(error){console.warn('Legacy clipboard fallback failed:',error);}
+  field.remove();
+  return copied;
+}
 (function initOrdersCustomerFolders(){
+  // Admin 1.4.4 and older block tel: URLs. Offer a copy fallback rather than
+  // allowing an inert button. Admin 1.4.5 with dialer=1 opens the dialer.
+  $('ordersCustomerFileView')?.addEventListener('click',event=>{
+    const copy=event.target.closest('[data-copy-customer-phone]');
+    const call=event.target.closest('[data-dial-customer-phone]');
+    if(!copy&&!call)return;
+    const params=new URLSearchParams(location.search);
+    const legacy=params.get('source')==='android-admin'&&params.get('dialer')!=='1';
+    if(!copy&&!legacy)return;
+    event.preventDefault();
+    const phone=(copy?.dataset.copyCustomerPhone||call?.dataset.dialCustomerPhone||'').trim();
+    koCopyCustomerPhone(phone).then(ok=>{
+      if(legacy&&call){
+        alert((ok?'تم نسخ الرقم: ':'تعذر نسخ الرقم تلقائياً: ')+phone+
+          '\\nهذه النسخة من تطبيق الإدارة لا تفتح الهاتف. افتحي تطبيق الهاتف والصقي الرقم، أو حدّثي التطبيق.');
+      }else{
+        alert(ok?'تم نسخ رقم العميل: '+phone:'انسخي هذا الرقم يدوياً: '+phone);
+      }
+    });
+  });
   $('ordersList')?.addEventListener('click',e=>{
     const node=e.target.closest('[data-orders-customer]');
     if(node)openOrdersCustomer(node.dataset.ordersCustomer);
