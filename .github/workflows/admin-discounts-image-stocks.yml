@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - admin.html
+      - admin-modern.css
+      - tests/admin-orders-redesign.cjs
       - index.html
       - tests/admin-discounts-image-stocks.cjs
       - tests/color-cart-admin-regressions.cjs
@@ -21,3 +23,4 @@ jobs:
           node-version: '22'
       - run: node tests/admin-discounts-image-stocks.cjs
       - run: node tests/color-cart-admin-regressions.cjs
+      - run: node tests/admin-orders-redesign.cjs
