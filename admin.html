@@ -4780,89 +4780,127 @@ function startAdminCustomersListener(){
   });
 }
 
-function renderCustomers(){
-  if(!$('customersList'))return;
 
-  const map=new Map();
-
-  // 1) Registered phone-login accounts from Firestore /customers.
-  registeredCustomers.forEach(c=>{
-    const phone=String(c.phone||'').trim();
-    const normalized=normalizeOrderPhone(phone);
-    if(!normalized)return;
-
-    map.set(normalized,{
-      name:String(c.name||''),
-      phone,
-      city:'',
-      location:String(c.location||''),
-      orders:0,
-      total:0,
-      registered:true
-    });
-  });
-
-  // 2) Merge customers found in orders.
-  orders.map(effectiveOrderView).forEach(o=>{
-    const phone=String(o.customer?.phone||'').trim();
-    const normalized=normalizeOrderPhone(phone);
-    if(!normalized)return;
-
-    if(!map.has(normalized)){
-      map.set(normalized,{
-        ...o.customer,
-        phone,
-        orders:0,
-        total:0,
-        registered:false
-      });
-    }
-
-    const c=map.get(normalized);
-
-    // Prefer the freshest useful order details when a registered profile is sparse.
-    if(!c.name && o.customer?.name)c.name=o.customer.name;
-    if(!c.city && o.customer?.city)c.city=o.customer.city;
-    if(!c.location && o.customer?.location)c.location=o.customer.location;
-
-    c.orders+=1;
-    c.total+=Number(o.total||0);
-  });
-
-  const list=[...map.values()]
-    .sort((a,b)=>Number(b.registered)-Number(a.registered) || b.orders-a.orders);
-
-  const totalCustomers=list.length;
-  const registeredCount=list.filter(c=>c.registered).length;
-  const buyersCount=list.filter(c=>c.orders>0).length;
-
-  if($('customerTotalCount'))$('customerTotalCount').textContent=String(totalCustomers);
-
-  const badge=$('customersTabCount');
-  if(badge){
-    badge.textContent=String(totalCustomers);
-    badge.style.display=totalCustomers>0?'inline-flex':'none';
-  }
-
-  const summary=$('customersSummary');
-  if(summary){
-    summary.innerHTML=`حسابات الهاتف: <b>${registeredCount}</b> · المشترون: <b>${buyersCount}</b>`;
-  }
-
-  $('customersList').innerHTML=list.length
-    ?list.map(c=>`<div class="admin-item">
-      <div class="grow">
-        <b>${esc(c.name||'عميل')}</b>
-        ${c.registered?'<span class="customer-edit-badge" style="margin-inline-start:8px">حساب هاتف</span>':''}
-        <br>
-        <small>${esc(c.phone)}${c.city?' · '+esc(c.city):''}${c.location?' · '+esc(c.location):''}</small>
-        <br>
-        <small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}</small>
-      </div>
-    </div>`).join('')
-    :'<div class="empty">لا يوجد عملاء بعد</div>';
+let adminCustomerDirectory=new Map();
+let openedAdminCustomerKey=null;
+let adminCustomerDirectoryScroll=0;
+function adminCustomerScrollable(){return $('adminModal')?.querySelector('.modal-card');}
+function renderAdminCustomerFile(){
+ const file=$('adminCustomerFileView'),overview=$('adminCustomersOverview'),content=$('adminCustomerFileContent');
+ if(!file||!overview||!content)return;
+ const c=adminCustomerDirectory.get(openedAdminCustomerKey);
+ if(!c){openedAdminCustomerKey=null;file.classList.add('hidden');overview.classList.remove('hidden');return;}
+ overview.classList.add('hidden');file.classList.remove('hidden');
+ $('adminCustomerFileTitle').textContent='ملف '+(c.name||'العميل');
+ const list=(c.history||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+ const location=[c.city,c.location].filter(Boolean).join(' - ')||'-';
+ content.innerHTML=`<div class="customer-file-mini-profile">
+ <div><small>الاسم</small><b>${esc(c.name||'عميل')}</b></div>
+ <div><small>رقم الهاتف</small><b dir="ltr">${esc(c.phone||'-')}</b></div>
+ <div><small>الموقع</small><b>${esc(location)}</b></div>
+ <div><small>عدد الطلبات</small><b>${list.length}</b></div>
+ <div><small>إجمالي المشتريات</small><b>${money(c.total)}</b></div>
+ </div>
+ <section class="customer-file-panel"><h3>طلبات هذا العميل</h3><div class="customer-file-order-stack">
+ ${list.length?list.map(raw=>{
+  const o=effectiveOrderView(raw);
+  const date=o.createdAt?new Date(o.createdAt).toLocaleString('ar-AE'):'-';
+  const canceled=isCancelledOrder(raw);
+  return `<article class="customer-file-order">
+   <div class="customer-file-order-head">
+    <div><b>رقم الطلب: <span dir="ltr">${esc(o.id||'')}</span></b>
+    <div style="font-size:12px;color:#71636b">${esc(date)}</div></div>
+    <b class="customer-file-status">${esc(statusText(canceled?'cancelled':o.status))}</b>
+   </div>
+   ${renderOrderItemsHtml(o)}
+   <div class="customer-file-meta">
+    <div>طريقة الدفع: ${o.payment==='card'?'الدفع بالبطاقة':'الدفع عند الاستلام'}</div>
+    <div>الإجمالي: ${money(o.total||0)}</div>
+    ${o.notes?`<div>ملاحظات: ${esc(o.notes)}</div>`:''}
+   </div>
+  </article>`;
+ }).join(''):'<div class="empty">لا توجد طلبات لهذا العميل بعد.</div>'}
+ </div></section>`;
 }
-
+function openAdminCustomerFile(key){
+ if(!adminCustomerDirectory.has(String(key)))return;
+ const card=adminCustomerScrollable();
+ adminCustomerDirectoryScroll=card?.scrollTop||0;
+ openedAdminCustomerKey=String(key);
+ renderAdminCustomerFile();
+ if(card)card.scrollTop=Math.max(0,adminContentAnchorTop());
+ try{history.pushState({...history.state,kandortyAdminCustomer:openedAdminCustomerKey},'');}
+ catch(error){console.warn('Customer file browser history unavailable:',error);}
+}
+function restoreAdminCustomerDirectory(){
+ openedAdminCustomerKey=null;
+ renderAdminCustomerFile();
+ const card=adminCustomerScrollable();
+ if(card){
+  card.scrollTop=adminCustomerDirectoryScroll;
+  requestAnimationFrame(()=>{if(!openedAdminCustomerKey)card.scrollTop=adminCustomerDirectoryScroll;});
+ }
+}
+function backToAdminCustomers(){
+ if(history.state?.kandortyAdminCustomer===openedAdminCustomerKey)history.back();
+ else restoreAdminCustomerDirectory();
+}
+(function initAdminCustomerFiles(){
+ $('customersList')?.addEventListener('click',event=>{
+  const card=event.target.closest('[data-admin-customer]');
+  if(card)openAdminCustomerFile(card.dataset.adminCustomer);
+ });
+ window.addEventListener('popstate',event=>{
+  if($('adminCustomersTab')?.classList.contains('hidden'))return;
+  const key=String(event.state?.kandortyAdminCustomer||'');
+  if(key&&adminCustomerDirectory.has(key)){
+   openedAdminCustomerKey=key;renderAdminCustomerFile();
+  }else restoreAdminCustomerDirectory();
+ });
+})();
+function renderCustomers(){
+ if(!$('customersList'))return;
+ const map=new Map();
+ // Merge one customer's registered profile and order history only by normalized phone.
+ registeredCustomers.forEach(c=>{
+  const phone=String(c.phone||'').trim(),key=normalizeOrderPhone(phone);
+  if(!key)return;
+  map.set(key,{key,name:String(c.name||''),phone,city:'',location:String(c.location||''),
+   orders:0,total:0,registered:true,history:[]});
+ });
+ orders.forEach(raw=>{
+  const o=effectiveOrderView(raw),phone=String(o.customer?.phone||'').trim();
+  const key=normalizeOrderPhone(phone);
+  if(!key)return;
+  if(!map.has(key))map.set(key,{
+   key,name:String(o.customer?.name||''),phone,city:String(o.customer?.city||''),
+   location:String(o.customer?.location||''),orders:0,total:0,registered:false,history:[]
+  });
+  const c=map.get(key);
+  if(!c.name&&o.customer?.name)c.name=o.customer.name;
+  if(!c.city&&o.customer?.city)c.city=o.customer.city;
+  if(!c.location&&o.customer?.location)c.location=o.customer.location;
+  c.orders++;c.total+=Number(o.total)||0;c.history.push(raw);
+ });
+ adminCustomerDirectory=map;
+ const list=[...map.values()].sort((a,b)=>Number(b.registered)-Number(a.registered)||b.orders-a.orders);
+ const totalCustomers=list.length,registeredCount=list.filter(c=>c.registered).length;
+ const buyersCount=list.filter(c=>c.orders>0).length;
+ if($('customerTotalCount'))$('customerTotalCount').textContent=String(totalCustomers);
+ const badge=$('customersTabCount');
+ if(badge){badge.textContent=String(totalCustomers);badge.style.display=totalCustomers>0?'inline-flex':'none';}
+ const summary=$('customersSummary');
+ if(summary)summary.innerHTML=`حسابات الهاتف: <b>${registeredCount}</b> · المشترون: <b>${buyersCount}</b>`;
+ $('customersList').innerHTML=list.length?list.map(c=>`<button type="button" class="customer-folder-card"
+  data-admin-customer="${esc(c.key)}" aria-label="فتح ملف العميل ${esc(c.name||'عميل')}">
+   <span class="customer-folder-icon" aria-hidden="true">📁</span>
+   <span class="customer-folder-info"><strong>${esc(c.name||'عميل')}</strong>
+    <small dir="ltr">${esc(c.phone)}</small>
+    <small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}${c.registered?' · حساب هاتف':''}</small>
+   </span><span aria-hidden="true" class="customer-folder-chevron">‹</span>
+  </button>`).join(''):'<div class="empty">لا يوجد عملاء بعد</div>';
+ if(openedAdminCustomerKey)renderAdminCustomerFile();
+}
 function mountHeroMediaSlot(){
   const heroCopy=document.querySelector('.hero-copy');
   const section=$('homeVideoSection');
