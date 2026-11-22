@@ -1113,7 +1113,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
-<input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+<input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
 <p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
@@ -2059,7 +2059,7 @@ function previewImages(){
   const manualUrls=getImageUrls();
   const savedHtml=pendingImages.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="صورة محفوظة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeSavedImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
   const urlHtml=manualUrls.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="رابط صورة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeManualImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
-  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${imageQtyField(file)}</div>`}).join('');
+  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر عرض الصورة؛ اختاري JPG أو PNG'"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${imageQtyField(file)}</div>`}).join('');
   $('imagePreview').innerHTML=savedHtml+urlHtml+fileHtml;
   lastPhotoPreviewSources=[...pendingImages,...manualUrls,...pendingImageFiles];
   updateAggregateStockInput();
@@ -2074,11 +2074,17 @@ $('imageUrls').addEventListener('input',previewImages);
 $('imageFiles').addEventListener('change',e=>{
   // Mobile galleries return only the photos from the latest picker visit.
   // Append them to the unsaved product photos instead of replacing earlier picks.
-  const chosen=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type));
-  e.target.value=''; // Let the customer select the same file again on another visit.
+  const selected=Array.from(e.target.files||[]);
+  const validPhoto=file=>/^image\/(jpeg|jpg|png|webp)$/i.test(file.type||'')||
+    ((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
+  const chosen=selected.filter(validPhoto);
+  e.target.value=''; // Allow picking the same file again without losing previous picks.
   const totalBefore=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
   if(!chosen.length){
-    if(totalBefore)setUploadProgress(0,`الصور المختارة محفوظة في النموذج: ${totalBefore} من ${MAX_DIRECT_IMAGES}.`);
+    const message=selected.length
+      ? 'صيغة الصورة غير مدعومة (مثل HEIC). احفظي الصورة بصيغة JPG أو PNG ثم اختاريها مجدداً.'
+      : 'لم يتم اختيار صورة. افتحي المعرض واختاري صورة محفوظة على الهاتف.';
+    setUploadProgress(0,message+(totalBefore?` الصور السابقة: ${totalBefore}.`:''));
     return;
   }
   const room=Math.max(0,MAX_DIRECT_IMAGES-totalBefore);
@@ -2097,13 +2103,17 @@ $('imageFiles').addEventListener('change',e=>{
     seen.add(key);
     added++;
   }
-  if(added)previewImages();
+  if(added){
+    previewImages();
+    requestAnimationFrame(()=>$('imagePreview')?.scrollIntoView({block:'nearest',behavior:'smooth'}));
+  }
   const count=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
   const skipped=chosen.length-added;
   const message=added
     ? `تمت إضافة ${added} صورة. المجموع: ${count}/${MAX_DIRECT_IMAGES}. الصور السابقة ما زالت موجودة.`
     : `الصور المحددة موجودة مسبقاً. المجموع: ${count}/${MAX_DIRECT_IMAGES}.`;
-  setUploadProgress(0,skipped&&count>=MAX_DIRECT_IMAGES?message+' اكتمل الحد المسموح.':message);
+  setUploadProgress(0,(skipped&&count>=MAX_DIRECT_IMAGES?message+' اكتمل الحد المسموح.':message)+
+    (selected.length>chosen.length?' بعض الصور بصيغة غير مدعومة؛ استخدمي JPG أو PNG.':''));
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
@@ -2304,6 +2314,10 @@ $('productForm').onsubmit=async e=>{
       throw new Error('تم رفع الفيديو، لكن رابط الفيديو لم يُحفظ مع المنتج.');
     }
 
+    if(images.length && (!Array.isArray(savedData.images) || savedData.images.length!==images.length ||
+       !savedData.images.every((source,index)=>typeof source==='string'&&source===images[index]))){
+      throw new Error('تم حفظ بيانات المنتج، لكن لم يتم تأكيد جميع الصور في Firestore. راجعي المنتج قبل المحاولة مرة أخرى.');
+    }
     const confirmedProduct={...p,...savedData,id};
     if(old) products=products.map(x=>x.id===id?confirmedProduct:x);
     else products.unshift(confirmedProduct);
@@ -2312,9 +2326,12 @@ $('productForm').onsubmit=async e=>{
     render();
     renderAdminList();
 
+    const savedAsDiscount=isAdminDiscountProduct(confirmedProduct);
     resetForm();
     setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة${p.productVideoUrl?' + فيديو':''} بنجاح.`);
-    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}.`);
+    showAdminTab(savedAsDiscount?'discounts':'list',
+      document.querySelector(savedAsDiscount?'.admin-tabs .tab[onclick*="discounts"]':'.admin-tabs .tab[onclick*="list"]'));
+    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}. ستجدينه الآن في قائمة المنتجات.`);
 
   }catch(err){
     console.error('Spark product save error:',err);
