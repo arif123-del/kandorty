@@ -357,3 +357,45 @@ test('push transport uses a signed high urgency request and drops expired device
  await sendOrderPush(f.store,async(endpoint,opts)=>{calls++;assert.equal(endpoint,url);assert.equal(opts.headers.Urgency,'high');assert.match(opts.headers.Authorization,/^vapid t=/);return new Response(null,{status:410});});
  assert.equal(calls,1);assert.deepEqual(f.rows.get('admin_push_config/devices').data.endpoints,[]);
 });
+
+
+test('COD saves exact color stock and cancellation restores only that color',async()=>{
+ const f=fixture(9),url=['https://example.test/red','https://example.test/blue','https://example.test/black'];
+ f.store.put('products/p1',{nameAr:'Dress',price:10,stock:9,totalStock:9,images:url,imageStocks:[3,3,3]});
+ const request={...input(),items:[{id:'p1',qty:2,imageIndex:1}]};
+ const registered=await codService(f.cfg,f.store).create(request);
+ const product=f.rows.get('products/p1').data;
+ assert.equal(product.stock,7);
+ assert.deepEqual(product.imageStocks,[3,1,3]);
+ const record=f.rows.get('orders/'+registered.snapshot.orderId).data;
+ assert.equal(record.items[0].imageIndex,1);
+ assert.deepEqual(record.stockDebitsByImage,{p1__img1:2});
+ const management=registered.manageToken;
+ await lifecycle(f.cfg,f.store).change(registered.snapshot.orderId,'cancelled',{
+  kind:'guest',checkoutId:registered.snapshot.checkoutId,manageToken:management
+ });
+ const restored=f.rows.get('products/p1').data;
+ assert.equal(restored.stock,9);
+ assert.deepEqual(restored.imageStocks,[3,3,3]);
+});
+test('COD 3-color over-order fails even while aggregate stock is available',async()=>{
+ const f=fixture(9);
+ f.store.put('products/p1',{nameAr:'Dress',price:10,stock:9,totalStock:9,
+  images:['red','blue','black'],imageStocks:[3,3,3]});
+ const before=f.rows.size;
+ await assert.rejects(codService(f.cfg,f.store).create({...input(),
+  items:[{id:'p1',qty:4,imageIndex:0}]}),/insufficient_variant_stock/);
+ assert.equal(f.rows.size,before);
+});
+test('Stripe charges record color-specific paid fulfillment or mark review without debit',async()=>{
+ const f=fixture(9);
+ f.store.put('products/p1',{nameAr:'Dress',price:10,stock:9,totalStock:9,
+  images:['red','blue','black'],imageStocks:[3,3,3]});
+ const req={...input(),items:[{id:'p1',qty:2,imageIndex:2}]};
+ const {snapshot:s}=await f.service.create(req);
+ f.pay(s);
+ const r=await f.service.fulfill(s.checkoutId,s.sessionId);
+ assert.equal(r.order.inventoryStatus,'debited');
+ assert.deepEqual(f.rows.get('products/p1').data.imageStocks,[3,3,1]);
+ assert.deepEqual(f.rows.get('order_lifecycle/'+s.orderId).data.stockDebitsByImage,{p1__img2:2});
+});
