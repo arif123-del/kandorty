@@ -17,10 +17,10 @@ const names=['hasManagedStock','getProductStock','productVariantStock','variantQ
 const ctx={
  products:[{id:'dress',stock:9,totalStock:9,images:['red','blue','black'],imageStocks:[3,3,3],active:true}],
  cart:[],lang:'ar',messages:[],saved:0,
- alert(message){this.messages.push(message);},
+ alert(message){ctx.messages.push(message);},
  isSoldOut(p){return p.stock<=0;},
  unavailableLabel(){return 'نفد المنتج';},
- saveCart(){this.saved++;},
+ saveCart(){ctx.saved++;},
  $(){return {classList:{contains(){return true;}}};}
 };
 vm.createContext(ctx);
