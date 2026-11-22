@@ -1190,6 +1190,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
           <button type="button" class="ko-filter" data-filter="shipping" aria-pressed="false" onclick="koSetOrderFilter('shipping')">توصيل</button>
           <button type="button" class="ko-filter" data-filter="delivered" aria-pressed="false" onclick="koSetOrderFilter('delivered')">مكتمل</button>
           <button type="button" class="ko-filter" data-filter="cancelled" aria-pressed="false" onclick="koSetOrderFilter('cancelled')">ملغي</button>
+          <button type="button" class="ko-filter" data-filter="unclassified" aria-pressed="false" onclick="koSetOrderFilter('unclassified')">تحتاج مراجعة</button>
         </div>
       </div>
       <div id="ordersFoldersView">
@@ -3522,7 +3523,7 @@ function orderItemsText(order){
   }).join('\n');
 }
 
-function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
+function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي',unclassified:'غير محدد'})[s]||s}
 let orderCustomerGroups=new Map();
 let selectedOrdersCustomer=null;
 let selectedOrdersOrderId=null;
@@ -3563,11 +3564,14 @@ function buildOrderCustomerGroups(){
 }
 
 let koOrderFilter='all';
-const KO_ORDER_FILTERS=['all','new','preparing','shipping','delivered','cancelled'];
+const KO_ORDER_FILTERS=['all','new','preparing','shipping','delivered','cancelled','unclassified'];
 function koOrderStatus(o){
   if(isCancelledOrder(o))return 'cancelled';
-  const status=String(o?.status||'new');
-  return ['new','preparing','shipping','delivered'].includes(status)?status:'new';
+  // Older imports may have no status or an unfamiliar status. These are NOT
+  // new orders. Never manufacture a "new" state from missing backend data.
+  const status=String(o?.status??'').trim().toLowerCase();
+  return ['new','preparing','shipping','delivered'].includes(status)
+    ?status:'unclassified';
 }
 function koAdminDate(raw){
   const date=new Date(raw||'');
@@ -3578,7 +3582,7 @@ function koAdminDate(raw){
 const KO_ORDER_FILTER_LABELS={
   all:'جميع الطلبات',new:'الطلبات الجديدة',preparing:'طلبات قيد التجهيز',
   shipping:'طلبات قيد التوصيل',delivered:'الطلبات المكتملة',
-  cancelled:'الطلبات الملغاة'
+  cancelled:'الطلبات الملغاة',unclassified:'طلبات تحتاج مراجعة'
 };
 function koSetOrderFilter(next){
   if(!KO_ORDER_FILTERS.includes(next))return;
@@ -3636,7 +3640,9 @@ function orderCustomerHistoryCard(raw){
   const cancelledAt=cancellationDate(raw);
   const status=koOrderStatus(raw);
   const editable=!cancelled;
-  const statusOptions=['new','preparing','shipping','delivered','cancelled'];
+  const statusOptions=status==='unclassified'
+    ?['unclassified','new','preparing','shipping','delivered','cancelled']
+    :['new','preparing','shipping','delivered','cancelled'];
   const pay=o.payment==='card'?'بطاقة':o.payment==='cod'?'عند الاستلام':'غير محدد';
   const payDetail=o.paymentStatus==='paid'?' · مدفوع':'';
   const shipping=Number(o.deliveryFee)||0;
@@ -3662,7 +3668,7 @@ function orderCustomerHistoryCard(raw){
     <div class="ko-order-actions">
       <label for="ko-order-status-${esc(o.id||'')}">حالة الطلب</label>
       <select id="ko-order-status-${esc(o.id||'')}" class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="تحديث حالة الطلب ${esc(o.id||'')}" ${editable?'':'disabled title="لا يمكن تعديل الطلب الملغي"'}>
-        ${statusOptions.map(value=>`<option value="${value}" ${status===value?'selected':''}>${statusText(value)}</option>`).join('')}
+        ${statusOptions.map(value=>`<option value="${value}" ${status===value?'selected':''} ${value==='unclassified'?'disabled':''}>${statusText(value)}</option>`).join('')}
       </select>
       <span class="ko-action-help">${editable?'يحفظ التغيير تلقائياً بعد تأكيد الخادم.':'الطلب الملغي للعرض فقط'}</span>
     </div>
