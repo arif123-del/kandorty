@@ -7,6 +7,7 @@ on:
       - admin.html
       - index.html
       - tests/admin-discounts-image-stocks.cjs
+      - tests/color-cart-admin-regressions.cjs
       - .github/workflows/admin-discounts-image-stocks.yml
 permissions:
   contents: read
@@ -19,3 +20,4 @@ jobs:
         with:
           node-version: '22'
       - run: node tests/admin-discounts-image-stocks.cjs
+      - run: node tests/color-cart-admin-regressions.cjs
