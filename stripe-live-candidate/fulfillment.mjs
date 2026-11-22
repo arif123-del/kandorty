@@ -94,7 +94,7 @@ export function preparePaidFulfillment({
  check(Number.isSafeInteger(deliveryFils)&&deliveryFils>=0&&subtotal+deliveryFils===snapshot.totalFils,"snapshot_total_mismatch");
  // A successful payment must ALWAYS be recorded, even if stock became unavailable after checkout.
  // In that case do not debit ANY stock, mark the paid order for manual review/refund.
- const stockDebits={},updates=[];
+ const stockDebits={},imageStockDebits={},updates=[];
  let shortages=false;
  for(const [productId,need] of byProduct){
   const row=products[productId];
@@ -115,17 +115,42 @@ export function preparePaidFulfillment({
    shortages=true;
    continue;
   }
+  let nextColors=null;
+  const imageStocks=row.data.imageStocks;
+  if(imageStocks!==undefined&&imageStocks!==null){
+   const images=Array.isArray(row.data.images)?row.data.images:[];
+   if(images.length<1||images.length>8||!Array.isArray(imageStocks)||
+      imageStocks.length!==images.length||
+      !imageStocks.every(v=>Number.isSafeInteger(v)&&v>=0)||
+      imageStocks.reduce((sum,v)=>sum+v,0)!==current){
+    shortages=true;continue;
+   }
+   nextColors=[...imageStocks];
+   let outOfColor=false;
+   for(const item of snapshot.items.filter(i=>i.id===productId)){
+    const index=item.imageIndex??0;
+    if(index>=nextColors.length||nextColors[index]<item.qty){
+     outOfColor=true;break;
+    }
+    nextColors[index]-=item.qty;
+   }
+   if(outOfColor){shortages=true;continue;}
+   for(const item of snapshot.items.filter(i=>i.id===productId))
+    imageStockDebits[productId+'__img'+(item.imageIndex??0)]=item.qty;
+  }
   check(validVersion(row.updateTime),"missing_product_version");
   stockDebits[productId]=need;
   updates.push({
    path:path(root,"products",productId),
    updateTime:row.updateTime,
    stock:current-need,
-   totalStock:priorTotal
+   totalStock:priorTotal,
+   imageStocks:nextColors
   });
  }
  const inventoryStatus=shortages?"needs_review":"debited";
  const recordedDebits=shortages?{}:stockDebits;
+ const recordedImageDebits=shortages?{}:imageStockDebits;
  const order={
   id:snapshot.orderId,createdAt:snapshot.createdAt||nowISO,
   customer,customerName:customer.name,customerPhone:customer.phone,
@@ -143,6 +168,7 @@ export function preparePaidFulfillment({
   status:"new",inventoryStatus,
   stockDebited:!shortages&&Object.keys(recordedDebits).length>0,
   stockDebits:recordedDebits,
+  imageStockDebits:recordedImageDebits,
   editToken
  };
  // Never transfer an unauthenticated browser-provided uid into privileged order ownership.
@@ -164,15 +190,18 @@ export function preparePaidFulfillment({
   put("order_access",accessKey,access),
   put("stripe_checkout_sessions",snapshot.checkoutId,{
    ...snapshot,sessionId:session.id,fulfilled:true,
-   paidAt:nowISO,inventoryStatus,orderId:order.id,stockDebits:recordedDebits
+   paidAt:nowISO,inventoryStatus,orderId:order.id,stockDebits:recordedDebits,
+   imageStockDebits:recordedImageDebits
   },{updateTime:snapshotVersion})
  ];
  if(!shortages)for(const u of updates)writes.push({
   update:{name:u.path,fields:fields({
-   stock:u.stock,totalStock:u.totalStock,updatedAt:nowISO
+   stock:u.stock,totalStock:u.totalStock,updatedAt:nowISO,
+   ...(u.imageStocks!==null?{imageStocks:u.imageStocks}:{})
   })},
-  updateMask:{fieldPaths:["stock","totalStock","updatedAt"]},
+  updateMask:{fieldPaths:["stock","totalStock","updatedAt",...(u.imageStocks!==null?["imageStocks"]:[])]},
   currentDocument:{updateTime:u.updateTime}
  });
- return {replay:false,writes,order,inventoryStatus,stockDebits:recordedDebits};
+ return {replay:false,writes,order,inventoryStatus,stockDebits:recordedDebits,
+  imageStockDebits:recordedImageDebits};
 }
