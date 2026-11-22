@@ -1,7 +1,7 @@
 name: Admin discounts and photo quantities
 on:
   push:
-    branches: [feature/admin-discounts-image-quantities-20261120]
+    branches: [feature/admin-discounts-image-quantities-20261120, fix/cart-color-quantities-20261122]
   pull_request:
     paths:
       - admin.html
@@ -19,3 +19,4 @@ jobs:
         with:
           node-version: '22'
       - run: node tests/admin-discounts-image-stocks.cjs
+      - run: node tests/cart-color-stock.cjs
