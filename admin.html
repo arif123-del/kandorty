@@ -255,6 +255,27 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 }
 </style>
 
+<style id="admin-individual-customer-file">
+#adminCustomersTab .customer-folder-card{display:flex;align-items:center;gap:12px;width:100%;padding:16px;background:#fff;border:1px solid #e6d7db;border-radius:15px;text-align:right;color:#251c21;cursor:pointer}
+#adminCustomersTab .customer-folder-card:focus-visible,#adminCustomersTab .customer-file-back:focus-visible{outline:3px solid #b40018;outline-offset:2px}
+#adminCustomersTab .customer-folder-icon{font-size:25px;flex:none}
+#adminCustomersTab .customer-folder-info{flex:1;min-width:0}
+#adminCustomersTab .customer-folder-info strong{display:block;font-size:17px;overflow-wrap:anywhere}
+#adminCustomersTab .customer-folder-info small{display:block;font-size:13px;color:#756b70;margin-top:5px;overflow-wrap:anywhere}
+#adminCustomersTab .customer-file-back{display:inline-flex;align-items:center;padding:10px 14px;border:1px solid #d9c4ca;background:white;border-radius:12px;color:#7b112b;font-weight:700;cursor:pointer}
+#adminCustomersTab .customer-file-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+#adminCustomersTab .customer-file-heading{flex:1;margin:0;font-size:20px;color:#75142c}
+#adminCustomersTab .customer-file-panel{padding:14px;border:1px solid #e5d7dc;background:#fff;border-radius:15px;margin-bottom:13px}
+#adminCustomersTab .customer-file-panel h3{margin:0 0 12px;font-size:18px}
+#adminCustomersTab .customer-file-order{background:#fff;border:1px solid #e5d7dc;border-radius:12px;padding:13px;margin:0 0 12px;overflow-wrap:anywhere}
+#adminCustomersTab .customer-file-order-head{display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+#adminCustomersTab .customer-file-mini-profile{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:12px;border:1px solid #ebdbe0;border-radius:12px;margin:0 0 13px}
+#adminCustomersTab .customer-file-mini-profile div{min-width:0;overflow-wrap:anywhere}
+#adminCustomersTab .customer-file-mini-profile small{display:block;color:#74656b}
+#adminCustomersTab .customer-file-order-stack{display:grid;gap:10px}
+#adminCustomersTab .customer-file-status{font-weight:800;color:#79112c}
+#adminCustomersTab .customer-file-meta{font-size:13px;line-height:1.8}
+</style>
 <style id="admin-page-mode">
 #adminBtn{display:inline-flex!important}
 </style>
@@ -1092,7 +1113,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
-<input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+<input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
 <p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
@@ -1138,11 +1159,20 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="ordersCustomerContents"></div></section>
 </div>
 <div id="adminCustomersTab" class="hidden">
+  <div id="adminCustomersOverview">
   <div class="notice" style="margin-bottom:14px;font-size:16px">
     إجمالي العملاء: <b id="customerTotalCount" style="font-size:22px;color:var(--red)">0</b>
     <div id="customersSummary" style="margin-top:6px;font-size:13px;color:var(--muted)">حسابات الهاتف: 0 · المشترون: 0</div>
   </div>
-  <div id="customersList" class="admin-list"></div>
+  <div id="customersList" class="customer-folder-list" aria-label="ملفات العملاء"></div>
+  </div>
+  <section id="adminCustomerFileView" class="hidden" aria-label="ملف العميل">
+    <div class="customer-file-header">
+      <button class="customer-file-back" type="button" onclick="backToAdminCustomers()">➜ رجوع إلى العملاء</button>
+      <h3 id="adminCustomerFileTitle" class="customer-file-heading"></h3>
+    </div>
+    <div id="adminCustomerFileContent"></div>
+  </section>
 </div>
 
 <div id="adminBannerTab" class="hidden">
@@ -2029,7 +2059,7 @@ function previewImages(){
   const manualUrls=getImageUrls();
   const savedHtml=pendingImages.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="صورة محفوظة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeSavedImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
   const urlHtml=manualUrls.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="رابط صورة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeManualImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
-  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${imageQtyField(file)}</div>`}).join('');
+  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر عرض الصورة؛ اختاري JPG أو PNG'"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${imageQtyField(file)}</div>`}).join('');
   $('imagePreview').innerHTML=savedHtml+urlHtml+fileHtml;
   lastPhotoPreviewSources=[...pendingImages,...manualUrls,...pendingImageFiles];
   updateAggregateStockInput();
@@ -2044,11 +2074,17 @@ $('imageUrls').addEventListener('input',previewImages);
 $('imageFiles').addEventListener('change',e=>{
   // Mobile galleries return only the photos from the latest picker visit.
   // Append them to the unsaved product photos instead of replacing earlier picks.
-  const chosen=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type));
-  e.target.value=''; // Let the customer select the same file again on another visit.
+  const selected=Array.from(e.target.files||[]);
+  const validPhoto=file=>/^image\/(jpeg|jpg|png|webp)$/i.test(file.type||'')||
+    ((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
+  const chosen=selected.filter(validPhoto);
+  e.target.value=''; // Allow picking the same file again without losing previous picks.
   const totalBefore=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
   if(!chosen.length){
-    if(totalBefore)setUploadProgress(0,`الصور المختارة محفوظة في النموذج: ${totalBefore} من ${MAX_DIRECT_IMAGES}.`);
+    const message=selected.length
+      ? 'صيغة الصورة غير مدعومة (مثل HEIC). احفظي الصورة بصيغة JPG أو PNG ثم اختاريها مجدداً.'
+      : 'لم يتم اختيار صورة. افتحي المعرض واختاري صورة محفوظة على الهاتف.';
+    setUploadProgress(0,message+(totalBefore?` الصور السابقة: ${totalBefore}.`:''));
     return;
   }
   const room=Math.max(0,MAX_DIRECT_IMAGES-totalBefore);
@@ -2067,13 +2103,17 @@ $('imageFiles').addEventListener('change',e=>{
     seen.add(key);
     added++;
   }
-  if(added)previewImages();
+  if(added){
+    previewImages();
+    requestAnimationFrame(()=>$('imagePreview')?.scrollIntoView({block:'nearest',behavior:'smooth'}));
+  }
   const count=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
   const skipped=chosen.length-added;
   const message=added
     ? `تمت إضافة ${added} صورة. المجموع: ${count}/${MAX_DIRECT_IMAGES}. الصور السابقة ما زالت موجودة.`
     : `الصور المحددة موجودة مسبقاً. المجموع: ${count}/${MAX_DIRECT_IMAGES}.`;
-  setUploadProgress(0,skipped&&count>=MAX_DIRECT_IMAGES?message+' اكتمل الحد المسموح.':message);
+  setUploadProgress(0,(skipped&&count>=MAX_DIRECT_IMAGES?message+' اكتمل الحد المسموح.':message)+
+    (selected.length>chosen.length?' بعض الصور بصيغة غير مدعومة؛ استخدمي JPG أو PNG.':''));
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
@@ -2274,6 +2314,10 @@ $('productForm').onsubmit=async e=>{
       throw new Error('تم رفع الفيديو، لكن رابط الفيديو لم يُحفظ مع المنتج.');
     }
 
+    if(images.length && (!Array.isArray(savedData.images) || savedData.images.length!==images.length ||
+       !savedData.images.every((source,index)=>typeof source==='string'&&source===images[index]))){
+      throw new Error('تم حفظ بيانات المنتج، لكن لم يتم تأكيد جميع الصور في Firestore. راجعي المنتج قبل المحاولة مرة أخرى.');
+    }
     const confirmedProduct={...p,...savedData,id};
     if(old) products=products.map(x=>x.id===id?confirmedProduct:x);
     else products.unshift(confirmedProduct);
@@ -2282,9 +2326,12 @@ $('productForm').onsubmit=async e=>{
     render();
     renderAdminList();
 
+    const savedAsDiscount=isAdminDiscountProduct(confirmedProduct);
     resetForm();
     setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة${p.productVideoUrl?' + فيديو':''} بنجاح.`);
-    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}.`);
+    showAdminTab(savedAsDiscount?'discounts':'list',
+      document.querySelector(savedAsDiscount?'.admin-tabs .tab[onclick*="discounts"]':'.admin-tabs .tab[onclick*="list"]'));
+    alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}. ستجدينه الآن في قائمة المنتجات.`);
 
   }catch(err){
     console.error('Spark product save error:',err);
@@ -4750,89 +4797,127 @@ function startAdminCustomersListener(){
   });
 }
 
-function renderCustomers(){
-  if(!$('customersList'))return;
 
-  const map=new Map();
-
-  // 1) Registered phone-login accounts from Firestore /customers.
-  registeredCustomers.forEach(c=>{
-    const phone=String(c.phone||'').trim();
-    const normalized=normalizeOrderPhone(phone);
-    if(!normalized)return;
-
-    map.set(normalized,{
-      name:String(c.name||''),
-      phone,
-      city:'',
-      location:String(c.location||''),
-      orders:0,
-      total:0,
-      registered:true
-    });
-  });
-
-  // 2) Merge customers found in orders.
-  orders.map(effectiveOrderView).forEach(o=>{
-    const phone=String(o.customer?.phone||'').trim();
-    const normalized=normalizeOrderPhone(phone);
-    if(!normalized)return;
-
-    if(!map.has(normalized)){
-      map.set(normalized,{
-        ...o.customer,
-        phone,
-        orders:0,
-        total:0,
-        registered:false
-      });
-    }
-
-    const c=map.get(normalized);
-
-    // Prefer the freshest useful order details when a registered profile is sparse.
-    if(!c.name && o.customer?.name)c.name=o.customer.name;
-    if(!c.city && o.customer?.city)c.city=o.customer.city;
-    if(!c.location && o.customer?.location)c.location=o.customer.location;
-
-    c.orders+=1;
-    c.total+=Number(o.total||0);
-  });
-
-  const list=[...map.values()]
-    .sort((a,b)=>Number(b.registered)-Number(a.registered) || b.orders-a.orders);
-
-  const totalCustomers=list.length;
-  const registeredCount=list.filter(c=>c.registered).length;
-  const buyersCount=list.filter(c=>c.orders>0).length;
-
-  if($('customerTotalCount'))$('customerTotalCount').textContent=String(totalCustomers);
-
-  const badge=$('customersTabCount');
-  if(badge){
-    badge.textContent=String(totalCustomers);
-    badge.style.display=totalCustomers>0?'inline-flex':'none';
-  }
-
-  const summary=$('customersSummary');
-  if(summary){
-    summary.innerHTML=`حسابات الهاتف: <b>${registeredCount}</b> · المشترون: <b>${buyersCount}</b>`;
-  }
-
-  $('customersList').innerHTML=list.length
-    ?list.map(c=>`<div class="admin-item">
-      <div class="grow">
-        <b>${esc(c.name||'عميل')}</b>
-        ${c.registered?'<span class="customer-edit-badge" style="margin-inline-start:8px">حساب هاتف</span>':''}
-        <br>
-        <small>${esc(c.phone)}${c.city?' · '+esc(c.city):''}${c.location?' · '+esc(c.location):''}</small>
-        <br>
-        <small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}</small>
-      </div>
-    </div>`).join('')
-    :'<div class="empty">لا يوجد عملاء بعد</div>';
+let adminCustomerDirectory=new Map();
+let openedAdminCustomerKey=null;
+let adminCustomerDirectoryScroll=0;
+function adminCustomerScrollable(){return $('adminModal')?.querySelector('.modal-card');}
+function renderAdminCustomerFile(){
+ const file=$('adminCustomerFileView'),overview=$('adminCustomersOverview'),content=$('adminCustomerFileContent');
+ if(!file||!overview||!content)return;
+ const c=adminCustomerDirectory.get(openedAdminCustomerKey);
+ if(!c){openedAdminCustomerKey=null;file.classList.add('hidden');overview.classList.remove('hidden');return;}
+ overview.classList.add('hidden');file.classList.remove('hidden');
+ $('adminCustomerFileTitle').textContent='ملف '+(c.name||'العميل');
+ const list=(c.history||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+ const location=[c.city,c.location].filter(Boolean).join(' - ')||'-';
+ content.innerHTML=`<div class="customer-file-mini-profile">
+ <div><small>الاسم</small><b>${esc(c.name||'عميل')}</b></div>
+ <div><small>رقم الهاتف</small><b dir="ltr">${esc(c.phone||'-')}</b></div>
+ <div><small>الموقع</small><b>${esc(location)}</b></div>
+ <div><small>عدد الطلبات</small><b>${list.length}</b></div>
+ <div><small>إجمالي المشتريات</small><b>${money(c.total)}</b></div>
+ </div>
+ <section class="customer-file-panel"><h3>طلبات هذا العميل</h3><div class="customer-file-order-stack">
+ ${list.length?list.map(raw=>{
+  const o=effectiveOrderView(raw);
+  const date=o.createdAt?new Date(o.createdAt).toLocaleString('ar-AE'):'-';
+  const canceled=isCancelledOrder(raw);
+  return `<article class="customer-file-order">
+   <div class="customer-file-order-head">
+    <div><b>رقم الطلب: <span dir="ltr">${esc(o.id||'')}</span></b>
+    <div style="font-size:12px;color:#71636b">${esc(date)}</div></div>
+    <b class="customer-file-status">${esc(statusText(canceled?'cancelled':o.status))}</b>
+   </div>
+   ${renderOrderItemsHtml(o)}
+   <div class="customer-file-meta">
+    <div>طريقة الدفع: ${o.payment==='card'?'الدفع بالبطاقة':'الدفع عند الاستلام'}</div>
+    <div>الإجمالي: ${money(o.total||0)}</div>
+    ${o.notes?`<div>ملاحظات: ${esc(o.notes)}</div>`:''}
+   </div>
+  </article>`;
+ }).join(''):'<div class="empty">لا توجد طلبات لهذا العميل بعد.</div>'}
+ </div></section>`;
 }
-
+function openAdminCustomerFile(key){
+ if(!adminCustomerDirectory.has(String(key)))return;
+ const card=adminCustomerScrollable();
+ adminCustomerDirectoryScroll=card?.scrollTop||0;
+ openedAdminCustomerKey=String(key);
+ renderAdminCustomerFile();
+ if(card)card.scrollTop=Math.max(0,adminContentAnchorTop());
+ try{history.pushState({...history.state,kandortyAdminCustomer:openedAdminCustomerKey},'');}
+ catch(error){console.warn('Customer file browser history unavailable:',error);}
+}
+function restoreAdminCustomerDirectory(){
+ openedAdminCustomerKey=null;
+ renderAdminCustomerFile();
+ const card=adminCustomerScrollable();
+ if(card){
+  card.scrollTop=adminCustomerDirectoryScroll;
+  requestAnimationFrame(()=>{if(!openedAdminCustomerKey)card.scrollTop=adminCustomerDirectoryScroll;});
+ }
+}
+function backToAdminCustomers(){
+ if(history.state?.kandortyAdminCustomer===openedAdminCustomerKey)history.back();
+ else restoreAdminCustomerDirectory();
+}
+(function initAdminCustomerFiles(){
+ $('customersList')?.addEventListener('click',event=>{
+  const card=event.target.closest('[data-admin-customer]');
+  if(card)openAdminCustomerFile(card.dataset.adminCustomer);
+ });
+ window.addEventListener('popstate',event=>{
+  if($('adminCustomersTab')?.classList.contains('hidden'))return;
+  const key=String(event.state?.kandortyAdminCustomer||'');
+  if(key&&adminCustomerDirectory.has(key)){
+   openedAdminCustomerKey=key;renderAdminCustomerFile();
+  }else restoreAdminCustomerDirectory();
+ });
+})();
+function renderCustomers(){
+ if(!$('customersList'))return;
+ const map=new Map();
+ // Merge one customer's registered profile and order history only by normalized phone.
+ registeredCustomers.forEach(c=>{
+  const phone=String(c.phone||'').trim(),key=normalizeOrderPhone(phone);
+  if(!key)return;
+  map.set(key,{key,name:String(c.name||''),phone,city:'',location:String(c.location||''),
+   orders:0,total:0,registered:true,history:[]});
+ });
+ orders.forEach(raw=>{
+  const o=effectiveOrderView(raw),phone=String(o.customer?.phone||'').trim();
+  const key=normalizeOrderPhone(phone);
+  if(!key)return;
+  if(!map.has(key))map.set(key,{
+   key,name:String(o.customer?.name||''),phone,city:String(o.customer?.city||''),
+   location:String(o.customer?.location||''),orders:0,total:0,registered:false,history:[]
+  });
+  const c=map.get(key);
+  if(!c.name&&o.customer?.name)c.name=o.customer.name;
+  if(!c.city&&o.customer?.city)c.city=o.customer.city;
+  if(!c.location&&o.customer?.location)c.location=o.customer.location;
+  c.orders++;c.total+=Number(o.total)||0;c.history.push(raw);
+ });
+ adminCustomerDirectory=map;
+ const list=[...map.values()].sort((a,b)=>Number(b.registered)-Number(a.registered)||b.orders-a.orders);
+ const totalCustomers=list.length,registeredCount=list.filter(c=>c.registered).length;
+ const buyersCount=list.filter(c=>c.orders>0).length;
+ if($('customerTotalCount'))$('customerTotalCount').textContent=String(totalCustomers);
+ const badge=$('customersTabCount');
+ if(badge){badge.textContent=String(totalCustomers);badge.style.display=totalCustomers>0?'inline-flex':'none';}
+ const summary=$('customersSummary');
+ if(summary)summary.innerHTML=`حسابات الهاتف: <b>${registeredCount}</b> · المشترون: <b>${buyersCount}</b>`;
+ $('customersList').innerHTML=list.length?list.map(c=>`<button type="button" class="customer-folder-card"
+  data-admin-customer="${esc(c.key)}" aria-label="فتح ملف العميل ${esc(c.name||'عميل')}">
+   <span class="customer-folder-icon" aria-hidden="true">📁</span>
+   <span class="customer-folder-info"><strong>${esc(c.name||'عميل')}</strong>
+    <small dir="ltr">${esc(c.phone)}</small>
+    <small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}${c.registered?' · حساب هاتف':''}</small>
+   </span><span aria-hidden="true" class="customer-folder-chevron">‹</span>
+  </button>`).join(''):'<div class="empty">لا يوجد عملاء بعد</div>';
+ if(openedAdminCustomerKey)renderAdminCustomerFile();
+}
 function mountHeroMediaSlot(){
   const heroCopy=document.querySelector('.hero-copy');
   const section=$('homeVideoSection');

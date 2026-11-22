@@ -43,3 +43,28 @@ assert.ok(admin.includes('id="adminProductQuickAccess"'));
 assert.ok(admin.includes('الكمي' + 'ة لكل صورة'));
 assert.ok(admin.includes('photo-qty-input'));
 console.log('Discount and per-image quantity UI smoke checks passed.');
+
+for (const snippet of [
+ 'id="adminCustomersOverview"',
+ 'id="adminCustomerFileView"',
+ 'id="adminCustomerFileContent"',
+ 'function renderAdminCustomerFile()',
+ 'function openAdminCustomerFile(key)',
+ 'function backToAdminCustomers()',
+ 'data-admin-customer=',
+ 'adminCustomerDirectory=map',
+ 'c.history.push(raw)',
+ 'renderOrderItemsHtml(o)',
+ 'accept="image/*"',
+ 'const chosen=selected.filter(validPhoto)',
+ 'pendingImageFiles.push(file)',
+ "previewImages();",
+ 'scrollIntoView({block:',
+ 'savedData.images.every(',
+ "showAdminTab(savedAsDiscount?'discounts':'list'"
+]) {
+ assert.ok(admin.includes(snippet),'Customer files/image preview missing '+snippet);
+}
+assert.ok(admin.includes('صيغة الصورة غير مدعومة'),'Unsupported image formats must show a helpful error');
+assert.ok(admin.includes("onerror=\"this.closest('.preview-item').classList.add('image-error')"),'Image preview must show broken-photo fallback');
+console.log('Customer file separation, order photo rendering, mobile image selection and saved-photo verification smoke checks passed.');
