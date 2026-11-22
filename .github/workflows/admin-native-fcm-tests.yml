@@ -25,3 +25,10 @@ jobs:
         run: node --test stripe-release/native-push.test.mjs stripe-release/admin-auth.test.mjs stripe-release/order-push.test.mjs
       - name: Verify color-specific COD, Stripe, and cancellation stock
         run: node --test stripe-live-candidate/cod.test.mjs stripe-live-candidate/fulfillment.test.mjs stripe-release/release.test.mjs
+      - name: Bundle color-safe Worker for review only
+        run: npx --yes wrangler@4.153.0 deploy --dry-run --config stripe-release/wrangler.release.example.json --outdir /tmp/kandorty-color-safe-worker
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kandorty-variant-stock-worker-review
+          path: /tmp/kandorty-color-safe-worker
+          retention-days: 7
