@@ -145,3 +145,29 @@ test('duplicate same image rows combine; different images remain separate',()=>{
 test('test-project cannot accidentally become production COD target',async()=>{
  await fault({projectId:'kandorty-stripe-test-5f8af'},'invalid_project');
 });
+
+
+test('COD enforces three independent color quantities, never borrowing stock',async()=>{
+ const f=await fixture();
+ const p=f.products.dressA.data;
+ p.images=['https://cdn.test/red','https://cdn.test/blue','https://cdn.test/black'];
+ p.stock=9;p.totalStock=9;p.imageStocks=[3,3,3];
+ f.request.items=[{id:'dressA',qty:3,imageIndex:0},{id:'dressA',qty:3,imageIndex:1},{id:'dressA',qty:3,imageIndex:2}];
+ const approved=await prepareCodOrder(f);
+ assert.equal(approved.order.stockDebits.dressA,9);
+ assert.deepEqual(approved.order.stockDebitsByImage,{dressA__img0:3,dressA__img1:3,dressA__img2:3});
+ const write=approved.writes.find(w=>w.update.name.endsWith('/products/dressA'));
+ assert.equal(write.update.fields.stock.integerValue,'0');
+ assert.deepEqual(write.update.fields.imageStocks.arrayValue.values.map(v=>Number(v.integerValue)),[0,0,0]);
+ assert.deepEqual(write.updateMask.fieldPaths,['stock','totalStock','updatedAt','imageStocks']);
+ const again=await fixture();
+ again.products.dressA.data={...p,imageStocks:[3,3,3]};
+ again.request.items=[{id:'dressA',qty:4,imageIndex:0}];
+ await assert.rejects(prepareCodOrder(again),/insufficient_variant_stock/);
+});
+test('COD cannot use incorrect image stock sums or fabricated variants',async()=>{
+ const f=await fixture();f.products.dressA.data.imageStocks=[2,2];
+ await assert.rejects(prepareCodOrder(f),/variant_stock_inconsistent/);
+ f.products.dressA.data.imageStocks=[5];
+ await assert.rejects(prepareCodOrder(f),/variant_stock_not_configured/);
+});
