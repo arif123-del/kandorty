@@ -151,3 +151,32 @@ test('duplicate cart variant or quantity overflow fails before any stock mutatio
 test('TEST project cannot be accidentally used as LIVE destination',()=>{
  expectFault({projectId:'kandorty-stripe-test-5f8af'},'test_project_not_live');
 });
+
+
+test('Paid 3-color item debits exact selected colors, not total stock only',()=>{
+ const f=fixture();
+ f.products.p1.data.images=['red','blue','black'];
+ f.products.p1.data.imageStocks=[2,1,1]; // p1 current stock = 4
+ const p=preparePaidFulfillment(f);
+ assert.equal(p.inventoryStatus,'debited');
+ assert.deepEqual(p.order.stockDebitsByImage,{p1__img0:2,p1__img1:1});
+ const w=p.writes.find(w=>w.update.name.endsWith('/products/p1'));
+ assert.equal(w.update.fields.stock.integerValue,'1');
+ assert.deepEqual(w.update.fields.imageStocks.arrayValue.values.map(x=>Number(x.integerValue)),[0,0,1]);
+ assert.deepEqual(w.updateMask.fieldPaths,['stock','totalStock','updatedAt','imageStocks']);
+});
+test('Paid oversold color, inconsistent image stocks => needs_review, zero debits',()=>{
+ const f=fixture();
+ f.products.p1.data.images=['red','blue','black'];
+ f.products.p1.data.imageStocks=[1,2,1]; // 4 units total but red only one
+ const p=preparePaidFulfillment(f);
+ assert.equal(p.order.paymentStatus,'paid');
+ assert.equal(p.order.inventoryStatus,'needs_review');
+ assert.deepEqual(p.stockDebits,{});
+ assert.deepEqual(p.stockDebitsByImage,{});
+ assert.equal(p.writes.filter(w=>w.update.name.includes('/products/')).length,0);
+ const g=fixture();g.products.p1.data.imageStocks=[2,1];
+ const q=preparePaidFulfillment(g);
+ assert.equal(q.order.inventoryStatus,'needs_review');
+ assert.equal(q.writes.filter(w=>w.update.name.includes('/products/')).length,0);
+});
