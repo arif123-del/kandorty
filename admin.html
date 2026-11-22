@@ -47,7 +47,14 @@ footer{background:#111;color:#fff;margin-top:40px;padding:34px 0}.footer-grid{di
 .images-preview .image-error{border:1px dashed #b00020;border-radius:8px;min-height:90px;background:#fff3f5}.images-preview .image-error img{opacity:.25}
 .images-preview{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.images-preview .preview-item{position:relative}.images-preview img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--line)}.remove-image{position:absolute;top:4px;left:4px;width:26px;height:26px;border:0;border-radius:50%;background:#b00020;color:#fff;font-weight:900;cursor:pointer}.upload-box{border:1px dashed #c9b7bd;border-radius:12px;padding:12px;background:#fff8fa}.progress-wrap{height:10px;background:#eee;border-radius:99px;overflow:hidden;margin-top:8px}.progress-bar{height:100%;width:0;background:#111;transition:width .2s}.upload-status{font-size:13px;color:#666;margin-top:6px}
 .admin-list{display:grid;gap:10px}.admin-item{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center}.admin-item img{width:65px;height:75px;object-fit:cover;border-radius:9px}
-.admin-item .grow{flex:1}.admin-item small{color:var(--muted)}.admin-actions{display:flex;gap:6px;flex-wrap:wrap}
+.admin-item .grow{flex:1}.admin-item small{color:var(--muted)}
+.admin-product-thumbs{display:flex;gap:6px;align-items:center;max-width:240px;overflow-x:auto;flex:none}
+.admin-product-thumb{background:#fff;border:1px solid #e1d5d9;border-radius:9px;padding:3px;cursor:pointer;min-width:62px;max-width:72px;text-align:center;color:#422630}
+.admin-item .admin-product-thumb img{display:block;width:60px;height:68px;object-fit:cover}
+.admin-product-thumb span{display:block;font-size:11px;white-space:nowrap}
+.admin-extra-photo-count{font-size:11px;white-space:nowrap}
+.admin-product-no-photo{width:65px;height:75px;background:#eee;border-radius:9px;display:grid;place-items:center;font-size:11px;color:#777}
+@media(max-width:680px){.admin-item{flex-wrap:wrap}.admin-product-thumbs{max-width:100%}}.admin-actions{display:flex;gap:6px;flex-wrap:wrap}
 .notice{background:#fff7d8;border:1px solid #ead27b;padding:12px;border-radius:12px;line-height:1.7;font-size:14px}
 .login-box{max-width:360px;margin:auto}.login-box input{width:100%;padding:13px;border:1px solid var(--line);border-radius:10px;margin:8px 0}
 @media(max-width:850px){.products{grid-template-columns:repeat(2,1fr)}.cats{grid-template-columns:repeat(2,1fr)}.hero-grid{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr}}
@@ -1068,7 +1075,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div id="adminMenuBackdrop" class="admin-menu-backdrop hidden" aria-hidden="true" onclick="closeAdminMenu()"></div>
 <aside id="adminNavDrawer" class="admin-nav-drawer hidden" role="navigation" aria-label="قائمة الإدارة" aria-hidden="true">
   <div class="admin-nav-heading"><strong>☰ قائمة الإدارة</strong><button type="button" class="admin-nav-dismiss" aria-label="إغلاق القائمة" onclick="closeAdminMenu()">×</button></div>
-  <button id="orderSoundBtn" class="btn ghost admin-nav-sound" type="button" onclick="enableOrderSound()">🔔 تفعيل إشعارات الطلبات</button>
+  <button id="orderSoundBtn" class="btn ghost admin-nav-sound" type="button" onclick="enableOrderSound()">تفعيل إشعارات الطلبات</button>
   <div class="admin-tabs" aria-label="أقسام الإدارة">
     <button type="button" class="tab active" onclick="showAdminTab('form',this)">إضافة منتج</button>
     <button type="button" class="tab" onclick="showAdminTab('list',this)">المنتجات</button>
@@ -2025,7 +2032,7 @@ function capturePreviewPhotoQuantities(){
 }
 function imageQtyField(source){
   const saved=pendingPhotoQuantities.has(source)?pendingPhotoQuantities.get(source):'';
-  return '<label class="photo-stock-label">الكمية <input class="photo-qty-input" type="number" min="0" step="1" inputmode="numeric" required aria-label="كمية هذه الصورة" value="'+esc(String(saved))+'"></label>';
+  return '<label class="photo-stock-label">مخزون هذا اللون <input class="photo-qty-input" type="number" min="0" step="1" inputmode="numeric" required aria-label="مخزون هذا اللون" value="'+esc(String(saved))+'"></label>';
 }
 function updateAggregateStockInput(){
   const input=$('stock');
@@ -2318,6 +2325,12 @@ $('productForm').onsubmit=async e=>{
        !savedData.images.every((source,index)=>typeof source==='string'&&source===images[index]))){
       throw new Error('تم حفظ بيانات المنتج، لكن لم يتم تأكيد جميع الصور في Firestore. راجعي المنتج قبل المحاولة مرة أخرى.');
     }
+    if(!Array.isArray(savedData.imageStocks) ||
+       savedData.imageStocks.length!==imageStocks.length ||
+       !savedData.imageStocks.every((qty,index)=>qty===imageStocks[index]) ||
+       Number(savedData.stock)!==perImageTotal){
+      throw new Error('تم حفظ المنتج لكن لم يتم تأكيد مخزون كل لون من الخادم. لا تعيدي حفظه قبل مراجعة المنتج.');
+    }
     const confirmedProduct={...p,...savedData,id};
     if(old) products=products.map(x=>x.id===id?confirmedProduct:x);
     else products.unshift(confirmedProduct);
@@ -2367,6 +2380,23 @@ function resetForm(){
   previewImages();
   setUploadProgress(0,'اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.');
 }
+function adminProductPreviewHtml(p){
+  const images=Array.isArray(p.images)?p.images.filter(Boolean):[];
+  if(!images.length)return '<div class="admin-product-no-photo">بدون صورة</div>';
+  const stocks=Array.isArray(p.imageStocks)?p.imageStocks:[];
+  return '<div class="admin-product-thumbs" aria-label="صور وألوان المنتج">'+
+    images.slice(0,3).map((src,index)=>
+      '<button type="button" class="admin-product-thumb" onclick="openAdminProductPhoto(\''+esc(p.id)+'\','+index+')" aria-label="عرض اللون '+(index+1)+'">'+
+      '<img src="'+esc(src)+'" loading="lazy" onerror="this.alt=\'تعذر عرض الصورة\'" alt="اللون '+(index+1)+'">'+
+      '<span>لون '+(index+1)+(Number.isSafeInteger(stocks[index])?' · '+stocks[index]:'')+'</span></button>'
+    ).join('')+
+    (images.length>3?'<span class="admin-extra-photo-count">+'+(images.length-3)+' صور</span>':'')+'</div>';
+}
+function openAdminProductPhoto(id,index){
+  openProduct(id);
+  currentProductImageIndex=Math.max(0,Math.min(Number(index)||0,currentProductImages.length-1));
+  renderProductGallery();
+}
 function renderAdminList(){
   const regularProducts=products.filter(p=>!isAdminDiscountProduct(p));
   $('adminList').innerHTML=regularProducts.length?regularProducts.map(p=>{
@@ -2377,7 +2407,7 @@ function renderAdminList(){
       ? (stock<=0?100:Math.max(0,Math.min(99,Math.round(((total-stock)/total)*100))))
       : null;
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
-    return `<div class="admin-item">${p.images?.[0]?`<img src="${p.images[0]}">`:'<div style="width:65px;height:75px;background:#eee"></div>'}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
+    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
   }).join(''):'<div class="empty">لا توجد منتجات عادية</div>';
   renderDiscountList();
 }
@@ -2386,15 +2416,27 @@ function renderDiscountList(){
   const discounted=products.filter(isAdminDiscountProduct);
   host.innerHTML=discounted.length?discounted.map(p=>{
     const stock=getProductStock(p);
-    return '<div class="admin-item">'+(p.images?.[0]?'<img src="'+esc(p.images[0])+'">':'<div style="width:65px;height:75px;background:#eee"></div>')+
+    return '<div class="admin-item">'+adminProductPreviewHtml(p)+
       '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small></div>'+
       '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+
       '<button class="btn ghost" onclick="toggleProduct(\''+p.id+'\')">'+(p.active===false?'إظهار':'إخفاء')+'</button>'+
       '<button class="btn primary" onclick="deleteProduct(\''+p.id+'\')">حذف</button></div></div>';
   }).join(''):'<div class="empty">لا توجد منتجات في التخفيضات</div>';
 }
-function editProduct(id){
-  const p=products.find(x=>x.id===id);if(!p)return;
+async function editProduct(id){
+  let p=products.find(x=>x.id===id);if(!p)return;
+  // The first-paint cache keeps only one large embedded photo. Never edit
+  // that partial object or saving would erase the remaining colors.
+  try{
+    const snap=await db.collection('products').doc(id).get({source:'server'});
+    if(!snap.exists)throw new Error('product_not_found');
+    p={id:snap.id,...snap.data()};
+    products=products.map(x=>x.id===id?p:x);
+  }catch(error){
+    console.error('Complete product load failed:',error);
+    alert('تعذر تحميل صور المنتج كاملة من الخادم. لم تتغير بياناته. تأكدي من الإنترنت ثم أعيدي المحاولة.');
+    return;
+  }
   showAdminTab('form',document.querySelector('.tab'));
   discountFormMode=isAdminDiscountProduct(p);
   $('salePrice').required=discountFormMode;
@@ -2413,8 +2455,10 @@ function editProduct(id){
     pendingPhotoQuantities.set(src,String(current));
     allowance-=current;
   });
-  $('imageUrls').value=existing.filter(x=>/^https?:\/\//i.test(x)).join('\n');
-  pendingImages=existing.filter(x=>/^data:image\//i.test(x));
+  // Retain exact image order, including mixed external URLs and data images.
+  // Photo index is the color identity in the live checkout Worker.
+  $('imageUrls').value='';
+  pendingImages=existing.filter(x=>typeof x==='string'&&x.length>0);
   pendingImagePaths=[];pendingImageFiles=[];$('imageFiles').value='';previewImages();
   window.pendingProductVideoUrl=String(p.productVideoUrl||'').trim();
   window.uploadedProductVideoFile=null;
@@ -2574,7 +2618,7 @@ async function enableOrderSound(){
     if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
     await call({action:'subscribe',endpoint:subscription.endpoint});
     localStorage.setItem('adminPushEnabled','1');
-    button.textContent='🔔 إشعارات الطلبات في الخلفية مُفعّلة';
+    button.textContent='إشعارات الطلبات في الخلفية مُفعّلة';
   }catch(error){alert(error.message||'تعذّر تفعيل إشعارات الخلفية.');}
   finally{button.disabled=false;}
 }
@@ -4880,15 +4924,18 @@ function renderCustomers(){
  const map=new Map();
  // Merge one customer's registered profile and order history only by normalized phone.
  registeredCustomers.forEach(c=>{
-  const phone=String(c.phone||'').trim(),key=normalizeOrderPhone(phone);
+  const phone=String(c.phone||'').trim();
+  const uid=String(c.uid||c.id||'').trim();
+  const key=normalizeOrderPhone(phone)||(uid?'uid:'+uid:'');
   if(!key)return;
   map.set(key,{key,name:String(c.name||''),phone,city:'',location:String(c.location||''),
    orders:0,total:0,registered:true,history:[]});
  });
- orders.forEach(raw=>{
+ orders.forEach((raw,position)=>{
   const o=effectiveOrderView(raw),phone=String(o.customer?.phone||'').trim();
-  const key=normalizeOrderPhone(phone);
-  if(!key)return;
+  const uid=String(o.customerUid||o.customer?.uid||'').trim();
+  // Guest orders without a phone still need a private, individual folder.
+  const key=normalizeOrderPhone(phone)||(uid?'uid:'+uid:'order:'+String(o.id||'unknown-'+position));
   if(!map.has(key))map.set(key,{
    key,name:String(o.customer?.name||''),phone,city:String(o.customer?.city||''),
    location:String(o.customer?.location||''),orders:0,total:0,registered:false,history:[]
@@ -4912,7 +4959,7 @@ function renderCustomers(){
   data-admin-customer="${esc(c.key)}" aria-label="فتح ملف العميل ${esc(c.name||'عميل')}">
    <span class="customer-folder-icon" aria-hidden="true">📁</span>
    <span class="customer-folder-info"><strong>${esc(c.name||'عميل')}</strong>
-    <small dir="ltr">${esc(c.phone)}</small>
+    <small dir="ltr">${esc(c.phone||'—')}</small>
     <small>الطلبات: ${c.orders} · الإجمالي: ${money(c.total)}${c.registered?' · حساب هاتف':''}</small>
    </span><span aria-hidden="true" class="customer-folder-chevron">‹</span>
   </button>`).join(''):'<div class="empty">لا يوجد عملاء بعد</div>';

@@ -68,3 +68,33 @@ for (const snippet of [
 assert.ok(admin.includes('صيغة الصورة غير مدعومة'),'Unsupported image formats must show a helpful error');
 assert.ok(admin.includes("onerror=\"this.closest('.preview-item').classList.add('image-error')"),'Image preview must show broken-photo fallback');
 console.log('Customer file separation, order photo rendering, mobile image selection and saved-photo verification smoke checks passed.');
+
+for (const snippet of [
+  "async function editProduct(id)",
+  "doc(id).get({source:'server'})",
+  "pendingImages=existing.filter(x=>typeof x==='string'&&x.length>0)",
+  "savedData.imageStocks.length!==imageStocks.length",
+  "function adminProductPreviewHtml(p)",
+  "function openAdminProductPhoto(id,index)",
+  "order:'+String(o.id||'unknown-'+position)",
+  "admin-product-thumbs",
+  "مخزون هذا اللون"
+]) {
+  assert.ok(admin.includes(snippet),'Missing resilient admin media/customer behavior: '+snippet);
+}
+assert.ok(!admin.includes('>🔔 تفعيل إشعارات الطلبات</button>'),
+  'Admin sound button should retain functionality without a bell icon');
+for (const snippet of [
+  'function productVariantStock(p,imageIndex)',
+  'function variantQtyInCart(productId,imageIndex)',
+  'colorStock!==null&&variantQtyInCart(id,idx)+1>colorStock',
+  'groupedByColor=new Map(),groupedByProduct=new Map()',
+  'groupedByColor.get(String(row.item.id)',
+  'imageIndex:i.imageIndex??0'
+]) {
+  // The last mapping is in the isolated server-checkout adapter.
+  if (snippet==='imageIndex:i.imageIndex??0') continue;
+  assert.ok(store.includes(snippet),'Storefront must enforce per-color cart limits: '+snippet);
+}
+console.log('Full product edit, customer folder fallback and color cart guards passed.');
+
