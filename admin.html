@@ -3433,15 +3433,25 @@ function normalizeOrderShape(raw){
 function renderOrderCustomerHtml(order){
   const c=normalizeOrderShape(order).customer||{};
   const locations=[c.city,c.location].map(v=>String(v||'').trim()).filter(Boolean);
-  const uniqueLocations=locations.filter((v,i)=>locations.findIndex(x=>x.toLocaleLowerCase()===v.toLocaleLowerCase())===i);
-  const locationText=uniqueLocations.join(' - ')||'-';
-  return `<div class="customer-file-mini-profile" aria-label="معلومات العميل">
-    <div><small>الاسم</small><b>${esc(c.name||'-')}</b></div>
-    <div><small>رقم الهاتف</small><b dir="ltr">${esc(c.phone||'-')}</b></div>
-    <div><small>الموقع</small><b>${esc(locationText)}</b></div>
+  const unique=locations.filter((v,i)=>locations.findIndex(x=>x.toLocaleLowerCase()===v.toLocaleLowerCase())===i);
+  const locationText=unique.join(' - ')||'—';
+  const phone=String(c.phone||'').trim();
+  const digits=phone.replace(/\D/g,'');
+  const local=normalizeOrderPhone(phone);
+  const tel=digits.length>=6&&digits.length<=18?phone.replace(/[^0-9+]/g,''):'';
+  const wa=/^05\d{8}$/.test(local)?'971'+local.slice(1):'';
+  return `<div class="ko-profile-card" aria-label="بيانات العميل">
+    <div class="customer-file-mini-profile">
+      <div><small>اسم العميل</small><b>${esc(c.name||'—')}</b></div>
+      <div><small>رقم الهاتف</small><b dir="ltr">${esc(phone||'—')}</b></div>
+      <div><small>الإمارة والعنوان</small><b>${esc(locationText)}</b></div>
+    </div>
+    ${tel||wa?`<div class="ko-contact-actions">
+      ${tel?`<a href="tel:${esc(tel)}">اتصال بالعميل</a>`:''}
+      ${wa?`<a class="ko-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">واتساب</a>`:''}
+    </div>`:''}
   </div>`;
 }
-
 function catalogOrderImage(id,code,index){
   const product=products.find(p=>String(p.id)===id)
     || (code && products.find(p=>p.code===code));
@@ -3537,43 +3547,77 @@ function buildOrderCustomerGroups(){
   return groups;
 }
 
+let koOrderFilter='all';
+const KO_ORDER_FILTERS=['all','new','preparing','shipping','delivered','cancelled'];
+function koOrderStatus(o){
+  if(isCancelledOrder(o))return 'cancelled';
+  const status=String(o?.status||'new');
+  return ['new','preparing','shipping','delivered'].includes(status)?status:'new';
+}
+function koAdminDate(raw){
+  const date=new Date(raw||'');
+  return Number.isFinite(date.getTime())
+    ?date.toLocaleString('ar-AE',{dateStyle:'medium',timeStyle:'short'})
+    :'—';
+}
+function koSetOrderFilter(next){
+  if(!KO_ORDER_FILTERS.includes(next))return;
+  koOrderFilter=next;
+  if(selectedOrdersCustomer){returnToOrdersList();return;}
+  renderOrders();
+}
 function orderCustomerFolderCard(g){
-  return `<button type="button" class="customer-folder-card" data-orders-customer="${esc(g.key)}" aria-label="فتح ملف طلبات ${esc(g.name||'العميل')}">
-    <span class="customer-folder-icon" aria-hidden="true">📁</span>
-    <span class="customer-folder-info"><strong>${esc(g.name||'عميل')}</strong>
+  const latest=[...g.history].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')))[0];
+  const last=effectiveOrderView(latest||{});
+  const status=koOrderStatus(latest||{});
+  const pending=g.history.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
+  const code=String(last.id||'—');
+  return `<button type="button" class="customer-folder-card" data-orders-customer="${esc(g.key)}" aria-label="فتح ملف ${esc(g.name||'عميل')}">
+    <span class="customer-folder-icon" aria-hidden="true">▣</span>
+    <span class="customer-folder-info">
+      <span class="ko-folder-top"><strong>${esc(g.name||'عميل بدون اسم')}</strong>
+      <span class="ko-status" data-status="${esc(status)}">${esc(statusText(status))}</span></span>
       <small>${esc(g.phone||'بدون رقم هاتف')}${g.city?' · '+esc(g.city):''}</small>
-      <small>عدد الطلبات: ${g.history.length} · المجموع: ${money(g.total)}</small>
-      ${g.cancelled?`<small style="color:#97192a;font-weight:800">🔔 طلبات ملغاة: ${g.cancelled}</small>`:''}
+      <small class="ko-folder-code">آخر طلب: <b dir="ltr">${esc(code)}</b> · ${esc(koAdminDate(last.createdAt))}</small>
+      <span class="ko-folder-footer"><span>الطلبات: <b>${g.history.length}</b>${pending?' · قيد المتابعة: <b>'+pending+'</b>':''}</span><span class="ko-folder-open">فتح الملف ‹</span></span>
     </span>
-    <span class="customer-folder-chevron" aria-hidden="true">‹</span>
   </button>`;
 }
-
 function orderCustomerHistoryCard(raw){
   const o=effectiveOrderView(raw),cancelled=isCancelledOrder(raw);
   const note=String(o.notes||'');
   const cancelledAt=cancellationDate(raw);
-  const date=o.createdAt?new Date(o.createdAt).toLocaleString('ar-AE'):'-';
-  const status=cancelled?'cancelled':o.status;
+  const status=koOrderStatus(raw);
+  const editable=!cancelled;
+  const statusOptions=['new','preparing','shipping','delivered','cancelled'];
+  const pay=o.payment==='card'?'بطاقة':o.payment==='cod'?'عند الاستلام':'غير محدد';
+  const payDetail=o.paymentStatus==='paid'?' · مدفوع':'';
+  const shipping=Number(o.deliveryFee)||0;
   return `<article class="customer-file-order" data-customer-order-id="${esc(o.id||'')}">
     <div class="customer-file-order-head">
-      <div><strong>رقم الطلب: <span dir="ltr">${esc(o.id||'')}</span></strong>
-      <div style="color:#74646a;font-size:12px">${esc(date)}</div></div>
-      <div><span class="customer-file-status ${cancelled?'cancelled':''}">${esc(statusText(status))}</span>
-      <select class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="حالة الطلب ${esc(o.id||'')}" ${cancelled?'disabled title="الطلب الملغي لا يمكن إرساله"':''}>
-        ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${status===s?'selected':''}>${statusText(s)}</option>`).join('')}
-      </select></div>
+      <div>
+        <div class="ko-order-code">طلب <span dir="ltr">${esc(o.id||'—')}</span></div>
+        <time class="ko-order-date">${esc(koAdminDate(o.createdAt))}</time>
+      </div>
+      <span class="ko-status" data-status="${esc(status)}">${esc(statusText(status))}</span>
     </div>
-    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب ${isCustomerCancellation(raw)?'بواسطة العميل':''}</div>`:''}
-    ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">✎ تم تعديل الطلب من العميل</div>':''}
-    <div class="order-products-title">المنتجات المطلوبة وصورها</div>
+    ${cancelled?`<div class="ko-cancel-warning">تم إلغاء الطلب ${isCustomerCancellation(raw)?'بواسطة العميل':''}${o.payment==='card'?' · راجعي حالة الاسترداد في Stripe':''}</div>`:''}
+    ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">تم تعديل الطلب من العميل</div>':''}
+    <div class="order-products-title">المنتجات المطلوبة</div>
     ${renderOrderItemsHtml(o)}
-    <div class="customer-file-meta" style="margin-top:12px">
-      <div><b>طريقة الدفع:</b> ${o.payment==='card'?'الدفع بالبطاقة':'الدفع عند الاستلام'}${o.paymentStatus==='paid'?' · مدفوع':''}</div>
-      ${Number(o.deliveryFee)>0?`<div><b>رسوم التوصيل:</b> ${money(Number(o.deliveryFee))}</div>`:''}
-      <div><b>الإجمالي:</b> ${money(o.total||0)}</div>
-      ${note?`<div><b>ملاحظات:</b> ${esc(note)}</div>`:''}
-      ${cancelledAt?`<div><b>تاريخ الإلغاء:</b> ${esc(new Date(cancelledAt).toLocaleString('ar-AE'))}</div>`:''}
+    <div class="ko-payment-grid">
+      <div><small>طريقة الدفع</small><b>${pay+payDetail}</b></div>
+      <div><small>التوصيل</small><b>${money(shipping)}</b></div>
+      <div class="ko-grand-total"><small>الإجمالي</small><b>${money(o.total||0)}</b></div>
+    </div>
+    ${note?`<div class="ko-note"><strong>ملاحظة العميل</strong>${esc(note)}</div>`:''}
+    ${cancelledAt?`<div class="ko-note"><strong>تاريخ الإلغاء</strong>${esc(koAdminDate(cancelledAt))}</div>`:''}
+    <div class="ko-order-actions">
+      <label for="ko-order-status-${esc(o.id||'')}">حالة الطلب</label>
+      <select id="ko-order-status-${esc(o.id||'')}" class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="تحديث حالة الطلب ${esc(o.id||'')}" ${editable?'':'disabled title="لا يمكن تعديل الطلب الملغي"'}>
+        ${statusOptions.map(value=>`<option value="${value}" ${status===value?'selected':''}>${statusText(value)}</option>`).join('')}
+      </select>
+      <span class="ko-action-help">${editable?'يحفظ التغيير تلقائياً بعد تأكيد الخادم.':'الطلب الملغي للعرض فقط'}</span>
     </div>
   </article>`;
 }
@@ -3581,57 +3625,83 @@ function renderOpenedOrdersCustomer(){
   const file=$('ordersCustomerFileView'),content=$('ordersCustomerContents');
   if(!file||!content)return;
   const group=orderCustomerGroups.get(selectedOrdersCustomer);
-  if(!group){selectedOrdersCustomer=null;selectedOrdersOrderId=null;file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');return;}
-  // Display one customer's orders vertically, each with its own status and items.
-  const card=ordersAdminScroll();
-  const wasVisible=!file.classList.contains('hidden');
-  const priorScroll=card?.scrollTop||0;
+  if(!group){
+    selectedOrdersCustomer=null;selectedOrdersOrderId=null;
+    $('adminOrdersTab')?.classList.remove('ko-show-customer');
+    file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');
+    return;
+  }
+  const scroll=ordersAdminScroll(),wasVisible=!file.classList.contains('hidden');
+  const priorScroll=scroll?.scrollTop||0;
+  $('adminOrdersTab')?.classList.add('ko-show-customer');
   $('ordersFoldersView')?.classList.add('hidden');
   file.classList.remove('hidden');
-  $('ordersCustomerHeading').textContent='طلبات '+(group.name||'العميل');
+  $('ordersCustomerHeading').textContent='ملف '+(group.name||'العميل');
+  const activeCount=group.history.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
+  const deliveredCount=group.history.filter(o=>koOrderStatus(o)==='delivered').length;
   content.innerHTML=`<div class="customer-only-file-shell">
+    ${renderOrderCustomerHtml({customer:group})}
     <div class="customer-file-summary">
-      <div><b>${group.history.length}</b><small>عدد الطلبات</small></div>
-      <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
-      <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
+      <div><b>${group.history.length}</b><small>إجمالي الطلبات</small></div>
+      <div><b>${activeCount}</b><small>قيد المتابعة</small></div>
+      <div><b>${deliveredCount}</b><small>تم التوصيل</small></div>
     </div>
-    ${group.history.length?renderOrderCustomerHtml(effectiveOrderView(group.history[0])):''}
     <section class="customer-file-panel">
-      <h3>الطلبات</h3>
+      <h3>سجل الطلبات</h3>
       <div class="customer-file-order-stack" aria-label="جميع طلبات العميل">
-        ${group.history.length?group.history.map(orderCustomerHistoryCard).join(''):'<div class="empty">لا توجد طلبات</div>'}
+        ${group.history.length?group.history.map(orderCustomerHistoryCard).join(''):'<div class="ko-empty">لا توجد طلبات لهذا العميل.</div>'}
       </div>
     </section>
   </div>`;
-  // Live changes must preserve the vertical scroll position.
-  if(wasVisible&&card){
-    card.scrollTop=priorScroll;
-    requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)card.scrollTop=priorScroll;});
+  if(wasVisible&&scroll){
+    scroll.scrollTop=priorScroll;
+    requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)scroll.scrollTop=priorScroll;});
   }
 }
 function renderOrders(){
-  const list=$('ordersList');
-  if(!list)return;
+  const list=$('ordersList');if(!list)return;
   renderAdminCancellationRequests();
   orderCustomerGroups=buildOrderCustomerGroups();
+  const counts={all:0,new:0,preparing:0,shipping:0,delivered:0,cancelled:0};
+  for(const order of orders){counts.all++;counts[koOrderStatus(order)]++;}
+  for(const [id,key] of [['koStatAll','all'],['koStatNew','new'],['koStatPreparing','preparing'],['koStatShipping','shipping']]){
+    if($(id))$(id).textContent=String(counts[key]);
+  }
+  document.querySelectorAll('#adminOrdersTab [data-filter]').forEach(button=>{
+    button.setAttribute('aria-pressed',String(button.dataset.filter===koOrderFilter));
+  });
+  if($('koTotalCustomersLabel'))$('koTotalCustomersLabel').textContent=orderCustomerGroups.size+' عميل';
   if(selectedOrdersCustomer){renderOpenedOrdersCustomer();return;}
+  $('adminOrdersTab')?.classList.remove('ko-show-customer');
   $('ordersCustomerFileView')?.classList.add('hidden');
   $('ordersFoldersView')?.classList.remove('hidden');
-  const q=String($('adminOrderSearch')?.value||'').trim().toUpperCase();
-  const visible=[...orderCustomerGroups.values()].filter(g=>
-    !q||[g.name,g.phone,g.city,...g.history.map(o=>o.id)]
-      .some(v=>String(v||'').toUpperCase().includes(q)));
-  visible.sort((a,b)=>{
-    // Do not put customers with canceled-only orders above active customer work.
-    const active=g=>g.history.some(o=>o.status!=='cancelled'&&!o.customerEdit?.cancelRequestedAt);
-    return Number(active(b))-Number(active(a))||
-      String(b.latest).localeCompare(String(a.latest))||
-      String(a.name||'').localeCompare(String(b.name||''));
+  const q=String($('adminOrderSearch')?.value||'').trim().toLocaleLowerCase();
+  const searchDigits=q.replace(/\D/g,'');
+  const filtered=[...orderCustomerGroups.values()].filter(g=>{
+    const identity=[g.name,g.phone,g.city,g.location].some(v=>String(v||'').toLocaleLowerCase().includes(q));
+    const numberMatch=searchDigits.length>=4&&normalizeOrderPhone(g.phone).includes(searchDigits);
+    return g.history.some(raw=>{
+      if(koOrderFilter!=='all'&&koOrderStatus(raw)!==koOrderFilter)return false;
+      if(!q||identity||numberMatch)return true;
+      const order=effectiveOrderView(raw);
+      const fields=[order.id,order.customer?.name,order.customer?.phone,
+        ...(Array.isArray(order.items)?order.items.flatMap(i=>[i.name,i.code,i.id]):[])];
+      return fields.some(v=>String(v||'').toLocaleLowerCase().includes(q));
+    });
   });
-  list.innerHTML=visible.length?visible.map(orderCustomerFolderCard).join('')
-    :(q?'<div class="empty">لا يوجد طلب أو عميل مطابق للبحث</div>':'<div class="empty">لا توجد طلبات بعد</div>');
+  function priority(g){
+    if(g.history.some(o=>koOrderStatus(o)==='new'))return 0;
+    if(g.history.some(o=>koOrderStatus(o)==='preparing'))return 1;
+    if(g.history.some(o=>koOrderStatus(o)==='shipping'))return 2;
+    return 3;
+  }
+  filtered.sort((a,b)=>(koOrderFilter==='all'?priority(a)-priority(b):0)||
+    String(b.latest).localeCompare(String(a.latest))||
+    String(a.name||'').localeCompare(String(b.name||'')));
+  if($('koResultCount'))$('koResultCount').textContent=filtered.length+' ملفات';
+  list.innerHTML=filtered.length?filtered.map(orderCustomerFolderCard).join('')
+    :`<div class="ko-empty">${q?'لا يوجد عميل أو طلب مطابق للبحث.':koOrderFilter==='all'?'لا توجد طلبات بعد.':'لا توجد طلبات بهذه الحالة.'}</div>`;
 }
-
 let ordersFolderSavedKey='';
 let ordersFolderSavedOffset=0;
 function ordersAdminScroll(){return $('adminModal')?.querySelector('.modal-card')||null;}
@@ -3694,7 +3764,14 @@ function backToOrderFolders(){
   });
   $('ordersCustomerFileView')?.addEventListener('change',e=>{
     const node=e.target.closest('[data-order-status-id]');
-    if(node)updateOrderStatus(node.dataset.orderStatusId,node.value);
+    if(node){
+      const id=node.dataset.orderStatusId;
+      const original=orders.find(o=>String(o.id)===String(id));
+      if(original&&koOrderStatus(original)===node.value)return;
+      if(node.value==='cancelled'&&!confirm('هل تريدين إلغاء هذا الطلب؟ لا يمكن التراجع عن الإلغاء من هذه الشاشة.')){renderOrders();return;}
+      node.disabled=true;
+      updateOrderStatus(id,node.value);
+    }
   });
   window.addEventListener('popstate',e=>{
     if($('adminOrdersTab')?.classList.contains('hidden'))return;
