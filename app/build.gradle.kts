@@ -17,8 +17,8 @@ android {
         applicationId = "online.kandorty.admin"
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.4.3"
+        versionCode = 10
+        versionName = "1.4.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "NATIVE_FCM_CONFIGURED", if (hasAndroidFirebaseApp) "true" else "false")
     }
