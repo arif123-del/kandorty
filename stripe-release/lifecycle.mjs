@@ -56,7 +56,9 @@ export function lifecycle(cfg,store){
         restored+=count;
        }
        check(restored===qty,'invalid_recorded_variant_debit');
-      }else if(p.data.imageStocks!==undefined&&p.data.imageStocks!==null){
+      }else if(p.data.imageStocks!==undefined&&p.data.imageStocks!==null&&
+        !(Array.isArray(p.data.imageStocks)&&p.data.imageStocks.length===0&&
+          (!Array.isArray(p.data.images)||p.data.images.length===0))){
        // Legacy orders only stored a total debit, without its color.
        // Never add a canceled unit to an unproven color.
        throw new Fault('variant_restock_requires_review',409);
