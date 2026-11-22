@@ -32,8 +32,37 @@ export function lifecycle(cfg,store){
      }
      for(const [id,qty] of Object.entries(l.stockDebits||{})){
       check(/^[A-Za-z0-9_-]{1,150}$/.test(id)&&Number.isSafeInteger(qty)&&qty>0&&qty<=99,'invalid_recorded_debit');
-      const p=await store.get('products/'+id),stock=Number(p?.data.stock);check(p&&p.data.stock!==null&&p.data.stock!==''&&Number.isSafeInteger(stock)&&stock>=0&&Number.isSafeInteger(stock+qty),'invalid_stock');
-      writes.push(store.write('products/'+id,{...p.data,stock:stock+qty,totalStock:Math.max(Number(p.data.totalStock)||0,stock+qty),updatedAt:at},{updateTime:p.version}));
+      const p=await store.get('products/'+id),stock=Number(p?.data.stock);
+      check(p&&p.data.stock!==null&&p.data.stock!==''&&Number.isSafeInteger(stock)&&stock>=0&&Number.isSafeInteger(stock+qty),'invalid_stock');
+      const nextProduct={...p.data,stock:stock+qty,totalStock:Math.max(Number(p.data.totalStock)||0,stock+qty),updatedAt:at};
+      const variants=l.imageStockDebits||{};
+      const variantEntries=Object.entries(variants).filter(([key])=>key.startsWith(id+'__img'));
+      if(p.data.imageStocks!==undefined&&p.data.imageStocks!==null){
+       const currentColors=p.data.imageStocks,images=p.data.images;
+       check(Array.isArray(currentColors)&&Array.isArray(images)&&
+        images.length>0&&currentColors.length===images.length&&
+        currentColors.every(v=>Number.isSafeInteger(v)&&v>=0)&&
+        currentColors.reduce((sum,v)=>sum+v,0)===stock,
+        'invalid_variant_inventory');
+       // Legacy transactions never debited their chosen image. Do not guess
+       // how to distribute a historical refund across colors.
+       check(variantEntries.length>0&&
+        variantEntries.reduce((sum,[key,v])=>sum+v,0)===qty,
+        'missing_variant_debit');
+       const nextColors=[...currentColors];
+       for(const [key,amount] of variantEntries){
+        const index=Number(key.slice((id+'__img').length));
+        check(Number.isInteger(index)&&index>=0&&index<nextColors.length&&
+         Number.isSafeInteger(amount)&&amount>0&&amount<=99&&
+         Number.isSafeInteger(nextColors[index]+amount),
+         'invalid_recorded_variant_debit');
+        nextColors[index]+=amount;
+       }
+       nextProduct.imageStocks=nextColors;
+      }else{
+       check(variantEntries.length===0,'invalid_recorded_variant_debit');
+      }
+      writes.push(store.write('products/'+id,nextProduct,{updateTime:p.version}));
      }
      next.cancelledBy=actor.kind;next.cancelStockRestoredAt=at;next.inventoryStatus='restored';
      if(o.payment==='card'){
