@@ -145,3 +145,31 @@ test('duplicate same image rows combine; different images remain separate',()=>{
 test('test-project cannot accidentally become production COD target',async()=>{
  await fault({projectId:'kandorty-stripe-test-5f8af'},'invalid_project');
 });
+
+test('three colors each with three pieces: COD debits exact selected colors atomically',async()=>{
+ const f=await fixture();
+ f.products.dressA.data={...f.products.dressA.data,stock:9,totalStock:9,
+  images:['https://cdn.test/red','https://cdn.test/blue','https://cdn.test/black'],imageStocks:[3,3,3]};
+ f.request.items=[{id:'dressA',qty:3,imageIndex:0},{id:'dressA',qty:2,imageIndex:1}];
+ const plan=await prepareCodOrder(f);
+ assert.deepEqual(plan.imageStockDebits,{dressA__img0:3,dressA__img1:2});
+ assert.deepEqual(plan.order.imageStockDebits,plan.imageStockDebits);
+ assert.equal(plan.writes.length,6);
+ const debit=plan.writes[5];
+ assert.deepEqual(debit.updateMask.fieldPaths,['stock','totalStock','updatedAt','imageStocks']);
+ assert.equal(debit.update.fields.stock.integerValue,'4');
+ assert.deepEqual(debit.update.fields.imageStocks.arrayValue.values.map(v=>Number(v.integerValue)),[0,1,3]);
+});
+test('a fourth piece of red is forbidden even when five other colors are in stock',async()=>{
+ const f=await fixture();
+ f.products.dressA.data={...f.products.dressA.data,stock:9,totalStock:9,
+  images:['red','blue','black'],imageStocks:[3,3,3]};
+ f.request.items=[{id:'dressA',qty:4,imageIndex:0}];
+ await assert.rejects(prepareCodOrder(f),e=>e instanceof CodFault&&e.code==='insufficient_variant_stock');
+});
+test('stale per-color ledger cannot silently sell any variant',async()=>{
+ const f=await fixture();
+ f.products.dressA.data.imageStocks=[3,3];
+ f.products.dressA.data.stock=5;
+ await assert.rejects(prepareCodOrder(f),e=>e instanceof CodFault&&e.code==='invalid_variant_inventory');
+});
