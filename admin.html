@@ -3430,26 +3430,41 @@ function normalizeOrderShape(raw){
 
 // In each customer's file, show one compact set of customer details only.
 // City and street/address share one location field to avoid apparent duplicates.
+function koCustomerContactTargets(phone){
+  const raw=String(phone||'').trim();
+  const digits=raw.replace(/\D/g,'');
+  const normalized=normalizeOrderPhone(raw);
+  // Treat 05xxxxxxxx, 5xxxxxxxx, 9715xxxxxxxx, and 009715xxxxxxxx
+  // as the same UAE number; use international format for phone + WhatsApp.
+  const uaeMobile=/^05\d{8}$/.test(normalized);
+  const phoneInternational=uaeMobile?'+971'+normalized.slice(1)
+    :(/^\+\d{6,15}$/.test(raw)?raw:'');
+  const whatsapp=uaeMobile?'971'+normalized.slice(1)
+    :(/^\+\d{6,15}$/.test(raw)?digits:'');
+  return {
+    tel:phoneInternational,
+    whatsapp:whatsapp.length>=8&&whatsapp.length<=15?whatsapp:''
+  };
+}
 function renderOrderCustomerHtml(order){
   const c=normalizeOrderShape(order).customer||{};
   const locations=[c.city,c.location].map(v=>String(v||'').trim()).filter(Boolean);
   const unique=locations.filter((v,i)=>locations.findIndex(x=>x.toLocaleLowerCase()===v.toLocaleLowerCase())===i);
   const locationText=unique.join(' - ')||'—';
   const phone=String(c.phone||'').trim();
-  const digits=phone.replace(/\D/g,'');
-  const local=normalizeOrderPhone(phone);
-  const tel=digits.length>=6&&digits.length<=18?phone.replace(/[^0-9+]/g,''):'';
-  const wa=/^05\d{8}$/.test(local)?'971'+local.slice(1):'';
+  const contacts=koCustomerContactTargets(phone);
   return `<div class="ko-profile-card" aria-label="بيانات العميل">
     <div class="customer-file-mini-profile">
       <div><small>اسم العميل</small><b>${esc(c.name||'—')}</b></div>
       <div><small>رقم الهاتف</small><b dir="ltr">${esc(phone||'—')}</b></div>
       <div><small>الإمارة والعنوان</small><b>${esc(locationText)}</b></div>
     </div>
-    ${tel||wa?`<div class="ko-contact-actions">
-      ${tel?`<a href="tel:${esc(tel)}">اتصال بالعميل</a>`:''}
-      ${wa?`<a class="ko-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">واتساب</a>`:''}
-    </div>`:''}
+    <div class="ko-contact-actions" aria-label="التواصل مع العميل">
+      ${contacts.tel?`<a class="ko-call" href="tel:${esc(contacts.tel)}" aria-label="اتصال بالعميل على الرقم ${esc(phone)}">اتصال بالعميل</a>`
+        :'<span class="ko-unavailable-contact">رقم الهاتف غير صالح للاتصال</span>'}
+      ${contacts.whatsapp?`<a class="ko-wa" href="https://api.whatsapp.com/send?phone=${contacts.whatsapp}" rel="external" aria-label="فتح محادثة واتساب مع العميل">واتساب</a>`
+        :'<span class="ko-unavailable-contact">واتساب غير متاح لهذا الرقم</span>'}
+    </div>
   </div>`;
 }
 function catalogOrderImage(id,code,index){
@@ -3560,26 +3575,58 @@ function koAdminDate(raw){
     ?date.toLocaleString('ar-AE',{dateStyle:'medium',timeStyle:'short'})
     :'—';
 }
+const KO_ORDER_FILTER_LABELS={
+  all:'جميع الطلبات',new:'الطلبات الجديدة',preparing:'طلبات قيد التجهيز',
+  shipping:'طلبات قيد التوصيل',delivered:'الطلبات المكتملة',
+  cancelled:'الطلبات الملغاة'
+};
 function koSetOrderFilter(next){
   if(!KO_ORDER_FILTERS.includes(next))return;
   koOrderFilter=next;
   if(selectedOrdersCustomer){returnToOrdersList();return;}
   renderOrders();
 }
-function orderCustomerFolderCard(g){
-  const latest=[...g.history].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')))[0];
-  const last=effectiveOrderView(latest||{});
-  const status=koOrderStatus(latest||{});
-  const pending=g.history.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
-  const code=String(last.id||'—');
+function koMatchingOrders(group){
+  const q=String($('adminOrderSearch')?.value||'').trim().toLocaleLowerCase();
+  const searchDigits=q.replace(/\D/g,'');
+  const identity=[group.name,group.phone,group.city,group.location]
+    .some(v=>String(v||'').toLocaleLowerCase().includes(q));
+  const numberMatch=searchDigits.length>=4
+    &&normalizeOrderPhone(group.phone).includes(searchDigits);
+  return group.history.filter(raw=>{
+    if(koOrderFilter!=='all'&&koOrderStatus(raw)!==koOrderFilter)return false;
+    if(!q||identity||numberMatch)return true;
+    const o=effectiveOrderView(raw);
+    const fields=[o.id,o.customer?.name,o.customer?.phone,
+      ...(Array.isArray(o.items)?o.items.flatMap(i=>[i.name,i.code,i.id]):[])];
+    return fields.some(v=>String(v||'').toLocaleLowerCase().includes(q));
+  });
+}
+function koFolderPrimaryOrder(group,matching){
+  const byDate=[...matching].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  if(koOrderFilter!=='all')return byDate[0];
+  // When all statuses are shown, highlight active work before historical orders.
+  const priorities={new:0,preparing:1,shipping:2,delivered:3,cancelled:4};
+  return byDate.sort((a,b)=>priorities[koOrderStatus(a)]-priorities[koOrderStatus(b)])[0];
+}
+function orderCustomerFolderCard(g,matched){
+  const matching=Array.isArray(matched)?matched:koMatchingOrders(g);
+  if(!matching.length)return '';
+  const primary=koFolderPrimaryOrder(g,matching);
+  const order=effectiveOrderView(primary||{});
+  const status=koOrderStatus(primary||{});
+  const pending=matching.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
+  const code=String(order.id||'—');
+  const countLabel=koOrderFilter==='all'?'الطلبات':'في هذا القسم';
+  const codeLabel=koOrderFilter==='all'?'طلب يحتاج متابعة':'طلب من هذا القسم';
   return `<button type="button" class="customer-folder-card" data-orders-customer="${esc(g.key)}" aria-label="فتح ملف ${esc(g.name||'عميل')}">
     <span class="customer-folder-icon" aria-hidden="true">▣</span>
     <span class="customer-folder-info">
       <span class="ko-folder-top"><strong>${esc(g.name||'عميل بدون اسم')}</strong>
       <span class="ko-status" data-status="${esc(status)}">${esc(statusText(status))}</span></span>
       <small>${esc(g.phone||'بدون رقم هاتف')}${g.city?' · '+esc(g.city):''}</small>
-      <small class="ko-folder-code">آخر طلب: <b dir="ltr">${esc(code)}</b> · ${esc(koAdminDate(last.createdAt))}</small>
-      <span class="ko-folder-footer"><span>الطلبات: <b>${g.history.length}</b>${pending?' · قيد المتابعة: <b>'+pending+'</b>':''}</span><span class="ko-folder-open">فتح الملف ‹</span></span>
+      <small class="ko-folder-code">${codeLabel}: <b dir="ltr">${esc(code)}</b> · ${esc(koAdminDate(order.createdAt))}</small>
+      <span class="ko-folder-footer"><span>${countLabel}: <b>${matching.length}</b>${koOrderFilter==='all'&&pending?' · قيد المتابعة: <b>'+pending+'</b>':''}</span><span class="ko-folder-open">فتح الملف ‹</span></span>
     </span>
   </button>`;
 }
@@ -3631,6 +3678,10 @@ function renderOpenedOrdersCustomer(){
     file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');
     return;
   }
+  const matching=koMatchingOrders(group);
+  // A realtime status change can move the last matching order out of the
+  // current section. Return to the list rather than showing unrelated items.
+  if(!matching.length){returnToOrdersList();return;}
   const scroll=ordersAdminScroll(),wasVisible=!file.classList.contains('hidden');
   const priorScroll=scroll?.scrollTop||0;
   $('adminOrdersTab')?.classList.add('ko-show-customer');
@@ -3639,17 +3690,18 @@ function renderOpenedOrdersCustomer(){
   $('ordersCustomerHeading').textContent='ملف '+(group.name||'العميل');
   const activeCount=group.history.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
   const deliveredCount=group.history.filter(o=>koOrderStatus(o)==='delivered').length;
+  const sectionLabel=KO_ORDER_FILTER_LABELS[koOrderFilter]||'جميع الطلبات';
   content.innerHTML=`<div class="customer-only-file-shell">
     ${renderOrderCustomerHtml({customer:group})}
     <div class="customer-file-summary">
-      <div><b>${group.history.length}</b><small>إجمالي الطلبات</small></div>
+      <div><b>${group.history.length}</b><small>إجمالي طلبات العميل</small></div>
       <div><b>${activeCount}</b><small>قيد المتابعة</small></div>
       <div><b>${deliveredCount}</b><small>تم التوصيل</small></div>
     </div>
     <section class="customer-file-panel">
-      <h3>سجل الطلبات</h3>
-      <div class="customer-file-order-stack" aria-label="جميع طلبات العميل">
-        ${group.history.length?group.history.map(orderCustomerHistoryCard).join(''):'<div class="ko-empty">لا توجد طلبات لهذا العميل.</div>'}
+      <h3>${esc(sectionLabel)} (${matching.length})</h3>
+      <div class="customer-file-order-stack" aria-label="${esc(sectionLabel)}">
+        ${matching.map(orderCustomerHistoryCard).join('')}
       </div>
     </section>
   </div>`;
@@ -3663,7 +3715,10 @@ function renderOrders(){
   renderAdminCancellationRequests();
   orderCustomerGroups=buildOrderCustomerGroups();
   const counts={all:0,new:0,preparing:0,shipping:0,delivered:0,cancelled:0};
-  for(const order of orders){counts.all++;counts[koOrderStatus(order)]++;}
+  for(const order of orders){
+    const status=koOrderStatus(order);
+    if(KO_ORDER_FILTERS.includes(status)){counts.all++;counts[status]++;}
+  }
   for(const [id,key] of [['koStatAll','all'],['koStatNew','new'],['koStatPreparing','preparing'],['koStatShipping','shipping']]){
     if($(id))$(id).textContent=String(counts[key]);
   }
@@ -3675,32 +3730,24 @@ function renderOrders(){
   $('adminOrdersTab')?.classList.remove('ko-show-customer');
   $('ordersCustomerFileView')?.classList.add('hidden');
   $('ordersFoldersView')?.classList.remove('hidden');
-  const q=String($('adminOrderSearch')?.value||'').trim().toLocaleLowerCase();
-  const searchDigits=q.replace(/\D/g,'');
-  const filtered=[...orderCustomerGroups.values()].filter(g=>{
-    const identity=[g.name,g.phone,g.city,g.location].some(v=>String(v||'').toLocaleLowerCase().includes(q));
-    const numberMatch=searchDigits.length>=4&&normalizeOrderPhone(g.phone).includes(searchDigits);
-    return g.history.some(raw=>{
-      if(koOrderFilter!=='all'&&koOrderStatus(raw)!==koOrderFilter)return false;
-      if(!q||identity||numberMatch)return true;
-      const order=effectiveOrderView(raw);
-      const fields=[order.id,order.customer?.name,order.customer?.phone,
-        ...(Array.isArray(order.items)?order.items.flatMap(i=>[i.name,i.code,i.id]):[])];
-      return fields.some(v=>String(v||'').toLocaleLowerCase().includes(q));
-    });
-  });
-  function priority(g){
-    if(g.history.some(o=>koOrderStatus(o)==='new'))return 0;
-    if(g.history.some(o=>koOrderStatus(o)==='preparing'))return 1;
-    if(g.history.some(o=>koOrderStatus(o)==='shipping'))return 2;
+  const visible=[...orderCustomerGroups.values()]
+    .map(group=>({group,matching:koMatchingOrders(group)}))
+    .filter(row=>row.matching.length>0);
+  function priority(row){
+    if(row.matching.some(o=>koOrderStatus(o)==='new'))return 0;
+    if(row.matching.some(o=>koOrderStatus(o)==='preparing'))return 1;
+    if(row.matching.some(o=>koOrderStatus(o)==='shipping'))return 2;
     return 3;
   }
-  filtered.sort((a,b)=>(koOrderFilter==='all'?priority(a)-priority(b):0)||
-    String(b.latest).localeCompare(String(a.latest))||
-    String(a.name||'').localeCompare(String(b.name||'')));
-  if($('koResultCount'))$('koResultCount').textContent=filtered.length+' ملفات';
-  list.innerHTML=filtered.length?filtered.map(orderCustomerFolderCard).join('')
-    :`<div class="ko-empty">${q?'لا يوجد عميل أو طلب مطابق للبحث.':koOrderFilter==='all'?'لا توجد طلبات بعد.':'لا توجد طلبات بهذه الحالة.'}</div>`;
+  visible.sort((a,b)=>(koOrderFilter==='all'?priority(a)-priority(b):0)||
+    String(b.matching[0]?.createdAt||'').localeCompare(String(a.matching[0]?.createdAt||''))||
+    String(a.group.name||'').localeCompare(String(b.group.name||'')));
+  if($('koResultCount')){
+    const matchingOrders=visible.reduce((sum,row)=>sum+row.matching.length,0);
+    $('koResultCount').textContent=visible.length+' ملفات · '+matchingOrders+' طلب';
+  }
+  list.innerHTML=visible.length?visible.map(({group,matching})=>orderCustomerFolderCard(group,matching)).join('')
+    :`<div class="ko-empty">${$('adminOrderSearch')?.value?.trim()?'لا يوجد عميل أو طلب مطابق للبحث.':koOrderFilter==='all'?'لا توجد طلبات بعد.':'لا توجد طلبات بهذه الحالة.'}</div>`;
 }
 let ordersFolderSavedKey='';
 let ordersFolderSavedOffset=0;
