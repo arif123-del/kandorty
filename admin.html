@@ -3813,7 +3813,7 @@ function backToOrderFolders(){
 }
 async function koCopyCustomerPhone(phone){
   const normalized=String(phone||'').trim();
-  if(!/^\\+?[0-9]{6,15}$/.test(normalized))return false;
+  if(!/^\+?[0-9]{6,15}$/.test(normalized))return false;
   try{
     if(navigator.clipboard?.writeText){
       await navigator.clipboard.writeText(normalized);
@@ -3848,7 +3848,7 @@ async function koCopyCustomerPhone(phone){
     koCopyCustomerPhone(phone).then(ok=>{
       if(legacy&&call){
         alert((ok?'تم نسخ الرقم: ':'تعذر نسخ الرقم تلقائياً: ')+phone+
-          '\\nهذه النسخة من تطبيق الإدارة لا تفتح الهاتف. افتحي تطبيق الهاتف والصقي الرقم، أو حدّثي التطبيق.');
+          '\nهذه النسخة من تطبيق الإدارة لا تفتح الهاتف. افتحي تطبيق الهاتف والصقي الرقم، أو حدّثي التطبيق.');
       }else{
         alert(ok?'تم نسخ رقم العميل: '+phone:'انسخي هذا الرقم يدوياً: '+phone);
       }
