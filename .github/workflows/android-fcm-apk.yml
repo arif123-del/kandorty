@@ -1,7 +1,7 @@
 name: Kandorty Admin — Firebase Registered APK
 on:
   push:
-    branches: [feature/admin-fcm-config-20261120, fix/admin-native-ring-20261120, feature/admin-app-discounts-refresh-20261120]
+    branches: [feature/admin-fcm-config-20261120, fix/admin-native-ring-20261120, feature/admin-app-discounts-refresh-20261120, fix/admin-clean-ui-photo-picker-20261122]
   workflow_dispatch:
 permissions:
   contents: read
@@ -56,14 +56,14 @@ jobs:
           apk=app/build/outputs/apk/debug/app-debug.apk
           "$tools_dir/apksigner" verify "$apk"
           "$tools_dir/aapt" dump badging "$apk" > "$RUNNER_TEMP/kandorty-badging"
-          grep -F "package: name='online.kandorty.admin' versionCode='9' versionName='1.4.3'" "$RUNNER_TEMP/kandorty-badging"
+          grep -F "package: name='online.kandorty.admin' versionCode='10' versionName='1.4.4'" "$RUNNER_TEMP/kandorty-badging"
           "$tools_dir/aapt" dump resources "$apk" > "$RUNNER_TEMP/kandorty-resources"
           grep -q 'google_app_id' "$RUNNER_TEMP/kandorty-resources"
           grep -q 'gcm_defaultSenderId' "$RUNNER_TEMP/kandorty-resources"
           grep -q 'google_api_key' "$RUNNER_TEMP/kandorty-resources"
       - uses: actions/upload-artifact@v4
         with:
-          name: Kandorty-Admin-FCM-503-Details-1.4.3-APK
+          name: Kandorty-Admin-Clean-Photo-1.4.4-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Enable emulator acceleration
