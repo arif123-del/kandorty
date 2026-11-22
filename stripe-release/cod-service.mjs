@@ -15,7 +15,7 @@ export function codService(cfg,store,onNewOrder){
    if(!intent&&(expectedDeliveryFils??2500)!==deliveryFils)throw new Fault('delivery_fee_changed',409);
    try{plan=await prepareCodOrder({deliveryFils,request:input,projectId:cfg.projectId,testOnly:!cfg.live,orderId,editToken:random(24),accessKey,products,nowISO:new Date().toISOString(),existingIntent:intent,existingOrder:existing});}
    catch(e){if(!intent&&e instanceof CodFault&&['insufficient_stock','unavailable_product'].includes(e.code)&&await store.get('cod_checkout_intents/'+checkoutId))continue;throw e;}
-   if(!plan.replay)plan.writes.push(store.write('order_lifecycle/'+orderId,{orderId,checkoutId,payment:'cod',stockDebits:plan.stockDebits,manageTokenHash:await hash(plan.order.editToken)},{exists:false}));
+   if(!plan.replay)plan.writes.push(store.write('order_lifecycle/'+orderId,{orderId,checkoutId,payment:'cod',stockDebits:plan.stockDebits,imageStockDebits:plan.imageStockDebits,manageTokenHash:await hash(plan.order.editToken)},{exists:false}));
    try{if(plan.writes.length)await store.commit(plan.writes);}catch(e){if(e.message==='write_conflict')continue;throw e;}
    if(!plan.replay)onNewOrder?.();
    return {order:publicOrder(plan.order),snapshot:{orderId,checkoutId},manageToken:plan.order.editToken,replay:plan.replay};
