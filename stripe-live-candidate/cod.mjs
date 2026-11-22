@@ -34,11 +34,15 @@ const doc=(root,collection,key)=>{check(idOK(key),'invalid_document_id');return 
 const put=(root,collection,key,data)=>({
  update:{name:doc(root,collection,key),fields:fields(data)},currentDocument:{exists:false}
 });
-const updated=(root,key,stock,totalStock,updatedAt,version)=>({
- update:{name:doc(root,'products',key),fields:fields({stock,totalStock,updatedAt})},
- updateMask:{fieldPaths:['stock','totalStock','updatedAt']},
- currentDocument:{updateTime:version}
-});
+const updated=(root,key,stock,totalStock,updatedAt,version,imageStocks=null)=>{
+ const next={stock,totalStock,updatedAt};
+ if(imageStocks!==null)next.imageStocks=imageStocks;
+ return {
+  update:{name:doc(root,'products',key),fields:fields(next)},
+  updateMask:{fieldPaths:Object.keys(next)},
+  currentDocument:{updateTime:version}
+ };
+};
 async function digest(input){
  const bytes=new TextEncoder().encode(input);
  const result=await crypto.subtle.digest('SHA-256',bytes);
@@ -135,7 +139,7 @@ export async function prepareCodOrder({
  }
  const totalFils=subtotal+deliveryFils;
  check(totalFils<=100000000,'invalid_total');
- const stockDebits={},stockWrites=[];
+ const stockDebits={},stockDebitsByImage={},stockWrites=[];
  for(const [id,qty] of productQuantities){
   const row=products[id],p=row.data;
   // Stage 5 fail-closed inventory: no COD order may silently treat unknown
@@ -151,9 +155,29 @@ export async function prepareCodOrder({
   const totalStock=p.totalStock;
   check(typeof totalStock==='number'&&Number.isSafeInteger(totalStock)&&
         totalStock>=current,'inventory_total_not_configured');
+  // Every saved product image is a distinct color/variant with its own
+  // physical quantity. Never allow the aggregate stock to cover a
+  // sold-out color. Legacy products without imageStocks keep old behaviour.
+  let nextImageStocks=null;
+  if(p.imageStocks!==undefined&&p.imageStocks!==null){
+   const photoCount=Array.isArray(p.images)?p.images.length:0;
+   check(Array.isArray(p.imageStocks)&&p.imageStocks.length===photoCount &&
+     p.imageStocks.every(n=>Number.isSafeInteger(n)&&n>=0),
+     'variant_stock_not_configured');
+   check(p.imageStocks.reduce((a,n)=>a+n,0)===current,
+     'variant_stock_inconsistent');
+   nextImageStocks=p.imageStocks.slice();
+   for(const item of normalized.items.filter(item=>item.id===id)){
+    check(item.imageIndex<nextImageStocks.length,'invalid_variant');
+    check(nextImageStocks[item.imageIndex]>=item.qty,'insufficient_variant_stock');
+    nextImageStocks[item.imageIndex]-=item.qty;
+    stockDebitsByImage[id+'__img'+item.imageIndex]=item.qty;
+   }
+   check(nextImageStocks.reduce((a,n)=>a+n,0)===current-qty,'variant_stock_inconsistent');
+  }
   stockDebits[id]=qty;
   stockWrites.push(updated(root,id,current-qty,totalStock,
-    nowISO,row.updateTime));
+    nowISO,row.updateTime,nextImageStocks));
  }
  const customer=normalized.customer;
  const order={
@@ -163,7 +187,7 @@ export async function prepareCodOrder({
   payment:'cod',paymentStatus:'unpaid',
   subtotal:subtotal/100,deliveryFee:deliveryFils/100,deliveryPayment:'with_order',
   total:totalFils/100,notes:normalized.note,
-  items,stockDebits,inventoryStatus:'debited',
+  items,stockDebits,stockDebitsByImage,inventoryStatus:'debited',
   stockDebited:Object.keys(stockDebits).length>0,editToken
  };
  // Identity must be verified by the server against the user's ID token.
@@ -190,5 +214,5 @@ export async function prepareCodOrder({
   ...stockWrites
  ];
  check(writes.length<=25,'too_many_writes');
- return {replay:false,writes,checkoutId,order,stockDebits};
+ return {replay:false,writes,checkoutId,order,stockDebits,stockDebitsByImage};
 }
