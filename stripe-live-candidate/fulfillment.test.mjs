@@ -151,3 +151,38 @@ test('duplicate cart variant or quantity overflow fails before any stock mutatio
 test('TEST project cannot be accidentally used as LIVE destination',()=>{
  expectFault({projectId:'kandorty-stripe-test-5f8af'},'test_project_not_live');
 });
+
+test('Stripe paid fulfillment atomically debits the specific selected color counts',()=>{
+ const f=fixture();
+ f.products.p1.data={...f.products.p1.data,stock:9,totalStock:9,
+  images:['red','blue','black'],imageStocks:[3,3,3]};
+ const p=preparePaidFulfillment(f);
+ assert.equal(p.inventoryStatus,'debited');
+ assert.deepEqual(p.imageStockDebits,{p1__img0:2,p1__img1:1});
+ assert.deepEqual(p.order.imageStockDebits,p.imageStockDebits);
+ const update=p.writes.find(w=>w.update.name.endsWith('/products/p1'));
+ assert.equal(update.update.fields.stock.integerValue,'6');
+ assert.deepEqual(update.update.fields.imageStocks.arrayValue.values.map(v=>Number(v.integerValue)),[1,2,3]);
+ assert.deepEqual(update.updateMask.fieldPaths,['stock','totalStock','updatedAt','imageStocks']);
+});
+test('paid order exceeding red-color stock enters needs_review, never debits any color or aggregate stock',()=>{
+ const f=fixture();
+ f.products.p1.data={...f.products.p1.data,stock:9,totalStock:9,
+  images:['red','blue','black'],imageStocks:[3,3,3]};
+ f.snapshot.items[0].qty=4;
+ f.snapshot.totalFils+=2000;
+ f.session.amount_total=f.snapshot.totalFils;
+ const p=preparePaidFulfillment(f);
+ assert.equal(p.inventoryStatus,'needs_review');
+ assert.equal(p.order.stockDebited,false);
+ assert.deepEqual(p.imageStockDebits,{});
+ assert.equal(p.writes.some(w=>w.update.name.includes('/products/')),false);
+});
+test('paid order with inconsistent color ledger never updates the product',()=>{
+ const f=fixture();
+ f.products.p1.data={...f.products.p1.data,stock:9,totalStock:9,
+  images:['red','blue','black'],imageStocks:[3,3,2]};
+ const p=preparePaidFulfillment(f);
+ assert.equal(p.inventoryStatus,'needs_review');
+ assert.equal(p.writes.some(w=>w.update.name.includes('/products/')),false);
+});
