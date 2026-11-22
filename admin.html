@@ -4809,7 +4809,7 @@ function renderAdminCustomerFile(){
  if(!c){openedAdminCustomerKey=null;file.classList.add('hidden');overview.classList.remove('hidden');return;}
  overview.classList.add('hidden');file.classList.remove('hidden');
  $('adminCustomerFileTitle').textContent='ملف '+(c.name||'العميل');
- const list=(c.history||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+ const list=(c.history||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
  const location=[c.city,c.location].filter(Boolean).join(' - ')||'-';
  content.innerHTML=`<div class="customer-file-mini-profile">
  <div><small>الاسم</small><b>${esc(c.name||'عميل')}</b></div>
