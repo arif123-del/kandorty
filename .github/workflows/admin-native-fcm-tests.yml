@@ -4,7 +4,7 @@ on:
     branches: [fix/admin-fcm-test-endpoint-20261120, fix/native-fcm-admin-reader-503-20261120, fix/native-fcm-admin-email-auth-403-20261121, fix/native-fcm-email-case-20261121, fix/native-fcm-auth-reason-20261121, fix/native-fcm-google-keys-20261121, fix/cloudflare-native-fcm-redirect-20261121, fix/native-fcm-provider-errors-20261121, fix/per-color-server-stock-20261122]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -32,3 +32,12 @@ jobs:
           name: kandorty-variant-stock-worker-review
           path: /tmp/kandorty-color-safe-worker
           retention-days: 7
+      - name: Publish review-only compiled source in this feature branch
+        run: |
+          cp /tmp/kandorty-color-safe-worker/worker.js stripe-release/variant-stock-worker-review.js
+          sed -i '/^\/\/# sourceMappingURL=/d' stripe-release/variant-stock-worker-review.js
+          git config user.name "Kandorty CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add stripe-release/variant-stock-worker-review.js
+          git commit -m "CI: reviewed variant-safe Worker bundle (not deployed)"
+          git push origin HEAD:refs/heads/fix/per-color-server-stock-20261122
