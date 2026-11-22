@@ -78,8 +78,30 @@ for(let i=0;i<statuses.length;i++){
  for(let j=0;j<statuses.length;j++)if(i!==j)
    assert.ok(!detail.includes('data-test-order="'+records[j].id+'"'), 'Other status shown in '+state+' customer file');
 }
+// Older and imported orders with missing/unknown states must never be shown
+// as "جديد". They stay under "الكل" and "تحتاج مراجعة" instead.
+const ambiguous=[
+  {id:'KD-80000001',createdAt:'2026-11-01T10:00:00Z',customer:{name:'Faiz',phone}},
+  {id:'KD-80000002',status:'pending',createdAt:'2026-11-02T10:00:00Z',customer:{name:'Faiz',phone}},
+  {id:'KD-80000003',status:'',createdAt:'2026-11-03T10:00:00Z',customer:{name:'Faiz',phone}}
+];
+for(const order of ambiguous)group.history.push(order);
+vm.runInContext("koOrderFilter='new'",context);
+assert.deepEqual(Array.from(context.koMatchingOrders(group),o=>o.id),[records[0].id],
+ 'New filter must include ONLY explicit new orders');
+assert.equal(context.koOrderStatus({status:' NEW '}),'new','Normalized explicit new is valid');
+for(const order of ambiguous)assert.equal(context.koOrderStatus(order),'unclassified',
+ 'Missing/unknown status must not be fabricated as new');
+vm.runInContext("koOrderFilter='unclassified'",context);
+assert.deepEqual(Array.from(context.koMatchingOrders(group),o=>o.id),ambiguous.map(o=>o.id),
+ 'Review must collect unclassified orders without changing the saved data');
+context.renderOpenedOrdersCustomer();
+for(const order of ambiguous)assert.ok(elements.ordersCustomerContents.innerHTML.includes(order.id),
+ 'Review customer file must retain ambiguous order '+order.id);
+assert.ok(admin.includes('value="unclassified"')||admin.includes("'unclassified','new','preparing'"),
+ 'Unknown orders should be explicitly selectable/reviewable');
 vm.runInContext("koOrderFilter='all'",context);
-assert.equal(context.koMatchingOrders(group).length,5,'All filter should show full customer history');
+assert.equal(context.koMatchingOrders(group).length,8,'All filter should show full customer history');
 htmlSearch.value=records[2].id;
 assert.deepEqual(Array.from(context.koMatchingOrders(group),o=>o.id),[records[2].id],'Search should match one order ID');
 htmlSearch.value='Faiz';
