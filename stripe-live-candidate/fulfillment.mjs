@@ -94,7 +94,7 @@ export function preparePaidFulfillment({
  check(Number.isSafeInteger(deliveryFils)&&deliveryFils>=0&&subtotal+deliveryFils===snapshot.totalFils,"snapshot_total_mismatch");
  // A successful payment must ALWAYS be recorded, even if stock became unavailable after checkout.
  // In that case do not debit ANY stock, mark the paid order for manual review/refund.
- const stockDebits={},updates=[];
+ const stockDebits={},stockDebitsByImage={},updates=[];
  let shortages=false;
  for(const [productId,need] of byProduct){
   const row=products[productId];
@@ -115,17 +115,42 @@ export function preparePaidFulfillment({
    shortages=true;
    continue;
   }
+  // Every photo/color has its own physical inventory when configured.
+  // After a paid shortage, record the payment for review, never debit
+  // a different color or a subset of the products.
+  let nextImageStocks=null;
+  if(row.data.imageStocks!==undefined&&row.data.imageStocks!==null){
+   const imageCount=Array.isArray(row.data.images)?row.data.images.length:0;
+   const valid=Array.isArray(row.data.imageStocks)&&
+     row.data.imageStocks.length===imageCount&&
+     row.data.imageStocks.every(n=>Number.isSafeInteger(n)&&n>=0);
+   if(!valid||row.data.imageStocks.reduce((a,n)=>a+n,0)!==current){
+    shortages=true;continue;
+   }
+   nextImageStocks=row.data.imageStocks.slice();
+   const requested=snapshot.items.filter(i=>i.id===productId);
+   if(requested.some(i=>(i.imageIndex??0)>=nextImageStocks.length||
+       nextImageStocks[i.imageIndex??0]<i.qty)){
+    shortages=true;continue;
+   }
+   for(const item of requested){
+    const index=item.imageIndex??0;
+    nextImageStocks[index]-=item.qty;
+    stockDebitsByImage[productId+"__img"+index]=item.qty;
+   }
+  }
   check(validVersion(row.updateTime),"missing_product_version");
   stockDebits[productId]=need;
   updates.push({
    path:path(root,"products",productId),
    updateTime:row.updateTime,
    stock:current-need,
-   totalStock:priorTotal
+   totalStock:priorTotal,imageStocks:nextImageStocks
   });
  }
  const inventoryStatus=shortages?"needs_review":"debited";
  const recordedDebits=shortages?{}:stockDebits;
+ const recordedVariantDebits=shortages?{}:stockDebitsByImage;
  const order={
   id:snapshot.orderId,createdAt:snapshot.createdAt||nowISO,
   customer,customerName:customer.name,customerPhone:customer.phone,
@@ -143,6 +168,7 @@ export function preparePaidFulfillment({
   status:"new",inventoryStatus,
   stockDebited:!shortages&&Object.keys(recordedDebits).length>0,
   stockDebits:recordedDebits,
+  stockDebitsByImage:recordedVariantDebits,
   editToken
  };
  // Never transfer an unauthenticated browser-provided uid into privileged order ownership.
@@ -164,15 +190,19 @@ export function preparePaidFulfillment({
   put("order_access",accessKey,access),
   put("stripe_checkout_sessions",snapshot.checkoutId,{
    ...snapshot,sessionId:session.id,fulfilled:true,
-   paidAt:nowISO,inventoryStatus,orderId:order.id,stockDebits:recordedDebits
+   paidAt:nowISO,inventoryStatus,orderId:order.id,stockDebits:recordedDebits,
+   stockDebitsByImage:recordedVariantDebits
   },{updateTime:snapshotVersion})
  ];
- if(!shortages)for(const u of updates)writes.push({
-  update:{name:u.path,fields:fields({
-   stock:u.stock,totalStock:u.totalStock,updatedAt:nowISO
-  })},
-  updateMask:{fieldPaths:["stock","totalStock","updatedAt"]},
-  currentDocument:{updateTime:u.updateTime}
- });
- return {replay:false,writes,order,inventoryStatus,stockDebits:recordedDebits};
+ if(!shortages)for(const u of updates){
+  const changes={stock:u.stock,totalStock:u.totalStock,updatedAt:nowISO};
+  if(u.imageStocks!==null)changes.imageStocks=u.imageStocks;
+  writes.push({
+   update:{name:u.path,fields:fields(changes)},
+   updateMask:{fieldPaths:Object.keys(changes)},
+   currentDocument:{updateTime:u.updateTime}
+  });
+ }
+ return {replay:false,writes,order,inventoryStatus,stockDebits:recordedDebits,
+  stockDebitsByImage:recordedVariantDebits};
 }
