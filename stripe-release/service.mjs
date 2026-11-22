@@ -60,7 +60,7 @@ export function createService(cfg,store,stripe,onNewOrder){
     const plan=preparePaidFulfillment({session:p,snapshot:s,snapshotVersion:row.version,existingOrder:existing||null,products,editToken:s.editToken,accessKey:s.accessKey,nowISO:new Date().toISOString(),projectId:cfg.projectId,mode:cfg.mode});
     if(!plan.replay){
      if(typeof p.payment_intent==='string'&&/^pi_[A-Za-z0-9]+$/.test(p.payment_intent))plan.writes.push(store.write('stripe_payment_intents/'+await hash(p.payment_intent),{checkoutId,orderId:s.orderId,sessionId:p.id},{exists:false}));
-     plan.writes.push(store.write('order_lifecycle/'+s.orderId,{orderId:s.orderId,checkoutId,payment:'card',stockDebits:plan.stockDebits,manageTokenHash:await hash(s.editToken)},{exists:false}));
+     plan.writes.push(store.write('order_lifecycle/'+s.orderId,{orderId:s.orderId,checkoutId,payment:'card',stockDebits:plan.stockDebits,imageStockDebits:plan.imageStockDebits,manageTokenHash:await hash(s.editToken)},{exists:false}));
      plan.writes.push(store.write('stripe_payment_claims/'+claimId,{checkoutId,orderId:s.orderId,sessionId:p.id},{exists:false}));
      const marker=plan.writes.find(w=>w.update.name===store.root+'/stripe_checkout_sessions/'+checkoutId);marker.update.fields.reconcilePending={booleanValue:false};
      if(plan.order.inventoryStatus==='needs_review')plan.writes.push(store.write('stripe_review_queue/'+s.orderId,{orderId:s.orderId,sessionId:p.id,reason:'paid_inventory_shortage',resolved:false,createdAt:new Date().toISOString()},{exists:false}));
