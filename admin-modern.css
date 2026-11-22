@@ -75,7 +75,7 @@
 #adminOrdersTab .customer-file-mini-profile small{font-size:12px!important;color:var(--ko-muted)!important}
 #adminOrdersTab .customer-file-mini-profile b{font-size:15px!important;color:var(--ko-ink)!important;word-break:break-word}
 #adminOrdersTab .ko-contact-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 4px 2px}
-#adminOrdersTab .ko-contact-actions a{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--ko-line);background:white;border-radius:10px;padding:10px 16px;min-height:40px;color:var(--ko-ink);font-size:13px;font-weight:800;text-decoration:none}
+#adminOrdersTab .ko-contact-actions a,#adminOrdersTab .ko-contact-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--ko-line);background:white;border-radius:10px;padding:10px 16px;min-height:40px;color:var(--ko-ink);font-size:13px;font-weight:800;text-decoration:none}
 #adminOrdersTab .ko-contact-actions a.ko-wa{color:#156c46;background:#f1faf4;border-color:#cfe6d6}
 #adminOrdersTab .customer-file-summary{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;margin:0 0 15px!important}
 #adminOrdersTab .customer-file-summary>div{border:1px solid var(--ko-line)!important;border-radius:14px!important;padding:13px!important;background:#fff!important;text-align:right!important}
@@ -148,3 +148,6 @@
 #adminOrdersTab .ko-filter-row{flex-wrap:wrap!important;overflow-x:visible!important;gap:8px!important}
 #adminOrdersTab .ko-status[data-status="unclassified"]{background:#f0f2f5;color:#535e6d}
 @media(max-width:620px){#adminOrdersTab .ko-filter{padding:8px 12px;font-size:12px}}
+
+#adminOrdersTab .ko-copy-contact{cursor:pointer;background:#fff;color:var(--ko-brand);font-family:inherit;border:1px solid var(--ko-line)}
+#adminOrdersTab .ko-unavailable-contact{color:var(--ko-muted);font-size:12px}
