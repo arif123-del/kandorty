@@ -48,7 +48,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 /** Dedicated Kandorty Admin application. Does NOT launch a browser on startup. */
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261122";
+    private static final String ADMIN_URL = "https://kandorty.online/admin.html?source=android-admin&admin_ui=20261123&dialer=1";
     private static final int PICK_FILE = 401;
     private static final int ASK_NOTIFICATIONS = 402;
 
@@ -73,6 +73,14 @@ public class MainActivity extends Activity {
                 && ("kandorty.online".equalsIgnoreCase(uri.getHost())
                 || "www.kandorty.online".equalsIgnoreCase(uri.getHost()))
                 && (uri.getPort() == -1 || uri.getPort() == 443);
+    }
+
+    // A valid phone link may open only the dialer, never place a call directly.
+    // Reject premium short codes, malformed URIs and untrusted custom schemes.
+    static boolean isDialUri(Uri uri) {
+        if (uri == null || !"tel".equalsIgnoreCase(uri.getScheme())) return false;
+        String number = uri.getSchemeSpecificPart();
+        return number != null && number.matches("\\+?[0-9]{6,15}");
     }
 
     @Override protected void onCreate(Bundle state) {
@@ -140,6 +148,26 @@ public class MainActivity extends Activity {
                 if (!request.isForMainFrame()) return false;
                 Uri uri = request.getUrl();
                 if (isTrusted(uri) || "about".equals(uri.getScheme())) return false;
+
+                // Permit dialing ONLY after a navigation from our own admin screen.
+                // ACTION_DIAL opens Android's phone app with the number prefilled;
+                // it does not call the customer or require CALL_PHONE permission.
+                if ("tel".equalsIgnoreCase(uri.getScheme())) {
+                    String current = view.getUrl();
+                    Uri from = current == null ? null : Uri.parse(current);
+                    if (!isTrusted(from) || !isDialUri(uri)) {
+                        Toast.makeText(MainActivity.this, "رقم هاتف غير صالح", Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
+                    try {
+                        Intent dial = new Intent(Intent.ACTION_DIAL, uri);
+                        startActivity(dial);
+                    } catch (ActivityNotFoundException | SecurityException error) {
+                        Toast.makeText(MainActivity.this, "لا يوجد تطبيق هاتف متاح", Toast.LENGTH_LONG).show();
+                    }
+                    return true;
+                }
+
                 // External HTTPS websites never get loaded with Kandorty admin privileges.
                 if ("https".equalsIgnoreCase(uri.getScheme())) {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); }
