@@ -119,7 +119,9 @@ export function preparePaidFulfillment({
   // After a paid shortage, record the payment for review, never debit
   // a different color or a subset of the products.
   let nextImageStocks=null;
-  if(row.data.imageStocks!==undefined&&row.data.imageStocks!==null){
+  if(row.data.imageStocks!==undefined&&row.data.imageStocks!==null&&
+     !(Array.isArray(row.data.imageStocks)&&row.data.imageStocks.length===0&&
+       (!Array.isArray(row.data.images)||row.data.images.length===0))){
    const imageCount=Array.isArray(row.data.images)?row.data.images.length:0;
    const valid=Array.isArray(row.data.imageStocks)&&
      row.data.imageStocks.length===imageCount&&
