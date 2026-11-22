@@ -974,6 +974,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminFormTab .images-preview .preview-item .photo-qty-input:invalid{border-color:#b40018;background:#fff4f4}
 #adminDiscountsTab .admin-item{flex-wrap:wrap}
 </style>
+<link rel="stylesheet" href="./admin-modern.css?v=20261123" media="all">
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1062,7 +1063,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head admin-modal-head">
-  <h2>لوحة إدارة Kandorty</h2>
+  <h2>Kandorty <span style="color:#81364e">·</span> إدارة المتجر</h2>
   <div class="admin-head-controls">
     <button type="button" id="adminMenuButton" class="admin-menu-toggle hidden" aria-label="فتح قائمة الإدارة" aria-controls="adminNavDrawer" aria-expanded="false" onclick="toggleAdminMenu()"><span aria-hidden="true">☰</span></button>
     <button class="x" id="adminCloseButton" type="button" onclick="closeAdmin()">×</button>
@@ -1088,21 +1089,23 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
     <button type="button" class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button>
     <button type="button" class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button>
   </div>
-  <form class="admin-menu-search" role="search" onsubmit="event.preventDefault();openOrdersSearchFromMenu()">
-    <label for="adminOrderSearch">البحث في الطلبات</label>
-    <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
-    <div class="admin-menu-search-actions">
-      <button type="submit" class="btn primary">بحث</button>
-      <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
-    </div>
-  </form>
+  <div class="admin-menu-search">
+    <button type="button" class="btn ghost" onclick="openOrdersSearchFromMenu()">بحث في الطلبات</button>
+  </div>
   <div class="admin-nav-bottom">
     <button type="button" class="tab" onclick="closeAdminMenu();logoutAdmin()">تسجيل الخروج</button>
     <button type="button" class="tab" onclick="closeAdmin()">✕ إغلاق الإدارة</button>
   </div>
 </aside>
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
-<div id="adminCurrentSection" class="admin-current-section">إضافة منتج</div>
+<div id="adminCurrentSection" class="admin-current-section">الطلبات</div>
+<nav id="adminPrimaryNav" class="ko-primary-nav" aria-label="الأقسام الرئيسية">
+  <button type="button" data-admin-primary="orders" onclick="showAdminTab('orders',document.getElementById('ordersTabBtn'))">الطلبات</button>
+  <button type="button" data-admin-primary="list" onclick="showAdminTab('list',document.querySelector('#adminNavDrawer .tab[onclick*=&quot;list&quot;]'))">المنتجات</button>
+  <button type="button" data-admin-primary="form" onclick="showAdminTab('form',document.querySelector('#adminNavDrawer .tab[onclick*=&quot;form&quot;]'))">إضافة منتج</button>
+  <button type="button" data-admin-primary="customers" onclick="showAdminTab('customers',document.getElementById('customersTabBtn'))">العملاء</button>
+  <button type="button" data-admin-primary="discounts" onclick="showAdminTab('discounts',document.querySelector('#adminNavDrawer .tab[onclick*=&quot;discounts&quot;]'))">التخفيضات</button>
+</nav>
 <div id="adminProductQuickAccess" class="admin-product-quick-access">
   <button type="button" class="btn ghost" onclick="showAdminTab('form',this)">＋ إضافة منتج</button>
   <button type="button" class="btn ghost" onclick="showAdminTab('discounts',this)">🏷️ تخفيضات</button>
@@ -1157,13 +1160,52 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div class="discount-admin-actions"><button class="btn primary" type="button" onclick="openDiscountProductForm()">＋ إضافة منتج للتخفيضات</button></div>
   <div id="adminDiscountsList" class="admin-list"></div>
 </div>
-<div id="adminOrdersTab" class="hidden">
-<div id="adminCancellationRequests" role="status" aria-live="polite"></div>
-<div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div></div>
-<section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل"><div class="customer-file-header">
-<button type="button" class="customer-file-back" onclick="backToOrderFolders()">➜ رجوع إلى الطلبات</button>
-<div class="customer-file-heading" id="ordersCustomerHeading" aria-live="polite"></div></div>
-<div id="ordersCustomerContents"></div></section>
+<div id="adminOrdersTab" class="hidden" dir="rtl">
+  <div class="ko-shell">
+    <div id="ordersDashboardOverview">
+      <div class="ko-section-intro">
+        <div class="ko-eyebrow">لوحة متابعة المتجر</div>
+        <h3>إدارة الطلبات</h3>
+        <p>تابعي الطلبات الجديدة، وافتحي ملف كل عميل لتجهيز طلباته بسهولة.</p>
+      </div>
+      <div class="ko-stat-grid" aria-label="ملخص الطلبات">
+        <button type="button" class="ko-stat-card" data-filter="all" aria-pressed="true" onclick="koSetOrderFilter('all')"><span class="ko-stat-label">كل الطلبات</span><strong class="ko-stat-value" id="koStatAll">0</strong></button>
+        <button type="button" class="ko-stat-card" data-filter="new" aria-pressed="false" onclick="koSetOrderFilter('new')"><span class="ko-stat-label">جديد</span><strong class="ko-stat-value" id="koStatNew">0</strong></button>
+        <button type="button" class="ko-stat-card" data-filter="preparing" aria-pressed="false" onclick="koSetOrderFilter('preparing')"><span class="ko-stat-label">قيد التجهيز</span><strong class="ko-stat-value" id="koStatPreparing">0</strong></button>
+        <button type="button" class="ko-stat-card" data-filter="shipping" aria-pressed="false" onclick="koSetOrderFilter('shipping')"><span class="ko-stat-label">قيد التوصيل</span><strong class="ko-stat-value" id="koStatShipping">0</strong></button>
+      </div>
+      <div class="ko-tools">
+        <div class="ko-tools-top"><span class="ko-tools-title">ملفات العملاء</span><span class="ko-tools-meta" id="koTotalCustomersLabel">0 عميل</span></div>
+        <div class="ko-search-row">
+          <div class="ko-search-wrap">
+            <label for="adminOrderSearch" class="ko-search-icon" aria-hidden="true">⌕</label>
+            <input id="adminOrderSearch" type="search" placeholder="اسم العميل، الهاتف أو رقم الطلب..." autocomplete="off" aria-label="بحث في الطلبات والعملاء" oninput="renderOrders()">
+          </div>
+          <button class="ko-reset-search" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
+        </div>
+        <div class="ko-filter-row" role="group" aria-label="تصفية بحسب حالة الطلب">
+          <button type="button" class="ko-filter" data-filter="all" aria-pressed="true" onclick="koSetOrderFilter('all')">الكل</button>
+          <button type="button" class="ko-filter" data-filter="new" aria-pressed="false" onclick="koSetOrderFilter('new')">جديد</button>
+          <button type="button" class="ko-filter" data-filter="preparing" aria-pressed="false" onclick="koSetOrderFilter('preparing')">تجهيز</button>
+          <button type="button" class="ko-filter" data-filter="shipping" aria-pressed="false" onclick="koSetOrderFilter('shipping')">توصيل</button>
+          <button type="button" class="ko-filter" data-filter="delivered" aria-pressed="false" onclick="koSetOrderFilter('delivered')">مكتمل</button>
+          <button type="button" class="ko-filter" data-filter="cancelled" aria-pressed="false" onclick="koSetOrderFilter('cancelled')">ملغي</button>
+        </div>
+      </div>
+      <div id="ordersFoldersView">
+        <div class="ko-result-heading"><h4>قائمة العملاء والطلبات</h4><span id="koResultCount">0 ملفات</span></div>
+        <div id="ordersList" class="customer-folder-list" aria-live="polite"></div>
+      </div>
+      <div id="adminCancellationRequests" role="status" aria-live="polite"></div>
+    </div>
+    <section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل">
+      <div class="customer-file-header ko-customer-header">
+        <button type="button" class="customer-file-back" onclick="backToOrderFolders()">رجوع إلى الطلبات</button>
+        <h3 class="customer-file-heading" id="ordersCustomerHeading" aria-live="polite"></h3>
+      </div>
+      <div id="ordersCustomerContents"></div>
+    </section>
+  </div>
 </div>
 <div id="adminCustomersTab" class="hidden">
   <div id="adminCustomersOverview">
@@ -1681,7 +1723,7 @@ function toggleAdminMenu(force){
   if(open)drawer.scrollTop=0;
 }
 function closeAdminMenu(){toggleAdminMenu(false);}
-function openOrdersSearchFromMenu(){showAdminTab('orders',$('ordersTabBtn'));}
+function openOrdersSearchFromMenu(){showAdminTab('orders',$('ordersTabBtn'));requestAnimationFrame(()=>$('adminOrderSearch')?.focus());}
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&!$('adminNavDrawer')?.classList.contains('hidden')){
     event.preventDefault();closeAdminMenu();$('adminMenuButton')?.focus();
@@ -1947,7 +1989,7 @@ auth.onAuthStateChanged(user=>{
     // Realtime admin data.
     startAdminOrdersListener();
     const requestedView=new URLSearchParams(location.search).get('view');
-    if(requestedView==='orders')showAdminTab('orders',$('ordersTabBtn'));
+    if(!requestedView||requestedView==='orders')showAdminTab('orders',$('ordersTabBtn'));
     if(requestedView==='discounts')showAdminTab('discounts',document.querySelector('#adminNavDrawer .admin-tabs .tab[onclick*="discounts"]'));
     /* DRAFT REVIEW: auto stock baseline migration disabled */
     startAdminCustomersListener();
@@ -2004,6 +2046,7 @@ function showAdminTab(name,btn){
   $('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');
   document.querySelectorAll('.admin-tabs .tab').forEach(x=>x.classList.remove('active'));
   if(btn)btn.classList.add('active');
+  document.querySelectorAll('#adminPrimaryNav [data-admin-primary]').forEach(el=>{const active=el.dataset.adminPrimary===name;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
   const labels={form:'إضافة منتج',list:'المنتجات',discounts:'تخفيضات',orders:'الطلبات',customers:'العملاء',banner:'بانر الرئيسية',categories:'صور الأقسام',video:'فيديو الرئيسية',settings:'الإعدادات',backup:'نسخة احتياطية'};
   if($('adminCurrentSection'))$('adminCurrentSection').textContent=labels[name]||'';
   closeAdminMenu();
@@ -2850,10 +2893,10 @@ function renderAdminCancellationRequests(){
     String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   if(!canceled.length){box.innerHTML='';return;}
   // Keep the section expanded on first render, while respecting a manual collapse.
-  const expanded=box.querySelector('details')?.open??true;
+  const expanded=box.querySelector('details')?.open??false;
   const latest=canceled[0],latestCustomer=latest?.customerEdit?.customer?.name||latest?.customer?.name||latest?.customerName||'العميل';
   box.innerHTML=`<details class="admin-cancel-history" ${expanded?'open':''}>
-    <summary>🔔 الطلبات الملغاة (${canceled.length}) — آخر إلغاء: ${esc(latest.id||'-')} · ${esc(latestCustomer)}</summary>
+    <summary>الطلبات الملغاة (${canceled.length}) · آخر إلغاء: ${esc(latest.id||'-')} · ${esc(latestCustomer)}</summary>
     <div class="admin-cancel-history-list">
     ${canceled.slice(0,40).map(order=>{
       const name=order.customerEdit?.customer?.name||order.customer?.name||order.customerName||'العميل';
