@@ -149,5 +149,10 @@
 #adminOrdersTab .ko-status[data-status="unclassified"]{background:#f0f2f5;color:#535e6d}
 @media(max-width:620px){#adminOrdersTab .ko-filter{padding:8px 12px;font-size:12px}}
 
-#adminOrdersTab .ko-copy-contact{cursor:pointer;background:#fff;color:var(--ko-brand);font-family:inherit;border:1px solid var(--ko-line)}
 #adminOrdersTab .ko-unavailable-contact{color:var(--ko-muted);font-size:12px}
+
+/* Two clear contact actions only: phone and WhatsApp. */
+#adminOrdersTab .ko-contact-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px!important;margin-top:14px!important}
+#adminOrdersTab .ko-contact-actions a{display:flex!important;justify-content:center!important;align-items:center!important;min-height:46px!important;text-align:center!important;font-size:14px!important;border-radius:12px!important}
+#adminOrdersTab .ko-contact-actions a.ko-call{color:#74283f!important;background:#fff5f8!important;border-color:#e9c8d3!important}
+@media(max-width:400px){#adminOrdersTab .ko-contact-actions{gap:7px!important}#adminOrdersTab .ko-contact-actions a{font-size:13px!important;padding:9px 6px!important}}
