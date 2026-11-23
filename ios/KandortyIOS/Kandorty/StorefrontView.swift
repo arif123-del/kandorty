@@ -118,7 +118,10 @@ final class StoreBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUI
     func goBack() { if webView.canGoBack { webView.goBack() } }
     func goForward() { if webView.canGoForward { webView.goForward() } }
     func goHome() { webView.load(URLRequest(url: kandortyURL)) }
-    func refresh() { hasNetworkError ? reloadHome() : webView.reload() }
+    func refresh() {
+        if hasNetworkError { reloadHome() }
+        else { webView.reload() }
+    }
     func reloadHome() {
         hasNetworkError = false
         isLoading = true
@@ -169,9 +172,7 @@ final class StoreBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUI
             // Checkout redirects stay in this WebView; iOS payment return requires testing.
             decisionHandler(.allow)
         } else {
-            if UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url)
-            }
+            UIApplication.shared.open(url)
             decisionHandler(.cancel)
         }
     }
