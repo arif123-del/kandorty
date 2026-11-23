@@ -1865,7 +1865,6 @@ body.kandorty-cart-open #cartBtn{
   }
   #productModal #modalMainImage,
   #productModal #modalProductVideo{
-    display:block;
     width:100%!important;
     height:100%!important;
     max-width:100%!important;
@@ -1875,6 +1874,9 @@ body.kandorty-cart-open #cartBtn{
     object-position:center!important;
   }
   #productModal #modalMainImage{background:#171717!important;}
+  /* Hide the video overlay until the selected gallery item is actually a video. */
+  #productModal #modalProductVideo:not(.show){display:none!important;}
+  #productModal #modalProductVideo.show{display:block!important;}
 }
 /* Tap to see the full uncropped source image, regardless of its orientation. */
 #imageViewerModal .image-viewer-card{
