@@ -10,6 +10,7 @@ on:
       - tests/admin-contact-status-filters.cjs
       - tests/admin-call-copy-fallback.cjs
       - tests/original-photo-quality.cjs
+      - tests/storefront-photo-pan.cjs
       - index.html
       - tests/admin-discounts-image-stocks.cjs
       - tests/color-cart-admin-regressions.cjs
@@ -30,3 +31,4 @@ jobs:
       - run: node tests/admin-contact-status-filters.cjs
       - run: node tests/admin-call-copy-fallback.cjs
       - run: node tests/original-photo-quality.cjs
+      - run: node tests/storefront-photo-pan.cjs
