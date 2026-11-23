@@ -1830,6 +1830,68 @@ body.kandorty-cart-open #cartBtn{
   font-variant-numeric:tabular-nums;
 }
 </style>
+<!-- kandorty-photo-frame-compact-20261123 -->
+<style id="kandorty-photo-frame-compact-20261123">
+/* Same compact image frame on every product; keep all badges and timers overlaid. */
+#products .card-image-wrap{
+  position:relative!important;
+  width:100%!important;
+  aspect-ratio:4/5!important;
+  overflow:hidden!important;
+  background:#f5f2f3!important;
+}
+#products .card-image-wrap > img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  aspect-ratio:auto!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+#products .card-image-wrap > div[style*="aspect-ratio"]{
+  height:100%!important;
+  aspect-ratio:auto!important;
+}
+/* Opening a product uses one stable, slightly shorter image stage. */
+@media (max-width:700px){
+  #productModal .product-gallery-mainwrap{
+    height:64dvh!important;
+    min-height:64dvh!important;
+    max-height:64dvh!important;
+  }
+  #productModal .product-gallery-stage{
+    width:100%!important;
+    height:100%!important;
+  }
+  #productModal #modalMainImage,
+  #productModal #modalProductVideo{
+    display:block;
+    width:100%!important;
+    height:100%!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    aspect-ratio:auto!important;
+    object-fit:contain!important;
+    object-position:center!important;
+  }
+  #productModal #modalMainImage{background:#171717!important;}
+}
+/* Tap to see the full uncropped source image, regardless of its orientation. */
+#imageViewerModal .image-viewer-card{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#imageViewerModal #imageViewerImg{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
