@@ -1827,43 +1827,27 @@ body.kandorty-cart-open #cartBtn{
   object-position:center center!important;
 }
 </style>
-<style id="kandorty-photo-side-fill-20261124">
-/* Preserve the whole foreground photo, while filling its side gutters
-   with a softly blurred copy of the SAME selected product image. */
+<style id="kandorty-product-preview-cover-20261124">
+/* Fill the opened product photo stage edge-to-edge, without side gutters.
+   Fullscreen tap viewer remains contain, so the whole source can still be seen. */
+#productModal .product-gallery-mainwrap,
 #productModal .product-gallery-stage{
-  position:relative!important;
-  isolation:isolate!important;
+  background:#111!important;
   overflow:hidden!important;
-  background:#f5f2f3!important;
-}
-#productModal .product-gallery-stage > .kd-product-sidefill{
-  display:block!important;
-  position:absolute!important;
-  inset:-16px!important;
-  width:calc(100% + 32px)!important;
-  height:calc(100% + 32px)!important;
-  max-width:none!important;
-  max-height:none!important;
-  object-fit:cover!important;
-  object-position:center center!important;
-  opacity:.88!important;
-  filter:blur(13px) brightness(.88)!important;
-  pointer-events:none!important;
-  user-select:none!important;
-  z-index:0!important;
-}
-#productModal .product-gallery-stage > .kd-product-sidefill[hidden]{
-  display:none!important;
 }
 #productModal #modalMainImage{
-  position:relative!important;
-  z-index:1!important;
-  object-fit:contain!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  aspect-ratio:auto!important;
+  object-fit:cover!important;
   object-position:center center!important;
-  background:transparent!important;
+  background:#111!important;
 }
-#productModal .product-gallery-stage > #modalProductVideo{
-  z-index:2!important;
+#productModal #modalProductVideo{
+  object-fit:cover!important;
+  object-position:center center!important;
 }
 </style>
 </head>
@@ -2960,28 +2944,6 @@ function renderProductGallery(direction=0){
   $('modalThumbs').innerHTML='';
 
   const showingVideo=isCurrentProductVideo();
-  // Keep the original photo uncropped; fill only its empty side space.
-  // Reuse the selected image URL without canvas, resizing, or compression.
-  const photoStage=gallery.querySelector('.product-gallery-stage');
-  if(photoStage){
-    let sideFill=photoStage.querySelector('.kd-product-sidefill');
-    if(!sideFill){
-      sideFill=document.createElement('img');
-      sideFill.className='kd-product-sidefill';
-      sideFill.alt='';
-      sideFill.setAttribute('aria-hidden','true');
-      sideFill.setAttribute('draggable','false');
-      sideFill.decoding='async';
-      photoStage.insertBefore(sideFill,photoStage.firstChild);
-    }
-    const sideSrc=!showingVideo?currentProductImages[currentProductImageIndex]:'';
-    if(sideSrc){
-      if(sideFill.getAttribute('src')!==sideSrc)sideFill.src=sideSrc;
-      sideFill.hidden=false;
-    }else{
-      sideFill.hidden=true;
-    }
-  }
   if(showingVideo){
     mainImg.style.display='none';
     mainImg.onclick=null;
