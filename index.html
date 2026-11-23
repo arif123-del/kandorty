@@ -1882,7 +1882,7 @@ body.kandorty-cart-open #cartBtn{
   }
   /* Hide the video overlay until the selected gallery item is actually a video. */
   #productModal #modalProductVideo:not(.show){display:none!important;}
-  #productModal #modalProductVideo.show{display:block!important;}
+  #productModal #modalProductVideo.show{display:block!important;pointer-events:none!important;}
 }
 /* Tap to see the full uncropped source image, regardless of its orientation. */
 #imageViewerModal .image-viewer-card{
@@ -2951,7 +2951,7 @@ function preloadProductImages(urls){
 
 function preloadNearbyProductGalleries(){
   const candidates=(Array.isArray(products)?products:[]).filter(p=>p && p.active!==false).slice(0,10);
-  const run=()=>candidates.forEach(p=>preloadProductImages((p.images||[]).slice(0,4)));
+  const run=()=>candidates.slice(0,3).forEach(p=>preloadProductImages((p.images||[]).slice(0,1)));
   if('requestIdleCallback' in window) requestIdleCallback(run,{timeout:1200});
   else setTimeout(run,250);
 }
@@ -3015,7 +3015,7 @@ function updateFullscreenProductImage(direction=0){
   const viewer=$('imageViewerModal');
   const img=$('imageViewerImg');
   if(!viewer || !img || !currentProductImages.length || isCurrentProductVideo())return;
-  preloadProductImages(currentProductImages);
+  preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
   resetImageZoom();
   animateImageSwap(img,currentProductImages[currentProductImageIndex],direction);
   renderKandortyViewerDots();
@@ -3057,45 +3057,45 @@ function renderProductGallery(direction=0){
   $('modalThumbs').innerHTML='';
 
   const showingVideo=isCurrentProductVideo();
+  const videoBadge=$('productVideoBadge');
+  // Display the latest product photo as a poster while the video buffers.
+  // Avoid recreating the video decoder on each image swipe.
+  const poster=currentProductImages[currentProductImages.length-1]||currentProductImages[0]||'';
+  if(poster&&video.poster!==poster)video.poster=poster;
   if(showingVideo){
     mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
-    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.add('show');
-
-    // Load the product video only when the customer reaches the last media item.
+    if(videoBadge)videoBadge.classList.add('show');
+    video.muted=true;
+    video.loop=true;
+    video.playsInline=true;
     if(video.dataset.src!==currentProductVideoUrl){
       video.pause();
-      video.removeAttribute('src');
-      video.load();
+      video.oncanplay=null;
       video.dataset.src=currentProductVideoUrl;
-      video.src=currentProductVideoUrl;
-      video.muted=true;
-      video.loop=true;
-      video.playsInline=true;
       video.preload='metadata';
+      video.src=currentProductVideoUrl;
       video.load();
     }
-    const tryPlayProductVideo=()=>video.play().catch(()=>{});
-    if(video.readyState>=2)tryPlayProductVideo();
-    else video.addEventListener('canplay',tryPlayProductVideo,{once:true});
+    video.oncanplay=()=>{
+      if(isCurrentProductVideo()&&video.dataset.src===currentProductVideoUrl&&
+         !$('productModal').classList.contains('hidden')){
+        video.play().catch(()=>{});
+      }
+    };
+    if(video.readyState>=2)video.oncanplay();
   }else{
     video.pause();
+    video.oncanplay=null;
     video.classList.remove('show');
-    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.remove('show');
-    // Free the video network/decoder when the customer goes back to images.
-    if(video.getAttribute('src')){
-      video.removeAttribute('src');
-      video.load();
-    }
-    video.dataset.src='';
-
-    mainImg.style.display='block';
+    if(videoBadge)videoBadge.classList.remove('show');
+    // Keep the buffered source while visiting other photos; release on close.
     mainImg.onclick=openFullscreenProductImage;
     mainImg.onload=null;
     mainImg.removeAttribute('style');
     mainImg.style.display='block';
-    preloadProductImages(currentProductImages);
+    preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
     animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   }
 
@@ -3184,7 +3184,7 @@ function openProduct(id){
   kdUpdateRestockCountdowns();
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
-  preloadProductImages(currentProductImages);
+  preloadProductImages(currentProductImages.slice(0,2));
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
   renderProductGallery();
@@ -3219,7 +3219,7 @@ function openProduct(id){
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
-      preloadProductImages(currentProductImages);
+      preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
       currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1));
       renderProductGallery();
 
@@ -7727,7 +7727,13 @@ function renderKandortyViewerDots(){
    if(!drag&&mediaCount()<2)return;
    drag=true;e.preventDefault();e.stopImmediatePropagation();
    const d=x<0?1:-1;if(d!==dir)adjacent(d);
-   delta=x;img.style.transition='none';img.style.transform='translate3d('+x+'px,0,0)';
+   delta=x;
+   // A media-boundary swipe changes media on release, without a black gap.
+   if(movesThroughVideo(wrap(currentProductImageIndex+d))){
+     img.style.transform='translate3d(0,0,0)';
+     return;
+   }
+   img.style.transition='none';img.style.transform='translate3d('+x+'px,0,0)';
    if(ghost)ghost.style.transform='translate3d('+(x+d*stage.clientWidth)+'px,0,0)';
   },{capture:true,passive:false});
   stage.addEventListener('touchend',e=>{
@@ -7754,8 +7760,10 @@ function renderKandortyViewerDots(){
     if(ghost)ghost.style.transform='translate3d('+(target+d*w)+'px,0,0)';
    });
    const thisToken=++token;
+   const productAtSwipe=currentProductId,indexAtSwipe=currentProductImageIndex;
    setTimeout(async()=>{
     if(thisToken!==token)return;
+    if(currentProductId!==productAtSwipe||currentProductImageIndex!==indexAtSwipe){reset();return;}
     if(!commit){reset();return}
     const nextIndex=wrap(currentProductImageIndex+d),url=photos()[nextIndex];
     // Keep the incoming image visible while the original changes behind it.
