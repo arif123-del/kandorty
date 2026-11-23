@@ -1802,6 +1802,31 @@ body.kandorty-cart-open #cartBtn{
 }
 </style>
 
+<style id="kandorty-show-entire-product-image-20261124">
+/* Show the entire original photo before a customer taps: no cropping.
+   Keep the existing dimensions of the listing cards and product gallery. */
+#products .card-image-wrap > img{
+  object-fit:contain!important;
+  object-position:center center!important;
+  background:#fff!important;
+}
+#products .card:hover .card-image-wrap > img{
+  transform:none!important;
+}
+#productModal .product-gallery-mainwrap,
+#productModal .product-gallery-stage{
+  background:#fff!important;
+}
+#productModal #modalMainImage{
+  object-fit:contain!important;
+  object-position:center center!important;
+  background:#fff!important;
+}
+#imageViewerModal #imageViewerImg{
+  object-fit:contain!important;
+  object-position:center center!important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
