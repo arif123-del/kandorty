@@ -10,7 +10,10 @@ const stop=admin.indexOf('function createOrderEditToken(){',start);
 const contactStart=admin.indexOf('function koCustomerContactTargets(phone){');
 const contactStop=admin.indexOf('function catalogOrderImage(id,code,index){',contactStart);
 assert.ok(start>=0&&stop>start&&contactStart>=0&&contactStop>contactStart);
-const sandbox={};
+const sandbox={
+  normalizeOrderShape:o=>({customer:o.customer||{}}),
+  esc:x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')
+};
 vm.createContext(sandbox);
 vm.runInContext(admin.slice(start,stop),sandbox);
 vm.runInContext(admin.slice(contactStart,contactStop),sandbox);
