@@ -1,6 +1,7 @@
 package online.kandorty.store;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
@@ -26,6 +27,7 @@ public final class MainActivity extends Activity {
     private static final int FILE_PICKER_REQUEST = 4001;
     private WebView webView;
     private TextView errorView;
+    private boolean pageHasError = false;
     private ValueCallback<Uri[]> filePickerCallback;
 
     @Override public void onCreate(Bundle state) {
@@ -40,6 +42,7 @@ public final class MainActivity extends Activity {
         errorView.setTextSize(17f);
         errorView.setVisibility(View.GONE);
         errorView.setOnClickListener(v -> {
+            pageHasError = false;
             errorView.setVisibility(View.GONE);
             webView.loadUrl(STOREFRONT_URL);
         });
@@ -55,6 +58,10 @@ public final class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setSupportMultipleWindows(false);
         webView.setWebViewClient(new WebViewClient() {
+            @Override public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                pageHasError = false;
+                errorView.setVisibility(View.GONE);
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri uri = req.getUrl();
                 String scheme = uri.getScheme();
@@ -70,10 +77,13 @@ public final class MainActivity extends Activity {
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest req,
                                                     android.webkit.WebResourceError error) {
-                if (req.isForMainFrame()) errorView.setVisibility(View.VISIBLE);
+                if (req.isForMainFrame()) {
+                    pageHasError = true;
+                    errorView.setVisibility(View.VISIBLE);
+                }
             }
             @Override public void onPageFinished(WebView view, String url) {
-                if (url != null && url.startsWith(STOREFRONT_URL)) {
+                if (!pageHasError && url != null && url.startsWith(STOREFRONT_URL)) {
                     errorView.setVisibility(View.GONE);
                 }
             }
