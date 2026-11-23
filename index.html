@@ -1932,9 +1932,11 @@ body.kandorty-cart-open #cartBtn{
   }
   /* Use some of the previously empty space for a clearer product preview. */
   #productModal .product-gallery-mainwrap{
-    height:68dvh!important;
-    min-height:68dvh!important;
-    max-height:68dvh!important;
+    /* Show approximately 80% of the product preview on taller screens,
+       preserving enough space for price and the order button on short phones. */
+    height:min(80dvh, calc(100dvh - 225px))!important;
+    min-height:0!important;
+    max-height:min(80dvh, calc(100dvh - 225px))!important;
   }
   /* Give the price and selection details breathing room before the buy button. */
   #productModal #modalAddSelectedBtn{
@@ -2933,6 +2935,8 @@ let currentProductImages=[];
 let currentProductImageIndex=0;
 let currentProductId='';
 let currentProductVideoUrl='';
+let kdHomeVideoWasPlaying=false;
+let kdProductOpenGeneration=0;
 
 let gallerySwipeBound=false;
 let imageViewerSwipeBound=false;
@@ -3063,7 +3067,7 @@ function renderProductGallery(direction=0){
   const poster=currentProductImages[currentProductImages.length-1]||currentProductImages[0]||'';
   if(poster&&video.poster!==poster)video.poster=poster;
   if(showingVideo){
-    mainImg.style.display='none';
+    mainImg.style.setProperty('display','none','important');
     mainImg.onclick=null;
     video.classList.add('show');
     if(videoBadge)videoBadge.classList.add('show');
@@ -3094,7 +3098,7 @@ function renderProductGallery(direction=0){
     mainImg.onclick=openFullscreenProductImage;
     mainImg.onload=null;
     mainImg.removeAttribute('style');
-    mainImg.style.display='block';
+    mainImg.style.setProperty('display','block','important');
     preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
     animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   }
@@ -3174,6 +3178,10 @@ function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
 
+  const openGeneration=++kdProductOpenGeneration;
+  const homeVideo=$('homeVideo');
+  kdHomeVideoWasPlaying=!!(homeVideo&&!homeVideo.paused&&!homeVideo.ended);
+  if(homeVideo)homeVideo.pause();
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
@@ -3207,7 +3215,7 @@ function openProduct(id){
 
   db.collection('products').doc(id).get({source:'server'})
     .then(doc=>{
-      if(!doc.exists || currentProductId!==id)return;
+      if(!doc.exists || currentProductId!==id || openGeneration!==kdProductOpenGeneration)return;
       const fresh={id:doc.id,...doc.data()};
       const freshImages=Array.isArray(fresh.images)?fresh.images.filter(Boolean):[];
 
@@ -3217,10 +3225,14 @@ function openProduct(id){
       $('modalName').textContent=displayProductName(fresh);
       updatePublicProductDetails(fresh);
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
+      const selectedSrc=currentProductImages[currentProductImageIndex]||'';
+      const wasVideo=isCurrentProductVideo();
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
+      const existingIndex=selectedSrc?freshImages.indexOf(selectedSrc):-1;
+      currentProductImageIndex=wasVideo&&currentProductVideoUrl?freshImages.length:
+        (existingIndex>=0?existingIndex:Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1)));
       preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
-      currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1));
       renderProductGallery();
 
       const freshAddBtn=$('modalAddSelectedBtn');
@@ -3240,8 +3252,14 @@ function addSelectedProductToCart(){
   addToCart(currentProductId,Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1)));
 }
 function closeProduct(){
+  ++kdProductOpenGeneration;
   $('productModal').classList.add('hidden');
   $('imageViewerModal').classList.add('hidden');
+  const homeVideo=$('homeVideo');
+  if(kdHomeVideoWasPlaying && homeVideo && settings.homeVideoEnabled===true){
+    homeVideo.play().catch(()=>{});
+  }
+  kdHomeVideoWasPlaying=false;
   const v=$('modalProductVideo');
   if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
   resetImageZoom();
@@ -6653,7 +6671,9 @@ function renderHomeVideo(){
       video.addEventListener('loadeddata',revealVideo,{once:true});
       video.addEventListener('canplay',revealVideo,{once:true});
     }
-    try{video.play().catch(()=>{});}catch(e){}
+    if(!$('productModal')||$('productModal').classList.contains('hidden')){
+      try{video.play().catch(()=>{});}catch(e){}
+    }else{try{video.pause();}catch(e){}}
   }else{
     try{video.pause()}catch(e){}
     video.removeAttribute('src');
@@ -7723,8 +7743,13 @@ function renderKandortyViewerDots(){
    }
    if(!active||e.touches.length!==1)return;
    const x=e.touches[0].clientX-startX,y=e.touches[0].clientY-startY;
-   if(!drag&&(Math.abs(x)<7||Math.abs(y)>Math.abs(x)))return;
+   if(!drag&&(Math.abs(x)<9||Math.abs(y)>Math.abs(x)))return;
    if(!drag&&mediaCount()<2)return;
+   if(!fullscreen&&currentProductVideoUrl){
+     // Image + video: a single atomic switch avoids decoding/animation conflicts.
+     drag=true;delta=x;dir=x<0?1:-1;
+     e.preventDefault();e.stopImmediatePropagation();return;
+   }
    drag=true;e.preventDefault();e.stopImmediatePropagation();
    const d=x<0?1:-1;if(d!==dir)adjacent(d);
    delta=x;
@@ -7743,6 +7768,15 @@ function renderKandortyViewerDots(){
    if(!active)return;active=false;
    if(!drag){reset();return}
    e.preventDefault();e.stopImmediatePropagation();busy=true;
+   if(!fullscreen&&currentProductVideoUrl){
+     const commit=Math.abs(delta)>=Math.min(52,stage.clientWidth*.14);
+     const nextIndex=wrap(currentProductImageIndex+dir);
+     reset();
+     if(commit&&nextIndex!==currentProductImageIndex){
+       currentProductImageIndex=nextIndex;renderProductGallery();
+     }
+     return;
+   }
    const d=dir,w=stage.clientWidth,commit=Math.abs(delta)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
    // Video is a real final item, not an image URL. Switch media directly
    // instead of trying to animate a cloned image into a video element.
