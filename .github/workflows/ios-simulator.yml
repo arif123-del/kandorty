@@ -1,0 +1,24 @@
+name: Kandorty iOS simulator (unsigned)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/KandortyIOS/**'
+      - '.github/workflows/ios-simulator.yml'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios/KandortyIOS
+        run: xcodegen generate
+      - name: Compile for iPhone Simulator
+        working-directory: ios/KandortyIOS
+        run: |
+          xcodebuild -project Kandorty.xcodeproj -scheme Kandorty -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
