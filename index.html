@@ -1802,148 +1802,6 @@ body.kandorty-cart-open #cartBtn{
 }
 </style>
 
-<style id="kandorty-photo-pan-v2">
-#imageViewerModal .image-viewer-card{touch-action:none!important;overscroll-behavior:contain!important}
-#imageViewerModal .image-viewer-card #imageViewerImg{
-  object-fit:contain!important;object-position:center!important;touch-action:none!important;
-}
-#imageViewerModal .image-viewer-card .image-viewer-close{
-  top:max(38px,calc(env(safe-area-inset-top) + 30px))!important;
-  left:16px!important;z-index:50!important;
-}
-</style>
-
-<style id="kandorty-restock-countdown-style">
-.kd-restock-countdown{margin:9px 0;padding:10px 12px;background:#fff4f5;border:1px solid #eecdd4;border-radius:10px;color:#8b314c;font-size:13px;font-weight:700;text-align:center;direction:rtl;line-height:1.8}
-.kd-restock-countdown strong{display:block;direction:ltr;font-variant-numeric:tabular-nums;font-size:17px;letter-spacing:1px;color:#6e1835}
-/* The stock countdown sits over the image rather than enlarging the product card. */
-#products .card-image-wrap>.kd-restock-countdown{
-  position:absolute;bottom:8px;left:7px;right:7px;z-index:3;width:auto;
-  margin:0;padding:5px 6px;box-sizing:border-box;
-  background:rgba(255,247,249,.95);border:1px solid rgba(236,205,215,.8);
-  border-radius:8px;box-shadow:0 2px 9px rgba(0,0,0,.07);
-  font-size:clamp(9px,1.9vw,11px);line-height:1.25;pointer-events:none;
-}
-#products .card-image-wrap>.kd-restock-countdown strong{
-  display:block;font-size:clamp(12px,2.8vw,15px);
-  line-height:1.35;white-space:nowrap;letter-spacing:.1px;
-  font-variant-numeric:tabular-nums;
-}
-</style>
-<!-- kandorty-photo-frame-compact-20261123 -->
-<style id="kandorty-photo-frame-compact-20261123">
-/* Same compact image frame on every product; keep all badges and timers overlaid. */
-#products .card-image-wrap{
-  position:relative!important;
-  width:100%!important;
-  aspect-ratio:4/5!important;
-  overflow:hidden!important;
-  background:#f5f2f3!important;
-}
-#products .card-image-wrap > img{
-  display:block!important;
-  width:100%!important;
-  height:100%!important;
-  aspect-ratio:auto!important;
-  object-fit:cover!important;
-  object-position:center!important;
-}
-#products .card-image-wrap > div[style*="aspect-ratio"]{
-  height:100%!important;
-  aspect-ratio:auto!important;
-}
-/* Opening a product uses one stable, slightly shorter image stage. */
-@media (max-width:700px){
-  #productModal .product-gallery-mainwrap{
-    height:64dvh!important;
-    min-height:64dvh!important;
-    max-height:64dvh!important;
-  }
-  #productModal .product-gallery-stage{
-    width:100%!important;
-    height:100%!important;
-  }
-  #productModal #modalMainImage,
-  #productModal #modalProductVideo{
-    width:100%!important;
-    height:100%!important;
-    max-width:100%!important;
-    max-height:100%!important;
-    aspect-ratio:auto!important;
-    object-fit:contain!important;
-    object-position:center!important;
-  }
-  /* The product preview fills the whole gallery: no black side bars.
-     The separate tapped/fullscreen viewer still uses contain. */
-  #productModal #modalMainImage{
-    object-fit:cover!important;
-    object-position:center center!important;
-    background:transparent!important;
-  }
-  /* Hide the video overlay until the selected gallery item is actually a video. */
-  #productModal #modalProductVideo:not(.show){display:none!important;}
-  #productModal #modalProductVideo.show{display:block!important;pointer-events:none!important;}
-}
-/* Tap to see the full uncropped source image, regardless of its orientation. */
-#imageViewerModal .image-viewer-card{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-}
-#imageViewerModal #imageViewerImg{
-  display:block!important;
-  width:100%!important;
-  height:100%!important;
-  max-width:100%!important;
-  max-height:100%!important;
-  object-fit:contain!important;
-  object-position:center center!important;
-}
-</style>
-
-<style id="kandorty-modal-full-height-and-image-room-20261123">
-/* kandorty-modal-full-height-and-image-room-20261123 */
-@media (max-width:700px){
-  /* Cover the entire browser viewport so the underlying grey product row is never exposed. */
-  #productModal{
-    position:fixed!important;
-    inset:0!important;
-    width:100vw!important;
-    height:100dvh!important;
-    min-height:100dvh!important;
-    padding:0!important;
-    background:#fff!important;
-    place-items:start stretch!important;
-    overflow:hidden!important;
-  }
-  #productModal .modal-card{
-    box-sizing:border-box!important;
-    width:100%!important;
-    max-width:100%!important;
-    height:100dvh!important;
-    min-height:100dvh!important;
-    max-height:100dvh!important;
-    margin:0!important;
-    padding:0 0 calc(12px + env(safe-area-inset-bottom))!important;
-    border-radius:0!important;
-    background:#fff!important;
-    overflow-x:hidden!important;
-    overflow-y:auto!important;
-  }
-  /* Use some of the previously empty space for a clearer product preview. */
-  #productModal .product-gallery-mainwrap{
-    /* Show approximately 80% of the product preview on taller screens,
-       preserving enough space for price and the order button on short phones. */
-    height:min(80dvh, calc(100dvh - 225px))!important;
-    min-height:0!important;
-    max-height:min(80dvh, calc(100dvh - 225px))!important;
-  }
-  /* Give the price and selection details breathing room before the buy button. */
-  #productModal #modalAddSelectedBtn{
-    margin:clamp(18px,2.2dvh,28px) 14px 12px!important;
-  }
-}
-</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -2058,7 +1916,7 @@ body.kandorty-cart-open #cartBtn{
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-<p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ صور المنتجات الجديدة تُرفع بالجودة والدقة الأصلية دون تصغير أو ضغط داخل المتجر. لتحسين صورة قديمة مضغوطة، أضيفي الملف الأصلي من هاتفك.</p>
+<p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
 <textarea id="imageUrls" rows="4" style="margin-top:8px" placeholder="رابط كل صورة في سطر مستقل"></textarea>
@@ -2836,26 +2694,6 @@ function salesProgressHtml(p){
   </div>`;
 }
 
-
-// The published restock estimate is informational; checkout remains blocked until stock is updated.
-function kdRestockHtml(p){
-  if(!isSoldOut(p)||!p.restockAt)return '';
-  const timestamp=Date.parse(p.restockAt);
-  if(!Number.isFinite(timestamp))return '';
-  return '<div class="kd-restock-countdown" data-restock-at="'+new Date(timestamp).toISOString()+'"><span>'+(lang==='ar'?'الوقت المتبقي لعودة المنتج':'Estimated time until restock')+'</span><strong>--:--:--:--</strong></div>';
-}
-function kdUpdateRestockCountdowns(){
-  document.querySelectorAll('.kd-restock-countdown[data-restock-at]').forEach(box=>{
-    const target=Date.parse(box.dataset.restockAt);
-    if(!Number.isFinite(target))return;
-    const remaining=Math.max(0,Math.ceil((target-Date.now())/1000));
-    if(!remaining){box.querySelector('span').textContent=lang==='ar'?'موعد التوفر المتوقع وصل — بانتظار تحديث المخزون':'Expected restock time reached — awaiting stock update';box.querySelector('strong').textContent='00:00:00:00';return;}
-    const days=Math.floor(remaining/86400), hours=Math.floor(remaining%86400/3600),minutes=Math.floor(remaining%3600/60),seconds=remaining%60;
-    box.querySelector('strong').textContent=[days,hours,minutes,seconds].map(v=>String(v).padStart(2,'0')).join(':');
-  });
-}
-setInterval(kdUpdateRestockCountdowns,1000);
-
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
@@ -2872,7 +2710,7 @@ function renderProductCard(p){
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${soldOutBadge}${discountBadge}${imageHtml}${kdRestockHtml(p)}</div>
+    <div class="card-image-wrap">${soldOutBadge}${discountBadge}${imageHtml}</div>
     ${salesProgressHtml(p)}
     <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
@@ -2935,8 +2773,6 @@ let currentProductImages=[];
 let currentProductImageIndex=0;
 let currentProductId='';
 let currentProductVideoUrl='';
-let kdHomeVideoWasPlaying=false;
-let kdProductOpenGeneration=0;
 
 let gallerySwipeBound=false;
 let imageViewerSwipeBound=false;
@@ -2955,7 +2791,7 @@ function preloadProductImages(urls){
 
 function preloadNearbyProductGalleries(){
   const candidates=(Array.isArray(products)?products:[]).filter(p=>p && p.active!==false).slice(0,10);
-  const run=()=>candidates.slice(0,3).forEach(p=>preloadProductImages((p.images||[]).slice(0,1)));
+  const run=()=>candidates.forEach(p=>preloadProductImages((p.images||[]).slice(0,4)));
   if('requestIdleCallback' in window) requestIdleCallback(run,{timeout:1200});
   else setTimeout(run,250);
 }
@@ -3019,7 +2855,7 @@ function updateFullscreenProductImage(direction=0){
   const viewer=$('imageViewerModal');
   const img=$('imageViewerImg');
   if(!viewer || !img || !currentProductImages.length || isCurrentProductVideo())return;
-  preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
+  preloadProductImages(currentProductImages);
   resetImageZoom();
   animateImageSwap(img,currentProductImages[currentProductImageIndex],direction);
   renderKandortyViewerDots();
@@ -3038,7 +2874,6 @@ function closeFullscreenViewer(event){
     if(target && target.id!=='imageViewerModal' && !target.classList.contains('image-viewer-close'))return;
   }
   $('imageViewerModal').classList.add('hidden');
-  resetImageZoom();
 }
 
 function renderProductGallery(direction=0){
@@ -3061,45 +2896,45 @@ function renderProductGallery(direction=0){
   $('modalThumbs').innerHTML='';
 
   const showingVideo=isCurrentProductVideo();
-  const videoBadge=$('productVideoBadge');
-  // Display the latest product photo as a poster while the video buffers.
-  // Avoid recreating the video decoder on each image swipe.
-  const poster=currentProductImages[currentProductImages.length-1]||currentProductImages[0]||'';
-  if(poster&&video.poster!==poster)video.poster=poster;
   if(showingVideo){
-    mainImg.style.setProperty('display','none','important');
+    mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
-    if(videoBadge)videoBadge.classList.add('show');
-    video.muted=true;
-    video.loop=true;
-    video.playsInline=true;
+    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.add('show');
+
+    // Load the product video only when the customer reaches the last media item.
     if(video.dataset.src!==currentProductVideoUrl){
       video.pause();
-      video.oncanplay=null;
+      video.removeAttribute('src');
+      video.load();
       video.dataset.src=currentProductVideoUrl;
-      video.preload='metadata';
       video.src=currentProductVideoUrl;
+      video.muted=true;
+      video.loop=true;
+      video.playsInline=true;
+      video.preload='metadata';
       video.load();
     }
-    video.oncanplay=()=>{
-      if(isCurrentProductVideo()&&video.dataset.src===currentProductVideoUrl&&
-         !$('productModal').classList.contains('hidden')){
-        video.play().catch(()=>{});
-      }
-    };
-    if(video.readyState>=2)video.oncanplay();
+    const tryPlayProductVideo=()=>video.play().catch(()=>{});
+    if(video.readyState>=2)tryPlayProductVideo();
+    else video.addEventListener('canplay',tryPlayProductVideo,{once:true});
   }else{
     video.pause();
-    video.oncanplay=null;
     video.classList.remove('show');
-    if(videoBadge)videoBadge.classList.remove('show');
-    // Keep the buffered source while visiting other photos; release on close.
+    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.remove('show');
+    // Free the video network/decoder when the customer goes back to images.
+    if(video.getAttribute('src')){
+      video.removeAttribute('src');
+      video.load();
+    }
+    video.dataset.src='';
+
+    mainImg.style.display='block';
     mainImg.onclick=openFullscreenProductImage;
     mainImg.onload=null;
     mainImg.removeAttribute('style');
-    mainImg.style.setProperty('display','block','important');
-    preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
+    mainImg.style.display='block';
+    preloadProductImages(currentProductImages);
     animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
   }
 
@@ -3178,21 +3013,13 @@ function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
 
-  const openGeneration=++kdProductOpenGeneration;
-  const homeVideo=$('homeVideo');
-  kdHomeVideoWasPlaying=!!(homeVideo&&!homeVideo.paused&&!homeVideo.ended);
-  if(homeVideo)homeVideo.pause();
   currentProductId=id;
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
-  let kdModalRestockCountdown=$('kdModalRestockCountdown');
-  if(!kdModalRestockCountdown){kdModalRestockCountdown=document.createElement('div');kdModalRestockCountdown.id='kdModalRestockCountdown';$('modalPrice').insertAdjacentElement('afterend',kdModalRestockCountdown);}
-  kdModalRestockCountdown.innerHTML=kdRestockHtml(p);
-  kdUpdateRestockCountdowns();
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
-  preloadProductImages(currentProductImages.slice(0,2));
+  preloadProductImages(currentProductImages);
   currentProductImageIndex=0;
   $('productModal').classList.remove('hidden');
   renderProductGallery();
@@ -3215,7 +3042,7 @@ function openProduct(id){
 
   db.collection('products').doc(id).get({source:'server'})
     .then(doc=>{
-      if(!doc.exists || currentProductId!==id || openGeneration!==kdProductOpenGeneration)return;
+      if(!doc.exists || currentProductId!==id)return;
       const fresh={id:doc.id,...doc.data()};
       const freshImages=Array.isArray(fresh.images)?fresh.images.filter(Boolean):[];
 
@@ -3225,14 +3052,10 @@ function openProduct(id){
       $('modalName').textContent=displayProductName(fresh);
       updatePublicProductDetails(fresh);
       $('modalPrice').innerHTML=moneyHtml(fresh.salePrice||fresh.price);
-      const selectedSrc=currentProductImages[currentProductImageIndex]||'';
-      const wasVideo=isCurrentProductVideo();
       currentProductImages=freshImages;
       currentProductVideoUrl=String(fresh.productVideoUrl||fresh.videoUrl||fresh.productVideo||'').trim();
-      const existingIndex=selectedSrc?freshImages.indexOf(selectedSrc):-1;
-      currentProductImageIndex=wasVideo&&currentProductVideoUrl?freshImages.length:
-        (existingIndex>=0?existingIndex:Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1)));
-      preloadProductImages(currentProductImages.slice(Math.max(0,currentProductImageIndex-1),currentProductImageIndex+2));
+      preloadProductImages(currentProductImages);
+      currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1));
       renderProductGallery();
 
       const freshAddBtn=$('modalAddSelectedBtn');
@@ -3252,14 +3075,8 @@ function addSelectedProductToCart(){
   addToCart(currentProductId,Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1)));
 }
 function closeProduct(){
-  ++kdProductOpenGeneration;
   $('productModal').classList.add('hidden');
   $('imageViewerModal').classList.add('hidden');
-  const homeVideo=$('homeVideo');
-  if(kdHomeVideoWasPlaying && homeVideo && settings.homeVideoEnabled===true){
-    homeVideo.play().catch(()=>{});
-  }
-  kdHomeVideoWasPlaying=false;
   const v=$('modalProductVideo');
   if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
   resetImageZoom();
@@ -3514,6 +3331,7 @@ auth.onAuthStateChanged(async user=>{
 });
 function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Categories','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='categories')loadCategoryAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
+const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
 let previewObjectUrls=[];
 function getImageUrls(){
@@ -3540,7 +3358,7 @@ $('imageFiles').addEventListener('change',e=>{
   const room=Math.max(0,MAX_DIRECT_IMAGES-pendingImages.length-getImageUrls().length);
   pendingImageFiles=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type)).slice(0,room);
   previewImages();
-  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة من أصل ${MAX_DIRECT_IMAGES}. ستُرفع بالجودة الأصلية عند الحفظ.`:'لم يتم اختيار صور صالحة.');
+  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة من أصل ${MAX_DIRECT_IMAGES}. ستُضغط تلقائياً عند الحفظ.`:'لم يتم اختيار صور صالحة.');
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
@@ -3548,87 +3366,30 @@ function loadImageFile(file){
 }
 function canvasToBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('تعذر تجهيز الصورة')),type,quality));}
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('تعذر تجهيز الصورة'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(blob)});}
-// New product/banner/category photos must never go through the old 62 KB
-// canvas/JPEG compressor. Store the ORIGINAL file externally and keep only
-// its HTTPS URL in Firestore. This also avoids Firestore's 1 MiB document cap.
-function uploadOriginalImageToCloudinary(file,onProgress){
-  return new Promise((resolve,reject)=>{
-    const xhr=new XMLHttpRequest();
-    xhr.open('POST','https://api.cloudinary.com/v1_1/'+
-      encodeURIComponent(CLOUDINARY_CLOUD_NAME)+'/image/upload',true);
-    xhr.responseType='json';
-    xhr.timeout=180000;
-    xhr.upload.onprogress=e=>{
-      if(e.lengthComputable&&typeof onProgress==='function')onProgress(e.loaded/e.total*100);
-    };
-    xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع الصورة.'));
-    xhr.ontimeout=()=>reject(new Error('انتهت مهلة رفع الصورة.'));
-    xhr.onload=()=>{
-      const data=xhr.response||(()=>{try{return JSON.parse(xhr.responseText||'{}')}catch(_){return {}}})();
-      const url=String(data?.secure_url||'');
-      const expected='https://res.cloudinary.com/'+CLOUDINARY_CLOUD_NAME+'/image/upload/';
-      if(xhr.status>=200&&xhr.status<300&&url.startsWith(expected)&&data.resource_type==='image'){
-        resolve(url);
-      }else{
-        reject(new Error(String(data?.error?.message||('Cloudinary HTTP '+xhr.status)).slice(0,200)));
-      }
-    };
-    const form=new FormData();
-    form.append('file',file,file.name||'photo');
-    form.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
-    xhr.send(form);
-  });
-}
-async function uploadOriginalImageToFirebase(file,kind,onProgress){
-  const suffix=(file.name||'').match(/\.(jpe?g|png|webp)$/i)?.[0]?.toLowerCase()
-    ||(file.type==='image/png'?'.png':file.type==='image/webp'?'.webp':'.jpg');
-  const path='public-media/'+kind+'/'+crypto.randomUUID()+suffix;
-  const ref=storage.ref().child(path);
-  const task=ref.put(file,{
-    contentType:file.type||'image/jpeg',
-    cacheControl:'public,max-age=31536000,immutable'
-  });
-  return new Promise((resolve,reject)=>{
-    task.on('state_changed',snapshot=>{
-      if(snapshot.totalBytes&&typeof onProgress==='function')
-        onProgress(snapshot.bytesTransferred/snapshot.totalBytes*100);
-    },reject,()=>{
-      ref.getDownloadURL().then(resolve,reject);
-    });
-  });
-}
-async function uploadOriginalQualityImage(file,kind,onProgress){
-  if(!['products','banners','categories'].includes(kind))throw new Error('نوع الصورة غير صالح.');
-  if(!file||!file.size)throw new Error('ملف الصورة فارغ.');
-  const valid=/^image\/(jpeg|png|webp)$/i.test(file.type||'')
-    ||((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
-  if(!valid)throw new Error('اختاري صورة JPG أو PNG أو WebP. هذا الملف غير مدعوم.');
-  if(file.size>15*1024*1024)throw new Error('حجم الصورة يتجاوز 15MB. اختاري صورة أصغر دون ضغطها من الموقع.');
-  let cloudError=null;
-  try{
-    return await uploadOriginalImageToCloudinary(file,onProgress);
-  }catch(error){
-    cloudError=error;
-    console.warn('Original image Cloudinary upload unavailable',error);
+async function compressProductImage(file){
+  if(file.size>15*1024*1024)throw new Error('حجم الصورة كبير جداً. اختاري صورة أقل من 15MB.');
+  const img=await loadImageFile(file);
+  let maxSide=1100,quality=.78,blob;
+  for(let attempt=0;attempt<9;attempt++){
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    blob=await canvasToBlob(canvas,'image/jpeg',quality);
+    if(blob.size<=TARGET_IMAGE_BYTES)break;
+    maxSide=Math.max(480,Math.round(maxSide*.84));quality=Math.max(.46,quality-.06);
   }
-  try{
-    return await uploadOriginalImageToFirebase(file,kind,onProgress);
-  }catch(error){
-    console.warn('Original image Firebase Storage upload unavailable',error);
-    throw new Error('تعذر رفع الصورة بالجودة الأصلية. تحققي من إعداد رفع الصور في Cloudinary أو Firebase Storage، ثم أعيدي المحاولة. لم يتم ضغط الصورة أو حفظ نسخة ضبابية.');
-  }
+  if(!blob||blob.size>82*1024)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
+  return blobToDataUrl(blob);
 }
 function utf8Bytes(value){
   return new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)).length;
 }
 async function prepareProductImage(file,index,total){
-  setUploadProgress(Math.round((index/total)*80),`جارٍ رفع الصورة الأصلية ${index+1}/${total} دون ضغط...`);
-  const imageUrl=await uploadOriginalQualityImage(file,'products',percent=>{
-    setUploadProgress(Math.round(((index+percent/100)/total)*80),
-      `جارٍ رفع الصورة ${index+1}/${total} بالجودة الأصلية... ${Math.round(percent)}%`);
-  });
-  setUploadProgress(Math.round(((index+1)/total)*80),`تم رفع الصورة الأصلية ${index+1}/${total}.`);
-  return imageUrl;
+  setUploadProgress(Math.round((index/total)*80),`يتم ضغط الصورة ${index+1}/${total}...`);
+  const dataUrl=await compressProductImage(file);
+  setUploadProgress(Math.round(((index+1)/total)*80),`تم تجهيز الصورة ${index+1}/${total}.`);
+  return dataUrl;
 }
 $('productForm').onsubmit=async e=>{
   e.preventDefault();
@@ -3681,7 +3442,7 @@ $('productForm').onsubmit=async e=>{
       active:$('active').checked,
       images,
       imagePaths:[],
-      imageMode:'external-original',
+      imageMode:'firestore-spark',
       imageCount:images.length,
       updatedAt:new Date().toISOString()
     };
@@ -3694,7 +3455,7 @@ $('productForm').onsubmit=async e=>{
       );
     }
 
-    setUploadProgress(90,`يتم حفظ المنتج مع روابط ${images.length} صورة أصلية في Firestore...`);
+    setUploadProgress(90,`يتم حفظ المنتج و${images.length} صورة في Firestore...`);
 
     // Save only the changed product document. This avoids rewriting all image-heavy products.
     await db.collection('products').doc(id).set(p);
@@ -5587,10 +5348,10 @@ async function saveBannerImages(){
     const prepared=[];
     for(let i=0;i<pendingBannerFiles.length;i++){
       $('bannerAdminStatus').textContent=`يتم تجهيز الصورة ${i+1}/${pendingBannerFiles.length}...`;
-      prepared.push(await uploadOriginalQualityImage(pendingBannerFiles[i],'banners'));
+      prepared.push(await compressProductImage(pendingBannerFiles[i]));
     }
     const finalImages=[...bannerDraftImages,...prepared].slice(0,MAX_BANNER_IMAGES);
-    const totalBytes=new Blob([JSON.stringify(finalImages)]).size;
+    const totalBytes=finalImages.reduce((sum,img)=>sum+new Blob([img]).size,0);
     if(totalBytes>700*1024)throw new Error('حجم صور البانر كبير. اختاري صوراً أقل أو أصغر.');
     settings.bannerImages=finalImages;
     await saveSettings();
@@ -6671,9 +6432,7 @@ function renderHomeVideo(){
       video.addEventListener('loadeddata',revealVideo,{once:true});
       video.addEventListener('canplay',revealVideo,{once:true});
     }
-    if(!$('productModal')||$('productModal').classList.contains('hidden')){
-      try{video.play().catch(()=>{});}catch(e){}
-    }else{try{video.pause();}catch(e){}}
+    try{video.play().catch(()=>{});}catch(e){}
   }else{
     try{video.pause()}catch(e){}
     video.removeAttribute('src');
@@ -6954,7 +6713,31 @@ function resetCategoryImage(key){
   const input=document.getElementById('catFile_'+key);if(input)input.value='';
   const preview=document.getElementById('catPreview_'+key);if(preview){preview.removeAttribute('src');preview.classList.add('no-image');}
 }
-function preserveExistingCategoryImage(image){return String(image||'');}
+async function compressCategoryImage(file){
+  if(file.size>15*1024*1024)throw new Error('حجم صورة القسم كبير جداً.');
+  const img=await loadImageFile(file);
+  let maxSide=720,quality=.68,blob,lastCanvas=null,lastQuality=.68;
+  const target=30*1024;
+  for(let attempt=0;attempt<10;attempt++){
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lastCanvas=canvas;lastQuality=quality;
+    blob=await canvasToBlob(canvas,'image/jpeg',quality);
+    if(blob.size<=target)break;
+    maxSide=Math.max(360,Math.round(maxSide*.84));quality=Math.max(.40,quality-.06);
+  }
+  if(!blob||!lastCanvas||blob.size>48*1024)throw new Error('تعذر ضغط صورة القسم بما يكفي. اختاري صورة أبسط أو أصغر.');
+  return lastCanvas.toDataURL('image/jpeg',lastQuality);
+}
+async function recompressExistingCategoryImage(dataUrl){
+  if(!String(dataUrl||'').startsWith('data:image/')||String(dataUrl).length<52000)return dataUrl||'';
+  try{
+    const blob=await (await fetch(dataUrl)).blob();
+    return await compressCategoryImage(blob);
+  }catch(_){return dataUrl||'';}
+}
 async function saveCategoryCards(){
   if(typeof auth!=='undefined'&&!auth.currentUser){alert('سجلي الدخول أولاً');return;}
   captureCategoryEditorValues();
@@ -6969,8 +6752,8 @@ async function saveCategoryCards(){
     for(let i=0;i<next.length;i++){
       const card=next[i];
       if(status)status.textContent=`يتم تجهيز القسم ${i+1}/${next.length}...`;
-      if(pendingCategoryFiles[card.id])card.image=await uploadOriginalQualityImage(pendingCategoryFiles[card.id],'categories');
-      else card.image=preserveExistingCategoryImage(card.image);
+      if(pendingCategoryFiles[card.id])card.image=await compressCategoryImage(pendingCategoryFiles[card.id]);
+      else card.image=await recompressExistingCategoryImage(card.image);
       card.titleEn=String(card.titleEn||card.titleAr||'').trim();
       card.subtitleEn=String(card.subtitleEn||card.subtitleAr||'').trim();
     }
@@ -7017,119 +6800,78 @@ setTimeout(()=>{applyPublicLanguage();render();},0);
 let kandortyImageZoom=1,kandortyImageX=0,kandortyImageY=0;
 let kandortyPinchStartDist=0,kandortyPinchStartZoom=1;
 let kandortyPanStartX=0,kandortyPanStartY=0,kandortyPanOriginX=0,kandortyPanOriginY=0;
-let kandortyLastTap=0,kandortyZoomPinching=false;
-const KANDORTY_MAX_IMAGE_ZOOM=5;
-function clampPhotoPan(v,max){return Math.max(-max,Math.min(max,v));}
-function photoPanLimits(zoom=kandortyImageZoom){
-  const img=document.getElementById('imageViewerImg');
-  const stage=document.querySelector('#imageViewerModal .image-viewer-card');
-  if(!img||!stage)return{x:0,y:0};
-  const w=stage.clientWidth||stage.getBoundingClientRect().width;
-  const h=stage.clientHeight||stage.getBoundingClientRect().height;
-  if(!img.naturalWidth||!img.naturalHeight||!w||!h)return{x:0,y:0};
-  const fit=Math.min(w/img.naturalWidth,h/img.naturalHeight);
-  return {
-    x:Math.max(0,(img.naturalWidth*fit*zoom-w)/2),
-    y:Math.max(0,(img.naturalHeight*fit*zoom-h)/2)
-  };
-}
+let kandortyLastTap=0;
+
 function applyImageZoom(){
-  const img=document.getElementById('imageViewerImg');if(!img)return;
-  if(kandortyImageZoom<=1.001){
-    kandortyImageZoom=1;kandortyImageX=0;kandortyImageY=0;
-  }else{
-    const limits=photoPanLimits();
-    kandortyImageX=clampPhotoPan(kandortyImageX,limits.x);
-    kandortyImageY=clampPhotoPan(kandortyImageY,limits.y);
-  }
-  img.style.transition='none';
-  img.style.transform='translate3d('+kandortyImageX+'px,'+kandortyImageY+'px,0) scale('+kandortyImageZoom+')';
+  const img=document.getElementById('imageViewerImg');
+  if(!img)return;
+  img.style.transform=`translate(${kandortyImageX}px,${kandortyImageY}px) scale(${kandortyImageZoom})`;
   img.classList.toggle('zoomed',kandortyImageZoom>1.01);
 }
 function resetImageZoom(){
-  kandortyImageZoom=1;kandortyImageX=0;kandortyImageY=0;
-  kandortyZoomPinching=false;applyImageZoom();
-}
-function zoomImageAt(next,x,y){
-  const rect=document.querySelector('#imageViewerModal .image-viewer-card')?.getBoundingClientRect();
-  const before=kandortyImageZoom,after=Math.max(1,Math.min(KANDORTY_MAX_IMAGE_ZOOM,next));
-  if(rect){
-    const localX=x-rect.left-rect.width/2,localY=y-rect.top-rect.height/2,ratio=after/before;
-    kandortyImageX=localX-ratio*(localX-kandortyImageX);
-    kandortyImageY=localY-ratio*(localY-kandortyImageY);
-  }
-  kandortyImageZoom=after;applyImageZoom();
+  kandortyImageZoom=1;kandortyImageX=0;kandortyImageY=0;applyImageZoom();
 }
 function changeImageZoom(delta){
-  const rect=document.querySelector('#imageViewerModal .image-viewer-card')?.getBoundingClientRect();
-  zoomImageAt(kandortyImageZoom+delta,rect?rect.left+rect.width/2:0,rect?rect.top+rect.height/2:0);
+  kandortyImageZoom=Math.max(1,Math.min(4,kandortyImageZoom+delta));
+  if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+  applyImageZoom();
 }
-function touchDistance(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);}
-(function bindKandortyZoomPan(){
-  const stage=document.querySelector('#imageViewerModal .image-viewer-card');
+function touchDistance(touches){
+  const a=touches[0],b=touches[1];
+  return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+}
+(function bindKandortyZoom(){
   const img=document.getElementById('imageViewerImg');
-  if(!stage||!img||stage.dataset.zoomPanBound==='1')return;
-  stage.dataset.zoomPanBound='1';
-  let panning=false,lastTapX=0,lastTapY=0,pinchMidX=0,pinchMidY=0,suppressDblclick=0;
-  function mid(t){return{x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2};}
-  function startPan(t){
-    panning=kandortyImageZoom>1.01;
-    kandortyPanStartX=t.clientX;kandortyPanStartY=t.clientY;
-    kandortyPanOriginX=kandortyImageX;kandortyPanOriginY=kandortyImageY;
-  }
-  stage.addEventListener('touchstart',e=>{
-    if(e.target.closest?.('button'))return;
-    if(e.touches.length>=2){
-      kandortyZoomPinching=true;panning=false;kandortyLastTap=0;
+  if(!img || img.dataset.zoomBound==='1')return;
+  img.dataset.zoomBound='1';
+
+  img.addEventListener('dblclick',e=>{
+    e.preventDefault();
+    kandortyImageZoom=kandortyImageZoom>1?1:2;
+    if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+    applyImageZoom();
+  });
+
+  img.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
       kandortyPinchStartDist=touchDistance(e.touches);
       kandortyPinchStartZoom=kandortyImageZoom;
-      const c=mid(e.touches);pinchMidX=c.x;pinchMidY=c.y;
-      e.preventDefault();return;
-    }
-    if(e.touches.length!==1)return;
-    const t=e.touches[0],now=Date.now();
-    const doubleTap=kandortyLastTap>0&&now-kandortyLastTap<310&&
-      Math.hypot(lastTapX-t.clientX,lastTapY-t.clientY)<45;
-    if(doubleTap){
-      zoomImageAt(kandortyImageZoom>1.01?1:2.5,t.clientX,t.clientY);
-      kandortyLastTap=0;suppressDblclick=now+450;e.preventDefault();
-    }else{
-      kandortyLastTap=now;lastTapX=t.clientX;lastTapY=t.clientY;
-    }
-    startPan(t);
-  },{passive:false});
-  stage.addEventListener('touchmove',e=>{
-    if(e.touches.length>=2){
-      if(!kandortyZoomPinching||!kandortyPinchStartDist)return;
-      const c=mid(e.touches);
-      kandortyImageX+=c.x-pinchMidX;kandortyImageY+=c.y-pinchMidY;
-      pinchMidX=c.x;pinchMidY=c.y;
-      zoomImageAt(kandortyPinchStartZoom*touchDistance(e.touches)/kandortyPinchStartDist,c.x,c.y);
-      e.preventDefault();return;
-    }
-    if(e.touches.length===1&&kandortyImageZoom>1.01&&panning){
-      const t=e.touches[0];
-      kandortyImageX=kandortyPanOriginX+(t.clientX-kandortyPanStartX);
-      kandortyImageY=kandortyPanOriginY+(t.clientY-kandortyPanStartY);
-      applyImageZoom();e.preventDefault();
+      e.preventDefault();
+    }else if(e.touches.length===1){
+      const now=Date.now();
+      if(now-kandortyLastTap<280){
+        kandortyImageZoom=kandortyImageZoom>1?1:2;
+        if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+        applyImageZoom();
+        e.preventDefault();
+      }
+      kandortyLastTap=now;
+      kandortyPanStartX=e.touches[0].clientX;
+      kandortyPanStartY=e.touches[0].clientY;
+      kandortyPanOriginX=kandortyImageX;
+      kandortyPanOriginY=kandortyImageY;
     }
   },{passive:false});
-  function end(e){
-    if(e.touches.length===1&&kandortyZoomPinching){
-      kandortyZoomPinching=false;kandortyPinchStartDist=0;startPan(e.touches[0]);
-    }else if(!e.touches.length){
-      panning=false;kandortyZoomPinching=false;kandortyPinchStartDist=0;
-      if(kandortyImageZoom<=1)resetImageZoom();
+
+  img.addEventListener('touchmove',e=>{
+    if(e.touches.length===2 && kandortyPinchStartDist){
+      const ratio=touchDistance(e.touches)/kandortyPinchStartDist;
+      kandortyImageZoom=Math.max(1,Math.min(4,kandortyPinchStartZoom*ratio));
+      if(kandortyImageZoom===1){kandortyImageX=0;kandortyImageY=0;}
+      applyImageZoom();
+      e.preventDefault();
+    }else if(e.touches.length===1 && kandortyImageZoom>1){
+      kandortyImageX=kandortyPanOriginX+(e.touches[0].clientX-kandortyPanStartX);
+      kandortyImageY=kandortyPanOriginY+(e.touches[0].clientY-kandortyPanStartY);
+      applyImageZoom();
+      e.preventDefault();
     }
-  }
-  stage.addEventListener('touchend',end,{passive:true});
-  stage.addEventListener('touchcancel',end,{passive:true});
-  img.addEventListener('dblclick',e=>{
-    if(Date.now()<suppressDblclick)return;
-    e.preventDefault();zoomImageAt(kandortyImageZoom>1.01?1:2.5,e.clientX,e.clientY);
-  });
-  img.addEventListener('load',()=>{if(kandortyImageZoom>1)applyImageZoom();});
-  window.addEventListener('resize',()=>{if(kandortyImageZoom>1)applyImageZoom();});
+  },{passive:false});
+
+  img.addEventListener('touchend',()=>{
+    if(kandortyImageZoom<=1){resetImageZoom();}
+    kandortyPinchStartDist=0;
+  },{passive:true});
 })();
 </script>
 
@@ -7730,53 +7472,24 @@ function renderKandortyViewerDots(){
    stage.appendChild(ghost);
   }
   stage.addEventListener('touchstart',e=>{
-   if(fullscreen&&(e.touches.length!==1||
-     (typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01))){
-     active=false;drag=false;if(ghost){ghost.remove();ghost=null;}return;
-   }
    if(busy||e.touches.length!==1||e.target.closest('button'))return;
+   if(fullscreen&&typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01)return;
    reset();startX=e.touches[0].clientX;startY=e.touches[0].clientY;active=true;
   },{capture:true,passive:true});
   stage.addEventListener('touchmove',e=>{
-   if(fullscreen&&typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01){
-     active=false;drag=false;return;
-   }
    if(!active||e.touches.length!==1)return;
    const x=e.touches[0].clientX-startX,y=e.touches[0].clientY-startY;
-   if(!drag&&(Math.abs(x)<9||Math.abs(y)>Math.abs(x)))return;
+   if(!drag&&(Math.abs(x)<7||Math.abs(y)>Math.abs(x)))return;
    if(!drag&&mediaCount()<2)return;
-   if(!fullscreen&&currentProductVideoUrl){
-     // Image + video: a single atomic switch avoids decoding/animation conflicts.
-     drag=true;delta=x;dir=x<0?1:-1;
-     e.preventDefault();e.stopImmediatePropagation();return;
-   }
    drag=true;e.preventDefault();e.stopImmediatePropagation();
    const d=x<0?1:-1;if(d!==dir)adjacent(d);
-   delta=x;
-   // A media-boundary swipe changes media on release, without a black gap.
-   if(movesThroughVideo(wrap(currentProductImageIndex+d))){
-     img.style.transform='translate3d(0,0,0)';
-     return;
-   }
-   img.style.transition='none';img.style.transform='translate3d('+x+'px,0,0)';
+   delta=x;img.style.transition='none';img.style.transform='translate3d('+x+'px,0,0)';
    if(ghost)ghost.style.transform='translate3d('+(x+d*stage.clientWidth)+'px,0,0)';
   },{capture:true,passive:false});
   stage.addEventListener('touchend',e=>{
-   if(fullscreen&&typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01){
-     active=false;drag=false;return;
-   }
    if(!active)return;active=false;
    if(!drag){reset();return}
    e.preventDefault();e.stopImmediatePropagation();busy=true;
-   if(!fullscreen&&currentProductVideoUrl){
-     const commit=Math.abs(delta)>=Math.min(52,stage.clientWidth*.14);
-     const nextIndex=wrap(currentProductImageIndex+dir);
-     reset();
-     if(commit&&nextIndex!==currentProductImageIndex){
-       currentProductImageIndex=nextIndex;renderProductGallery();
-     }
-     return;
-   }
    const d=dir,w=stage.clientWidth,commit=Math.abs(delta)>Math.min(65,w*.17),target=commit?-d*w:0,ms=230;
    // Video is a real final item, not an image URL. Switch media directly
    // instead of trying to animate a cloned image into a video element.
@@ -7794,10 +7507,8 @@ function renderKandortyViewerDots(){
     if(ghost)ghost.style.transform='translate3d('+(target+d*w)+'px,0,0)';
    });
    const thisToken=++token;
-   const productAtSwipe=currentProductId,indexAtSwipe=currentProductImageIndex;
    setTimeout(async()=>{
     if(thisToken!==token)return;
-    if(currentProductId!==productAtSwipe||currentProductImageIndex!==indexAtSwipe){reset();return;}
     if(!commit){reset();return}
     const nextIndex=wrap(currentProductImageIndex+d),url=photos()[nextIndex];
     // Keep the incoming image visible while the original changes behind it.
@@ -7812,12 +7523,7 @@ function renderKandortyViewerDots(){
     requestAnimationFrame(()=>{img.style.visibility='visible';requestAnimationFrame(reset)});
    },ms+25);
   },{capture:true,passive:false});
-  stage.addEventListener('touchcancel',()=>{
-    if(fullscreen&&typeof kandortyImageZoom==='number'&&kandortyImageZoom>1.01){
-      active=false;drag=false;return;
-    }
-    reset();
-  },{capture:true,passive:true});
+  stage.addEventListener('touchcancel',reset,{capture:true,passive:true});
  }
  bind(document.querySelector('#productModal .product-gallery-stage'),document.getElementById('modalMainImage'),false);
  bind(document.querySelector('#imageViewerModal .image-viewer-card'),document.getElementById('imageViewerImg'),true);

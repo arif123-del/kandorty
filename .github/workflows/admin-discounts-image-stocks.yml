@@ -5,13 +5,6 @@ on:
   pull_request:
     paths:
       - admin.html
-      - admin-modern.css
-      - tests/admin-orders-redesign.cjs
-      - tests/admin-contact-status-filters.cjs
-      - tests/admin-call-copy-fallback.cjs
-      - tests/original-photo-quality.cjs
-      - tests/storefront-photo-pan.cjs
-      - tests/restock-schedule-countdown.cjs
       - index.html
       - tests/admin-discounts-image-stocks.cjs
       - tests/color-cart-admin-regressions.cjs
@@ -28,9 +21,3 @@ jobs:
           node-version: '22'
       - run: node tests/admin-discounts-image-stocks.cjs
       - run: node tests/color-cart-admin-regressions.cjs
-      - run: node tests/admin-orders-redesign.cjs
-      - run: node tests/admin-contact-status-filters.cjs
-      - run: node tests/admin-call-copy-fallback.cjs
-      - run: node tests/original-photo-quality.cjs
-      - run: node tests/storefront-photo-pan.cjs
-      - run: node tests/restock-schedule-countdown.cjs

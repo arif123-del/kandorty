@@ -974,40 +974,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminFormTab .images-preview .preview-item .photo-qty-input:invalid{border-color:#b40018;background:#fff4f4}
 #adminDiscountsTab .admin-item{flex-wrap:wrap}
 </style>
-<link rel="stylesheet" href="./admin-modern.css?v=20261123-dialer" media="all">
-
-<style id="kandorty-restock-countdown-style">
-.kd-restock-countdown{margin:9px 0;padding:10px 12px;background:#fff4f5;border:1px solid #eecdd4;border-radius:10px;color:#8b314c;font-size:13px;font-weight:700;text-align:center;direction:rtl;line-height:1.8}
-.kd-restock-countdown strong{display:block;direction:ltr;font-variant-numeric:tabular-nums;font-size:17px;letter-spacing:1px;color:#6e1835}
-#products .card-image-wrap>.kd-restock-countdown{
-  position:absolute;bottom:8px;left:7px;right:7px;z-index:3;width:auto;
-  margin:0;padding:5px 6px;box-sizing:border-box;
-  background:rgba(255,247,249,.95);border:1px solid rgba(236,205,215,.8);
-  border-radius:8px;box-shadow:0 2px 9px rgba(0,0,0,.07);
-  font-size:clamp(9px,1.9vw,11px);line-height:1.25;pointer-events:none;
-}
-#products .card-image-wrap>.kd-restock-countdown strong{
-  display:block;font-size:clamp(12px,2.8vw,15px);line-height:1.35;
-  white-space:nowrap;letter-spacing:.1px;font-variant-numeric:tabular-nums;
-}
-</style>
-<style id="kandorty-restock-admin-v2">
-#kdRestockDialog{box-sizing:border-box;border:1px solid #ead5dc;border-radius:19px;padding:20px;width:min(92vw,490px);max-height:85dvh;overflow-y:auto;background:#fff;color:#271b1e;box-shadow:0 20px 70px #0003;direction:rtl}
-#kdRestockDialog::backdrop{background:rgba(20,16,19,.62)}
-#kdRestockDialog .kd-restock-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-#kdRestockDialog h3{margin:0;color:#271b1e;font-size:22px}
-#kdRestockDialog .kd-dialog-close{background:#f7eef1;color:#70273f;border:0;border-radius:50%;font-size:24px;width:40px;height:40px}
-#kdRestockDialog p{line-height:1.8}
-#kdRestockDialog .kd-restock-name{font-size:18px;font-weight:800}
-#kdRestockDialog .kd-restock-description{color:#626775;font-size:14px}
-#kdRestockDialog label{display:block;font-size:14px;font-weight:800;margin-bottom:8px}
-#kdRestockDialog input{box-sizing:border-box;width:100%;border:1px solid #d9d9e1;border-radius:11px;padding:12px;font:inherit;font-size:20px;min-height:51px}
-#kdRestockDialog .kd-restock-scheduled{font-size:13px;color:#85364d;margin-top:9px}
-#kdRestockDialog .kd-restock-safety-note{background:#f7f8fa;border-radius:10px;padding:11px;font-size:13px;color:#565a63}
-#kdRestockDialog .kd-restock-dialog-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
-#kdRestockDialog .kd-restock-dialog-actions button{min-height:44px}
-#kdRestockDialogStatus{font-size:13px;color:#8d3651;min-height:20px}
-</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1096,7 +1062,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
 <div class="modal-head admin-modal-head">
-  <h2>Kandorty <span style="color:#81364e">·</span> إدارة المتجر</h2>
+  <h2>لوحة إدارة Kandorty</h2>
   <div class="admin-head-controls">
     <button type="button" id="adminMenuButton" class="admin-menu-toggle hidden" aria-label="فتح قائمة الإدارة" aria-controls="adminNavDrawer" aria-expanded="false" onclick="toggleAdminMenu()"><span aria-hidden="true">☰</span></button>
     <button class="x" id="adminCloseButton" type="button" onclick="closeAdmin()">×</button>
@@ -1122,23 +1088,21 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
     <button type="button" class="tab" onclick="showAdminTab('settings',this)">الإعدادات</button>
     <button type="button" class="tab" onclick="showAdminTab('backup',this)">نسخة احتياطية</button>
   </div>
-  <div class="admin-menu-search">
-    <button type="button" class="btn ghost" onclick="openOrdersSearchFromMenu()">بحث في الطلبات</button>
-  </div>
+  <form class="admin-menu-search" role="search" onsubmit="event.preventDefault();openOrdersSearchFromMenu()">
+    <label for="adminOrderSearch">البحث في الطلبات</label>
+    <input id="adminOrderSearch" type="search" placeholder="ابحثي برقم الطلب KD-########" autocomplete="off" oninput="renderOrders()">
+    <div class="admin-menu-search-actions">
+      <button type="submit" class="btn primary">بحث</button>
+      <button class="btn ghost" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
+    </div>
+  </form>
   <div class="admin-nav-bottom">
     <button type="button" class="tab" onclick="closeAdminMenu();logoutAdmin()">تسجيل الخروج</button>
     <button type="button" class="tab" onclick="closeAdmin()">✕ إغلاق الإدارة</button>
   </div>
 </aside>
 <div class="notice">هذه النسخة متصلة بقاعدة بيانات Firebase. المنتجات والطلبات والإعدادات تُحفظ أونلاين وتظهر لجميع العملاء.</div>
-<div id="adminCurrentSection" class="admin-current-section">الطلبات</div>
-<nav id="adminPrimaryNav" class="ko-primary-nav" aria-label="الأقسام الرئيسية">
-  <button type="button" data-admin-primary="orders" onclick="showAdminTab('orders',document.getElementById('ordersTabBtn'))">الطلبات</button>
-  <button type="button" data-admin-primary="list" onclick="showAdminTab('list',document.querySelector('#adminNavDrawer .tab[onclick*=&quot;list&quot;]'))">المنتجات</button>
-  <button type="button" data-admin-primary="form" onclick="showAdminTab('form',document.querySelector('#adminNavDrawer .tab[onclick*=&quot;form&quot;]'))">إضافة منتج</button>
-  <button type="button" data-admin-primary="customers" onclick="showAdminTab('customers',document.getElementById('customersTabBtn'))">العملاء</button>
-  <button type="button" data-admin-primary="discounts" onclick="showAdminTab('discounts',document.querySelector('#adminNavDrawer .tab[onclick*=&quot;discounts&quot;]'))">التخفيضات</button>
-</nav>
+<div id="adminCurrentSection" class="admin-current-section">إضافة منتج</div>
 <div id="adminProductQuickAccess" class="admin-product-quick-access">
   <button type="button" class="btn ghost" onclick="showAdminTab('form',this)">＋ إضافة منتج</button>
   <button type="button" class="btn ghost" onclick="showAdminTab('discounts',this)">🏷️ تخفيضات</button>
@@ -1157,7 +1121,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
-<p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ صور المنتجات الجديدة تُرفع بالجودة والدقة الأصلية دون تصغير أو ضغط داخل المتجر. لتحسين صورة قديمة مضغوطة، أضيفي الملف الأصلي من هاتفك.</p>
+<p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
 <textarea id="imageUrls" rows="4" style="margin-top:8px" placeholder="رابط كل صورة في سطر مستقل"></textarea>
@@ -1193,53 +1157,13 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   <div class="discount-admin-actions"><button class="btn primary" type="button" onclick="openDiscountProductForm()">＋ إضافة منتج للتخفيضات</button></div>
   <div id="adminDiscountsList" class="admin-list"></div>
 </div>
-<div id="adminOrdersTab" class="hidden" dir="rtl">
-  <div class="ko-shell">
-    <div id="ordersDashboardOverview">
-      <div class="ko-section-intro">
-        <div class="ko-eyebrow">لوحة متابعة المتجر</div>
-        <h3>إدارة الطلبات</h3>
-        <p>تابعي الطلبات الجديدة، وافتحي ملف كل عميل لتجهيز طلباته بسهولة.</p>
-      </div>
-      <div class="ko-stat-grid" aria-label="ملخص الطلبات">
-        <button type="button" class="ko-stat-card" data-filter="all" aria-pressed="true" onclick="koSetOrderFilter('all')"><span class="ko-stat-label">كل الطلبات</span><strong class="ko-stat-value" id="koStatAll">0</strong></button>
-        <button type="button" class="ko-stat-card" data-filter="new" aria-pressed="false" onclick="koSetOrderFilter('new')"><span class="ko-stat-label">جديد</span><strong class="ko-stat-value" id="koStatNew">0</strong></button>
-        <button type="button" class="ko-stat-card" data-filter="preparing" aria-pressed="false" onclick="koSetOrderFilter('preparing')"><span class="ko-stat-label">قيد التجهيز</span><strong class="ko-stat-value" id="koStatPreparing">0</strong></button>
-        <button type="button" class="ko-stat-card" data-filter="shipping" aria-pressed="false" onclick="koSetOrderFilter('shipping')"><span class="ko-stat-label">قيد التوصيل</span><strong class="ko-stat-value" id="koStatShipping">0</strong></button>
-      </div>
-      <div class="ko-tools">
-        <div class="ko-tools-top"><span class="ko-tools-title">ملفات العملاء</span><span class="ko-tools-meta" id="koTotalCustomersLabel">0 عميل</span></div>
-        <div class="ko-search-row">
-          <div class="ko-search-wrap">
-            <label for="adminOrderSearch" class="ko-search-icon" aria-hidden="true">⌕</label>
-            <input id="adminOrderSearch" type="search" placeholder="اسم العميل، الهاتف أو رقم الطلب..." autocomplete="off" aria-label="بحث في الطلبات والعملاء" oninput="renderOrders()">
-          </div>
-          <button class="ko-reset-search" type="button" onclick="document.getElementById('adminOrderSearch').value='';renderOrders()">مسح</button>
-        </div>
-        <div class="ko-filter-row" role="group" aria-label="تصفية بحسب حالة الطلب">
-          <button type="button" class="ko-filter" data-filter="all" aria-pressed="true" onclick="koSetOrderFilter('all')">الكل</button>
-          <button type="button" class="ko-filter" data-filter="new" aria-pressed="false" onclick="koSetOrderFilter('new')">جديد</button>
-          <button type="button" class="ko-filter" data-filter="preparing" aria-pressed="false" onclick="koSetOrderFilter('preparing')">تجهيز</button>
-          <button type="button" class="ko-filter" data-filter="shipping" aria-pressed="false" onclick="koSetOrderFilter('shipping')">توصيل</button>
-          <button type="button" class="ko-filter" data-filter="delivered" aria-pressed="false" onclick="koSetOrderFilter('delivered')">مكتمل</button>
-          <button type="button" class="ko-filter" data-filter="cancelled" aria-pressed="false" onclick="koSetOrderFilter('cancelled')">ملغي</button>
-          <button type="button" class="ko-filter" data-filter="unclassified" aria-pressed="false" onclick="koSetOrderFilter('unclassified')">تحتاج مراجعة</button>
-        </div>
-      </div>
-      <div id="ordersFoldersView">
-        <div class="ko-result-heading"><h4>قائمة العملاء والطلبات</h4><span id="koResultCount">0 ملفات</span></div>
-        <div id="ordersList" class="customer-folder-list" aria-live="polite"></div>
-      </div>
-      <div id="adminCancellationRequests" role="status" aria-live="polite"></div>
-    </div>
-    <section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل">
-      <div class="customer-file-header ko-customer-header">
-        <button type="button" class="customer-file-back" onclick="backToOrderFolders()">رجوع إلى الطلبات</button>
-        <h3 class="customer-file-heading" id="ordersCustomerHeading" aria-live="polite"></h3>
-      </div>
-      <div id="ordersCustomerContents"></div>
-    </section>
-  </div>
+<div id="adminOrdersTab" class="hidden">
+<div id="adminCancellationRequests" role="status" aria-live="polite"></div>
+<div id="ordersFoldersView"><div class="order-folder-hint">اختاري ملف العميل لعرض جميع طلباته وبياناته وصور المنتجات.</div><div id="ordersList" class="customer-folder-list"></div></div>
+<section id="ordersCustomerFileView" class="hidden" aria-label="ملف طلبات العميل"><div class="customer-file-header">
+<button type="button" class="customer-file-back" onclick="backToOrderFolders()">➜ رجوع إلى الطلبات</button>
+<div class="customer-file-heading" id="ordersCustomerHeading" aria-live="polite"></div></div>
+<div id="ordersCustomerContents"></div></section>
 </div>
 <div id="adminCustomersTab" class="hidden">
   <div id="adminCustomersOverview">
@@ -1672,26 +1596,6 @@ function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Numb
 function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
 function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفد المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
 function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')return null;const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=0?n:0;}
-
-// The published restock estimate is informational; checkout remains blocked until stock is updated.
-function kdRestockHtml(p){
-  if(!isSoldOut(p)||!p.restockAt)return '';
-  const timestamp=Date.parse(p.restockAt);
-  if(!Number.isFinite(timestamp))return '';
-  return '<div class="kd-restock-countdown" data-restock-at="'+new Date(timestamp).toISOString()+'"><span>'+(lang==='ar'?'الوقت المتبقي لعودة المنتج':'Estimated time until restock')+'</span><strong>--:--:--:--</strong></div>';
-}
-function kdUpdateRestockCountdowns(){
-  document.querySelectorAll('.kd-restock-countdown[data-restock-at]').forEach(box=>{
-    const target=Date.parse(box.dataset.restockAt);
-    if(!Number.isFinite(target))return;
-    const remaining=Math.max(0,Math.ceil((target-Date.now())/1000));
-    if(!remaining){box.querySelector('span').textContent=lang==='ar'?'موعد التوفر المتوقع وصل — بانتظار تحديث المخزون':'Expected restock time reached — awaiting stock update';box.querySelector('strong').textContent='00:00:00:00';return;}
-    const days=Math.floor(remaining/86400), hours=Math.floor(remaining%86400/3600),minutes=Math.floor(remaining%3600/60),seconds=remaining%60;
-    box.querySelector('strong').textContent=[days,hours,minutes,seconds].map(v=>String(v).padStart(2,'0')).join(':');
-  });
-}
-setInterval(kdUpdateRestockCountdowns,1000);
-
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
@@ -1704,7 +1608,7 @@ function renderProductCard(p){
     ? `<button class="btn primary" disabled>${lang==='ar'?'نفد المنتج':'Sold out'}</button>`
     : `<button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`;
   return `<article class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${soldOutBadge}${imageHtml}${kdRestockHtml(p)}</div>
+    <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
     ${priceHtml}
     ${stockHtml}
@@ -1757,10 +1661,6 @@ function openProduct(id){
   const descriptionEl=$('modalDescription');
   if(descriptionEl){descriptionEl.textContent=String(p.description||'').trim();descriptionEl.classList.toggle('hidden',!descriptionEl.textContent);}
   $('modalPrice').textContent=money(p.salePrice||p.price);
-  let kdModalRestockCountdown=$('kdModalRestockCountdown');
-  if(!kdModalRestockCountdown){kdModalRestockCountdown=document.createElement('div');kdModalRestockCountdown.id='kdModalRestockCountdown';$('modalPrice').insertAdjacentElement('afterend',kdModalRestockCountdown);}
-  kdModalRestockCountdown.innerHTML=kdRestockHtml(p);
-  kdUpdateRestockCountdowns();
   currentProductImages=(p.images||[]).filter(Boolean);
   currentProductImageIndex=0;
   renderProductGallery();
@@ -1781,7 +1681,7 @@ function toggleAdminMenu(force){
   if(open)drawer.scrollTop=0;
 }
 function closeAdminMenu(){toggleAdminMenu(false);}
-function openOrdersSearchFromMenu(){showAdminTab('orders',$('ordersTabBtn'));requestAnimationFrame(()=>$('adminOrderSearch')?.focus());}
+function openOrdersSearchFromMenu(){showAdminTab('orders',$('ordersTabBtn'));}
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&!$('adminNavDrawer')?.classList.contains('hidden')){
     event.preventDefault();closeAdminMenu();$('adminMenuButton')?.focus();
@@ -2047,7 +1947,7 @@ auth.onAuthStateChanged(user=>{
     // Realtime admin data.
     startAdminOrdersListener();
     const requestedView=new URLSearchParams(location.search).get('view');
-    if(!requestedView||requestedView==='orders')showAdminTab('orders',$('ordersTabBtn'));
+    if(requestedView==='orders')showAdminTab('orders',$('ordersTabBtn'));
     if(requestedView==='discounts')showAdminTab('discounts',document.querySelector('#adminNavDrawer .admin-tabs .tab[onclick*="discounts"]'));
     /* DRAFT REVIEW: auto stock baseline migration disabled */
     startAdminCustomersListener();
@@ -2104,7 +2004,6 @@ function showAdminTab(name,btn){
   $('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');
   document.querySelectorAll('.admin-tabs .tab').forEach(x=>x.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  document.querySelectorAll('#adminPrimaryNav [data-admin-primary]').forEach(el=>{const active=el.dataset.adminPrimary===name;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
   const labels={form:'إضافة منتج',list:'المنتجات',discounts:'تخفيضات',orders:'الطلبات',customers:'العملاء',banner:'بانر الرئيسية',categories:'صور الأقسام',video:'فيديو الرئيسية',settings:'الإعدادات',backup:'نسخة احتياطية'};
   if($('adminCurrentSection'))$('adminCurrentSection').textContent=labels[name]||'';
   closeAdminMenu();
@@ -2119,6 +2018,7 @@ function showAdminTab(name,btn){
   restoreAdminTabPosition(name);
 }
 const MAX_DIRECT_IMAGES=8;
+const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
 let previewObjectUrls=[];
 let pendingPhotoQuantities=new Map();
@@ -2245,87 +2145,35 @@ function loadImageFile(file){
 }
 function canvasToBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('تعذر تجهيز الصورة')),type,quality));}
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('تعذر تجهيز الصورة'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(blob)});}
-// New product/banner/category photos must never go through the old 62 KB
-// canvas/JPEG compressor. Store the ORIGINAL file externally and keep only
-// its HTTPS URL in Firestore. This also avoids Firestore's 1 MiB document cap.
-function uploadOriginalImageToCloudinary(file,onProgress){
-  return new Promise((resolve,reject)=>{
-    const xhr=new XMLHttpRequest();
-    xhr.open('POST','https://api.cloudinary.com/v1_1/'+
-      encodeURIComponent(CLOUDINARY_CLOUD_NAME)+'/image/upload',true);
-    xhr.responseType='json';
-    xhr.timeout=180000;
-    xhr.upload.onprogress=e=>{
-      if(e.lengthComputable&&typeof onProgress==='function')onProgress(e.loaded/e.total*100);
-    };
-    xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع الصورة.'));
-    xhr.ontimeout=()=>reject(new Error('انتهت مهلة رفع الصورة.'));
-    xhr.onload=()=>{
-      const data=xhr.response||(()=>{try{return JSON.parse(xhr.responseText||'{}')}catch(_){return {}}})();
-      const url=String(data?.secure_url||'');
-      const expected='https://res.cloudinary.com/'+CLOUDINARY_CLOUD_NAME+'/image/upload/';
-      if(xhr.status>=200&&xhr.status<300&&url.startsWith(expected)&&data.resource_type==='image'){
-        resolve(url);
-      }else{
-        reject(new Error(String(data?.error?.message||('Cloudinary HTTP '+xhr.status)).slice(0,200)));
-      }
-    };
-    const form=new FormData();
-    form.append('file',file,file.name||'photo');
-    form.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
-    xhr.send(form);
-  });
-}
-async function uploadOriginalImageToFirebase(file,kind,onProgress){
-  const suffix=(file.name||'').match(/\.(jpe?g|png|webp)$/i)?.[0]?.toLowerCase()
-    ||(file.type==='image/png'?'.png':file.type==='image/webp'?'.webp':'.jpg');
-  const path='public-media/'+kind+'/'+crypto.randomUUID()+suffix;
-  const ref=storage.ref().child(path);
-  const task=ref.put(file,{
-    contentType:file.type||'image/jpeg',
-    cacheControl:'public,max-age=31536000,immutable'
-  });
-  return new Promise((resolve,reject)=>{
-    task.on('state_changed',snapshot=>{
-      if(snapshot.totalBytes&&typeof onProgress==='function')
-        onProgress(snapshot.bytesTransferred/snapshot.totalBytes*100);
-    },reject,()=>{
-      ref.getDownloadURL().then(resolve,reject);
-    });
-  });
-}
-async function uploadOriginalQualityImage(file,kind,onProgress){
-  if(!['products','banners','categories'].includes(kind))throw new Error('نوع الصورة غير صالح.');
-  if(!file||!file.size)throw new Error('ملف الصورة فارغ.');
-  const valid=/^image\/(jpeg|png|webp)$/i.test(file.type||'')
-    ||((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
-  if(!valid)throw new Error('اختاري صورة JPG أو PNG أو WebP. هذا الملف غير مدعوم.');
-  if(file.size>15*1024*1024)throw new Error('حجم الصورة يتجاوز 15MB. اختاري صورة أصغر دون ضغطها من الموقع.');
-  let cloudError=null;
+async function compressProductImage(file){
+  if(file.size>15*1024*1024)throw new Error('حجم الصورة كبير جداً. اختاري صورة أقل من 15MB.');
+  const decoded=await loadImageFile(file);
+  const img=decoded.image;
+  let maxSide=1100,quality=.78,blob;
   try{
-    return await uploadOriginalImageToCloudinary(file,onProgress);
-  }catch(error){
-    cloudError=error;
-    console.warn('Original image Cloudinary upload unavailable',error);
-  }
-  try{
-    return await uploadOriginalImageToFirebase(file,kind,onProgress);
-  }catch(error){
-    console.warn('Original image Firebase Storage upload unavailable',error);
-    throw new Error('تعذر رفع الصورة بالجودة الأصلية. تحققي من إعداد رفع الصور في Cloudinary أو Firebase Storage، ثم أعيدي المحاولة. لم يتم ضغط الصورة أو حفظ نسخة ضبابية.');
-  }
+    for(let attempt=0;attempt<9;attempt++){
+      const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('تعذر تجهيز الصورة على هذا المتصفح.');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      blob=await canvasToBlob(canvas,'image/jpeg',quality);
+      if(blob.size<=TARGET_IMAGE_BYTES)break;
+      maxSide=Math.max(480,Math.round(maxSide*.84));quality=Math.max(.46,quality-.06);
+    }
+  }finally{decoded.release();}
+  if(!blob||blob.size>82*1024)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
+  return blobToDataUrl(blob);
 }
 function utf8Bytes(value){
   return new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)).length;
 }
 async function prepareProductImage(file,index,total){
-  setUploadProgress(Math.round((index/total)*80),`جارٍ رفع الصورة الأصلية ${index+1}/${total} دون ضغط...`);
-  const imageUrl=await uploadOriginalQualityImage(file,'products',percent=>{
-    setUploadProgress(Math.round(((index+percent/100)/total)*80),
-      `جارٍ رفع الصورة ${index+1}/${total} بالجودة الأصلية... ${Math.round(percent)}%`);
-  });
-  setUploadProgress(Math.round(((index+1)/total)*80),`تم رفع الصورة الأصلية ${index+1}/${total}.`);
-  return imageUrl;
+  setUploadProgress(Math.round((index/total)*80),`يتم ضغط الصورة ${index+1}/${total}...`);
+  const dataUrl=await compressProductImage(file);
+  setUploadProgress(Math.round(((index+1)/total)*80),`تم تجهيز الصورة ${index+1}/${total}.`);
+  return dataUrl;
 }
 function calculateProductTotalStock(oldProduct,newStock){
   if(newStock===null)return null;
@@ -2428,11 +2276,6 @@ $('productForm').onsubmit=async e=>{
     }
     const calculatedTotalStock=calculateProductTotalStock(old,cleanedStock);
 
-    const restockDaysRaw=String($('restockDays')?.value||'').trim();
-    const restockDays=restockDaysRaw===''?null:Number(restockDaysRaw);
-    if(restockDays!==null&&(!Number.isSafeInteger(restockDays)||restockDays<3||restockDays>3650))throw new Error('أدخلي عدد أيام صحيحاً من 3 إلى 3650.');
-    const restockAt=cleanedStock>0||$('clearRestockAt')?.checked?null:
-      (restockDays!==null?new Date(Date.now()+restockDays*86400000).toISOString():(old?.restockAt||null));
     const p={
       id,
       code:String(old?.code||id).trim(),
@@ -2442,7 +2285,6 @@ $('productForm').onsubmit=async e=>{
       salePrice:Number($('salePrice').value)||0,
       stock:cleanedStock,
       totalStock:calculatedTotalStock,
-      restockAt,
       description:$('description').value.trim(),
       isNew:$('isNew').checked,
       active:$('active').checked,
@@ -2452,7 +2294,7 @@ $('productForm').onsubmit=async e=>{
       // Preserve an intentional removal instead of restoring the old video.
       productVideoUrl:String(window.pendingProductVideoUrl??old?.productVideoUrl??'').trim(),
       imagePaths:[],
-      imageMode:'external-original',
+      imageMode:'firestore-spark',
       imageCount:images.length,
       updatedAt:new Date().toISOString()
     };
@@ -2465,7 +2307,7 @@ $('productForm').onsubmit=async e=>{
       );
     }
 
-    setUploadProgress(90,`يتم حفظ المنتج مع روابط ${images.length} صورة أصلية في Firestore...`);
+    setUploadProgress(90,`يتم حفظ المنتج و${images.length} صورة في Firestore...`);
 
     // Save only the changed product document and verify the video URL persisted.
     await db.collection('products').doc(id).set(p,{merge:true});
@@ -2499,7 +2341,7 @@ $('productForm').onsubmit=async e=>{
 
     const savedAsDiscount=isAdminDiscountProduct(confirmedProduct);
     resetForm();
-    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة بالجودة الأصلية${p.productVideoUrl?' + فيديو':''} بنجاح.`);
+    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة${p.productVideoUrl?' + فيديو':''} بنجاح.`);
     showAdminTab(savedAsDiscount?'discounts':'list',
       document.querySelector(savedAsDiscount?'.admin-tabs .tab[onclick*="discounts"]':'.admin-tabs .tab[onclick*="list"]'));
     alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}. ستجدينه الآن في قائمة المنتجات.`);
@@ -2522,8 +2364,6 @@ $('productForm').onsubmit=async e=>{
 function resetForm(){
   $('productForm').reset();
   $('editId').value='';
-  if($('restockDays'))$('restockDays').value='';
-  if($('clearRestockAt'))$('clearRestockAt').checked=false;
   $('active').checked=true;
   discountFormMode=false;
   $('salePrice').required=false;
@@ -2557,85 +2397,6 @@ function openAdminProductPhoto(id,index){
   currentProductImageIndex=Math.max(0,Math.min(Number(index)||0,currentProductImages.length-1));
   renderProductGallery();
 }
-let kdRestockProductId='';
-function restockAdminDate(iso){
-  const n=Date.parse(String(iso||''));
-  return Number.isFinite(n)?new Date(n).toLocaleString('ar-AE',{dateStyle:'medium',timeStyle:'short'}):'';
-}
-function restockAdminAction(p){
-  if(getProductStock(p)!==0)return '';
-  const existing=restockAdminDate(p.restockAt);
-  return '<button type="button" class="btn ghost" onclick="openRestockDialog(\''+esc(p.id)+'\')">'+
-    (existing?'⏳ تعديل موعد العودة':'⏳ تحديد موعد العودة')+'</button>';
-}
-function openRestockDialog(id){
-  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
-  const product=products.find(p=>String(p.id)===String(id));
-  if(!product||getProductStock(product)!==0){alert('هذه الخاصية متاحة للمنتج النافد فقط.');return;}
-  kdRestockProductId=String(product.id);
-  $('kdRestockProductName').textContent=product.nameAr||product.code||'منتج';
-  $('kdRestockScheduleDays').value='3';
-  $('kdRestockCurrentDate').textContent=product.restockAt?
-    'الموعد الحالي: '+(restockAdminDate(product.restockAt)||'—'):'لم يتم تحديد موعد بعد.';
-  $('kdRestockRemoveBtn').disabled=!product.restockAt;
-  $('kdRestockDialogStatus').textContent='';
-  const dlg=$('kdRestockDialog');
-  if(typeof dlg.showModal==='function')dlg.showModal();else dlg.setAttribute('open','');
-  $('kdRestockScheduleDays').focus();
-}
-function closeRestockDialog(){
-  const dlg=$('kdRestockDialog');
-  if(dlg?.open&&typeof dlg.close==='function')dlg.close();
-  else dlg?.removeAttribute('open');
-  kdRestockProductId='';
-}
-async function updateRestockSchedule(dateString){
-  const id=kdRestockProductId;
-  if(!id||!auth.currentUser)throw new Error('جلسة الإدارة غير متاحة.');
-  const reference=db.collection('products').doc(id);
-  const now=new Date().toISOString();
-  // Updating the single restock field transactionally avoids overwriting
-  // real stock, color quantities or a concurrently arriving customer order.
-  await db.runTransaction(async transaction=>{
-    const snapshot=await transaction.get(reference);
-    if(!snapshot.exists)throw new Error('هذا المنتج غير موجود.');
-    const latest=snapshot.data();
-    const qty=Number(latest.stock);
-    if(latest.stock===undefined||latest.stock===null||!Number.isSafeInteger(qty)||qty!==0)
-      throw new Error('المنتج لم يعد نافداً. لا يمكن تحديد موعد له.');
-    transaction.update(reference,{restockAt:dateString,updatedAt:now});
-  });
-  const verified=await reference.get({source:'server'});
-  if(!verified.exists||String(verified.data()?.restockAt||'')!==String(dateString||''))
-    throw new Error('لم يتأكد حفظ موعد عودة المنتج من الخادم.');
-  products=products.map(p=>String(p.id)===id?{...p,restockAt:dateString,updatedAt:now}:p);
-  writeFastProductCache(products);renderAdminList();render();
-  if(typeof kdUpdateRestockCountdowns==='function')kdUpdateRestockCountdowns();
-}
-async function saveRestockSchedule(event){
-  event.preventDefault();
-  const raw=String($('kdRestockScheduleDays')?.value||'').trim(),days=Number(raw);
-  if(!/^[0-9]+$/.test(raw)||!Number.isSafeInteger(days)||days<3||days>3650){
-    $('kdRestockDialogStatus').textContent='أدخلي عدداً صحيحاً من 3 إلى 3650 يوماً.';return;
-  }
-  const button=$('kdRestockSaveBtn');button.disabled=true;
-  $('kdRestockDialogStatus').textContent='يتم حفظ موعد العودة...';
-  try{
-    await updateRestockSchedule(new Date(Date.now()+days*86400000).toISOString());
-    closeRestockDialog();
-  }catch(error){
-    $('kdRestockDialogStatus').textContent=error?.message||'تعذر حفظ الموعد.';
-  }finally{button.disabled=false;}
-}
-async function clearRestockSchedule(){
-  if(!kdRestockProductId)return;
-  if(!confirm('هل تريدين إلغاء موعد عودة المنتج؟'))return;
-  const button=$('kdRestockRemoveBtn');button.disabled=true;
-  try{await updateRestockSchedule(null);closeRestockDialog();}
-  catch(error){$('kdRestockDialogStatus').textContent=error?.message||'تعذر إلغاء الموعد.';}
-  finally{button.disabled=false;}
-}
-
 function renderAdminList(){
   const regularProducts=products.filter(p=>!isAdminDiscountProduct(p));
   $('adminList').innerHTML=regularProducts.length?regularProducts.map(p=>{
@@ -2646,7 +2407,7 @@ function renderAdminList(){
       ? (stock<=0?100:Math.max(0,Math.min(99,Math.round(((total-stock)/total)*100))))
       : null;
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
-    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button>${restockAdminAction(p)}<button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
+    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
   }).join(''):'<div class="empty">لا توجد منتجات عادية</div>';
   renderDiscountList();
 }
@@ -2657,7 +2418,7 @@ function renderDiscountList(){
     const stock=getProductStock(p);
     return '<div class="admin-item">'+adminProductPreviewHtml(p)+
       '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small></div>'+
-      '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+restockAdminAction(p)+
+      '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+
       '<button class="btn ghost" onclick="toggleProduct(\''+p.id+'\')">'+(p.active===false?'إظهار':'إخفاء')+'</button>'+
       '<button class="btn primary" onclick="deleteProduct(\''+p.id+'\')">حذف</button></div></div>';
   }).join(''):'<div class="empty">لا توجد منتجات في التخفيضات</div>';
@@ -3089,10 +2850,10 @@ function renderAdminCancellationRequests(){
     String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   if(!canceled.length){box.innerHTML='';return;}
   // Keep the section expanded on first render, while respecting a manual collapse.
-  const expanded=box.querySelector('details')?.open??false;
+  const expanded=box.querySelector('details')?.open??true;
   const latest=canceled[0],latestCustomer=latest?.customerEdit?.customer?.name||latest?.customer?.name||latest?.customerName||'العميل';
   box.innerHTML=`<details class="admin-cancel-history" ${expanded?'open':''}>
-    <summary>الطلبات الملغاة (${canceled.length}) · آخر إلغاء: ${esc(latest.id||'-')} · ${esc(latestCustomer)}</summary>
+    <summary>🔔 الطلبات الملغاة (${canceled.length}) — آخر إلغاء: ${esc(latest.id||'-')} · ${esc(latestCustomer)}</summary>
     <div class="admin-cancel-history-list">
     ${canceled.slice(0,40).map(order=>{
       const name=order.customerEdit?.customer?.name||order.customer?.name||order.customerName||'العميل';
@@ -3626,43 +3387,18 @@ function normalizeOrderShape(raw){
 
 // In each customer's file, show one compact set of customer details only.
 // City and street/address share one location field to avoid apparent duplicates.
-function koCustomerContactTargets(phone){
-  const raw=String(phone||'').trim();
-  const digits=raw.replace(/\D/g,'');
-  const normalized=normalizeOrderPhone(raw);
-  // Treat 05xxxxxxxx, 5xxxxxxxx, 9715xxxxxxxx, and 009715xxxxxxxx
-  // as the same UAE number; use international format for phone + WhatsApp.
-  const uaeMobile=/^05\d{8}$/.test(normalized);
-  const phoneInternational=uaeMobile?'+971'+normalized.slice(1)
-    :(/^\+\d{6,15}$/.test(raw)?raw:'');
-  const whatsapp=uaeMobile?'971'+normalized.slice(1)
-    :(/^\+\d{6,15}$/.test(raw)?digits:'');
-  return {
-    tel:phoneInternational,
-    whatsapp:whatsapp.length>=8&&whatsapp.length<=15?whatsapp:''
-  };
-}
 function renderOrderCustomerHtml(order){
   const c=normalizeOrderShape(order).customer||{};
   const locations=[c.city,c.location].map(v=>String(v||'').trim()).filter(Boolean);
-  const unique=locations.filter((v,i)=>locations.findIndex(x=>x.toLocaleLowerCase()===v.toLocaleLowerCase())===i);
-  const locationText=unique.join(' - ')||'—';
-  const phone=String(c.phone||'').trim();
-  const contacts=koCustomerContactTargets(phone);
-  return `<div class="ko-profile-card" aria-label="بيانات العميل">
-    <div class="customer-file-mini-profile">
-      <div><small>اسم العميل</small><b>${esc(c.name||'—')}</b></div>
-      <div><small>رقم الهاتف</small><b dir="ltr">${esc(phone||'—')}</b></div>
-      <div><small>الإمارة والعنوان</small><b>${esc(locationText)}</b></div>
-    </div>
-    <div class="ko-contact-actions" aria-label="التواصل مع العميل">
-      ${contacts.tel?`<a class="ko-call" href="tel:${esc(contacts.tel)}" rel="external" aria-label="اتصال بالعميل على الرقم ${esc(phone)}">اتصال بالعميل</a>`
-        :'<span class="ko-unavailable-contact">رقم الهاتف غير صالح للاتصال</span>'}
-      ${contacts.whatsapp?`<a class="ko-wa" href="https://api.whatsapp.com/send?phone=${contacts.whatsapp}" rel="external" aria-label="فتح محادثة واتساب مع العميل">واتساب</a>`
-        :'<span class="ko-unavailable-contact">واتساب غير متاح لهذا الرقم</span>'}
-    </div>
+  const uniqueLocations=locations.filter((v,i)=>locations.findIndex(x=>x.toLocaleLowerCase()===v.toLocaleLowerCase())===i);
+  const locationText=uniqueLocations.join(' - ')||'-';
+  return `<div class="customer-file-mini-profile" aria-label="معلومات العميل">
+    <div><small>الاسم</small><b>${esc(c.name||'-')}</b></div>
+    <div><small>رقم الهاتف</small><b dir="ltr">${esc(c.phone||'-')}</b></div>
+    <div><small>الموقع</small><b>${esc(locationText)}</b></div>
   </div>`;
 }
+
 function catalogOrderImage(id,code,index){
   const product=products.find(p=>String(p.id)===id)
     || (code && products.find(p=>p.code===code));
@@ -3718,7 +3454,7 @@ function orderItemsText(order){
   }).join('\n');
 }
 
-function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي',unclassified:'غير محدد'})[s]||s}
+function statusText(s){return ({new:'طلب جديد',preparing:'قيد التجهيز',shipping:'قيد التوصيل',delivered:'تم التسليم',cancelled:'ملغي'})[s]||s}
 let orderCustomerGroups=new Map();
 let selectedOrdersCustomer=null;
 let selectedOrdersOrderId=null;
@@ -3758,114 +3494,43 @@ function buildOrderCustomerGroups(){
   return groups;
 }
 
-let koOrderFilter='all';
-const KO_ORDER_FILTERS=['all','new','preparing','shipping','delivered','cancelled','unclassified'];
-function koOrderStatus(o){
-  if(isCancelledOrder(o))return 'cancelled';
-  // Older imports may have no status or an unfamiliar status. These are NOT
-  // new orders. Never manufacture a "new" state from missing backend data.
-  const status=String(o?.status??'').trim().toLowerCase();
-  return ['new','preparing','shipping','delivered'].includes(status)
-    ?status:'unclassified';
-}
-function koAdminDate(raw){
-  const date=new Date(raw||'');
-  return Number.isFinite(date.getTime())
-    ?date.toLocaleString('ar-AE',{dateStyle:'medium',timeStyle:'short'})
-    :'—';
-}
-const KO_ORDER_FILTER_LABELS={
-  all:'جميع الطلبات',new:'الطلبات الجديدة',preparing:'طلبات قيد التجهيز',
-  shipping:'طلبات قيد التوصيل',delivered:'الطلبات المكتملة',
-  cancelled:'الطلبات الملغاة',unclassified:'طلبات تحتاج مراجعة'
-};
-function koSetOrderFilter(next){
-  if(!KO_ORDER_FILTERS.includes(next))return;
-  koOrderFilter=next;
-  if(selectedOrdersCustomer){returnToOrdersList();return;}
-  renderOrders();
-}
-function koMatchingOrders(group){
-  const q=String($('adminOrderSearch')?.value||'').trim().toLocaleLowerCase();
-  const searchDigits=q.replace(/\D/g,'');
-  const identity=[group.name,group.phone,group.city,group.location]
-    .some(v=>String(v||'').toLocaleLowerCase().includes(q));
-  const numberMatch=searchDigits.length>=4
-    &&normalizeOrderPhone(group.phone).includes(searchDigits);
-  return group.history.filter(raw=>{
-    if(koOrderFilter!=='all'&&koOrderStatus(raw)!==koOrderFilter)return false;
-    if(!q||identity||numberMatch)return true;
-    const o=effectiveOrderView(raw);
-    const fields=[o.id,o.customer?.name,o.customer?.phone,
-      ...(Array.isArray(o.items)?o.items.flatMap(i=>[i.name,i.code,i.id]):[])];
-    return fields.some(v=>String(v||'').toLocaleLowerCase().includes(q));
-  });
-}
-function koFolderPrimaryOrder(group,matching){
-  const byDate=[...matching].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
-  if(koOrderFilter!=='all')return byDate[0];
-  // When all statuses are shown, highlight active work before historical orders.
-  const priorities={new:0,preparing:1,shipping:2,delivered:3,cancelled:4};
-  return byDate.sort((a,b)=>priorities[koOrderStatus(a)]-priorities[koOrderStatus(b)])[0];
-}
-function orderCustomerFolderCard(g,matched){
-  const matching=Array.isArray(matched)?matched:koMatchingOrders(g);
-  if(!matching.length)return '';
-  const primary=koFolderPrimaryOrder(g,matching);
-  const order=effectiveOrderView(primary||{});
-  const status=koOrderStatus(primary||{});
-  const pending=matching.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
-  const code=String(order.id||'—');
-  const countLabel=koOrderFilter==='all'?'الطلبات':'في هذا القسم';
-  const codeLabel=koOrderFilter==='all'?'طلب يحتاج متابعة':'طلب من هذا القسم';
-  return `<button type="button" class="customer-folder-card" data-orders-customer="${esc(g.key)}" aria-label="فتح ملف ${esc(g.name||'عميل')}">
-    <span class="customer-folder-icon" aria-hidden="true">▣</span>
-    <span class="customer-folder-info">
-      <span class="ko-folder-top"><strong>${esc(g.name||'عميل بدون اسم')}</strong>
-      <span class="ko-status" data-status="${esc(status)}">${esc(statusText(status))}</span></span>
+function orderCustomerFolderCard(g){
+  return `<button type="button" class="customer-folder-card" data-orders-customer="${esc(g.key)}" aria-label="فتح ملف طلبات ${esc(g.name||'العميل')}">
+    <span class="customer-folder-icon" aria-hidden="true">📁</span>
+    <span class="customer-folder-info"><strong>${esc(g.name||'عميل')}</strong>
       <small>${esc(g.phone||'بدون رقم هاتف')}${g.city?' · '+esc(g.city):''}</small>
-      <small class="ko-folder-code">${codeLabel}: <b dir="ltr">${esc(code)}</b> · ${esc(koAdminDate(order.createdAt))}</small>
-      <span class="ko-folder-footer"><span>${countLabel}: <b>${matching.length}</b>${koOrderFilter==='all'&&pending?' · قيد المتابعة: <b>'+pending+'</b>':''}</span><span class="ko-folder-open">فتح الملف ‹</span></span>
+      <small>عدد الطلبات: ${g.history.length} · المجموع: ${money(g.total)}</small>
+      ${g.cancelled?`<small style="color:#97192a;font-weight:800">🔔 طلبات ملغاة: ${g.cancelled}</small>`:''}
     </span>
+    <span class="customer-folder-chevron" aria-hidden="true">‹</span>
   </button>`;
 }
+
 function orderCustomerHistoryCard(raw){
   const o=effectiveOrderView(raw),cancelled=isCancelledOrder(raw);
   const note=String(o.notes||'');
   const cancelledAt=cancellationDate(raw);
-  const status=koOrderStatus(raw);
-  const editable=!cancelled;
-  const statusOptions=status==='unclassified'
-    ?['unclassified','new','preparing','shipping','delivered','cancelled']
-    :['new','preparing','shipping','delivered','cancelled'];
-  const pay=o.payment==='card'?'بطاقة':o.payment==='cod'?'عند الاستلام':'غير محدد';
-  const payDetail=o.paymentStatus==='paid'?' · مدفوع':'';
-  const shipping=Number(o.deliveryFee)||0;
+  const date=o.createdAt?new Date(o.createdAt).toLocaleString('ar-AE'):'-';
+  const status=cancelled?'cancelled':o.status;
   return `<article class="customer-file-order" data-customer-order-id="${esc(o.id||'')}">
     <div class="customer-file-order-head">
-      <div>
-        <div class="ko-order-code">طلب <span dir="ltr">${esc(o.id||'—')}</span></div>
-        <time class="ko-order-date">${esc(koAdminDate(o.createdAt))}</time>
-      </div>
-      <span class="ko-status" data-status="${esc(status)}">${esc(statusText(status))}</span>
+      <div><strong>رقم الطلب: <span dir="ltr">${esc(o.id||'')}</span></strong>
+      <div style="color:#74646a;font-size:12px">${esc(date)}</div></div>
+      <div><span class="customer-file-status ${cancelled?'cancelled':''}">${esc(statusText(status))}</span>
+      <select class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="حالة الطلب ${esc(o.id||'')}" ${cancelled?'disabled title="الطلب الملغي لا يمكن إرساله"':''}>
+        ${['new','preparing','shipping','delivered','cancelled'].map(s=>`<option value="${s}" ${status===s?'selected':''}>${statusText(s)}</option>`).join('')}
+      </select></div>
     </div>
-    ${cancelled?`<div class="ko-cancel-warning">تم إلغاء الطلب ${isCustomerCancellation(raw)?'بواسطة العميل':''}${o.payment==='card'?' · راجعي حالة الاسترداد في Stripe':''}</div>`:''}
-    ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">تم تعديل الطلب من العميل</div>':''}
-    <div class="order-products-title">المنتجات المطلوبة</div>
+    ${cancelled?`<div class="order-folder-note">🔔 تم إلغاء الطلب ${isCustomerCancellation(raw)?'بواسطة العميل':''}</div>`:''}
+    ${o._customerEdited&&!cancelled?'<div class="customer-edit-badge">✎ تم تعديل الطلب من العميل</div>':''}
+    <div class="order-products-title">المنتجات المطلوبة وصورها</div>
     ${renderOrderItemsHtml(o)}
-    <div class="ko-payment-grid">
-      <div><small>طريقة الدفع</small><b>${pay+payDetail}</b></div>
-      <div><small>التوصيل</small><b>${money(shipping)}</b></div>
-      <div class="ko-grand-total"><small>الإجمالي</small><b>${money(o.total||0)}</b></div>
-    </div>
-    ${note?`<div class="ko-note"><strong>ملاحظة العميل</strong>${esc(note)}</div>`:''}
-    ${cancelledAt?`<div class="ko-note"><strong>تاريخ الإلغاء</strong>${esc(koAdminDate(cancelledAt))}</div>`:''}
-    <div class="ko-order-actions">
-      <label for="ko-order-status-${esc(o.id||'')}">حالة الطلب</label>
-      <select id="ko-order-status-${esc(o.id||'')}" class="order-folder-status-select" data-order-status-id="${esc(o.id||'')}" aria-label="تحديث حالة الطلب ${esc(o.id||'')}" ${editable?'':'disabled title="لا يمكن تعديل الطلب الملغي"'}>
-        ${statusOptions.map(value=>`<option value="${value}" ${status===value?'selected':''} ${value==='unclassified'?'disabled':''}>${statusText(value)}</option>`).join('')}
-      </select>
-      <span class="ko-action-help">${editable?'يحفظ التغيير تلقائياً بعد تأكيد الخادم.':'الطلب الملغي للعرض فقط'}</span>
+    <div class="customer-file-meta" style="margin-top:12px">
+      <div><b>طريقة الدفع:</b> ${o.payment==='card'?'الدفع بالبطاقة':'الدفع عند الاستلام'}${o.paymentStatus==='paid'?' · مدفوع':''}</div>
+      ${Number(o.deliveryFee)>0?`<div><b>رسوم التوصيل:</b> ${money(Number(o.deliveryFee))}</div>`:''}
+      <div><b>الإجمالي:</b> ${money(o.total||0)}</div>
+      ${note?`<div><b>ملاحظات:</b> ${esc(note)}</div>`:''}
+      ${cancelledAt?`<div><b>تاريخ الإلغاء:</b> ${esc(new Date(cancelledAt).toLocaleString('ar-AE'))}</div>`:''}
     </div>
   </article>`;
 }
@@ -3873,83 +3538,57 @@ function renderOpenedOrdersCustomer(){
   const file=$('ordersCustomerFileView'),content=$('ordersCustomerContents');
   if(!file||!content)return;
   const group=orderCustomerGroups.get(selectedOrdersCustomer);
-  if(!group){
-    selectedOrdersCustomer=null;selectedOrdersOrderId=null;
-    $('adminOrdersTab')?.classList.remove('ko-show-customer');
-    file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');
-    return;
-  }
-  const matching=koMatchingOrders(group);
-  // A realtime status change can move the last matching order out of the
-  // current section. Return to the list rather than showing unrelated items.
-  if(!matching.length){returnToOrdersList();return;}
-  const scroll=ordersAdminScroll(),wasVisible=!file.classList.contains('hidden');
-  const priorScroll=scroll?.scrollTop||0;
-  $('adminOrdersTab')?.classList.add('ko-show-customer');
+  if(!group){selectedOrdersCustomer=null;selectedOrdersOrderId=null;file.classList.add('hidden');$('ordersFoldersView')?.classList.remove('hidden');return;}
+  // Display one customer's orders vertically, each with its own status and items.
+  const card=ordersAdminScroll();
+  const wasVisible=!file.classList.contains('hidden');
+  const priorScroll=card?.scrollTop||0;
   $('ordersFoldersView')?.classList.add('hidden');
   file.classList.remove('hidden');
-  $('ordersCustomerHeading').textContent='ملف '+(group.name||'العميل');
-  const activeCount=group.history.filter(o=>['new','preparing','shipping'].includes(koOrderStatus(o))).length;
-  const deliveredCount=group.history.filter(o=>koOrderStatus(o)==='delivered').length;
-  const sectionLabel=KO_ORDER_FILTER_LABELS[koOrderFilter]||'جميع الطلبات';
+  $('ordersCustomerHeading').textContent='طلبات '+(group.name||'العميل');
   content.innerHTML=`<div class="customer-only-file-shell">
-    ${renderOrderCustomerHtml({customer:group})}
     <div class="customer-file-summary">
-      <div><b>${group.history.length}</b><small>إجمالي طلبات العميل</small></div>
-      <div><b>${activeCount}</b><small>قيد المتابعة</small></div>
-      <div><b>${deliveredCount}</b><small>تم التوصيل</small></div>
+      <div><b>${group.history.length}</b><small>عدد الطلبات</small></div>
+      <div><b>${group.cancelled}</b><small>طلبات ملغاة</small></div>
+      <div><b>${group.registered?'✓':'—'}</b><small>حساب هاتف</small></div>
     </div>
+    ${group.history.length?renderOrderCustomerHtml(effectiveOrderView(group.history[0])):''}
     <section class="customer-file-panel">
-      <h3>${esc(sectionLabel)} (${matching.length})</h3>
-      <div class="customer-file-order-stack" aria-label="${esc(sectionLabel)}">
-        ${matching.map(orderCustomerHistoryCard).join('')}
+      <h3>الطلبات</h3>
+      <div class="customer-file-order-stack" aria-label="جميع طلبات العميل">
+        ${group.history.length?group.history.map(orderCustomerHistoryCard).join(''):'<div class="empty">لا توجد طلبات</div>'}
       </div>
     </section>
   </div>`;
-  if(wasVisible&&scroll){
-    scroll.scrollTop=priorScroll;
-    requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)scroll.scrollTop=priorScroll;});
+  // Live changes must preserve the vertical scroll position.
+  if(wasVisible&&card){
+    card.scrollTop=priorScroll;
+    requestAnimationFrame(()=>{if(selectedOrdersCustomer===group.key)card.scrollTop=priorScroll;});
   }
 }
 function renderOrders(){
-  const list=$('ordersList');if(!list)return;
+  const list=$('ordersList');
+  if(!list)return;
   renderAdminCancellationRequests();
   orderCustomerGroups=buildOrderCustomerGroups();
-  const counts={all:0,new:0,preparing:0,shipping:0,delivered:0,cancelled:0};
-  for(const order of orders){
-    const status=koOrderStatus(order);
-    if(KO_ORDER_FILTERS.includes(status)){counts.all++;counts[status]++;}
-  }
-  for(const [id,key] of [['koStatAll','all'],['koStatNew','new'],['koStatPreparing','preparing'],['koStatShipping','shipping']]){
-    if($(id))$(id).textContent=String(counts[key]);
-  }
-  document.querySelectorAll('#adminOrdersTab [data-filter]').forEach(button=>{
-    button.setAttribute('aria-pressed',String(button.dataset.filter===koOrderFilter));
-  });
-  if($('koTotalCustomersLabel'))$('koTotalCustomersLabel').textContent=orderCustomerGroups.size+' عميل';
   if(selectedOrdersCustomer){renderOpenedOrdersCustomer();return;}
-  $('adminOrdersTab')?.classList.remove('ko-show-customer');
   $('ordersCustomerFileView')?.classList.add('hidden');
   $('ordersFoldersView')?.classList.remove('hidden');
-  const visible=[...orderCustomerGroups.values()]
-    .map(group=>({group,matching:koMatchingOrders(group)}))
-    .filter(row=>row.matching.length>0);
-  function priority(row){
-    if(row.matching.some(o=>koOrderStatus(o)==='new'))return 0;
-    if(row.matching.some(o=>koOrderStatus(o)==='preparing'))return 1;
-    if(row.matching.some(o=>koOrderStatus(o)==='shipping'))return 2;
-    return 3;
-  }
-  visible.sort((a,b)=>(koOrderFilter==='all'?priority(a)-priority(b):0)||
-    String(b.matching[0]?.createdAt||'').localeCompare(String(a.matching[0]?.createdAt||''))||
-    String(a.group.name||'').localeCompare(String(b.group.name||'')));
-  if($('koResultCount')){
-    const matchingOrders=visible.reduce((sum,row)=>sum+row.matching.length,0);
-    $('koResultCount').textContent=visible.length+' ملفات · '+matchingOrders+' طلب';
-  }
-  list.innerHTML=visible.length?visible.map(({group,matching})=>orderCustomerFolderCard(group,matching)).join('')
-    :`<div class="ko-empty">${$('adminOrderSearch')?.value?.trim()?'لا يوجد عميل أو طلب مطابق للبحث.':koOrderFilter==='all'?'لا توجد طلبات بعد.':'لا توجد طلبات بهذه الحالة.'}</div>`;
+  const q=String($('adminOrderSearch')?.value||'').trim().toUpperCase();
+  const visible=[...orderCustomerGroups.values()].filter(g=>
+    !q||[g.name,g.phone,g.city,...g.history.map(o=>o.id)]
+      .some(v=>String(v||'').toUpperCase().includes(q)));
+  visible.sort((a,b)=>{
+    // Do not put customers with canceled-only orders above active customer work.
+    const active=g=>g.history.some(o=>o.status!=='cancelled'&&!o.customerEdit?.cancelRequestedAt);
+    return Number(active(b))-Number(active(a))||
+      String(b.latest).localeCompare(String(a.latest))||
+      String(a.name||'').localeCompare(String(b.name||''));
+  });
+  list.innerHTML=visible.length?visible.map(orderCustomerFolderCard).join('')
+    :(q?'<div class="empty">لا يوجد طلب أو عميل مطابق للبحث</div>':'<div class="empty">لا توجد طلبات بعد</div>');
 }
+
 let ordersFolderSavedKey='';
 let ordersFolderSavedOffset=0;
 function ordersAdminScroll(){return $('adminModal')?.querySelector('.modal-card')||null;}
@@ -4006,23 +3645,13 @@ function backToOrderFolders(){
   returnToOrdersList();
 }
 (function initOrdersCustomerFolders(){
-  // Allow the browser or the Android 1.4.5+ WebView to handle the native
-  // tel: URI directly. No copy action or intercepted/blocked contact click.
-  // Older Admin APKs without ACTION_DIAL support require an app update.
   $('ordersList')?.addEventListener('click',e=>{
     const node=e.target.closest('[data-orders-customer]');
     if(node)openOrdersCustomer(node.dataset.ordersCustomer);
   });
   $('ordersCustomerFileView')?.addEventListener('change',e=>{
     const node=e.target.closest('[data-order-status-id]');
-    if(node){
-      const id=node.dataset.orderStatusId;
-      const original=orders.find(o=>String(o.id)===String(id));
-      if(original&&koOrderStatus(original)===node.value)return;
-      if(node.value==='cancelled'&&!confirm('هل تريدين إلغاء هذا الطلب؟ لا يمكن التراجع عن الإلغاء من هذه الشاشة.')){renderOrders();return;}
-      node.disabled=true;
-      updateOrderStatus(id,node.value);
-    }
+    if(node)updateOrderStatus(node.dataset.orderStatusId,node.value);
   });
   window.addEventListener('popstate',e=>{
     if($('adminOrdersTab')?.classList.contains('hidden'))return;
@@ -4665,10 +4294,10 @@ async function saveBannerImages(){
     const prepared=[];
     for(let i=0;i<pendingBannerFiles.length;i++){
       $('bannerAdminStatus').textContent=`يتم تجهيز الصورة ${i+1}/${pendingBannerFiles.length}...`;
-      prepared.push(await uploadOriginalQualityImage(pendingBannerFiles[i],'banners'));
+      prepared.push(await compressProductImage(pendingBannerFiles[i]));
     }
     const finalImages=[...bannerDraftImages,...prepared].slice(0,MAX_BANNER_IMAGES);
-    const totalBytes=new Blob([JSON.stringify(finalImages)]).size;
+    const totalBytes=finalImages.reduce((sum,img)=>sum+new Blob([img]).size,0);
     if(totalBytes>700*1024)throw new Error('حجم صور البانر كبير. اختاري صوراً أقل أو أصغر.');
     settings.bannerImages=finalImages;
     await saveSettings();
@@ -5661,9 +5290,31 @@ function resetCategoryImage(key){
   const input=document.getElementById('catFile_'+key);if(input)input.value='';
   const preview=document.getElementById('catPreview_'+key);if(preview){preview.removeAttribute('src');preview.classList.add('no-image');}
 }
-// Do not recompress old category images on every save; a lossy original
-// cannot be repaired by another JPEG conversion.
-function preserveExistingCategoryImage(image){return String(image||'');}
+async function compressCategoryImage(file){
+  if(file.size>15*1024*1024)throw new Error('حجم صورة القسم كبير جداً.');
+  const img=await loadImageFile(file);
+  let maxSide=720,quality=.68,blob,lastCanvas=null,lastQuality=.68;
+  const target=30*1024;
+  for(let attempt=0;attempt<10;attempt++){
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lastCanvas=canvas;lastQuality=quality;
+    blob=await canvasToBlob(canvas,'image/jpeg',quality);
+    if(blob.size<=target)break;
+    maxSide=Math.max(360,Math.round(maxSide*.84));quality=Math.max(.40,quality-.06);
+  }
+  if(!blob||!lastCanvas||blob.size>48*1024)throw new Error('تعذر ضغط صورة القسم بما يكفي. اختاري صورة أبسط أو أصغر.');
+  return lastCanvas.toDataURL('image/jpeg',lastQuality);
+}
+async function recompressExistingCategoryImage(dataUrl){
+  if(!String(dataUrl||'').startsWith('data:image/')||String(dataUrl).length<52000)return dataUrl||'';
+  try{
+    const blob=await (await fetch(dataUrl)).blob();
+    return await compressCategoryImage(blob);
+  }catch(_){return dataUrl||'';}
+}
 async function saveCategoryCards(){
   if(typeof auth!=='undefined'&&!auth.currentUser){alert('سجلي الدخول أولاً');return;}
   captureCategoryEditorValues();
@@ -5678,8 +5329,8 @@ async function saveCategoryCards(){
     for(let i=0;i<next.length;i++){
       const card=next[i];
       if(status)status.textContent=`يتم تجهيز القسم ${i+1}/${next.length}...`;
-      if(pendingCategoryFiles[card.id])card.image=await uploadOriginalQualityImage(pendingCategoryFiles[card.id],'categories');
-      else card.image=preserveExistingCategoryImage(card.image);
+      if(pendingCategoryFiles[card.id])card.image=await compressCategoryImage(pendingCategoryFiles[card.id]);
+      else card.image=await recompressExistingCategoryImage(card.image);
       card.titleEn=String(card.titleEn||card.titleAr||'').trim();
       card.subtitleEn=String(card.subtitleEn||card.subtitleAr||'').trim();
     }
@@ -5741,26 +5392,4 @@ load();
   viewer.addEventListener('close', finish);
 })();
 </script>
-
-<dialog id="kdRestockDialog" class="kd-restock-dialog" aria-labelledby="kdRestockDialogTitle">
-  <form id="kdRestockScheduleForm" onsubmit="saveRestockSchedule(event)">
-    <div class="kd-restock-dialog-heading">
-      <h3 id="kdRestockDialogTitle">موعد عودة المنتج</h3>
-      <button type="button" class="kd-dialog-close" onclick="closeRestockDialog()" aria-label="إغلاق">×</button>
-    </div>
-    <p id="kdRestockProductName" class="kd-restock-name"></p>
-    <p class="kd-restock-description">اختاري متى يتوقع وصول المنتج إلى المخزون. سيظهر العد التنازلي في المتجر: أيام، ساعات، دقائق وثوانٍ.</p>
-    <label for="kdRestockScheduleDays">عدد الأيام</label>
-    <input id="kdRestockScheduleDays" type="number" min="3" max="3650" step="1" inputmode="numeric" required value="3">
-    <div id="kdRestockCurrentDate" class="kd-restock-scheduled"></div>
-    <p class="kd-restock-safety-note">مهم: عند انتهاء العد لن يُضاف مخزون وهمي تلقائياً؛ أضيفي الكمية الفعلية لكل لون عند وصول البضاعة.</p>
-    <div id="kdRestockDialogStatus" role="status" aria-live="polite"></div>
-    <div class="kd-restock-dialog-actions">
-      <button type="submit" id="kdRestockSaveBtn" class="btn primary">حفظ الموعد</button>
-      <button type="button" id="kdRestockRemoveBtn" class="btn ghost" onclick="clearRestockSchedule()">إلغاء الموعد</button>
-      <button type="button" class="btn ghost" onclick="closeRestockDialog()">رجوع</button>
-    </div>
-  </form>
-</dialog>
-
 </body></html>
