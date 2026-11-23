@@ -1124,7 +1124,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
-<p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
+<p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ صور المنتجات الجديدة تُرفع بالجودة والدقة الأصلية دون تصغير أو ضغط داخل المتجر. لتحسين صورة قديمة مضغوطة، أضيفي الملف الأصلي من هاتفك.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
 <textarea id="imageUrls" rows="4" style="margin-top:8px" placeholder="رابط كل صورة في سطر مستقل"></textarea>
@@ -2062,7 +2062,6 @@ function showAdminTab(name,btn){
   restoreAdminTabPosition(name);
 }
 const MAX_DIRECT_IMAGES=8;
-const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
 let previewObjectUrls=[];
 let pendingPhotoQuantities=new Map();
