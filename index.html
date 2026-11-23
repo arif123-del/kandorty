@@ -1812,6 +1812,11 @@ body.kandorty-cart-open #cartBtn{
   left:16px!important;z-index:50!important;
 }
 </style>
+
+<style id="kandorty-restock-countdown-style">
+.kd-restock-countdown{margin:9px 0;padding:10px 12px;background:#fff4f5;border:1px solid #eecdd4;border-radius:10px;color:#8b314c;font-size:13px;font-weight:700;text-align:center;direction:rtl;line-height:1.8}
+.kd-restock-countdown strong{display:block;direction:ltr;font-variant-numeric:tabular-nums;font-size:17px;letter-spacing:1px;color:#6e1835}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -1834,24 +1839,6 @@ body.kandorty-cart-open #cartBtn{
 
 </div></div></header>
 
-
-<section class="hero-v2 hero-video-fullwidth"><div class="container hero-v2-grid">
-<div class="hero-copy hero-media-slot">
-<section id="homeVideoSection" class="home-video-section hero-embedded video-loading" aria-label="Kandorty video">
-  <div class="container">
-    <div class="home-video-card">
-      <video id="homeVideo" autoplay muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
-      <div id="homeVideoOverlay" class="home-video-overlay" data-position="center" data-align="center" style="display:none">
-        <div class="home-video-text-box">
-          <div id="homeVideoTitle" class="home-video-title"></div>
-          <div id="homeVideoSubtitle" class="home-video-subtitle"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-</div>
-</div></section>
 
 <main id="shop">
 <section id="categories" class="home-section"><div class="container">
@@ -2704,6 +2691,26 @@ function salesProgressHtml(p){
   </div>`;
 }
 
+
+// The published restock estimate is informational; checkout remains blocked until stock is updated.
+function kdRestockHtml(p){
+  if(!isSoldOut(p)||!p.restockAt)return '';
+  const timestamp=Date.parse(p.restockAt);
+  if(!Number.isFinite(timestamp))return '';
+  return '<div class="kd-restock-countdown" data-restock-at="'+new Date(timestamp).toISOString()+'"><span>'+(lang==='ar'?'الوقت المتبقي لعودة المنتج':'Estimated time until restock')+'</span><strong>--:--:--:--</strong></div>';
+}
+function kdUpdateRestockCountdowns(){
+  document.querySelectorAll('.kd-restock-countdown[data-restock-at]').forEach(box=>{
+    const target=Date.parse(box.dataset.restockAt);
+    if(!Number.isFinite(target))return;
+    const remaining=Math.max(0,Math.ceil((target-Date.now())/1000));
+    if(!remaining){box.querySelector('span').textContent=lang==='ar'?'موعد التوفر المتوقع وصل — بانتظار تحديث المخزون':'Expected restock time reached — awaiting stock update';box.querySelector('strong').textContent='00:00:00:00';return;}
+    const days=Math.floor(remaining/86400), hours=Math.floor(remaining%86400/3600),minutes=Math.floor(remaining%3600/60),seconds=remaining%60;
+    box.querySelector('strong').textContent=[days,hours,minutes,seconds].map(v=>String(v).padStart(2,'0')).join(':');
+  });
+}
+setInterval(kdUpdateRestockCountdowns,1000);
+
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
@@ -2725,6 +2732,7 @@ function renderProductCard(p){
     <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
     ${stockHtml}
+    ${kdRestockHtml(p)}
     <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button>${addBtn}</div></div></article>`;
 }
 function kandortyIsDiscountProduct(p){
@@ -3028,6 +3036,10 @@ function openProduct(id){
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
+  let kdModalRestockCountdown=$('kdModalRestockCountdown');
+  if(!kdModalRestockCountdown){kdModalRestockCountdown=document.createElement('div');kdModalRestockCountdown.id='kdModalRestockCountdown';$('modalPrice').insertAdjacentElement('afterend',kdModalRestockCountdown);}
+  kdModalRestockCountdown.innerHTML=kdRestockHtml(p);
+  kdUpdateRestockCountdowns();
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   preloadProductImages(currentProductImages);
