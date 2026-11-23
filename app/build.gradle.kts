@@ -10,9 +10,9 @@ android {
         applicationId = "online.kandorty.app.preview2310"
         minSdk = 24
         targetSdk = 35
-        versionCode = 23
+        versionCode = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionName = "2.3.10"
+        versionName = "2.3.11"
     }
 
     compileOptions {
