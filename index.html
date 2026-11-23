@@ -1843,6 +1843,8 @@ body.kandorty-cart-open #cartBtn{
     overflow-y:auto!important;
     touch-action:pan-y!important;
     -webkit-overflow-scrolling:touch!important;
+    /* Keep space after content so the fixed purchase button never covers details. */
+    padding-bottom:calc(118px + env(safe-area-inset-bottom))!important;
   }
   #productModal .product-gallery-mainwrap{
     width:100%!important;
@@ -1877,6 +1879,39 @@ body.kandorty-cart-open #cartBtn{
     background:#fff!important;
     border:0!important;
     border-radius:0!important;
+  }
+  /* Buying must remain possible even when a tall original photo exceeds the
+     screen height. Keep the real button fixed inside the opened product view. */
+  #productModal:not(.hidden) .modal-card::after{
+    content:"";
+    position:fixed!important;
+    left:0!important;
+    right:0!important;
+    bottom:0!important;
+    height:calc(92px + env(safe-area-inset-bottom))!important;
+    background:#fff!important;
+    border-top:1px solid #f0e5e8!important;
+    z-index:99!important;
+    pointer-events:none!important;
+  }
+  #productModal #modalAddSelectedBtn{
+    display:block!important;
+    position:fixed!important;
+    inset:auto 14px calc(17px + env(safe-area-inset-bottom)) 14px!important;
+    width:calc(100vw - 28px)!important;
+    max-width:none!important;
+    min-height:54px!important;
+    margin:0!important;
+    padding:12px 16px!important;
+    border-radius:14px!important;
+    z-index:100!important;
+    pointer-events:auto!important;
+    visibility:visible!important;
+    box-shadow:none!important;
+  }
+  #productModal #modalAddSelectedBtn:disabled{
+    opacity:1!important;
+    cursor:not-allowed!important;
   }
   /* A video retains a normal bounded preview without collapsing the stage. */
   #productModal .product-gallery-mainwrap.kd-video-selected .product-gallery-stage{
