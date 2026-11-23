@@ -1827,27 +1827,78 @@ body.kandorty-cart-open #cartBtn{
   object-position:center center!important;
 }
 </style>
-<style id="kandorty-product-preview-cover-20261124">
-/* Fill the opened product photo stage edge-to-edge, without side gutters.
-   Fullscreen tap viewer remains contain, so the whole source can still be seen. */
-#productModal .product-gallery-mainwrap,
-#productModal .product-gallery-stage{
-  background:#111!important;
-  overflow:hidden!important;
-}
-#productModal #modalMainImage{
-  width:100%!important;
-  height:100%!important;
-  max-width:100%!important;
-  max-height:100%!important;
-  aspect-ratio:auto!important;
-  object-fit:cover!important;
-  object-position:center center!important;
-  background:#111!important;
-}
-#productModal #modalProductVideo{
-  object-fit:cover!important;
-  object-position:center center!important;
+<style id="kandorty-product-native-aspect-20261124">
+/* The original whole photo fills the WIDTH of its gallery without cropped edges
+   or blurred/blank side gutters. The image determines the gallery's natural
+   height; the detail/purchase area remains reachable by vertical scrolling. */
+@media (max-width:700px){
+  #productModal{
+    touch-action:pan-y!important;
+    overscroll-behavior:contain!important;
+  }
+  #productModal .modal-card{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    touch-action:pan-y!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #productModal .product-gallery-mainwrap{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+    overflow:visible!important;
+  }
+  #productModal .product-gallery-stage{
+    position:relative!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    background:#fff!important;
+    overflow:hidden!important;
+  }
+  #productModal #modalMainImage{
+    display:block!important;
+    position:relative!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    max-width:100%!important;
+    aspect-ratio:auto!important;
+    object-fit:contain!important;
+    object-position:center center!important;
+    background:#fff!important;
+    border:0!important;
+    border-radius:0!important;
+  }
+  /* A video retains a normal bounded preview without collapsing the stage. */
+  #productModal .product-gallery-mainwrap.kd-video-selected .product-gallery-stage{
+    height:68dvh!important;
+    max-height:68dvh!important;
+    background:#111!important;
+  }
+  #productModal .product-gallery-mainwrap.kd-video-selected #modalMainImage{
+    display:none!important;
+  }
+  #productModal #modalProductVideo:not(.show){
+    display:none!important;
+  }
+  #productModal .product-gallery-mainwrap.kd-video-selected #modalProductVideo.show{
+    display:block!important;
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:contain!important;
+    background:#111!important;
+  }
 }
 </style>
 </head>
@@ -2944,6 +2995,8 @@ function renderProductGallery(direction=0){
   $('modalThumbs').innerHTML='';
 
   const showingVideo=isCurrentProductVideo();
+  // Photos use their native aspect ratio; only the video keeps a fixed stage.
+  gallery.classList.toggle('kd-video-selected',showingVideo);
   if(showingVideo){
     mainImg.style.display='none';
     mainImg.onclick=null;
