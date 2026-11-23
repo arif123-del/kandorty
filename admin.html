@@ -975,6 +975,11 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 #adminDiscountsTab .admin-item{flex-wrap:wrap}
 </style>
 <link rel="stylesheet" href="./admin-modern.css?v=20261123-dialer" media="all">
+
+<style id="kandorty-restock-countdown-style">
+.kd-restock-countdown{margin:9px 0;padding:10px 12px;background:#fff4f5;border:1px solid #eecdd4;border-radius:10px;color:#8b314c;font-size:13px;font-weight:700;text-align:center;direction:rtl;line-height:1.8}
+.kd-restock-countdown strong{display:block;direction:ltr;font-variant-numeric:tabular-nums;font-size:17px;letter-spacing:1px;color:#6e1835}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1121,6 +1126,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <div class="full" style="font-size:13px;line-height:1.8;color:#79525a;margin-top:-5px;padding:8px 11px;background:#fff6f7;border-radius:10px">لإضافة منتج إلى «تخفيضات»، أدخلي سعر تخفيض أقل من السعر الأصلي. سيظهر المنتج في قسم «تخفيضات» فقط، وليس في قائمة المنتجات العادية. اتركي هذا الحقل فارغاً للمنتجات العادية.</div>
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
+<div class="full" style="padding:12px;border:1px solid #e8ced6;border-radius:10px;background:#fff8fa"><label for="restockDays"><b>موعد عودة المنتج النافد (بالأيام)</b></label><input id="restockDays" type="number" min="1" max="3650" step="1" inputmode="numeric" placeholder="مثال: 3 أيام" style="width:100%;margin-top:8px"><small style="display:block;margin-top:6px">اختياري، يُستخدم فقط إذا كانت الكمية 0. اكتب 3 ليظهر العد التنازلي 3 أيام من وقت الحفظ. ترك الحقل فارغاً عند التعديل يحافظ على الموعد السابق. التوقيت لا يضيف مخزوناً تلقائياً.</small><label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="clearRestockAt"> إلغاء الموعد السابق</label></div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
@@ -1639,6 +1645,26 @@ function getProductStock(p){return hasManagedStock(p)?Math.max(0,Math.floor(Numb
 function isSoldOut(p){const s=getProductStock(p);return s!==null && s<=0;}
 function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفد المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
 function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')return null;const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=0?n:0;}
+
+// The published restock estimate is informational; checkout remains blocked until stock is updated.
+function kdRestockHtml(p){
+  if(!isSoldOut(p)||!p.restockAt)return '';
+  const timestamp=Date.parse(p.restockAt);
+  if(!Number.isFinite(timestamp))return '';
+  return '<div class="kd-restock-countdown" data-restock-at="'+new Date(timestamp).toISOString()+'"><span>'+(lang==='ar'?'الوقت المتبقي لعودة المنتج':'Estimated time until restock')+'</span><strong>--:--:--:--</strong></div>';
+}
+function kdUpdateRestockCountdowns(){
+  document.querySelectorAll('.kd-restock-countdown[data-restock-at]').forEach(box=>{
+    const target=Date.parse(box.dataset.restockAt);
+    if(!Number.isFinite(target))return;
+    const remaining=Math.max(0,Math.ceil((target-Date.now())/1000));
+    if(!remaining){box.querySelector('span').textContent=lang==='ar'?'موعد التوفر المتوقع وصل — بانتظار تحديث المخزون':'Expected restock time reached — awaiting stock update';box.querySelector('strong').textContent='00:00:00:00';return;}
+    const days=Math.floor(remaining/86400), hours=Math.floor(remaining%86400/3600),minutes=Math.floor(remaining%3600/60),seconds=remaining%60;
+    box.querySelector('strong').textContent=[days,hours,minutes,seconds].map(v=>String(v).padStart(2,'0')).join(':');
+  });
+}
+setInterval(kdUpdateRestockCountdowns,1000);
+
 function renderProductCard(p){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
@@ -1655,6 +1681,7 @@ function renderProductCard(p){
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
     ${priceHtml}
     ${stockHtml}
+    ${kdRestockHtml(p)}
     <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button>${addBtn}</div></div></article>`;
 }
 function render(){
@@ -1704,6 +1731,10 @@ function openProduct(id){
   const descriptionEl=$('modalDescription');
   if(descriptionEl){descriptionEl.textContent=String(p.description||'').trim();descriptionEl.classList.toggle('hidden',!descriptionEl.textContent);}
   $('modalPrice').textContent=money(p.salePrice||p.price);
+  let kdModalRestockCountdown=$('kdModalRestockCountdown');
+  if(!kdModalRestockCountdown){kdModalRestockCountdown=document.createElement('div');kdModalRestockCountdown.id='kdModalRestockCountdown';$('modalPrice').insertAdjacentElement('afterend',kdModalRestockCountdown);}
+  kdModalRestockCountdown.innerHTML=kdRestockHtml(p);
+  kdUpdateRestockCountdowns();
   currentProductImages=(p.images||[]).filter(Boolean);
   currentProductImageIndex=0;
   renderProductGallery();
@@ -2371,6 +2402,11 @@ $('productForm').onsubmit=async e=>{
     }
     const calculatedTotalStock=calculateProductTotalStock(old,cleanedStock);
 
+    const restockDaysRaw=String($('restockDays')?.value||'').trim();
+    const restockDays=restockDaysRaw===''?null:Number(restockDaysRaw);
+    if(restockDays!==null&&(!Number.isSafeInteger(restockDays)||restockDays<1||restockDays>3650))throw new Error('أدخلي عدد أيام صحيحاً من 1 إلى 3650.');
+    const restockAt=cleanedStock>0||$('clearRestockAt')?.checked?null:
+      (restockDays!==null?new Date(Date.now()+restockDays*86400000).toISOString():(old?.restockAt||null));
     const p={
       id,
       code:String(old?.code||id).trim(),
@@ -2380,6 +2416,7 @@ $('productForm').onsubmit=async e=>{
       salePrice:Number($('salePrice').value)||0,
       stock:cleanedStock,
       totalStock:calculatedTotalStock,
+      restockAt,
       description:$('description').value.trim(),
       isNew:$('isNew').checked,
       active:$('active').checked,
@@ -2459,6 +2496,8 @@ $('productForm').onsubmit=async e=>{
 function resetForm(){
   $('productForm').reset();
   $('editId').value='';
+  if($('restockDays'))$('restockDays').value='';
+  if($('clearRestockAt'))$('clearRestockAt').checked=false;
   $('active').checked=true;
   discountFormMode=false;
   $('salePrice').required=false;
