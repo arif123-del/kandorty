@@ -980,6 +980,23 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 .kd-restock-countdown{margin:9px 0;padding:10px 12px;background:#fff4f5;border:1px solid #eecdd4;border-radius:10px;color:#8b314c;font-size:13px;font-weight:700;text-align:center;direction:rtl;line-height:1.8}
 .kd-restock-countdown strong{display:block;direction:ltr;font-variant-numeric:tabular-nums;font-size:17px;letter-spacing:1px;color:#6e1835}
 </style>
+<style id="kandorty-restock-admin-v2">
+#kdRestockDialog{box-sizing:border-box;border:1px solid #ead5dc;border-radius:19px;padding:20px;width:min(92vw,490px);max-height:85dvh;overflow-y:auto;background:#fff;color:#271b1e;box-shadow:0 20px 70px #0003;direction:rtl}
+#kdRestockDialog::backdrop{background:rgba(20,16,19,.62)}
+#kdRestockDialog .kd-restock-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#kdRestockDialog h3{margin:0;color:#271b1e;font-size:22px}
+#kdRestockDialog .kd-dialog-close{background:#f7eef1;color:#70273f;border:0;border-radius:50%;font-size:24px;width:40px;height:40px}
+#kdRestockDialog p{line-height:1.8}
+#kdRestockDialog .kd-restock-name{font-size:18px;font-weight:800}
+#kdRestockDialog .kd-restock-description{color:#626775;font-size:14px}
+#kdRestockDialog label{display:block;font-size:14px;font-weight:800;margin-bottom:8px}
+#kdRestockDialog input{box-sizing:border-box;width:100%;border:1px solid #d9d9e1;border-radius:11px;padding:12px;font:inherit;font-size:20px;min-height:51px}
+#kdRestockDialog .kd-restock-scheduled{font-size:13px;color:#85364d;margin-top:9px}
+#kdRestockDialog .kd-restock-safety-note{background:#f7f8fa;border-radius:10px;padding:11px;font-size:13px;color:#565a63}
+#kdRestockDialog .kd-restock-dialog-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+#kdRestockDialog .kd-restock-dialog-actions button{min-height:44px}
+#kdRestockDialogStatus{font-size:13px;color:#8d3651;min-height:20px}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav">
@@ -1126,7 +1143,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <div class="full" style="font-size:13px;line-height:1.8;color:#79525a;margin-top:-5px;padding:8px 11px;background:#fff6f7;border-radius:10px">لإضافة منتج إلى «تخفيضات»، أدخلي سعر تخفيض أقل من السعر الأصلي. سيظهر المنتج في قسم «تخفيضات» فقط، وليس في قائمة المنتجات العادية. اتركي هذا الحقل فارغاً للمنتجات العادية.</div>
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
-<div class="full" style="padding:12px;border:1px solid #e8ced6;border-radius:10px;background:#fff8fa"><label for="restockDays"><b>موعد عودة المنتج النافد (بالأيام)</b></label><input id="restockDays" type="number" min="1" max="3650" step="1" inputmode="numeric" placeholder="مثال: 3 أيام" style="width:100%;margin-top:8px"><small style="display:block;margin-top:6px">اختياري، يُستخدم فقط إذا كانت الكمية 0. اكتب 3 ليظهر العد التنازلي 3 أيام من وقت الحفظ. ترك الحقل فارغاً عند التعديل يحافظ على الموعد السابق. التوقيت لا يضيف مخزوناً تلقائياً.</small><label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="clearRestockAt"> إلغاء الموعد السابق</label></div>
+<div class="full" style="padding:12px;border:1px solid #e8ced6;border-radius:10px;background:#fff8fa"><label for="restockDays"><b>موعد عودة المنتج النافد (بالأيام)</b></label><input id="restockDays" type="number" min="3" max="3650" step="1" inputmode="numeric" placeholder="مثال: 3 أيام" style="width:100%;margin-top:8px"><small style="display:block;margin-top:6px">اختياري، يُستخدم فقط إذا كانت الكمية 0. اكتب 3 ليظهر العد التنازلي 3 أيام من وقت الحفظ. ترك الحقل فارغاً عند التعديل يحافظ على الموعد السابق. التوقيت لا يضيف مخزوناً تلقائياً.</small><label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="clearRestockAt"> إلغاء الموعد السابق</label></div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
@@ -2404,7 +2421,7 @@ $('productForm').onsubmit=async e=>{
 
     const restockDaysRaw=String($('restockDays')?.value||'').trim();
     const restockDays=restockDaysRaw===''?null:Number(restockDaysRaw);
-    if(restockDays!==null&&(!Number.isSafeInteger(restockDays)||restockDays<1||restockDays>3650))throw new Error('أدخلي عدد أيام صحيحاً من 1 إلى 3650.');
+    if(restockDays!==null&&(!Number.isSafeInteger(restockDays)||restockDays<3||restockDays>3650))throw new Error('أدخلي عدد أيام صحيحاً من 3 إلى 3650.');
     const restockAt=cleanedStock>0||$('clearRestockAt')?.checked?null:
       (restockDays!==null?new Date(Date.now()+restockDays*86400000).toISOString():(old?.restockAt||null));
     const p={
@@ -2531,6 +2548,85 @@ function openAdminProductPhoto(id,index){
   currentProductImageIndex=Math.max(0,Math.min(Number(index)||0,currentProductImages.length-1));
   renderProductGallery();
 }
+let kdRestockProductId='';
+function restockAdminDate(iso){
+  const n=Date.parse(String(iso||''));
+  return Number.isFinite(n)?new Date(n).toLocaleString('ar-AE',{dateStyle:'medium',timeStyle:'short'}):'';
+}
+function restockAdminAction(p){
+  if(getProductStock(p)!==0)return '';
+  const existing=restockAdminDate(p.restockAt);
+  return '<button type="button" class="btn ghost" onclick="openRestockDialog(\''+esc(p.id)+'\')">'+
+    (existing?'⏳ تعديل موعد العودة':'⏳ تحديد موعد العودة')+'</button>';
+}
+function openRestockDialog(id){
+  if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
+  const product=products.find(p=>String(p.id)===String(id));
+  if(!product||getProductStock(product)!==0){alert('هذه الخاصية متاحة للمنتج النافد فقط.');return;}
+  kdRestockProductId=String(product.id);
+  $('kdRestockProductName').textContent=product.nameAr||product.code||'منتج';
+  $('kdRestockScheduleDays').value='3';
+  $('kdRestockCurrentDate').textContent=product.restockAt?
+    'الموعد الحالي: '+(restockAdminDate(product.restockAt)||'—'):'لم يتم تحديد موعد بعد.';
+  $('kdRestockRemoveBtn').disabled=!product.restockAt;
+  $('kdRestockDialogStatus').textContent='';
+  const dlg=$('kdRestockDialog');
+  if(typeof dlg.showModal==='function')dlg.showModal();else dlg.setAttribute('open','');
+  $('kdRestockScheduleDays').focus();
+}
+function closeRestockDialog(){
+  const dlg=$('kdRestockDialog');
+  if(dlg?.open&&typeof dlg.close==='function')dlg.close();
+  else dlg?.removeAttribute('open');
+  kdRestockProductId='';
+}
+async function updateRestockSchedule(dateString){
+  const id=kdRestockProductId;
+  if(!id||!auth.currentUser)throw new Error('جلسة الإدارة غير متاحة.');
+  const reference=db.collection('products').doc(id);
+  const now=new Date().toISOString();
+  // Updating the single restock field transactionally avoids overwriting
+  // real stock, color quantities or a concurrently arriving customer order.
+  await db.runTransaction(async transaction=>{
+    const snapshot=await transaction.get(reference);
+    if(!snapshot.exists)throw new Error('هذا المنتج غير موجود.');
+    const latest=snapshot.data();
+    const qty=Number(latest.stock);
+    if(latest.stock===undefined||latest.stock===null||!Number.isSafeInteger(qty)||qty!==0)
+      throw new Error('المنتج لم يعد نافداً. لا يمكن تحديد موعد له.');
+    transaction.update(reference,{restockAt:dateString,updatedAt:now});
+  });
+  const verified=await reference.get({source:'server'});
+  if(!verified.exists||String(verified.data()?.restockAt||'')!==String(dateString||''))
+    throw new Error('لم يتأكد حفظ موعد عودة المنتج من الخادم.');
+  products=products.map(p=>String(p.id)===id?{...p,restockAt:dateString,updatedAt:now}:p);
+  writeFastProductCache(products);renderAdminList();render();
+  if(typeof kdUpdateRestockCountdowns==='function')kdUpdateRestockCountdowns();
+}
+async function saveRestockSchedule(event){
+  event.preventDefault();
+  const raw=String($('kdRestockScheduleDays')?.value||'').trim(),days=Number(raw);
+  if(!/^[0-9]+$/.test(raw)||!Number.isSafeInteger(days)||days<3||days>3650){
+    $('kdRestockDialogStatus').textContent='أدخلي عدداً صحيحاً من 3 إلى 3650 يوماً.';return;
+  }
+  const button=$('kdRestockSaveBtn');button.disabled=true;
+  $('kdRestockDialogStatus').textContent='يتم حفظ موعد العودة...';
+  try{
+    await updateRestockSchedule(new Date(Date.now()+days*86400000).toISOString());
+    closeRestockDialog();
+  }catch(error){
+    $('kdRestockDialogStatus').textContent=error?.message||'تعذر حفظ الموعد.';
+  }finally{button.disabled=false;}
+}
+async function clearRestockSchedule(){
+  if(!kdRestockProductId)return;
+  if(!confirm('هل تريدين إلغاء موعد عودة المنتج؟'))return;
+  const button=$('kdRestockRemoveBtn');button.disabled=true;
+  try{await updateRestockSchedule(null);closeRestockDialog();}
+  catch(error){$('kdRestockDialogStatus').textContent=error?.message||'تعذر إلغاء الموعد.';}
+  finally{button.disabled=false;}
+}
+
 function renderAdminList(){
   const regularProducts=products.filter(p=>!isAdminDiscountProduct(p));
   $('adminList').innerHTML=regularProducts.length?regularProducts.map(p=>{
@@ -2541,7 +2637,7 @@ function renderAdminList(){
       ? (stock<=0?100:Math.max(0,Math.min(99,Math.round(((total-stock)/total)*100))))
       : null;
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
-    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
+    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button>${restockAdminAction(p)}<button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
   }).join(''):'<div class="empty">لا توجد منتجات عادية</div>';
   renderDiscountList();
 }
@@ -2552,7 +2648,7 @@ function renderDiscountList(){
     const stock=getProductStock(p);
     return '<div class="admin-item">'+adminProductPreviewHtml(p)+
       '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small></div>'+
-      '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+
+      '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+restockAdminAction(p)+
       '<button class="btn ghost" onclick="toggleProduct(\''+p.id+'\')">'+(p.active===false?'إظهار':'إخفاء')+'</button>'+
       '<button class="btn primary" onclick="deleteProduct(\''+p.id+'\')">حذف</button></div></div>';
   }).join(''):'<div class="empty">لا توجد منتجات في التخفيضات</div>';
@@ -5636,4 +5732,26 @@ load();
   viewer.addEventListener('close', finish);
 })();
 </script>
+
+<dialog id="kdRestockDialog" class="kd-restock-dialog" aria-labelledby="kdRestockDialogTitle">
+  <form id="kdRestockScheduleForm" onsubmit="saveRestockSchedule(event)">
+    <div class="kd-restock-dialog-heading">
+      <h3 id="kdRestockDialogTitle">موعد عودة المنتج</h3>
+      <button type="button" class="kd-dialog-close" onclick="closeRestockDialog()" aria-label="إغلاق">×</button>
+    </div>
+    <p id="kdRestockProductName" class="kd-restock-name"></p>
+    <p class="kd-restock-description">اختاري متى يتوقع وصول المنتج إلى المخزون. سيظهر العد التنازلي في المتجر: أيام، ساعات، دقائق وثوانٍ.</p>
+    <label for="kdRestockScheduleDays">عدد الأيام</label>
+    <input id="kdRestockScheduleDays" type="number" min="3" max="3650" step="1" inputmode="numeric" required value="3">
+    <div id="kdRestockCurrentDate" class="kd-restock-scheduled"></div>
+    <p class="kd-restock-safety-note">مهم: عند انتهاء العد لن يُضاف مخزون وهمي تلقائياً؛ أضيفي الكمية الفعلية لكل لون عند وصول البضاعة.</p>
+    <div id="kdRestockDialogStatus" role="status" aria-live="polite"></div>
+    <div class="kd-restock-dialog-actions">
+      <button type="submit" id="kdRestockSaveBtn" class="btn primary">حفظ الموعد</button>
+      <button type="button" id="kdRestockRemoveBtn" class="btn ghost" onclick="clearRestockSchedule()">إلغاء الموعد</button>
+      <button type="button" class="btn ghost" onclick="closeRestockDialog()">رجوع</button>
+    </div>
+  </form>
+</dialog>
+
 </body></html>
