@@ -90,7 +90,9 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        // Show a legible loading state instead of a blank white surface.
+        // The splash animation transitions straight to the storefront.
+        // While the WebView is loading, keep showing only the SAME Kandorty
+        // logo on white: no second intro picture, spinner, or loading message.
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
         root.addView(webView);
@@ -98,15 +100,13 @@ public class MainActivity extends Activity {
         loadingOverlay.setOrientation(LinearLayout.VERTICAL);
         loadingOverlay.setGravity(Gravity.CENTER);
         loadingOverlay.setBackgroundColor(Color.WHITE);
-        ProgressBar spinner = new ProgressBar(this);
-        loadingOverlay.addView(spinner);
-        TextView loadingLabel = new TextView(this);
-        loadingLabel.setText("جارٍ فتح متجر كندورتي...");
-        loadingLabel.setTextSize(17);
-        loadingLabel.setTextColor(0xFF4B3035);
-        loadingLabel.setGravity(Gravity.CENTER);
-        loadingLabel.setPadding(16, 24, 16, 0);
-        loadingOverlay.addView(loadingLabel);
+        android.widget.ImageView logoHold = new android.widget.ImageView(this);
+        logoHold.setImageResource(R.drawable.kandorty_logo);
+        logoHold.setAdjustViewBounds(true);
+        logoHold.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        int logoWidth = (int) (getResources().getDisplayMetrics().widthPixels * 0.84f);
+        loadingOverlay.addView(logoHold,new LinearLayout.LayoutParams(logoWidth,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(loadingOverlay, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
