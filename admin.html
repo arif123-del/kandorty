@@ -979,6 +979,17 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <style id="kandorty-restock-countdown-style">
 .kd-restock-countdown{margin:9px 0;padding:10px 12px;background:#fff4f5;border:1px solid #eecdd4;border-radius:10px;color:#8b314c;font-size:13px;font-weight:700;text-align:center;direction:rtl;line-height:1.8}
 .kd-restock-countdown strong{display:block;direction:ltr;font-variant-numeric:tabular-nums;font-size:17px;letter-spacing:1px;color:#6e1835}
+#products .card-image-wrap>.kd-restock-countdown{
+  position:absolute;bottom:8px;left:7px;right:7px;z-index:3;width:auto;
+  margin:0;padding:5px 6px;box-sizing:border-box;
+  background:rgba(255,247,249,.95);border:1px solid rgba(236,205,215,.8);
+  border-radius:8px;box-shadow:0 2px 9px rgba(0,0,0,.07);
+  font-size:clamp(9px,1.9vw,11px);line-height:1.25;pointer-events:none;
+}
+#products .card-image-wrap>.kd-restock-countdown strong{
+  display:block;font-size:clamp(12px,2.8vw,15px);line-height:1.35;
+  white-space:nowrap;letter-spacing:.1px;font-variant-numeric:tabular-nums;
+}
 </style>
 <style id="kandorty-restock-admin-v2">
 #kdRestockDialog{box-sizing:border-box;border:1px solid #ead5dc;border-radius:19px;padding:20px;width:min(92vw,490px);max-height:85dvh;overflow-y:auto;background:#fff;color:#271b1e;box-shadow:0 20px 70px #0003;direction:rtl}
@@ -1143,7 +1154,6 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <input id="salePrice" type="number" min="0" step="0.01" placeholder="سعر التخفيض (اختياري)">
 <div class="full" style="font-size:13px;line-height:1.8;color:#79525a;margin-top:-5px;padding:8px 11px;background:#fff6f7;border-radius:10px">لإضافة منتج إلى «تخفيضات»، أدخلي سعر تخفيض أقل من السعر الأصلي. سيظهر المنتج في قسم «تخفيضات» فقط، وليس في قائمة المنتجات العادية. اتركي هذا الحقل فارغاً للمنتجات العادية.</div>
 <input id="stock" type="number" min="0" step="1" placeholder="عدد المنتج / الكمية المتوفرة" inputmode="numeric" required><div class="stock-admin-note">أدخلي الكمية تحت كل صورة؛ سيُحسب الإجمالي تلقائياً في هذه الخانة. إذا لم تضيفي صوراً، اكتبي الكمية الإجمالية هنا. إضافة فيديو لا تغيّر المخزون.</div>
-<div class="full" style="padding:12px;border:1px solid #e8ced6;border-radius:10px;background:#fff8fa"><label for="restockDays"><b>موعد عودة المنتج النافد (بالأيام)</b></label><input id="restockDays" type="number" min="3" max="3650" step="1" inputmode="numeric" placeholder="مثال: 3 أيام" style="width:100%;margin-top:8px"><small style="display:block;margin-top:6px">اختياري، يُستخدم فقط إذا كانت الكمية 0. اكتب 3 ليظهر العد التنازلي 3 أيام من وقت الحفظ. ترك الحقل فارغاً عند التعديل يحافظ على الموعد السابق. التوقيت لا يضيف مخزوناً تلقائياً.</small><label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="clearRestockAt"> إلغاء الموعد السابق</label></div>
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
@@ -1694,11 +1704,10 @@ function renderProductCard(p){
     ? `<button class="btn primary" disabled>${lang==='ar'?'نفد المنتج':'Sold out'}</button>`
     : `<button class="btn primary" onclick="addToCart('${p.id}')">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`;
   return `<article class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${soldOutBadge}${imageHtml}</div>
+    <div class="card-image-wrap">${soldOutBadge}${imageHtml}${kdRestockHtml(p)}</div>
     <div class="card-body"><div class="code">${esc(p.code)}</div><div class="name">${esc(p.nameAr)}</div>
     ${priceHtml}
     ${stockHtml}
-    ${kdRestockHtml(p)}
     <div class="card-actions"><button class="btn ghost" onclick="toggleWishlist('${p.id}')">♡</button>${addBtn}</div></div></article>`;
 }
 function render(){
