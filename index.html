@@ -1916,7 +1916,7 @@ body.kandorty-cart-open #cartBtn{
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-<p style="font-size:12px;color:#71666a;margin:7px 0 10px">Spark plan: سيتم ضغط حتى 8 صور وحفظها داخل Firestore مع المنتج — بدون Firebase Storage وبدون Netlify.</p>
+<p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ صور المنتجات الجديدة تُرفع بالجودة والدقة الأصلية دون تصغير أو ضغط داخل المتجر. لتحسين صورة قديمة مضغوطة، أضيفي الملف الأصلي من هاتفك.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
 <textarea id="imageUrls" rows="4" style="margin-top:8px" placeholder="رابط كل صورة في سطر مستقل"></textarea>
@@ -3331,7 +3331,6 @@ auth.onAuthStateChanged(async user=>{
 });
 function showAdminTab(name,btn){['Form','List','Orders','Customers','Banner','Categories','Video','Settings','Backup'].forEach(x=>$('admin'+x+'Tab').classList.add('hidden'));$('admin'+name[0].toUpperCase()+name.slice(1)+'Tab').classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(name==='list')renderAdminList();if(name==='orders'){renderOrders();clearNewOrderBadges()}if(name==='customers')renderCustomers();if(name==='banner')loadBannerAdmin();if(name==='categories')loadCategoryAdmin();if(name==='video')loadVideoAdmin();if(name==='settings')loadSettingsForm()}
 const MAX_DIRECT_IMAGES=8;
-const TARGET_IMAGE_BYTES=62*1024;
 const MAX_PRODUCT_DOCUMENT_BYTES=900*1024;
 let previewObjectUrls=[];
 function getImageUrls(){
@@ -3358,7 +3357,7 @@ $('imageFiles').addEventListener('change',e=>{
   const room=Math.max(0,MAX_DIRECT_IMAGES-pendingImages.length-getImageUrls().length);
   pendingImageFiles=Array.from(e.target.files||[]).filter(f=>/^image\/(jpeg|png|webp)$/i.test(f.type)).slice(0,room);
   previewImages();
-  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة من أصل ${MAX_DIRECT_IMAGES}. ستُضغط تلقائياً عند الحفظ.`:'لم يتم اختيار صور صالحة.');
+  setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة من أصل ${MAX_DIRECT_IMAGES}. ستُرفع بالجودة الأصلية عند الحفظ.`:'لم يتم اختيار صور صالحة.');
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
@@ -3366,30 +3365,87 @@ function loadImageFile(file){
 }
 function canvasToBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('تعذر تجهيز الصورة')),type,quality));}
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('تعذر تجهيز الصورة'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(blob)});}
-async function compressProductImage(file){
-  if(file.size>15*1024*1024)throw new Error('حجم الصورة كبير جداً. اختاري صورة أقل من 15MB.');
-  const img=await loadImageFile(file);
-  let maxSide=1100,quality=.78,blob;
-  for(let attempt=0;attempt<9;attempt++){
-    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    blob=await canvasToBlob(canvas,'image/jpeg',quality);
-    if(blob.size<=TARGET_IMAGE_BYTES)break;
-    maxSide=Math.max(480,Math.round(maxSide*.84));quality=Math.max(.46,quality-.06);
+// New product/banner/category photos must never go through the old 62 KB
+// canvas/JPEG compressor. Store the ORIGINAL file externally and keep only
+// its HTTPS URL in Firestore. This also avoids Firestore's 1 MiB document cap.
+function uploadOriginalImageToCloudinary(file,onProgress){
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST','https://api.cloudinary.com/v1_1/'+
+      encodeURIComponent(CLOUDINARY_CLOUD_NAME)+'/image/upload',true);
+    xhr.responseType='json';
+    xhr.timeout=180000;
+    xhr.upload.onprogress=e=>{
+      if(e.lengthComputable&&typeof onProgress==='function')onProgress(e.loaded/e.total*100);
+    };
+    xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع الصورة.'));
+    xhr.ontimeout=()=>reject(new Error('انتهت مهلة رفع الصورة.'));
+    xhr.onload=()=>{
+      const data=xhr.response||(()=>{try{return JSON.parse(xhr.responseText||'{}')}catch(_){return {}}})();
+      const url=String(data?.secure_url||'');
+      const expected='https://res.cloudinary.com/'+CLOUDINARY_CLOUD_NAME+'/image/upload/';
+      if(xhr.status>=200&&xhr.status<300&&url.startsWith(expected)&&data.resource_type==='image'){
+        resolve(url);
+      }else{
+        reject(new Error(String(data?.error?.message||('Cloudinary HTTP '+xhr.status)).slice(0,200)));
+      }
+    };
+    const form=new FormData();
+    form.append('file',file,file.name||'photo');
+    form.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
+    xhr.send(form);
+  });
+}
+async function uploadOriginalImageToFirebase(file,kind,onProgress){
+  const suffix=(file.name||'').match(/\.(jpe?g|png|webp)$/i)?.[0]?.toLowerCase()
+    ||(file.type==='image/png'?'.png':file.type==='image/webp'?'.webp':'.jpg');
+  const path='public-media/'+kind+'/'+crypto.randomUUID()+suffix;
+  const ref=storage.ref().child(path);
+  const task=ref.put(file,{
+    contentType:file.type||'image/jpeg',
+    cacheControl:'public,max-age=31536000,immutable'
+  });
+  return new Promise((resolve,reject)=>{
+    task.on('state_changed',snapshot=>{
+      if(snapshot.totalBytes&&typeof onProgress==='function')
+        onProgress(snapshot.bytesTransferred/snapshot.totalBytes*100);
+    },reject,()=>{
+      ref.getDownloadURL().then(resolve,reject);
+    });
+  });
+}
+async function uploadOriginalQualityImage(file,kind,onProgress){
+  if(!['products','banners','categories'].includes(kind))throw new Error('نوع الصورة غير صالح.');
+  if(!file||!file.size)throw new Error('ملف الصورة فارغ.');
+  const valid=/^image\/(jpeg|png|webp)$/i.test(file.type||'')
+    ||((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
+  if(!valid)throw new Error('اختاري صورة JPG أو PNG أو WebP. هذا الملف غير مدعوم.');
+  if(file.size>15*1024*1024)throw new Error('حجم الصورة يتجاوز 15MB. اختاري صورة أصغر دون ضغطها من الموقع.');
+  let cloudError=null;
+  try{
+    return await uploadOriginalImageToCloudinary(file,onProgress);
+  }catch(error){
+    cloudError=error;
+    console.warn('Original image Cloudinary upload unavailable',error);
   }
-  if(!blob||blob.size>82*1024)throw new Error('تعذر ضغط الصورة بما يكفي. اختاري صورة أصغر أو أبسط.');
-  return blobToDataUrl(blob);
+  try{
+    return await uploadOriginalImageToFirebase(file,kind,onProgress);
+  }catch(error){
+    console.warn('Original image Firebase Storage upload unavailable',error);
+    throw new Error('تعذر رفع الصورة بالجودة الأصلية. تحققي من إعداد رفع الصور في Cloudinary أو Firebase Storage، ثم أعيدي المحاولة. لم يتم ضغط الصورة أو حفظ نسخة ضبابية.');
+  }
 }
 function utf8Bytes(value){
   return new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)).length;
 }
 async function prepareProductImage(file,index,total){
-  setUploadProgress(Math.round((index/total)*80),`يتم ضغط الصورة ${index+1}/${total}...`);
-  const dataUrl=await compressProductImage(file);
-  setUploadProgress(Math.round(((index+1)/total)*80),`تم تجهيز الصورة ${index+1}/${total}.`);
-  return dataUrl;
+  setUploadProgress(Math.round((index/total)*80),`جارٍ رفع الصورة الأصلية ${index+1}/${total} دون ضغط...`);
+  const imageUrl=await uploadOriginalQualityImage(file,'products',percent=>{
+    setUploadProgress(Math.round(((index+percent/100)/total)*80),
+      `جارٍ رفع الصورة ${index+1}/${total} بالجودة الأصلية... ${Math.round(percent)}%`);
+  });
+  setUploadProgress(Math.round(((index+1)/total)*80),`تم رفع الصورة الأصلية ${index+1}/${total}.`);
+  return imageUrl;
 }
 $('productForm').onsubmit=async e=>{
   e.preventDefault();
@@ -3442,7 +3498,7 @@ $('productForm').onsubmit=async e=>{
       active:$('active').checked,
       images,
       imagePaths:[],
-      imageMode:'firestore-spark',
+      imageMode:'external-original',
       imageCount:images.length,
       updatedAt:new Date().toISOString()
     };
@@ -3455,7 +3511,7 @@ $('productForm').onsubmit=async e=>{
       );
     }
 
-    setUploadProgress(90,`يتم حفظ المنتج و${images.length} صورة في Firestore...`);
+    setUploadProgress(90,`يتم حفظ المنتج مع روابط ${images.length} صورة أصلية في Firestore...`);
 
     // Save only the changed product document. This avoids rewriting all image-heavy products.
     await db.collection('products').doc(id).set(p);
@@ -5348,10 +5404,10 @@ async function saveBannerImages(){
     const prepared=[];
     for(let i=0;i<pendingBannerFiles.length;i++){
       $('bannerAdminStatus').textContent=`يتم تجهيز الصورة ${i+1}/${pendingBannerFiles.length}...`;
-      prepared.push(await compressProductImage(pendingBannerFiles[i]));
+      prepared.push(await uploadOriginalQualityImage(pendingBannerFiles[i],'banners'));
     }
     const finalImages=[...bannerDraftImages,...prepared].slice(0,MAX_BANNER_IMAGES);
-    const totalBytes=finalImages.reduce((sum,img)=>sum+new Blob([img]).size,0);
+    const totalBytes=new Blob([JSON.stringify(finalImages)]).size;
     if(totalBytes>700*1024)throw new Error('حجم صور البانر كبير. اختاري صوراً أقل أو أصغر.');
     settings.bannerImages=finalImages;
     await saveSettings();
@@ -6713,31 +6769,7 @@ function resetCategoryImage(key){
   const input=document.getElementById('catFile_'+key);if(input)input.value='';
   const preview=document.getElementById('catPreview_'+key);if(preview){preview.removeAttribute('src');preview.classList.add('no-image');}
 }
-async function compressCategoryImage(file){
-  if(file.size>15*1024*1024)throw new Error('حجم صورة القسم كبير جداً.');
-  const img=await loadImageFile(file);
-  let maxSide=720,quality=.68,blob,lastCanvas=null,lastQuality=.68;
-  const target=30*1024;
-  for(let attempt=0;attempt<10;attempt++){
-    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    lastCanvas=canvas;lastQuality=quality;
-    blob=await canvasToBlob(canvas,'image/jpeg',quality);
-    if(blob.size<=target)break;
-    maxSide=Math.max(360,Math.round(maxSide*.84));quality=Math.max(.40,quality-.06);
-  }
-  if(!blob||!lastCanvas||blob.size>48*1024)throw new Error('تعذر ضغط صورة القسم بما يكفي. اختاري صورة أبسط أو أصغر.');
-  return lastCanvas.toDataURL('image/jpeg',lastQuality);
-}
-async function recompressExistingCategoryImage(dataUrl){
-  if(!String(dataUrl||'').startsWith('data:image/')||String(dataUrl).length<52000)return dataUrl||'';
-  try{
-    const blob=await (await fetch(dataUrl)).blob();
-    return await compressCategoryImage(blob);
-  }catch(_){return dataUrl||'';}
-}
+function preserveExistingCategoryImage(image){return String(image||'');}
 async function saveCategoryCards(){
   if(typeof auth!=='undefined'&&!auth.currentUser){alert('سجلي الدخول أولاً');return;}
   captureCategoryEditorValues();
@@ -6752,8 +6784,8 @@ async function saveCategoryCards(){
     for(let i=0;i<next.length;i++){
       const card=next[i];
       if(status)status.textContent=`يتم تجهيز القسم ${i+1}/${next.length}...`;
-      if(pendingCategoryFiles[card.id])card.image=await compressCategoryImage(pendingCategoryFiles[card.id]);
-      else card.image=await recompressExistingCategoryImage(card.image);
+      if(pendingCategoryFiles[card.id])card.image=await uploadOriginalQualityImage(pendingCategoryFiles[card.id],'categories');
+      else card.image=preserveExistingCategoryImage(card.image);
       card.titleEn=String(card.titleEn||card.titleAr||'').trim();
       card.subtitleEn=String(card.subtitleEn||card.subtitleAr||'').trim();
     }
