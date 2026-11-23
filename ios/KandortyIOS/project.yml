@@ -1,0 +1,33 @@
+name: Kandorty
+options:
+  bundleIdPrefix: online.kandorty
+  deploymentTarget:
+    iOS: '16.0'
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1,2'
+    DEVELOPMENT_TEAM: ''
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Kandorty:
+    type: application
+    platform: iOS
+    sources:
+      - path: Kandorty
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.kandorty.store
+        PRODUCT_NAME: Kandorty
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: Kandorty/Info.plist
+      properties:
+        CFBundleDisplayName: Kandorty
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        ITSAppUsesNonExemptEncryption: false
