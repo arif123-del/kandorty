@@ -1,0 +1,31 @@
+{
+  "app": "Kandorty",
+  "publicStorefront": "https://kandorty.online/",
+  "adminSeparated": true,
+  "mobileModel": "shared hosted storefront; native Android and iOS shells",
+  "rollout": "publish web changes once after tests; native changes require separate store releases",
+  "environments": {
+    "production": "https://kandorty.online/",
+    "staging": "must not be shipped in production app"
+  },
+  "sharedFeatures": [
+    "catalog",
+    "colors-and-stock",
+    "pricing",
+    "discounts",
+    "cart",
+    "orders",
+    "tracking",
+    "layout",
+    "checkout"
+  ],
+  "nativeFeaturesNeedingSeparateTesting": [
+    "push notifications",
+    "file chooser",
+    "permissions",
+    "deep links",
+    "payment redirect",
+    "app icons",
+    "splash"
+  ]
+}
