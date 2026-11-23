@@ -1900,6 +1900,48 @@ body.kandorty-cart-open #cartBtn{
   object-position:center center!important;
 }
 </style>
+
+<style id="kandorty-modal-full-height-and-image-room-20261123">
+/* kandorty-modal-full-height-and-image-room-20261123 */
+@media (max-width:700px){
+  /* Cover the entire browser viewport so the underlying grey product row is never exposed. */
+  #productModal{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    padding:0!important;
+    background:#fff!important;
+    place-items:start stretch!important;
+    overflow:hidden!important;
+  }
+  #productModal .modal-card{
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    max-height:100dvh!important;
+    margin:0!important;
+    padding:0 0 calc(12px + env(safe-area-inset-bottom))!important;
+    border-radius:0!important;
+    background:#fff!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+  }
+  /* Use some of the previously empty space for a clearer product preview. */
+  #productModal .product-gallery-mainwrap{
+    height:68dvh!important;
+    min-height:68dvh!important;
+    max-height:68dvh!important;
+  }
+  /* Give the price and selection details breathing room before the buy button. */
+  #productModal #modalAddSelectedBtn{
+    margin:clamp(18px,2.2dvh,28px) 14px 12px!important;
+  }
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
