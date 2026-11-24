@@ -2020,6 +2020,21 @@ body.kandorty-cart-open #cartBtn{
 #imageViewerModal .image-viewer-card,#imageViewerModal #imageViewerImg{touch-action:none!important;overscroll-behavior:none!important;}
 #imageViewerModal #imageViewerImg{transform-origin:center center!important;}
 </style>
+<style id="kandorty-persistent-gallery-dots">
+#productModal #modalGallery{position:relative!important;isolation:isolate!important;}
+#productModal #modalGallery .product-gallery-stage{z-index:0!important;}
+#productModal #productGalleryDotsNative{
+  position:absolute!important;left:50%!important;bottom:18px!important;
+  transform:translate3d(-50%,0,0)!important;z-index:30!important;
+  visibility:visible!important;opacity:1!important;pointer-events:none!important;
+  direction:ltr!important;transition:none!important;animation:none!important;
+}
+#productModal #productGalleryDotsNative[hidden],#imageViewerModal #kandortyViewerDots[hidden]{display:none!important;}
+#imageViewerModal #kandortyViewerDots:not([hidden]){
+  display:flex!important;z-index:30!important;visibility:visible!important;opacity:1!important;
+  transform:translate3d(-50%,0,0)!important;transition:none!important;animation:none!important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -3205,16 +3220,25 @@ function renderProductGallery(direction=0){
     if(stage && !dots){
       dots=document.createElement('div');
       dots.id='productGalleryDotsNative';
-      stage.appendChild(dots);
+      dots.setAttribute('aria-label','مؤشر الصور');
+      // Keep indicators outside the animated / paint-contained image stage.
+      stage.insertAdjacentElement('afterend',dots);
     }
     if(dots){
-      dots.innerHTML='';
+      if(dots.parentNode!==gallery)stage.insertAdjacentElement('afterend',dots);
+      dots.hidden=total<2;
       dots.style.display=total>1?'flex':'none';
-      for(let i=0;i<total;i++){
+      // Preserve the existing overlay during swipes; update only the active dot.
+      while(dots.children.length>total)dots.lastElementChild.remove();
+      while(dots.children.length<total){
         const dot=document.createElement('span');
-        dot.className='native-gallery-dot'+(i===currentProductImageIndex?' active':'');
+        dot.className='native-gallery-dot';
         dots.appendChild(dot);
       }
+      Array.from(dots.children).forEach((dot,i)=>{
+        dot.classList.toggle('active',i===currentProductImageIndex);
+        dot.setAttribute('aria-current',i===currentProductImageIndex?'true':'false');
+      });
     }
   }
 
@@ -7370,10 +7394,11 @@ function renderKandortyViewerDots(){
   const holder=document.getElementById('kandortyViewerDots');
   if(!holder)return;
   const n=Array.isArray(currentProductImages)?currentProductImages.length:0;
-  holder.replaceChildren();
   holder.hidden=n<2;
-  if(n<2)return;
-  for(let i=0;i<n;i++){
+  if(n<2){holder.replaceChildren();return;}
+  if(holder.children.length!==n){
+    holder.replaceChildren();
+    for(let i=0;i<n;i++){
     const dot=document.createElement('button');
     dot.type='button';
     dot.className='viewer-dot'+(i===currentProductImageIndex?' active':'');
@@ -7386,7 +7411,12 @@ function renderKandortyViewerDots(){
       updateFullscreenProductImage();
     });
     holder.appendChild(dot);
+    }
   }
+  Array.from(holder.children).forEach((dot,i)=>{
+    dot.classList.toggle('active',i===currentProductImageIndex);
+    dot.setAttribute('aria-current',i===currentProductImageIndex?'true':'false');
+  });
 }
 </script>
 
