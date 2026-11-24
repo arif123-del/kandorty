@@ -3120,9 +3120,11 @@ function syncProductPurchaseButton(){
   // Restore the strict purchase button: zero stock or exhausted cart allowance disables it.
   btn.disabled=unavailable;
   // A sold-out product always takes priority, including on its video slide.
+  const selectedSoldOut=!!p&&!video&&index>=0&&(remaining<=0||overallRemaining<=0);
   btn.textContent=!p||isSoldOut(p)
     ? unavailableLabel(p)
-    : (video?(lang==='ar'?'اختاري اللون أولاً':'Choose a color first'):(lang==='ar'?'أضيفي للسلة':'Add to cart'));
+    : (selectedSoldOut?(lang==='ar'?'نفذ المنتج':'Sold out')
+      : (video?(lang==='ar'?'اختاري اللون أولاً':'Choose a color first'):(lang==='ar'?'أضيفي للسلة':'Add to cart')));
   if(note)note.textContent=p&&index>=0&&!video?selectedColorStockMessage(p,index):'';
   btn.title=unavailable&&!video&&p&&!isSoldOut(p)
     ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
@@ -4590,13 +4592,13 @@ function addToCart(id,imageIndex=0,keepProductOpen=false){
   const stock=getProductStock(p);
   const colorStock=productVariantStock(p,idx);
   if(colorStock!==null&&variantQtyInCart(id,idx)+1>colorStock){
-    alert(lang==='ar'?'الكمية المتاحة لهذا اللون: '+colorStock:
-      'Available quantity for this color: '+colorStock);
+    alert(lang==='ar'?'نفذ المنتج — الكمية المتاحة لهذا اللون: '+colorStock:
+      'Sold out — available quantity for this color: '+colorStock);
     return;
   }
   const nextProductQty=productQtyInCart(id)+1;
   if(stock!==null && nextProductQty>stock){
-    alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
+    alert((lang==='ar'?'نفذ المنتج — الكمية المتاحة فقط: ':'Sold out — available quantity: ')+stock);
     return;
   }
 
@@ -4701,12 +4703,12 @@ function changeCartQty(cartIndex,d){
   }
   if(d>0 && isSoldOut(p)){alert(unavailableLabel(p));return;}
   if(d>0 && colorStock!==null && variantQtyInCart(i.id,idx)+d>colorStock){
-    alert(lang==='ar'?'الكمية المتاحة لهذا اللون: '+colorStock:
-      'Available quantity for this color: '+colorStock);
+    alert(lang==='ar'?'نفذ المنتج — الكمية المتاحة لهذا اللون: '+colorStock:
+      'Sold out — available quantity for this color: '+colorStock);
     return;
   }
   if(d>0 && stock!==null && productQtyInCart(i.id)+d>stock){
-    alert((lang==='ar'?'الكمية المتاحة فقط: ':'Only available quantity: ')+stock);
+    alert((lang==='ar'?'نفذ المنتج — الكمية المتاحة فقط: ':'Sold out — available quantity: ')+stock);
     return;
   }
 
