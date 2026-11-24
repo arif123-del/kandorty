@@ -2035,6 +2035,25 @@ body.kandorty-cart-open #cartBtn{
   transform:translate3d(-50%,0,0)!important;transition:none!important;animation:none!important;
 }
 </style>
+<style id="kandorty-product-background-lock-dots">
+html.kd-product-open{overflow:hidden!important;overscroll-behavior:none!important;scroll-behavior:auto!important}
+html.kd-product-open body{
+  position:fixed!important;top:var(--kd-page-lock-top,0px)!important;
+  left:0!important;right:0!important;width:100%!important;overflow:hidden!important;
+}
+#productModal #productGalleryDotsNative{
+  bottom:var(--kd-dot-bottom,18px)!important;
+}
+@media(max-width:700px){
+  /* The safe navigation strip must be covered, not reveal the storefront. */
+  #productModal{inset:0!important;overscroll-behavior:none!important;}
+  #productModal .modal-card{
+    height:calc(100% - var(--kd-product-bottom-safe,58px))!important;
+    max-height:calc(100% - var(--kd-product-bottom-safe,58px))!important;
+    overscroll-behavior:none!important;
+  }
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -3156,6 +3175,7 @@ function renderProductGallery(direction=0){
 
   if(!total){
     gallery.style.display='none';
+    const dots=document.getElementById('productGalleryDotsNative');if(dots)dots.hidden=true;
     syncProductPurchaseButton();
     return;
   }
@@ -3243,6 +3263,7 @@ function renderProductGallery(direction=0){
   }
 
   syncProductPurchaseButton();
+  scheduleProductDotsPosition();
 
   if(!$('imageViewerModal').classList.contains('hidden') && !showingVideo){
     updateFullscreenProductImage(direction);
@@ -3272,6 +3293,20 @@ function updatePublicProductDetails(p){
   }
 }
 
+let kdPageScroll=null;
+function lockProductBackground(){
+  if(kdPageScroll!==null)return;
+  kdPageScroll={x:window.scrollX,y:window.scrollY};
+  document.documentElement.style.setProperty('--kd-page-lock-top',(-kdPageScroll.y)+'px');
+  document.documentElement.classList.add('kd-product-open');
+}
+function unlockProductBackground(){
+  if(kdPageScroll===null)return;
+  const saved=kdPageScroll;kdPageScroll=null;
+  document.documentElement.classList.remove('kd-product-open');
+  document.documentElement.style.removeProperty('--kd-page-lock-top');
+  window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'});
+}
 function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
@@ -3283,6 +3318,7 @@ function openProduct(id){
   currentProductImages=Array.isArray(p.images)?p.images.filter(Boolean):[];
   currentProductVideoUrl=String(p.productVideoUrl||p.videoUrl||p.productVideo||'').trim();
   currentProductImageIndex=0;
+  lockProductBackground();
   $('productModal').classList.remove('hidden');
   renderProductGallery();
 
@@ -3329,6 +3365,7 @@ function addSelectedProductToCart(){
 }
 function closeProduct(){
   $('productModal').classList.add('hidden');
+  unlockProductBackground();
   $('imageViewerModal').classList.add('hidden');
   const v=$('modalProductVideo');
   if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
@@ -7505,6 +7542,42 @@ document.addEventListener('DOMContentLoaded',updateCartCount,{once:true});
 
 
 
+<script id="kandorty-visible-gallery-dots">
+let kdDotsFrame=0;
+function positionProductDots(){
+  kdDotsFrame=0;
+  const modal=document.getElementById('productModal'),gallery=document.getElementById('modalGallery'),dots=document.getElementById('productGalleryDotsNative'),panel=document.getElementById('kandortyProductPurchasePanel');
+  if(!modal||modal.classList.contains('hidden')||!gallery||!dots||dots.hidden||!panel)return;
+  const stage=gallery.querySelector('.product-gallery-stage'),card=modal.querySelector('.modal-card');
+  if(!stage||!card)return;
+  const gr=gallery.getBoundingClientRect(),sr=stage.getBoundingClientRect(),cr=card.getBoundingClientRect(),pr=panel.getBoundingClientRect();
+  const visibleTop=Math.max(sr.top,cr.top,0);
+  const visibleBottom=Math.min(sr.bottom,cr.bottom,pr.top,window.innerHeight);
+  // Raise the dots above the sticky purchase panel, which may cover tall photos.
+  // When a user scrolls the photo entirely out of sight, do not float dots over details.
+  const room=visibleBottom-visibleTop;
+  dots.style.visibility=room>=dots.offsetHeight+12?'visible':'hidden';
+  dots.toggleAttribute('data-out-of-view',room<dots.offsetHeight+12);
+  if(room<dots.offsetHeight+12)return;
+  dots.style.setProperty('--kd-dot-bottom',Math.max(12,gr.bottom-visibleBottom+14)+'px');
+}
+function scheduleProductDotsPosition(){
+  if(!kdDotsFrame)kdDotsFrame=requestAnimationFrame(positionProductDots);
+}
+(function(){
+  const modal=document.getElementById('productModal'),gallery=document.getElementById('modalGallery'),panel=document.getElementById('kandortyProductPurchasePanel');
+  const card=modal?.querySelector('.modal-card');
+  card?.addEventListener('scroll',scheduleProductDotsPosition,{passive:true});
+  window.addEventListener('resize',scheduleProductDotsPosition,{passive:true});
+  window.visualViewport?.addEventListener('resize',scheduleProductDotsPosition,{passive:true});
+  document.getElementById('modalMainImage')?.addEventListener('load',scheduleProductDotsPosition);
+  if(typeof ResizeObserver==='function'){
+    const observer=new ResizeObserver(scheduleProductDotsPosition);
+    [gallery,panel,card].filter(Boolean).forEach(el=>observer.observe(el));
+  }
+})();
+</script>
+<style>#productModal #productGalleryDotsNative[data-out-of-view]{visibility:hidden!important;}</style>
 <script id="kandorty-unified-carousel-js">
 (function(){
  function bind(stage,img,fullscreen){
