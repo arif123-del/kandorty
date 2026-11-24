@@ -1928,35 +1928,42 @@ body.kandorty-cart-open #cartBtn{
 }
 </style>
 <style id="kandorty-uniform-photo-ratio">
-/* One 3:4 display frame for every original photo, including 9:16 uploads.
-   Contain preserves the entire photo and its proportions; fullscreen remains unchanged. */
+/* Display the complete original at the full available width.
+   Different camera ratios intentionally produce different photo heights. */
 #products .card-image-wrap > img{
+  display:block!important;
   width:100%!important;
   height:auto!important;
-  aspect-ratio:3/4!important;
+  min-height:0!important;
+  max-height:none!important;
+  aspect-ratio:auto!important;
   object-fit:contain!important;
   object-position:center!important;
 }
+#products{align-items:start;}
 #productModal .product-gallery-mainwrap:not(.kd-video-selected){
+  width:100%!important;
   height:auto!important;
   min-height:0!important;
   max-height:none!important;
 }
 #productModal .product-gallery-mainwrap:not(.kd-video-selected) .product-gallery-stage{
+  width:100%!important;
   height:auto!important;
   min-height:0!important;
   max-height:none!important;
-  aspect-ratio:3/4!important;
+  aspect-ratio:auto!important;
   overflow:hidden!important;
 }
 #productModal .product-gallery-mainwrap:not(.kd-video-selected) #modalMainImage{
   position:relative!important;
   display:block!important;
   width:100%!important;
+  max-width:100%!important;
   height:auto!important;
   min-height:0!important;
   max-height:none!important;
-  aspect-ratio:3/4!important;
+  aspect-ratio:auto!important;
   object-fit:contain!important;
   object-position:center!important;
   margin:0!important;
@@ -1964,6 +1971,10 @@ body.kandorty-cart-open #cartBtn{
   border:0!important;
   border-radius:0!important;
   box-sizing:border-box!important;
+}
+@media(max-width:700px){
+  #productModal .modal-card{scrollbar-width:none;}
+  #productModal .modal-card::-webkit-scrollbar{display:none;}
 }
 </style>
 </head>
