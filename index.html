@@ -2065,6 +2065,33 @@ html.kd-product-open body{
 #productModal #modalProductVideo::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none!important}
 #productModal #productVideoBadge{display:none!important}
 </style>
+<style id="kandorty-video-photo-size-and-flash">
+#productModal #modalGallery.kd-video-selected{
+  width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+}
+#productModal #modalGallery.kd-video-selected .product-gallery-stage{
+  width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  aspect-ratio:var(--kd-video-photo-ratio,9 / 16)!important;
+}
+#productModal #modalGallery.kd-video-selected #modalProductVideo.show{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  max-width:none!important;max-height:none!important;aspect-ratio:auto!important;
+  object-fit:contain!important;object-position:center!important;border:0!important;border-radius:0!important;
+}
+#productModal #kdVideoTapIndicator{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);
+  width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.62);color:#fff;
+  display:grid;place-items:center;z-index:15;opacity:0;visibility:hidden;pointer-events:none;
+}
+#productModal #modalGallery.kd-video-selected #kdVideoTapIndicator.kd-flash{
+  visibility:visible;animation:kdVideoTapFlash .65s ease-out both;
+}
+@keyframes kdVideoTapFlash{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.85)}
+  15%,65%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.08)}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -2147,6 +2174,7 @@ html.kd-product-open body{
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
     <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
     <video id="modalProductVideo" muted playsinline webkit-playsinline loop preload="none" role="button" tabindex="0" aria-label="إيقاف أو تشغيل الفيديو" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='640'%3E%3Crect width='360' height='640' fill='%23111111'/%3E%3C/svg%3E"></video>
+    <div id="kdVideoTapIndicator" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path id="kdVideoTapIndicatorPath" d="M8 5v14l11-7z"/></svg></div>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
@@ -3184,6 +3212,14 @@ function playSelectedProductVideo(){
   if(!video||$('productModal').classList.contains('hidden')||!isCurrentProductVideo())return;
   try{const promise=video.play();if(promise&&promise.catch)promise.catch(syncProductVideoControl);}catch(error){syncProductVideoControl();}
 }
+function flashProductVideoIndicator(playing){
+  const indicator=$('kdVideoTapIndicator'),path=$('kdVideoTapIndicatorPath');
+  if(!indicator||!path)return;
+  path.setAttribute('d',playing?'M8 5v14l11-7z':'M7 5h4v14H7zM14 5h4v14h-4z');
+  indicator.classList.remove('kd-flash');
+  void indicator.offsetWidth;
+  indicator.classList.add('kd-flash');
+}
 function bindProductVideoControl(){
   const video=$('modalProductVideo');
   if(!video||video.dataset.tapBound==='1')return;
@@ -3199,8 +3235,10 @@ function bindProductVideoControl(){
   video.addEventListener('touchcancel',()=>{moved=true;ignoreClickUntil=performance.now()+350;},{passive:true});
   const toggle=()=>{
     if($('productModal').classList.contains('hidden')||!isCurrentProductVideo())return;
-    if(video.paused||video.ended)playSelectedProductVideo();
+    const willPlay=video.paused||video.ended;
+    if(willPlay)playSelectedProductVideo();
     else video.pause();
+    flashProductVideoIndicator(willPlay);
     syncProductVideoControl();
   };
   video.addEventListener('click',e=>{
@@ -3235,7 +3273,13 @@ function renderProductGallery(direction=0){
 
   const showingVideo=isCurrentProductVideo();
   bindProductVideoControl();
-  // Photos use their native aspect ratio; only the video keeps a fixed stage.
+  // Match the video frame to the most recently displayed product photo.
+  if(showingVideo&&!gallery.classList.contains('kd-video-selected')){
+    const w=mainImg.naturalWidth,h=mainImg.naturalHeight;
+    const box=mainImg.getBoundingClientRect();
+    const ratio=w>0&&h>0?w/h:(box.width>0&&box.height>0?box.width/box.height:0);
+    if(Number.isFinite(ratio)&&ratio>0)gallery.style.setProperty('--kd-video-photo-ratio',String(ratio));
+  }
   gallery.classList.toggle('kd-video-selected',showingVideo);
   if(showingVideo){
     mainImg.style.display='none';
@@ -3261,6 +3305,7 @@ function renderProductGallery(direction=0){
   }else{
     video.pause();
     video.classList.remove('show');
+    $('kdVideoTapIndicator')?.classList.remove('kd-flash');
     // Free the video network/decoder when the customer goes back to images.
     if(video.getAttribute('src')){
       video.removeAttribute('src');
@@ -3361,6 +3406,8 @@ function openProduct(id){
   if(!p)return;
 
   currentProductId=id;
+  $('modalGallery').style.removeProperty('--kd-video-photo-ratio');
+  $('kdVideoTapIndicator')?.classList.remove('kd-flash');
   $('modalName').textContent=displayProductName(p);
   updatePublicProductDetails(p);
   $('modalPrice').innerHTML=moneyHtml(p.salePrice||p.price);
@@ -3415,6 +3462,7 @@ function addSelectedProductToCart(){
 function closeProduct(){
   $('productModal').classList.add('hidden');
   unlockProductBackground();
+  $('kdVideoTapIndicator')?.classList.remove('kd-flash');
   $('imageViewerModal').classList.add('hidden');
   const v=$('modalProductVideo');
   if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
