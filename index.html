@@ -1901,7 +1901,7 @@ body.kandorty-cart-open #cartBtn{
     box-shadow:none!important;
   }
   #productModal #modalAddSelectedBtn:disabled{
-    opacity:1!important;
+    opacity:.6!important;
     cursor:not-allowed!important;
   }
   /* A video retains a normal bounded preview without collapsing the stage. */
@@ -3196,11 +3196,13 @@ function renderProductGallery(direction=0){
     const unavailable=!current||isSoldOut(current)||showingVideo||
       (colorStock!==null&&colorRemaining<=0);
     addBtn.disabled=unavailable;
+    // Keep the purchase label consistent across photo/color swipes.
+    // Exhausted colors are still disabled and validated by addToCart.
     addBtn.textContent=showingVideo
       ? (lang==='ar'?'اختاري اللون أولاً':'Choose a color first')
-      : (colorStock!==null&&colorRemaining<=0
-        ? (lang==='ar'?'نفد هذا اللون':'This color is sold out')
-        : (unavailable?unavailableLabel(current):(lang==='ar'?'أضيفي للسلة':'Add to cart')));
+      : (!current||isSoldOut(current)
+        ? unavailableLabel(current)
+        : (lang==='ar'?'أضيفي للسلة':'Add to cart'));
   }
 
   if(!$('imageViewerModal').classList.contains('hidden') && !showingVideo){
@@ -3247,8 +3249,10 @@ function openProduct(id){
 
   const addBtn=$('modalAddSelectedBtn');
   if(addBtn){
-    addBtn.disabled=isSoldOut(p);
-    if(isSoldOut(p))addBtn.textContent=unavailableLabel(p);
+    if(isSoldOut(p)||!getCurrentProductMediaCount()){
+      addBtn.disabled=isSoldOut(p);
+      addBtn.textContent=isSoldOut(p)?unavailableLabel(p):(lang==='ar'?'أضيفي للسلة':'Add to cart');
+    }
   }
 
   // The fast-start cache may contain only the first large embedded image.
@@ -3281,8 +3285,10 @@ function openProduct(id){
 
       const freshAddBtn=$('modalAddSelectedBtn');
       if(freshAddBtn){
-        freshAddBtn.disabled=isSoldOut(fresh);
-        if(isSoldOut(fresh))freshAddBtn.textContent=unavailableLabel(fresh);
+        if(isSoldOut(fresh)||!getCurrentProductMediaCount()){
+          freshAddBtn.disabled=isSoldOut(fresh);
+          freshAddBtn.textContent=isSoldOut(fresh)?unavailableLabel(fresh):(lang==='ar'?'أضيفي للسلة':'Add to cart');
+        }
       }
     })
     .catch(err=>{
