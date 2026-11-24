@@ -1977,6 +1977,40 @@ body.kandorty-cart-open #cartBtn{
   #productModal .modal-card::-webkit-scrollbar{display:none;}
 }
 </style>
+<style id="kandorty-product-safe-purchase-panel">
+/* Keep native photo proportions and keep controls above the mobile navigation overlay. */
+@media(max-width:700px){
+  #productModal{
+    --kd-product-bottom-safe:max(48px,env(safe-area-inset-bottom,0px));
+    background:#fff!important;
+  }
+  #productModal .modal-card{
+    box-sizing:border-box!important;
+    height:calc(100dvh - var(--kd-product-bottom-safe))!important;
+    max-height:calc(100dvh - var(--kd-product-bottom-safe))!important;
+    padding-bottom:8px!important;
+    scroll-behavior:auto!important;
+    touch-action:pan-y!important;
+  }
+  #productModal .product-gallery-mainwrap,
+  #productModal .product-gallery-stage{
+    touch-action:pan-y!important;
+  }
+  #productModal #kandortyProductPurchasePanel{
+    position:sticky;
+    bottom:0;
+    z-index:10;
+    display:flow-root;
+    background:#fff;
+  }
+  #productModal #modalAddSelectedBtn{
+    margin:8px 14px 8px!important;
+  }
+  #productModal #kandortyCartFeedback:empty{
+    display:none!important;
+  }
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -2065,9 +2099,11 @@ body.kandorty-cart-open #cartBtn{
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
   <div class="product-gallery-swipe-hint"></div>
 </div>
+<section id="kandortyProductPurchasePanel">
 <p id="modalCode"></p><div id="modalPublicDescription" class="public-product-description" hidden></div><div id="modalPrice" class="price"></div>
 <div id="modalSelectedVariant" style="margin:10px 0 8px;font-size:13px;font-weight:700;color:#666"></div>
 <button id="modalAddSelectedBtn" class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="addSelectedProductToCart()">أضيفي هذا اللون للسلة</button>
+</section>
 </div></div>
 
 <div id="adminModal" class="modal hidden"><div class="modal-card">
@@ -7098,7 +7134,7 @@ function touchDistance(touches){
       title=document.createElement('div');
       title.id='modalInfoName';
       title.style.cssText='margin:12px 16px 0;font-size:20px;font-weight:800;line-height:1.35;color:#171214';
-      gallery.insertAdjacentElement('afterend',title);
+      code.insertAdjacentElement('beforebegin',title);
     }
   }
   ensureProductInfo();
