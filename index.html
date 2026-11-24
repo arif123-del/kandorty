@@ -2117,6 +2117,17 @@ html.kd-product-open body{
   }
 }
 </style>
+<style id="kandorty-instant-product-photo">
+#productModal #modalGallery:not(.kd-video-selected) .product-gallery-stage.kd-photo-pending{
+  min-height:0!important;height:auto!important;
+  aspect-ratio:var(--kd-opening-photo-ratio,3 / 4)!important;
+  background:#f5f2f3!important;
+}
+#productModal #modalGallery:not(.kd-video-selected) .product-gallery-stage.kd-photo-pending #modalMainImage{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;aspect-ratio:auto!important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -3167,6 +3178,57 @@ function preloadAdjacentProductImages(){
   preloadProductImages([urls[(i+1)%urls.length],urls[(i-1+urls.length)%urls.length]].map(url=>full?url:productPhotoPreview(url,1440)));
 }
 
+let kdDetailPhotoToken=0,kdDetailPhotoSource='',kdOpeningCardPhoto=null;
+function resetDetailPhoto(){
+  ++kdDetailPhotoToken;kdDetailPhotoSource='';kdOpeningCardPhoto=null;
+  const img=$('modalMainImage'),stage=$('modalGallery').querySelector('.product-gallery-stage');
+  img.removeAttribute('src');
+  stage.classList.remove('kd-photo-pending');
+  stage.style.removeProperty('--kd-opening-photo-ratio');
+}
+function showDetailPhoto(original,direction=0){
+  if(!original)return;
+  const img=$('modalMainImage'),stage=$('modalGallery').querySelector('.product-gallery-stage');
+  if(kdDetailPhotoSource===original)return;
+  const token=++kdDetailPhotoToken;
+  kdDetailPhotoSource=original;
+  const target=productPhotoPreview(original,1440);
+  const opening=kdOpeningCardPhoto?.original===original?kdOpeningCardPhoto:null;
+  const ready=productImagePreloadCache.get(target);
+  if(opening&&opening.width>0&&opening.height>0){
+    stage.style.setProperty('--kd-opening-photo-ratio',String(opening.width/opening.height));
+  }else if(img.naturalWidth>0&&img.naturalHeight>0){
+    stage.style.setProperty('--kd-opening-photo-ratio',String(img.naturalWidth/img.naturalHeight));
+  }
+  stage.classList.add('kd-photo-pending');
+  const isCurrent=()=>token===kdDetailPhotoToken&&kdDetailPhotoSource===original&&!isCurrentProductVideo()&&!$('productModal').classList.contains('hidden');
+  const display=src=>{
+    if(!isCurrent())return;
+    animateImageSwap(img,src,direction);
+  };
+  const finish=()=>{
+    if(!isCurrent())return;
+    stage.classList.remove('kd-photo-pending');
+    scheduleProductDotsPosition();
+  };
+  if(ready?.complete&&ready.naturalWidth>0){
+    display(target);
+    if(img.complete&&img.naturalWidth>0)finish();else img.addEventListener('load',finish,{once:true});
+    return;
+  }
+  // The exact already-decoded card resource appears first, not a new network request.
+  if(opening?.url)display(opening.url);
+  else if(!img.getAttribute('src'))display(productPhotoPreview(original,640));
+  const high=new Image();high.decoding='async';high.fetchPriority='high';
+  high.src=target;
+  const promote=()=>{
+    if(!isCurrent())return;
+    display(target);
+    if(img.complete&&img.naturalWidth>0)finish();else img.addEventListener('load',finish,{once:true});
+  };
+  if(high.decode)high.decode().then(promote,()=>{if(isCurrent()&&img.complete&&img.naturalWidth>0)finish();});
+  else{high.onload=promote;high.onerror=()=>{if(isCurrent()&&img.complete&&img.naturalWidth>0)finish();};}
+}
 function animateImageSwap(img,newSrc,direction=0){
   if(!img || !newSrc)return;
   img.style.transition='none';
@@ -3358,6 +3420,8 @@ function renderProductGallery(direction=0){
   }
   gallery.classList.toggle('kd-video-selected',showingVideo);
   if(showingVideo){
+    ++kdDetailPhotoToken;kdDetailPhotoSource='';
+    gallery.querySelector('.product-gallery-stage').classList.remove('kd-photo-pending');
     mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
@@ -3395,7 +3459,7 @@ function renderProductGallery(direction=0){
     mainImg.removeAttribute('style');
     mainImg.style.display='block';
     preloadAdjacentProductImages();
-    animateImageSwap(mainImg,productPhotoPreview(currentProductImages[currentProductImageIndex],1440),direction);
+    showDetailPhoto(currentProductImages[currentProductImageIndex],direction);
   }
 
   if(prevBtn)prevBtn.disabled=total<=1;
@@ -3481,7 +3545,13 @@ function openProduct(id){
   const p=products.find(x=>x.id===id);
   if(!p)return;
 
+  resetDetailPhoto();
   currentProductId=id;
+  const card=Array.from($('products').children).find(el=>el.dataset.productId===String(id));
+  const cardPhoto=card?.querySelector('.card-image-wrap > img');
+  if(cardPhoto?.complete&&cardPhoto.naturalWidth>0){
+    kdOpeningCardPhoto={original:p.images?.[0],url:cardPhoto.currentSrc||cardPhoto.src,width:cardPhoto.naturalWidth,height:cardPhoto.naturalHeight};
+  }
   $('modalGallery').style.removeProperty('--kd-video-photo-ratio');
   $('kdVideoTapIndicator')?.classList.remove('kd-flash');
   $('modalName').textContent=displayProductName(p);
@@ -3507,7 +3577,7 @@ function openProduct(id){
 
   db.collection('products').doc(id).get({source:'server'})
     .then(doc=>{
-      if(!doc.exists || currentProductId!==id)return;
+      if(!doc.exists || currentProductId!==id || $('productModal').classList.contains('hidden'))return;
       const fresh={id:doc.id,...doc.data()};
       const freshImages=Array.isArray(fresh.images)?fresh.images.filter(Boolean):[];
 
@@ -3528,7 +3598,7 @@ function openProduct(id){
     .catch(err=>{
       console.warn('Full product gallery server fetch failed:',err);
       // Keep showing whatever was already available from cache/snapshot.
-      renderProductGallery();
+      if(currentProductId===id&&!$('productModal').classList.contains('hidden'))renderProductGallery();
     });
 }
 function addSelectedProductToCart(){
@@ -3537,6 +3607,7 @@ function addSelectedProductToCart(){
 }
 function closeProduct(){
   $('productModal').classList.add('hidden');
+  resetDetailPhoto();
   unlockProductBackground();
   $('kdVideoTapIndicator')?.classList.remove('kd-flash');
   $('imageViewerModal').classList.add('hidden');
