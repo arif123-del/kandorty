@@ -1927,6 +1927,45 @@ body.kandorty-cart-open #cartBtn{
   }
 }
 </style>
+<style id="kandorty-uniform-photo-ratio">
+/* One 3:4 display frame for every original photo, including 9:16 uploads.
+   Contain preserves the entire photo and its proportions; fullscreen remains unchanged. */
+#products .card-image-wrap > img{
+  width:100%!important;
+  height:auto!important;
+  aspect-ratio:3/4!important;
+  object-fit:contain!important;
+  object-position:center!important;
+}
+#productModal .product-gallery-mainwrap:not(.kd-video-selected){
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+}
+#productModal .product-gallery-mainwrap:not(.kd-video-selected) .product-gallery-stage{
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  aspect-ratio:3/4!important;
+  overflow:hidden!important;
+}
+#productModal .product-gallery-mainwrap:not(.kd-video-selected) #modalMainImage{
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  aspect-ratio:3/4!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  box-sizing:border-box!important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
