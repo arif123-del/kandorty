@@ -2593,6 +2593,7 @@ function load(){
       render();
       renderAdminList();
       // Gallery images are warmed only when a product is opened.
+      if(currentProductId&&!$('productModal').classList.contains('hidden'))syncProductPurchaseButton();
     },
     error=>{
       console.error('Firestore products read error:',error);
@@ -3098,8 +3099,31 @@ function closeFullscreenViewer(event){
     if(target && target.id!=='imageViewerModal' && !target.classList.contains('image-viewer-close'))return;
   }
   $('imageViewerModal').classList.add('hidden');
+  if(currentProductId&&!$('productModal').classList.contains('hidden'))renderProductGallery();
 }
 
+// Recompute the purchase state from the selected photo and current cart/stock.
+function syncProductPurchaseButton(){
+  const btn=$('modalAddSelectedBtn'),note=$('modalSelectedVariant');
+  if(!btn)return;
+  const p=products.find(p=>p.id===currentProductId);
+  const video=isCurrentProductVideo();
+  const photos=Array.isArray(p?.images)?p.images.filter(Boolean):[];
+  const selected=currentProductImages[currentProductImageIndex];
+  const index=selected?photos.indexOf(selected):(photos.length===0?0:-1);
+  const stock=index>=0&&p?productVariantStock(p,index):0;
+  const remaining=p&&index>=0?(stock===null?Infinity:Math.max(0,stock-variantQtyInCart(p.id,index))):0;
+  const overall=p?getProductStock(p):0;
+  const overallRemaining=overall===null?0:overall-(p?productQtyInCart(p.id):0);
+  const unavailable=!p||isSoldOut(p)||video||index<0||remaining<=0||overallRemaining<=0;
+  btn.disabled=unavailable;
+  btn.textContent=video
+    ? (lang==='ar'?'اختاري اللون أولاً':'Choose a color first')
+    : (!p||isSoldOut(p)?unavailableLabel(p):(lang==='ar'?'أضيفي للسلة':'Add to cart'));
+  if(note)note.textContent=p&&index>=0&&!video?selectedColorStockMessage(p,index):'';
+  btn.title=unavailable&&!video&&p&&!isSoldOut(p)
+    ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
+}
 function renderProductGallery(direction=0){
   const selectedNote=$('modalSelectedVariant');
   const addBtn=$('modalAddSelectedBtn');
@@ -3112,7 +3136,7 @@ function renderProductGallery(direction=0){
 
   if(!total){
     gallery.style.display='none';
-    if(selectedNote)selectedNote.textContent=lang==='ar'?'لا توجد صور أو فيديو لهذا المنتج.':'No images or video are available for this product.';
+    syncProductPurchaseButton();
     return;
   }
 
@@ -3189,25 +3213,7 @@ function renderProductGallery(direction=0){
     }
   }
 
-  const current=products.find(p=>p.id===currentProductId);
-  const colorIndex=Math.min(currentProductImageIndex,Math.max(0,currentProductImages.length-1));
-  const colorStock=current?productVariantStock(current,colorIndex):null;
-  const colorRemaining=current?Math.max(0,(colorStock??0)-variantQtyInCart(current.id,colorIndex)):0;
-  if(selectedNote)selectedNote.textContent=showingVideo
-    ? (lang==='ar'?'اختاري صورة اللون المطلوب قبل الإضافة للسلة.':'Choose the color image before adding to cart.')
-    : (current?selectedColorStockMessage(current,colorIndex):'');
-  if(addBtn){
-    const unavailable=!current||isSoldOut(current)||showingVideo||
-      (colorStock!==null&&colorRemaining<=0);
-    addBtn.disabled=unavailable;
-    // Keep the purchase label consistent across photo/color swipes.
-    // Exhausted colors are still disabled and validated by addToCart.
-    addBtn.textContent=showingVideo
-      ? (lang==='ar'?'اختاري اللون أولاً':'Choose a color first')
-      : (!current||isSoldOut(current)
-        ? unavailableLabel(current)
-        : (lang==='ar'?'أضيفي للسلة':'Add to cart'));
-  }
+  syncProductPurchaseButton();
 
   if(!$('imageViewerModal').classList.contains('hidden') && !showingVideo){
     updateFullscreenProductImage(direction);
@@ -3251,13 +3257,6 @@ function openProduct(id){
   $('productModal').classList.remove('hidden');
   renderProductGallery();
 
-  const addBtn=$('modalAddSelectedBtn');
-  if(addBtn){
-    if(isSoldOut(p)||!getCurrentProductMediaCount()){
-      addBtn.disabled=isSoldOut(p);
-      addBtn.textContent=isSoldOut(p)?unavailableLabel(p):(lang==='ar'?'أضيفي للسلة':'Add to cart');
-    }
-  }
 
   // The fast-start cache may contain only the first large embedded image.
   // Always fetch the exact product document from the Firestore server so every
@@ -3287,13 +3286,7 @@ function openProduct(id){
       currentProductImageIndex=Math.min(currentProductImageIndex,Math.max(0,getCurrentProductMediaCount()-1));
       renderProductGallery();
 
-      const freshAddBtn=$('modalAddSelectedBtn');
-      if(freshAddBtn){
-        if(isSoldOut(fresh)||!getCurrentProductMediaCount()){
-          freshAddBtn.disabled=isSoldOut(fresh);
-          freshAddBtn.textContent=isSoldOut(fresh)?unavailableLabel(fresh):(lang==='ar'?'أضيفي للسلة':'Add to cart');
-        }
-      }
+      syncProductPurchaseButton();
     })
     .catch(err=>{
       console.warn('Full product gallery server fetch failed:',err);
@@ -4268,6 +4261,7 @@ function saveCart(){
   catch(error){console.warn('Cart storage unavailable:',error);}
   updateCartCount();
   renderCart();
+  if(currentProductId&&!$('productModal').classList.contains('hidden'))syncProductPurchaseButton();
 }
 async function saveOrders(){
   if(!auth.currentUser) throw new Error('Admin authentication required');
@@ -7415,7 +7409,11 @@ function renderKandortyViewerDots(){
     if(button.disabled||!currentProductId)return;
     var before=Array.isArray(cart)?cart.reduce(function(n,x){return n+(Number(x.qty)||0)},0):0;
     try{
-      var index=Math.max(0,Math.min(Number(currentProductImageIndex)||0,(currentProductImages||[]).length-1));
+      var p=products.find(p=>p.id===currentProductId);
+      var photos=Array.isArray(p?.images)?p.images.filter(Boolean):[];
+      var selected=currentProductImages[currentProductImageIndex];
+      var index=selected?photos.indexOf(selected):(photos.length===0?0:-1);
+      if(index<0||isCurrentProductVideo()){syncProductPurchaseButton();return;}
       if(typeof window.addToCart!=='function')throw Error('Cart function unavailable');
       window.addToCart(currentProductId,index,true);
       var after=Array.isArray(cart)?cart.reduce(function(n,x){return n+(Number(x.qty)||0)},0):before;
