@@ -1151,7 +1151,7 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <button class="btn primary full" type="submit">حفظ المنتج</button>
 <button class="btn ghost full" type="button" onclick="resetForm()">إلغاء / تنظيف</button>
 </form></div>
-<div id="adminListTab" class="hidden"><div id="adminList" class="admin-list"></div></div>
+<div id="adminListTab" class="hidden"><input id="adminProductCodeSearch" type="search" placeholder="ابحثي بالاسم أو كود المنتج KD" aria-label="البحث عن منتج" oninput="renderAdminList()" style="width:100%;margin:0 0 12px;padding:12px;border:1px solid #ddd;border-radius:10px"><div id="adminList" class="admin-list"></div></div>
 <div id="adminDiscountsTab" class="hidden">
   <p class="discount-admin-summary">المنتجات المخفّضة تظهر في زر «تخفيضات» فقط ولا تظهر في القائمة العادية للمتجر.</p>
   <div class="discount-admin-actions"><button class="btn primary" type="button" onclick="openDiscountProductForm()">＋ إضافة منتج للتخفيضات</button></div>
@@ -2464,8 +2464,19 @@ function openAdminProductPhoto(id,index){
   currentProductImageIndex=Math.max(0,Math.min(Number(index)||0,currentProductImages.length-1));
   renderProductGallery();
 }
+function adminPublicProductCode(p){
+  const original=String(p?.code||'').trim();
+  if(/^KD-\d{4,8}$/i.test(original))return original.toUpperCase();
+  const key=String(p?.id||original||p?.nameAr||'');
+  let h=2166136261;
+  for(let i=0;i<key.length;i++){h=Math.imul(h^key.charCodeAt(i),16777619);}
+  return 'KD-'+String(100000+(h>>>0)%900000);
+}
 function renderAdminList(){
-  const regularProducts=products.filter(p=>!isAdminDiscountProduct(p));
+  const query=String($('adminProductCodeSearch')?.value||'').trim().toLowerCase();
+  const regularProducts=products.filter(p=>query
+    ? [adminPublicProductCode(p),p.code,p.nameAr].some(v=>String(v||'').toLowerCase().includes(query))
+    : !isAdminDiscountProduct(p));
   $('adminList').innerHTML=regularProducts.length?regularProducts.map(p=>{
     const stock=getProductStock(p);
     const totalRaw=Number(p.totalStock);
@@ -2474,8 +2485,8 @@ function renderAdminList(){
       ? (stock<=0?100:Math.max(0,Math.min(99,Math.round(((total-stock)/total)*100))))
       : null;
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
-    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small>${adminInventoryStatusHtml(p)}</div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
-  }).join(''):'<div class="empty">لا توجد منتجات عادية</div>';
+    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(adminPublicProductCode(p))} · ${money(p.salePrice||p.price)}${stockInfo}</small>${adminInventoryStatusHtml(p)}</div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
+  }).join(''):'<div class="empty">'+(query?'لا يوجد منتج مطابق للبحث':'لا توجد منتجات عادية')+'</div>';
   renderDiscountList();
 }
 function renderDiscountList(){
@@ -2484,7 +2495,7 @@ function renderDiscountList(){
   host.innerHTML=discounted.length?discounted.map(p=>{
     const stock=getProductStock(p);
     return '<div class="admin-item">'+adminProductPreviewHtml(p)+
-      '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small>'+adminInventoryStatusHtml(p)+'</div>'+
+      '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(adminPublicProductCode(p))+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small>'+adminInventoryStatusHtml(p)+'</div>'+
       '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+
       '<button class="btn ghost" onclick="toggleProduct(\''+p.id+'\')">'+(p.active===false?'إظهار':'إخفاء')+'</button>'+
       '<button class="btn primary" onclick="deleteProduct(\''+p.id+'\')">حذف</button></div></div>';
