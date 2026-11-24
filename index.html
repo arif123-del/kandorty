@@ -2054,27 +2054,16 @@ html.kd-product-open body{
   }
 }
 </style>
-<style id="kandorty-compact-video-controls">
+<style id="kandorty-tap-video-controls">
 #productModal #modalProductVideo{
-  background:#111!important;
+  background:#111!important;cursor:pointer!important;touch-action:pan-y!important;
+  -webkit-tap-highlight-color:transparent;
 }
 #productModal #modalProductVideo::-webkit-media-controls,
 #productModal #modalProductVideo::-webkit-media-controls-enclosure,
 #productModal #modalProductVideo::-webkit-media-controls-overlay-play-button,
 #productModal #modalProductVideo::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none!important}
-#productModal #productVideoBadge{
-  display:none!important;position:absolute!important;top:max(48px,calc(env(safe-area-inset-top,0px) + 12px))!important;
-  right:12px!important;left:auto!important;bottom:auto!important;z-index:12!important;
-  width:auto!important;max-width:calc(100% - 76px)!important;min-width:0!important;
-  height:38px!important;min-height:38px!important;padding:0 11px!important;
-  border:1px solid #ffffff45!important;border-radius:999px!important;
-  background:rgba(0,0,0,.72)!important;color:#fff!important;
-  font-size:12px!important;font-weight:700!important;line-height:1!important;
-  pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important;
-  align-items:center!important;justify-content:center!important;gap:7px!important;
-}
-#productModal #productVideoBadge.show{display:inline-flex!important}
-#productVideoControlIcon{display:inline-block;font-size:15px;line-height:1}
+#productModal #productVideoBadge{display:none!important}
 </style>
 </head>
 <body>
@@ -2157,8 +2146,7 @@ html.kd-product-open body{
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
     <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
-    <video id="modalProductVideo" muted playsinline webkit-playsinline loop preload="none" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='640'%3E%3Crect width='360' height='640' fill='%23111111'/%3E%3C/svg%3E"></video>
-    <button id="productVideoBadge" type="button" aria-label="تشغيل الفيديو" title="تشغيل الفيديو"><span id="productVideoControlIcon" aria-hidden="true">▶</span><span id="productVideoControlText">تشغيل الفيديو</span></button>
+    <video id="modalProductVideo" muted playsinline webkit-playsinline loop preload="none" role="button" tabindex="0" aria-label="إيقاف أو تشغيل الفيديو" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='640'%3E%3Crect width='360' height='640' fill='%23111111'/%3E%3C/svg%3E"></video>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
@@ -3186,14 +3174,10 @@ function syncProductPurchaseButton(){
     ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
 }
 function syncProductVideoControl(){
-  const video=$('modalProductVideo'),button=$('productVideoBadge');
-  if(!video||!button)return;
+  const video=$('modalProductVideo');
+  if(!video)return;
   const playing=!video.paused&&!video.ended;
-  const label=playing?(lang==='ar'?'إيقاف مؤقت':'Pause'):(lang==='ar'?'تشغيل الفيديو':'Play video');
-  $('productVideoControlIcon').textContent=playing?'Ⅱ':'▶';
-  $('productVideoControlText').textContent=label;
-  button.setAttribute('aria-label',label);
-  button.title=label;
+  video.setAttribute('aria-label',playing?(lang==='ar'?'إيقاف مؤقت':'Pause video'):(lang==='ar'?'تشغيل الفيديو':'Play video'));
 }
 function playSelectedProductVideo(){
   const video=$('modalProductVideo');
@@ -3201,15 +3185,31 @@ function playSelectedProductVideo(){
   try{const promise=video.play();if(promise&&promise.catch)promise.catch(syncProductVideoControl);}catch(error){syncProductVideoControl();}
 }
 function bindProductVideoControl(){
-  const video=$('modalProductVideo'),button=$('productVideoBadge');
-  if(!video||!button||button.dataset.bound==='1')return;
-  button.dataset.bound='1';
-  button.addEventListener('click',e=>{
-    e.preventDefault();e.stopPropagation();
-    if(!isCurrentProductVideo())return;
+  const video=$('modalProductVideo');
+  if(!video||video.dataset.tapBound==='1')return;
+  video.dataset.tapBound='1';
+  let startX=0,startY=0,moved=false,ignoreClickUntil=0;
+  video.addEventListener('touchstart',e=>{
+    moved=e.touches.length!==1;
+    if(!moved){startX=e.touches[0].clientX;startY=e.touches[0].clientY;}
+  },{passive:true});
+  video.addEventListener('touchmove',e=>{
+    if(e.touches.length!==1||Math.abs(e.touches[0].clientX-startX)>10||Math.abs(e.touches[0].clientY-startY)>10){moved=true;ignoreClickUntil=performance.now()+350;}
+  },{passive:true});
+  video.addEventListener('touchcancel',()=>{moved=true;ignoreClickUntil=performance.now()+350;},{passive:true});
+  const toggle=()=>{
+    if($('productModal').classList.contains('hidden')||!isCurrentProductVideo())return;
     if(video.paused||video.ended)playSelectedProductVideo();
     else video.pause();
     syncProductVideoControl();
+  };
+  video.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(performance.now()<ignoreClickUntil||moved){moved=false;return;}
+    toggle();
+  });
+  video.addEventListener('keydown',e=>{
+    if(e.key===' '||e.key==='Enter'){e.preventDefault();if(!e.repeat)toggle();}
   });
   ['play','playing','pause','ended','error','emptied'].forEach(name=>video.addEventListener(name,syncProductVideoControl));
 }
@@ -3241,7 +3241,6 @@ function renderProductGallery(direction=0){
     mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
-    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.add('show');
 
     // Load the product video only when the customer reaches the last media item.
     if(video.dataset.src!==currentProductVideoUrl){
@@ -3262,7 +3261,6 @@ function renderProductGallery(direction=0){
   }else{
     video.pause();
     video.classList.remove('show');
-    const videoBadge=$('productVideoBadge'); if(videoBadge)videoBadge.classList.remove('show');
     // Free the video network/decoder when the customer goes back to images.
     if(video.getAttribute('src')){
       video.removeAttribute('src');
