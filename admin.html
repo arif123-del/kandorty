@@ -2431,6 +2431,22 @@ function resetForm(){
   previewImages();
   setUploadProgress(0,'اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.');
 }
+function adminInventoryStatusHtml(p){
+  const photos=Array.isArray(p.images)?p.images.filter(Boolean):[];
+  const counts=p.imageStocks;
+  const validTotal=Number.isSafeInteger(p.stock)&&p.stock>=0&&Number.isSafeInteger(p.totalStock)&&p.totalStock>=p.stock;
+  let warning='';
+  if(!validTotal)warning='بيانات المخزون الإجمالي غير مكتملة أو غير صالحة. افتحي تعديل وأدخلي الكميات الفعلية.';
+  else if(p.stock===0)warning='المخزون الإجمالي صفر.';
+  else if(photos.length&&Array.isArray(counts)&&
+    (counts.length!==photos.length||!counts.every(q=>Number.isSafeInteger(q)&&q>=0)||counts.reduce((a,b)=>a+b,0)!==p.stock))
+    warning='مجموع مخزون الألوان لا يطابق المخزون الإجمالي أو عدد الصور. راجعي الكميات الفعلية في تعديل.';
+  else if(photos.length&&Array.isArray(counts)&&counts.some(q=>q===0))
+    warning='صور بكميات صفر: '+counts.map((q,i)=>q===0?i+1:null).filter(n=>n!==null).join('، ');
+  else if(photos.length&&counts==null)
+    warning='منتج قديم: لا توجد كميات منفصلة للألوان. راجعي الكميات عند التعديل.';
+  return warning?'<div style="font-size:12px;line-height:1.5;color:#9a3412;margin-top:5px" role="status">'+esc(warning)+'</div>':'';
+}
 function adminProductPreviewHtml(p){
   const images=Array.isArray(p.images)?p.images.filter(Boolean):[];
   if(!images.length)return '<div class="admin-product-no-photo">بدون صورة</div>';
@@ -2458,7 +2474,7 @@ function renderAdminList(){
       ? (stock<=0?100:Math.max(0,Math.min(99,Math.round(((total-stock)/total)*100))))
       : null;
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock)+(soldPercent===null?'':' · المبيع: '+soldPercent+'%');
-    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
+    return `<div class="admin-item">${adminProductPreviewHtml(p)}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small>${adminInventoryStatusHtml(p)}</div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
   }).join(''):'<div class="empty">لا توجد منتجات عادية</div>';
   renderDiscountList();
 }
@@ -2468,7 +2484,7 @@ function renderDiscountList(){
   host.innerHTML=discounted.length?discounted.map(p=>{
     const stock=getProductStock(p);
     return '<div class="admin-item">'+adminProductPreviewHtml(p)+
-      '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small></div>'+
+      '<div class="grow"><b>'+esc(p.nameAr)+'</b><br><small>'+esc(p.code)+' · <s>'+money(p.price)+'</s> → '+money(p.salePrice)+' · الكمية: '+(stock??'—')+'</small>'+adminInventoryStatusHtml(p)+'</div>'+
       '<div class="admin-actions"><button class="btn ghost" onclick="editProduct(\''+p.id+'\')">تعديل</button>'+
       '<button class="btn ghost" onclick="toggleProduct(\''+p.id+'\')">'+(p.active===false?'إظهار':'إخفاء')+'</button>'+
       '<button class="btn primary" onclick="deleteProduct(\''+p.id+'\')">حذف</button></div></div>';
