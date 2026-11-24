@@ -3014,10 +3014,26 @@ function salesProgressHtml(p){
   </div>`;
 }
 
-function renderProductCard(p){
+// Derive lightweight delivery URLs without modifying original photos in Firestore.
+function productPhotoPreview(src,width){
+  const url=String(src||'');
+  // Only transform original Cloudinary delivery URLs with a versioned public ID.
+  const m=url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/[^?#]+)([?#].*)?$/i);
+  return m?m[1]+'f_auto,q_auto:good,c_limit,w_'+width+'/'+m[2]+(m[3]||''):url;
+}
+function productCardPhotoHtml(p,index){
+  const original=p.images?.[0];
+  if(!original)return '';
+  const preview=productPhotoPreview(original,640);
+  const responsive=preview!==original
+    ? ' srcset="'+[360,640,960].map(w=>esc(productPhotoPreview(original,w))+' '+w+'w').join(', ')+'" sizes="(max-width: 850px) 46vw, 24vw"'
+    : '';
+  return '<img src="'+esc(preview)+'"'+responsive+' alt="" loading="'+(index<4?'eager':'lazy')+'" fetchpriority="'+(index<2?'high':'auto')+'" decoding="async" onclick="openProduct(\''+esc(p.id)+'\')" title="'+(lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view')+'">';
+}
+function renderProductCard(p,index=0){
   const sold=isSoldOut(p);
   const imageHtml=p.images?.[0]
-    ? `<img src="${p.images[0]}" alt="" loading="eager" decoding="async" onclick="openProduct('${p.id}')" title="${lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view'}">`
+    ? productCardPhotoHtml(p,index)
     : `<div style="aspect-ratio:3/4;display:grid;place-items:center;background:#f5f2f3;color:#999">${lang==='ar'?'لا توجد صورة':'No image'}</div>`;
   const priceHtml=`<div class="price">${moneyHtml(p.salePrice||p.price)}${p.salePrice?`<span class="old">${moneyHtml(p.price)}</span>`:''}</div>`;
   const discountBadge=kandortyIsDiscountProduct(p)?`<span class="kandorty-discount-badge">${lang==='ar'?'تخفيض':'Sale'}</span>`:'';
@@ -3029,7 +3045,7 @@ function renderProductCard(p){
     : (variantCount>1
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
-  return `<article class="card ${sold?'sold-out':''}">
+  return `<article data-product-id="${esc(p.id)}" class="card ${sold?'sold-out':''}">
     <div class="card-image-wrap">${soldOutBadge}${discountBadge}${imageHtml}</div>
     ${salesProgressHtml(p)}
     <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
@@ -3086,7 +3102,37 @@ function render(){
   const empty=kandortyDiscountView
     ? (lang==='ar'?'لا توجد منتجات مخفضة مطابقة حالياً.':'No matching sale products right now.')
     : (lang==='ar'?'لا توجد منتجات مطابقة حالياً.':'No matching products right now.');
-  $('products').innerHTML=list.length?list.map(renderProductCard).join(''):`<div class="empty">${empty}</div>`;
+  const host=$('products');
+  if(!list.length){
+    const html='<div class="empty">'+empty+'</div>';
+    if(host.innerHTML!==html)host.innerHTML=html;
+    return;
+  }
+  const existing=new Map(Array.from(host.children).map(el=>[el.dataset.productId,el]));
+  const keep=new Set();
+  for(let i=0;i<list.length;i++){
+    const p=list[i],key=String(p.id),html=renderProductCard(p,i);
+    let node=existing.get(key);
+    if(!node||node._kdCardHtml!==html){
+      const t=document.createElement('template');t.innerHTML=html.trim();
+      const next=t.content.firstElementChild;
+      if(node){
+        // Keep the image that is already loading/decoded on live stock updates.
+        const oldImg=node.querySelector('.card-image-wrap > img'),newImg=next.querySelector('.card-image-wrap > img');
+        if(oldImg&&newImg&&oldImg.getAttribute('src')===newImg.getAttribute('src')&&oldImg.getAttribute('srcset')===newImg.getAttribute('srcset')){
+          oldImg.setAttribute('loading',newImg.getAttribute('loading'));
+          oldImg.setAttribute('fetchpriority',newImg.getAttribute('fetchpriority'));
+          oldImg.title=newImg.title;
+          newImg.replaceWith(oldImg);
+        }
+        node.replaceWith(next);
+      }
+      node=next;node._kdCardHtml=html;
+    }
+    keep.add(node);
+    if(host.children[i]!==node)host.insertBefore(node,host.children[i]||null);
+  }
+  Array.from(host.children).forEach(el=>{if(!keep.has(el))el.remove();});
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let currentProductImages=[];
@@ -3117,7 +3163,8 @@ function preloadAdjacentProductImages(){
   const urls=currentProductImages;
   if(urls.length<2)return;
   const i=currentProductImageIndex;
-  preloadProductImages([urls[(i+1)%urls.length],urls[(i-1+urls.length)%urls.length]]);
+  const full=!$('imageViewerModal')?.classList.contains('hidden');
+  preloadProductImages([urls[(i+1)%urls.length],urls[(i-1+urls.length)%urls.length]].map(url=>full?url:productPhotoPreview(url,1440)));
 }
 
 function animateImageSwap(img,newSrc,direction=0){
@@ -3348,7 +3395,7 @@ function renderProductGallery(direction=0){
     mainImg.removeAttribute('style');
     mainImg.style.display='block';
     preloadAdjacentProductImages();
-    animateImageSwap(mainImg,currentProductImages[currentProductImageIndex],direction);
+    animateImageSwap(mainImg,productPhotoPreview(currentProductImages[currentProductImageIndex],1440),direction);
   }
 
   if(prevBtn)prevBtn.disabled=total<=1;
@@ -3972,7 +4019,7 @@ function renderAdminList(){
   $('adminList').innerHTML=products.length?products.map(p=>{
     const stock=getProductStock(p);
     const stockInfo=stock===null?'':' · '+(stock<=0?'نفد المنتج':'الكمية: '+stock);
-    return `<div class="admin-item">${p.images?.[0]?`<img src="${p.images[0]}">`:'<div style="width:65px;height:75px;background:#eee"></div>'}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
+    return `<div class="admin-item">${p.images?.[0]?`<img src="${esc(productPhotoPreview(p.images[0],240))}" loading="lazy" decoding="async">`:'<div style="width:65px;height:75px;background:#eee"></div>'}<div class="grow"><b>${esc(p.nameAr)}</b><br><small>${esc(p.code)} · ${money(p.salePrice||p.price)}${stockInfo}</small></div><div class="admin-actions"><button class="btn ghost" onclick="editProduct('${p.id}')">تعديل</button><button class="btn ghost" onclick="toggleProduct('${p.id}')">${p.active===false?'إظهار':'إخفاء'}</button><button class="btn primary" onclick="deleteProduct('${p.id}')">حذف</button></div></div>`;
   }).join(''):'<div class="empty">لا توجد منتجات</div>';
 }
 function editProduct(id){
@@ -7723,7 +7770,7 @@ function scheduleProductDotsPosition(){
    if(mediaCount()<2 || movesThroughVideo(wrap(currentProductImageIndex+d)))return;
    const r=img.getBoundingClientRect(),sr=stage.getBoundingClientRect();
    ghost=img.cloneNode(false);ghost.removeAttribute('id');ghost.className='kandorty-swipe-next';
-   ghost.src=photos()[wrap(currentProductImageIndex+d)];ghost.decoding='async';
+   ghost.src=fullscreen?photos()[wrap(currentProductImageIndex+d)]:productPhotoPreview(photos()[wrap(currentProductImageIndex+d)],1440);ghost.decoding='async';
    const style=getComputedStyle(img);
    ghost.style.cssText='left:'+(r.left-sr.left)+'px!important;top:'+(r.top-sr.top)+'px!important;width:'+r.width+'px!important;height:'+r.height+'px!important;object-fit:'+style.objectFit+'!important;object-position:'+style.objectPosition+'!important;';
    ghost.style.setProperty('transition','none','important');ghost.style.transform='translate3d('+(d*stage.clientWidth)+'px,0,0)';
