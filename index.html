@@ -2054,6 +2054,28 @@ html.kd-product-open body{
   }
 }
 </style>
+<style id="kandorty-compact-video-controls">
+#productModal #modalProductVideo{
+  background:#111!important;
+}
+#productModal #modalProductVideo::-webkit-media-controls,
+#productModal #modalProductVideo::-webkit-media-controls-enclosure,
+#productModal #modalProductVideo::-webkit-media-controls-overlay-play-button,
+#productModal #modalProductVideo::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none!important}
+#productModal #productVideoBadge{
+  display:none!important;position:absolute!important;top:max(48px,calc(env(safe-area-inset-top,0px) + 12px))!important;
+  right:12px!important;left:auto!important;bottom:auto!important;z-index:12!important;
+  width:auto!important;max-width:calc(100% - 76px)!important;min-width:0!important;
+  height:38px!important;min-height:38px!important;padding:0 11px!important;
+  border:1px solid #ffffff45!important;border-radius:999px!important;
+  background:rgba(0,0,0,.72)!important;color:#fff!important;
+  font-size:12px!important;font-weight:700!important;line-height:1!important;
+  pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important;
+  align-items:center!important;justify-content:center!important;gap:7px!important;
+}
+#productModal #productVideoBadge.show{display:inline-flex!important}
+#productVideoControlIcon{display:inline-block;font-size:15px;line-height:1}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -2135,8 +2157,8 @@ html.kd-product-open body{
   <div class="product-gallery-stage">
     <button id="galleryPrevBtn" class="product-gallery-nav prev" type="button" onclick="stepProductImage(-1)" aria-label="Previous image">›</button>
     <img id="modalMainImage" class="product-gallery-mainimg" alt="" loading="eager" decoding="async" fetchpriority="high" onclick="openFullscreenProductImage()">
-    <video id="modalProductVideo" muted playsinline loop preload="none"></video>
-    <div id="productVideoBadge">▶ فيديو المنتج</div>
+    <video id="modalProductVideo" muted playsinline webkit-playsinline loop preload="none" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='640'%3E%3Crect width='360' height='640' fill='%23111111'/%3E%3C/svg%3E"></video>
+    <button id="productVideoBadge" type="button" aria-label="تشغيل الفيديو" title="تشغيل الفيديو"><span id="productVideoControlIcon" aria-hidden="true">▶</span><span id="productVideoControlText">تشغيل الفيديو</span></button>
     <button id="galleryNextBtn" class="product-gallery-nav next" type="button" onclick="stepProductImage(1)" aria-label="Next image">‹</button>
   </div>
   <div id="modalThumbs" class="product-gallery-thumbs"></div>
@@ -3163,6 +3185,34 @@ function syncProductPurchaseButton(){
   btn.title=unavailable&&!video&&p&&!isSoldOut(p)
     ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
 }
+function syncProductVideoControl(){
+  const video=$('modalProductVideo'),button=$('productVideoBadge');
+  if(!video||!button)return;
+  const playing=!video.paused&&!video.ended;
+  const label=playing?(lang==='ar'?'إيقاف مؤقت':'Pause'):(lang==='ar'?'تشغيل الفيديو':'Play video');
+  $('productVideoControlIcon').textContent=playing?'Ⅱ':'▶';
+  $('productVideoControlText').textContent=label;
+  button.setAttribute('aria-label',label);
+  button.title=label;
+}
+function playSelectedProductVideo(){
+  const video=$('modalProductVideo');
+  if(!video||$('productModal').classList.contains('hidden')||!isCurrentProductVideo())return;
+  try{const promise=video.play();if(promise&&promise.catch)promise.catch(syncProductVideoControl);}catch(error){syncProductVideoControl();}
+}
+function bindProductVideoControl(){
+  const video=$('modalProductVideo'),button=$('productVideoBadge');
+  if(!video||!button||button.dataset.bound==='1')return;
+  button.dataset.bound='1';
+  button.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(!isCurrentProductVideo())return;
+    if(video.paused||video.ended)playSelectedProductVideo();
+    else video.pause();
+    syncProductVideoControl();
+  });
+  ['play','playing','pause','ended','error','emptied'].forEach(name=>video.addEventListener(name,syncProductVideoControl));
+}
 function renderProductGallery(direction=0){
   const selectedNote=$('modalSelectedVariant');
   const addBtn=$('modalAddSelectedBtn');
@@ -3184,6 +3234,7 @@ function renderProductGallery(direction=0){
   $('modalThumbs').innerHTML='';
 
   const showingVideo=isCurrentProductVideo();
+  bindProductVideoControl();
   // Photos use their native aspect ratio; only the video keeps a fixed stage.
   gallery.classList.toggle('kd-video-selected',showingVideo);
   if(showingVideo){
@@ -3204,10 +3255,10 @@ function renderProductGallery(direction=0){
       video.playsInline=true;
       video.preload='metadata';
       video.load();
+      // Autoplay only on entry, never restart a video the customer paused.
+      playSelectedProductVideo();
     }
-    const tryPlayProductVideo=()=>video.play().catch(()=>{});
-    if(video.readyState>=2)tryPlayProductVideo();
-    else video.addEventListener('canplay',tryPlayProductVideo,{once:true});
+    syncProductVideoControl();
   }else{
     video.pause();
     video.classList.remove('show');
