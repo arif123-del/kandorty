@@ -2700,6 +2700,7 @@ const PUBLIC_UI_AR_EN=new Map([
 ['لا يوجد طلب بهذا الكود','No order found with this code'],
 ['✎ تم التعديل','✎ Edited'],
 ['لا توجد طلبات مرتبطة بهذا الحساب بعد','No orders are linked to this account yet'],
+['نفذ المنتج','Sold out'],
 ['نفد المنتج','Sold out'],
 ['اختاري اللون','Choose color'],
 ['لا توجد منتجات بعد. أضيفي منتجاتك من لوحة الإدارة.','No products yet. Add products from the admin panel.'],
@@ -2885,10 +2886,10 @@ function hasCheckoutStock(p){
 }
 function isSoldOut(p){return !hasCheckoutStock(p) || p.stock===0;}
 function unavailableLabel(p){
-  if(hasCheckoutStock(p))return lang==='ar'?'نفد المنتج':'Sold out';
+  if(getProductStock(p)===0||hasCheckoutStock(p))return lang==='ar'?'نفذ المنتج':'Sold out';
   return lang==='ar'?'غير متاح للطلب حالياً':'Currently unavailable to order';
 }
-function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفد المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
+function stockLabel(p){const s=getProductStock(p);if(s===null)return '';return s<=0?(lang==='ar'?'نفذ المنتج':'Sold out'):((lang==='ar'?'الكمية المتاحة: ':'Available stock: ')+s);}
 function sanitizeStock(v){if(v===undefined||v===null||String(v).trim()==='')return null;const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=0?n:0;}
 function getProductTotalStock(p){
   const total=p?.totalStock==null || p.totalStock==='' ? NaN : Number(p.totalStock);
@@ -3118,9 +3119,10 @@ function syncProductPurchaseButton(){
   const unavailable=!p||isSoldOut(p)||video||index<0||remaining<=0||overallRemaining<=0;
   // Restore the strict purchase button: zero stock or exhausted cart allowance disables it.
   btn.disabled=unavailable;
-  btn.textContent=video
-    ? (lang==='ar'?'اختاري اللون أولاً':'Choose a color first')
-    : (!p||isSoldOut(p)?unavailableLabel(p):(lang==='ar'?'أضيفي للسلة':'Add to cart'));
+  // A sold-out product always takes priority, including on its video slide.
+  btn.textContent=!p||isSoldOut(p)
+    ? unavailableLabel(p)
+    : (video?(lang==='ar'?'اختاري اللون أولاً':'Choose a color first'):(lang==='ar'?'أضيفي للسلة':'Add to cart'));
   if(note)note.textContent=p&&index>=0&&!video?selectedColorStockMessage(p,index):'';
   btn.title=unavailable&&!video&&p&&!isSoldOut(p)
     ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
