@@ -2128,6 +2128,25 @@ html.kd-product-open body{
   object-fit:contain!important;aspect-ratio:auto!important;
 }
 </style>
+<style id="kandorty-compact-storefront-product-cards">
+/* Shorten only the storefront card previews; the detail and zoom keep the whole photo. */
+#products .card-image-wrap{container-type:inline-size;}
+#products .card-image-wrap > img{
+  max-height:150cqw!important;
+  object-fit:cover!important;
+  object-position:center center!important;
+}
+#products .sales-progress-box{margin-top:3px!important;padding:4px 8px!important;}
+#products .sales-progress-track{height:6px!important;}
+@media(max-width:700px){
+  #products .card-body{padding:5px 8px 7px!important;}
+  #products .card-body .name{margin:2px 0!important;}
+  #products .card-body .card-actions{margin-top:4px!important;}
+  @supports not (width:1cqw){
+    #products .card-image-wrap > img{max-height:68vw!important;}
+  }
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
