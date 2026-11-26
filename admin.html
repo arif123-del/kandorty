@@ -2097,7 +2097,11 @@ function previewImages(){
   const manualUrls=getImageUrls();
   const savedHtml=pendingImages.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="صورة محفوظة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeSavedImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
   const urlHtml=manualUrls.map((url,n)=>`<div class="preview-item"><img src="${esc(url)}" alt="رابط صورة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر تحميل الصورة'"><button type="button" class="remove-image" onclick="removeManualImage(${n})">×</button>${imageQtyField(url)}</div>`).join('');
-  const fileHtml=pendingImageFiles.map((file,n)=>{const url=URL.createObjectURL(file);previewObjectUrls.push(url);return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='تعذر عرض الصورة؛ اختاري JPG أو PNG'"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${imageQtyField(file)}</div>`}).join('');
+  const fileHtml=pendingImageFiles.map((file,n)=>{
+    const url=URL.createObjectURL(file);previewObjectUrls.push(url);
+    const heicTip=isSamsungHeicPhoto(file)?'<small style="display:block;font-size:11px">HEIC/HEIF: ستظهر الصورة بعد رفعها إلى Cloudinary إذا لم يدعم الهاتف المعاينة.</small>':'';
+    return `<div class="preview-item"><img src="${url}" alt="صورة جديدة ${n+1}" onerror="this.closest('.preview-item').classList.add('image-error');this.alt='المعاينة غير متاحة؛ سيُجرّب رفع الصورة عند الحفظ'"><button type="button" class="remove-image" onclick="removePendingFile(${n})">×</button>${heicTip}${imageQtyField(file)}</div>`;
+  }).join('');
   $('imagePreview').innerHTML=savedHtml+urlHtml+fileHtml;
   lastPhotoPreviewSources=[...pendingImages,...manualUrls,...pendingImageFiles];
   updateAggregateStockInput();
@@ -2109,18 +2113,26 @@ function removePendingFile(index){
   setUploadProgress(0,pendingImageFiles.length?`تم اختيار ${pendingImageFiles.length} صورة.`:'اختاري الصور من الهاتف، ثم اضغطي حفظ المنتج.');
 }
 $('imageUrls').addEventListener('input',previewImages);
+function isSamsungHeicPhoto(file){
+  const type=String(file?.type||'').toLowerCase();
+  return /^image\/(heic|heif|x-heic|x-heif)$/.test(type)||/\.(heic|heif)$/i.test(file?.name||'');
+}
+function isSupportedProductPhoto(file){
+  if(!file||!file.size)return false;
+  const type=String(file.type||'').toLowerCase();
+  return /^image\/(jpeg|jpg|pjpeg|png|webp|heic|heif|x-heic|x-heif)$/.test(type)||
+    ((!type||type==='application/octet-stream')&&/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name||''));
+}
 $('imageFiles').addEventListener('change',e=>{
   // Mobile galleries return only the photos from the latest picker visit.
   // Append them to the unsaved product photos instead of replacing earlier picks.
   const selected=Array.from(e.target.files||[]);
-  const validPhoto=file=>/^image\/(jpeg|jpg|png|webp)$/i.test(file.type||'')||
-    ((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
-  const chosen=selected.filter(validPhoto);
+  const chosen=selected.filter(isSupportedProductPhoto);
   e.target.value=''; // Allow picking the same file again without losing previous picks.
   const totalBefore=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
   if(!chosen.length){
     const message=selected.length
-      ? 'صيغة الصورة غير مدعومة (مثل HEIC). احفظي الصورة بصيغة JPG أو PNG ثم اختاريها مجدداً.'
+      ? 'صيغة الصورة غير مدعومة. اختاري JPG أو PNG أو WebP أو HEIC/HEIF من المعرض.'
       : 'لم يتم اختيار صورة. افتحي المعرض واختاري صورة محفوظة على الهاتف.';
     setUploadProgress(0,message+(totalBefore?` الصور السابقة: ${totalBefore}.`:''));
     return;
@@ -2148,10 +2160,10 @@ $('imageFiles').addEventListener('change',e=>{
   const count=pendingImages.length+getImageUrls().length+pendingImageFiles.length;
   const skipped=chosen.length-added;
   const message=added
-    ? `تمت إضافة ${added} صورة. المجموع: ${count}/${MAX_DIRECT_IMAGES}. الصور السابقة ما زالت موجودة.`
+    ? `تمت إضافة ${added} صورة. المجموع: ${count}/${MAX_DIRECT_IMAGES}. أدخلي كمية كل صورة ثم اضغطي حفظ المنتج.`
     : `الصور المحددة موجودة مسبقاً. المجموع: ${count}/${MAX_DIRECT_IMAGES}.`;
   setUploadProgress(0,(skipped&&count>=MAX_DIRECT_IMAGES?message+' اكتمل الحد المسموح.':message)+
-    (selected.length>chosen.length?' بعض الصور بصيغة غير مدعومة؛ استخدمي JPG أو PNG.':''));
+    (selected.length>chosen.length?' بعض الملفات غير مدعومة؛ اختاري JPG أو PNG أو HEIC.':''));
 });
 function setUploadProgress(percent,text){$('uploadProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('uploadStatus').textContent=text||''}
 function loadImageFile(file){
@@ -2196,7 +2208,7 @@ function uploadOriginalImageToCloudinary(file,onProgress){
       const url=String(data?.secure_url||'');
       const expected='https://res.cloudinary.com/'+CLOUDINARY_CLOUD_NAME+'/image/upload/';
       if(xhr.status>=200&&xhr.status<300&&url.startsWith(expected)&&data.resource_type==='image'){
-        resolve(url);
+        resolve(isSamsungHeicPhoto(file)?url.replace('/image/upload/','/image/upload/f_auto/'):url);
       }else{
         reject(new Error(String(data?.error?.message||('Cloudinary HTTP '+xhr.status)).slice(0,200)));
       }
@@ -2228,9 +2240,7 @@ async function uploadOriginalImageToFirebase(file,kind,onProgress){
 async function uploadOriginalQualityImage(file,kind,onProgress){
   if(!['products','banners','categories'].includes(kind))throw new Error('نوع الصورة غير صالح.');
   if(!file||!file.size)throw new Error('ملف الصورة فارغ.');
-  const valid=/^image\/(jpeg|png|webp)$/i.test(file.type||'')
-    ||((!file.type||file.type==='application/octet-stream')&&/\.(jpe?g|png|webp)$/i.test(file.name||''));
-  if(!valid)throw new Error('اختاري صورة JPG أو PNG أو WebP. هذا الملف غير مدعوم.');
+  if(!isSupportedProductPhoto(file))throw new Error('اختاري صورة JPG أو PNG أو WebP أو HEIC/HEIF. هذا الملف غير مدعوم.');
   if(file.size>15*1024*1024)throw new Error('حجم الصورة يتجاوز 15MB. اختاري صورة أصغر دون ضغطها من الموقع.');
   let cloudError=null;
   try{
@@ -2239,11 +2249,18 @@ async function uploadOriginalQualityImage(file,kind,onProgress){
     cloudError=error;
     console.warn('Original image Cloudinary upload unavailable',error);
   }
+  // Firebase Storage serves HEIC without a browser-compatible delivery format.
+  // For HEIC, use Cloudinary's browser-aware f_auto delivery instead.
+  if(isSamsungHeicPhoto(file)){
+    throw new Error('فشل رفع صورة HEIC/HEIF إلى Cloudinary: '+String(cloudError?.message||'غير متاح').slice(0,150)+'. غيّري إعداد الكاميرا إلى JPG وأعيدي المحاولة.');
+  }
   try{
     return await uploadOriginalImageToFirebase(file,kind,onProgress);
   }catch(error){
     console.warn('Original image Firebase Storage upload unavailable',error);
-    throw new Error('تعذر رفع الصورة بالجودة الأصلية. تحققي من إعداد رفع الصور في Cloudinary أو Firebase Storage، ثم أعيدي المحاولة. لم يتم ضغط الصورة أو حفظ نسخة ضبابية.');
+    const cloudReason=String(cloudError?.message||'غير متاح').slice(0,150);
+    const firebaseReason=String(error?.code||error?.message||'غير متاح').slice(0,150);
+    throw new Error('تعذر رفع الصورة. Cloudinary: '+cloudReason+'؛ Firebase Storage: '+firebaseReason+'. تأكدي من الاتصال وصلاحيات رفع الملفات. الصور المختارة ما زالت محفوظة في النموذج.');
   }
 }
 function utf8Bytes(value){
