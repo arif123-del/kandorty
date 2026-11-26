@@ -56,7 +56,7 @@ for (const snippet of [
  'c.history.push(raw)',
  'renderOrderItemsHtml(o)',
  'accept="image/*"',
- 'const chosen=selected.filter(validPhoto)',
+ 'const chosen=selected.filter(isSupportedProductPhoto)',
  'pendingImageFiles.push(file)',
  "previewImages();",
  'scrollIntoView({block:',
@@ -66,6 +66,28 @@ for (const snippet of [
  assert.ok(admin.includes(snippet),'Customer files/image preview missing '+snippet);
 }
 assert.ok(admin.includes('صيغة الصورة غير مدعومة'),'Unsupported image formats must show a helpful error');
+for(const snippet of [
+  'function isSamsungHeicPhoto(file)',
+  'function isSupportedProductPhoto(file)',
+  'f_auto/',
+  'Firebase Storage: '
+]){
+  assert.ok(admin.includes(snippet),'Samsung photo/upload diagnostic missing: '+snippet);
+}
+const pickStart=admin.indexOf('function isSamsungHeicPhoto(file)');
+const pickEnd=admin.indexOf("$('imageFiles').addEventListener('change',e=>",pickStart);
+assert.ok(pickStart>=0&&pickEnd>pickStart,'Samsung gallery validators available');
+const photoPickerSandbox={};
+require('node:vm').runInNewContext(admin.slice(pickStart,pickEnd),photoPickerSandbox);
+const validPhoto=photoPickerSandbox.isSupportedProductPhoto;
+assert.equal(validPhoto({name:'photo.heic',type:'image/heic',size:5000}),true);
+assert.equal(validPhoto({name:'photo.heif',type:'image/heif',size:5000}),true);
+assert.equal(validPhoto({name:'photo.jpg',type:'image/jpeg',size:5000}),true);
+assert.equal(validPhoto({name:'photo.webp',type:'image/webp',size:5000}),true);
+assert.equal(validPhoto({name:'not-photo.pdf',type:'application/pdf',size:5000}),false);
+assert.equal(validPhoto({name:'empty.jpg',type:'image/jpeg',size:0}),false);
+console.log('Samsung gallery formats and backend upload diagnostics checks passed.');
+
 assert.ok(admin.includes("onerror=\"this.closest('.preview-item').classList.add('image-error')"),'Image preview must show broken-photo fallback');
 console.log('Customer file separation, order photo rendering, mobile image selection and saved-photo verification smoke checks passed.');
 
