@@ -2245,17 +2245,10 @@ html.kd-product-open body{
   opacity:0!important;
   visibility:hidden!important;
 }
-/* Show the product's own photo until the customer first presses Play. */
-#productModal #modalGallery .product-gallery-stage > .kd-product-video-poster{
-  display:block;position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;object-position:center;z-index:5;
-  opacity:0;visibility:hidden;pointer-events:none;
-}
-#productModal #modalGallery.kd-video-selected.kd-video-awaiting-play .product-gallery-stage > .kd-product-video-poster{
-  opacity:1;visibility:visible;
-}
-#productModal #modalGallery .product-gallery-stage.kd-video-buffering > .kd-product-video-poster{
-  visibility:hidden;
+/* The paused preview must be this video's own first frame, not a
+   different product photo from the gallery. */
+#productModal #modalGallery.kd-video-selected .product-gallery-stage > .kd-product-video-poster{
+  display:none!important;
 }
 /* SVG is optically centered; a text glyph's baseline had pushed ▶ down. */
 #productModal #modalGallery.kd-video-selected.kd-video-paused #kdVideoTapSurface::after{
@@ -3615,25 +3608,17 @@ function syncProductPurchaseButton(){
   btn.title=unavailable&&!video&&p&&!isSoldOut(p)
     ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
 }
-function ensureProductVideoPoster(){
-  const gallery=$('modalGallery'),stage=gallery?.querySelector('.product-gallery-stage');
-  if(!stage)return;
-  let poster=stage.querySelector('.kd-product-video-poster');
-  if(!poster){
-    poster=document.createElement('img');
-    poster.className='kd-product-video-poster';
-    poster.alt='';
-    poster.decoding='async';
-    poster.setAttribute('aria-hidden','true');
-    stage.appendChild(poster);
-  }
-  // The customer was looking at this last product photo just before the
-  // video slide; reuse it as a non-black poster until their first Play tap.
-  const lastPhoto=currentProductImages[currentProductImages.length-1];
-  const url=lastPhoto?productPhotoPreview(lastPhoto,1440):'';
-  if(url){
-    if(poster.getAttribute('src')!==url)poster.src=url;
-  }else poster.removeAttribute('src');
+function productVideoFramePosterUrl(source){
+  const raw=String(source||'').trim();
+  // Cloudinary can extract a JPEG still from the *video* at timestamp zero.
+  // Do not substitute the associated product image behind the Play button.
+  const match=raw.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/)(?:[^?#]*\/)?(v\d+\/[^?#]+)(?:[?#].*)?$/i);
+  if(!match)return '';
+  const publicId=match[2];
+  const imageId=/\.[a-z0-9]{2,5}$/i.test(publicId)
+    ?publicId.replace(/\.[a-z0-9]{2,5}$/i,'.jpg')
+    :publicId+'.jpg';
+  return match[1]+'so_0,c_limit,w_720,q_auto:good/'+imageId;
 }
 function syncProductVideoControl(){
   const video=$('modalProductVideo');
@@ -3779,9 +3764,9 @@ function renderProductGallery(direction=0){
     ++kdDetailPhotoToken;kdDetailPhotoSource='';
     const mediaStage=gallery.querySelector('.product-gallery-stage');
     ensureKdBrandMediaLoader(mediaStage);
-    ensureProductVideoPoster();
-    gallery.classList.toggle('kd-video-awaiting-play',
-      video.dataset.src!==currentProductVideoUrl||video.dataset.playedInCurrentSlide!=='1');
+    // Remove any old product-photo poster inserted by a previous render.
+    mediaStage.querySelector('.kd-product-video-poster')?.remove();
+    gallery.classList.remove('kd-video-awaiting-play');
     mediaStage.classList.remove('kd-photo-pending','kd-brand-wait');
     mediaStage.classList.toggle('kd-video-buffering',video.readyState<2||video.dataset.src!==currentProductVideoUrl);
     mainImg.style.display='none';
@@ -3798,6 +3783,11 @@ function renderProductGallery(direction=0){
       video.dataset.userStarted='0';
       video.dataset.playedInCurrentSlide='0';
       video.classList.remove('kd-video-frame-ready');
+      // The poster is a first-frame still of this exact video.
+      // For other video hosts, loadeddata reveals the video frame directly.
+      const firstFramePoster=productVideoFramePosterUrl(currentProductVideoUrl);
+      if(firstFramePoster)video.poster=firstFramePoster;
+      else video.removeAttribute('poster');
       video.muted=true;
       video.loop=true;
       video.playsInline=true;

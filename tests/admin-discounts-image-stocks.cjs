@@ -368,47 +368,35 @@ for(const snippet of [
   'kandorty-product-video-no-black-screen',
   "background:#f8f6f7!important;",
   "background:transparent!important;",
-  "function ensureProductVideoPoster()",
-  "ensureProductVideoPoster();",
+  "function productVideoFramePosterUrl(source)",
+  "const firstFramePoster=productVideoFramePosterUrl(currentProductVideoUrl);",
+  "if(firstFramePoster)video.poster=firstFramePoster;",
+  "else video.removeAttribute('poster');",
+  "mediaStage.querySelector('.kd-product-video-poster')?.remove();",
   "video.dataset.playedInCurrentSlide='0'",
   "video.dataset.playedInCurrentSlide='1'",
   "video.classList.add('kd-video-frame-ready')",
   "video.classList.remove('kd-video-frame-ready')",
-  "gallery.classList.remove('kd-video-paused','kd-video-awaiting-play')",
   "content:''!important;",
   "background-image:url(\"data:image/svg+xml",
   "d='M13 7L34 20L13 33Z'"
 ]){
- assert.ok(store.includes(snippet),'Product video poster or centering fix missing: '+snippet);
+  assert.ok(store.includes(snippet),'Missing own-video first-frame poster or centered play icon: '+snippet);
 }
-assert.ok(!/function ensureProductVideoPoster\(\)[\s\S]*?video\.play\(/.test(
-  extract(store,'function ensureProductVideoPoster(){','function syncProductVideoControl(){')
-), 'Product video poster must never start playback on its own');
-const posterSrc=extract(store,'function ensureProductVideoPoster(){','function syncProductVideoControl(){');
-let posterImage=null;
-const stageStub={querySelector(){return posterImage;},appendChild(element){posterImage=element;}};
-const galleryStub={querySelector(){return stageStub;}};
-const posterEnv={
-  $:id=>id==='modalGallery'?galleryStub:null,
-  document:{createElement(){return {
-    className:'',alt:'',decoding:'',attributes:{},
-    setAttribute(k,v){this.attributes[k]=v;},
-    getAttribute(k){return this.attributes[k]||this[k]||null;},
-    removeAttribute(k){delete this[k];}
-  };}},
-  currentProductImages:['product-1.jpg','product-2.jpg'],
-  productPhotoPreview:(value,width)=>value+'?w='+width,
-};
-vm2.runInNewContext(posterSrc,posterEnv);
-posterEnv.ensureProductVideoPoster();
-assert.equal(posterImage.src,'product-2.jpg?w=1440');
-assert.equal(posterImage.alt,'');
-assert.equal(posterImage.getAttribute('aria-hidden'),'true');
-posterEnv.currentProductImages=[];
-posterEnv.ensureProductVideoPoster();
-assert.equal(posterImage.src,undefined,'No stale previous-product image if next product has no photos');
-assert.equal(posterImage.getAttribute('aria-hidden'),'true');
-console.log('Video play triangle is optically centered, with product-photo poster and light background until the first tap.');
+assert.ok(!store.includes('function ensureProductVideoPoster()'),
+  'The video preview must not reuse a different product photo');
+assert.ok(!store.includes('ensureProductVideoPoster();'),
+  'Product photos must not be used as paused video posters');
+const posterFn=extract(store,'function productVideoFramePosterUrl(source){','function syncProductVideoControl(){');
+const posterVM={};
+vm2.runInNewContext(posterFn,posterVM);
+const videoBase='https://res.cloudinary.com/demo/video/upload/';
+const truePoster=videoBase+'so_0,c_limit,w_720,q_auto:good/v12345/products/demo.jpg';
+assert.equal(posterVM.productVideoFramePosterUrl(videoBase+'v12345/products/demo.mp4'),truePoster);
+assert.equal(posterVM.productVideoFramePosterUrl(videoBase+'c_limit,w_720/q_auto:good/f_mp4/v12345/products/demo.mp4'),truePoster);
+assert.equal(posterVM.productVideoFramePosterUrl(videoBase+'v12345/products/demo.mov'),truePoster);
+assert.equal(posterVM.productVideoFramePosterUrl('https://example.com/media/item.mp4'),'');
+console.log('Product paused preview now uses a still from that exact video, never a neighboring product photo.');
 
 
 
