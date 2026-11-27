@@ -1639,7 +1639,11 @@ body.kandorty-cart-open #cartBtn{
 </style>
 <style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style>
 <style id="kandorty-branded-media-loading">
-@keyframes kdBrandBreathing{0%,100%{opacity:.72;transform:scale(.96)}50%{opacity:1;transform:scale(1)}}
+/* A gentle floating animation with a translucent original Kandorty logo. */
+@keyframes kdBrandBreathing{
+  0%,100%{opacity:.22;transform:translate3d(0,3px,0) scale(.96)}
+  50%{opacity:.42;transform:translate3d(0,-4px,0) scale(1.02)}
+}
 .kd-media-loader{
  position:absolute!important;inset:0!important;z-index:13!important;
  display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:9px;
@@ -1648,13 +1652,14 @@ body.kandorty-cart-open #cartBtn{
  transition:opacity .2s ease,visibility .2s ease!important;
 }
 .kd-media-loader::before,.card-image-wrap.kd-card-loading::before{
- content:'';display:block;width:min(52%,190px);height:72px;
+ content:'';display:block;width:min(50%,165px);height:66px;
  background-image:var(--kd-brand-loader-logo,none);
  background-position:center;background-repeat:no-repeat;background-size:contain;
- animation:kdBrandBreathing 1.75s ease-in-out infinite;
+ will-change:transform,opacity;
+ animation:kdBrandBreathing 2.2s ease-in-out infinite;
 }
 .kd-media-loader::after,.card-image-wrap.kd-card-loading::after{
- content:'جارٍ التحميل...';font:500 11px/1.5 Arial,Tahoma,sans-serif;color:#796a6d;
+ content:none!important;display:none!important;
 }
 #productModal .product-gallery-stage.kd-brand-wait > .kd-media-loader,
 #productModal .product-gallery-stage.kd-video-buffering > .kd-media-loader,
@@ -1665,7 +1670,7 @@ body.kandorty-cart-open #cartBtn{
 }
 .card-image-wrap.kd-card-loading{position:relative;min-height:120px}
 .card-image-wrap.kd-card-loading::before{
- position:absolute;left:18%;top:calc(50% - 45px);z-index:2;
+ position:absolute;left:18%;top:calc(50% - 34px);z-index:2;
  width:64%;height:68px;background-color:rgba(255,255,255,.96);border-radius:10px;
 }
 .card-image-wrap.kd-card-loading::after{
@@ -2255,7 +2260,7 @@ html.kd-product-open body{
 <section id="homeVideoSection" class="home-video-section hero-embedded video-loading" aria-label="Kandorty video">
   <div class="container">
     <div class="home-video-card">
-      <video id="homeVideo" muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
+      <video id="homeVideo" autoplay muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
       <button id="kdHomeVideoPlay" class="kd-home-video-play" type="button" hidden aria-label="تشغيل الفيديو" onclick="toggleHomeVideoByTap()">▶</button>
       <div id="homeVideoOverlay" class="home-video-overlay" data-position="center" data-align="center" style="display:none">
         <div class="home-video-text-box">
@@ -7299,7 +7304,19 @@ function homeVideoReady(){
   section.classList.remove('video-loading','kd-video-buffering');
   video.classList.add('video-ready');
   showHomeVideoFeedback('',null);
-  // Never autoplay, even muted. The user must explicitly tap the play button.
+  const source=video.getAttribute('data-current-src')||'';
+  // Start each homepage source only once, even if canplay fires many times.
+  // A visitor who manually pauses it must not be auto-restarted.
+  if(homeVideoPlayback.playAttemptedFor!==source){
+    homeVideoPlayback.playAttemptedFor=source;
+    try{
+      const started=video.play();
+      if(started&&started.catch)started.catch(error=>{
+        console.warn('Homepage autoplay unavailable:',error);
+        syncHomeVideoPlayButton(); // Fall back to manual play on restricted devices.
+      });
+    }catch(error){console.warn('Homepage autoplay blocked:',error);}
+  }
   syncHomeVideoPlayButton();
 }
 function loadHomeVideoCandidate(index){
@@ -7354,7 +7371,8 @@ function renderHomeVideo(){
   }
   section.classList.remove('hidden','placeholder-active','empty-video-slot');
   video.style.display='block';
-  video.preload='auto';video.autoplay=false;video.removeAttribute('autoplay');
+  video.preload='auto';video.autoplay=true;video.setAttribute('autoplay','');
+  // Muted + playsinline allow mobile browsers to autoplay without surprising audio.
   video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
   ensureKdBrandMediaLoader(section.querySelector('.home-video-card'));
   renderPublicHomeVideoText();
