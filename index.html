@@ -2232,6 +2232,46 @@ html.kd-product-open body{
   #products .card-body .card-actions{margin-top:4px!important;}
 }
 </style>
+<style id="kandorty-product-video-no-black-screen">
+/* Override all older black video backgrounds only while the video slide is selected. */
+#productModal #modalGallery.kd-video-selected .product-gallery-stage{
+  background:#f8f6f7!important;
+}
+#productModal #modalGallery.kd-video-selected #modalProductVideo.show{
+  background:transparent!important;
+  transition:opacity .16s ease!important;
+}
+#productModal #modalGallery.kd-video-selected #modalProductVideo.show:not(.kd-video-frame-ready){
+  opacity:0!important;
+  visibility:hidden!important;
+}
+/* Show the product's own photo until the customer first presses Play. */
+#productModal #modalGallery .product-gallery-stage > .kd-product-video-poster{
+  display:block;position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;z-index:5;
+  opacity:0;visibility:hidden;pointer-events:none;
+}
+#productModal #modalGallery.kd-video-selected.kd-video-awaiting-play .product-gallery-stage > .kd-product-video-poster{
+  opacity:1;visibility:visible;
+}
+#productModal #modalGallery .product-gallery-stage.kd-video-buffering > .kd-product-video-poster{
+  visibility:hidden;
+}
+/* SVG is optically centered; a text glyph's baseline had pushed ▶ down. */
+#productModal #modalGallery.kd-video-selected.kd-video-paused #kdVideoTapSurface::after{
+  content:''!important;
+  position:absolute!important;left:50%!important;top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  width:62px!important;height:62px!important;
+  border-radius:50%!important;
+  background-color:rgba(255,255,255,.95)!important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath fill='%23ab001a' d='M13 7L34 20L13 33Z'/%3E%3C/svg%3E")!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;background-size:40px 40px!important;
+  box-shadow:0 4px 18px #0005!important;
+  pointer-events:none!important;
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -3532,6 +3572,26 @@ function syncProductPurchaseButton(){
   btn.title=unavailable&&!video&&p&&!isSoldOut(p)
     ?(lang==='ar'?'تحققي من الكمية المتاحة والكمية الموجودة في السلة.':'Check available quantity and the quantity already in your cart.'):'';
 }
+function ensureProductVideoPoster(){
+  const gallery=$('modalGallery'),stage=gallery?.querySelector('.product-gallery-stage');
+  if(!stage)return;
+  let poster=stage.querySelector('.kd-product-video-poster');
+  if(!poster){
+    poster=document.createElement('img');
+    poster.className='kd-product-video-poster';
+    poster.alt='';
+    poster.decoding='async';
+    poster.setAttribute('aria-hidden','true');
+    stage.appendChild(poster);
+  }
+  // The customer was looking at this last product photo just before the
+  // video slide; reuse it as a non-black poster until their first Play tap.
+  const lastPhoto=currentProductImages[currentProductImages.length-1];
+  const url=lastPhoto?productPhotoPreview(lastPhoto,1440):'';
+  if(url){
+    if(poster.getAttribute('src')!==url)poster.src=url;
+  }else poster.removeAttribute('src');
+}
 function syncProductVideoControl(){
   const video=$('modalProductVideo');
   if(!video)return;
@@ -3597,10 +3657,24 @@ function bindProductVideoControl(){
     const active=isCurrentProductVideo()&&!$('productModal').classList.contains('hidden');
     stage?.classList.toggle('kd-video-buffering',active && video.readyState<2);
   };
-  video.addEventListener('loadstart',refreshVideoLoader);
-  video.addEventListener('loadeddata',refreshVideoLoader);
-  video.addEventListener('canplay',refreshVideoLoader);
-  video.addEventListener('playing',()=>stage?.classList.remove('kd-video-buffering'));
+  video.addEventListener('loadstart',()=>{
+    video.classList.remove('kd-video-frame-ready');
+    refreshVideoLoader();
+  });
+  const showFirstFrame=()=>{
+    if(video.readyState>=2)video.classList.add('kd-video-frame-ready');
+    refreshVideoLoader();
+  };
+  video.addEventListener('loadeddata',showFirstFrame);
+  video.addEventListener('canplay',showFirstFrame);
+  video.addEventListener('play',()=>{
+    video.dataset.playedInCurrentSlide='1';
+    $('modalGallery')?.classList.remove('kd-video-awaiting-play');
+  });
+  video.addEventListener('playing',()=>{
+    video.classList.add('kd-video-frame-ready');
+    stage?.classList.remove('kd-video-buffering');
+  });
   video.addEventListener('waiting',()=>{
     if(isCurrentProductVideo()&&!video.paused)stage?.classList.add('kd-video-buffering');
   });
@@ -3662,6 +3736,9 @@ function renderProductGallery(direction=0){
     ++kdDetailPhotoToken;kdDetailPhotoSource='';
     const mediaStage=gallery.querySelector('.product-gallery-stage');
     ensureKdBrandMediaLoader(mediaStage);
+    ensureProductVideoPoster();
+    gallery.classList.toggle('kd-video-awaiting-play',
+      video.dataset.src!==currentProductVideoUrl||video.dataset.playedInCurrentSlide!=='1');
     mediaStage.classList.remove('kd-photo-pending','kd-brand-wait');
     mediaStage.classList.toggle('kd-video-buffering',video.readyState<2||video.dataset.src!==currentProductVideoUrl);
     mainImg.style.display='none';
@@ -3676,6 +3753,8 @@ function renderProductGallery(direction=0){
       video.dataset.fallbackTried='0';
       video.dataset.resumeFromFallback='0';
       video.dataset.userStarted='0';
+      video.dataset.playedInCurrentSlide='0';
+      video.classList.remove('kd-video-frame-ready');
       video.muted=true;
       video.loop=true;
       video.playsInline=true;
@@ -3687,7 +3766,7 @@ function renderProductGallery(direction=0){
     syncProductVideoControl();
   }else{
     gallery.querySelector('.product-gallery-stage').classList.remove('kd-video-buffering','kd-brand-wait');
-    gallery.classList.remove('kd-video-paused');
+    gallery.classList.remove('kd-video-paused','kd-video-awaiting-play');
     video.pause();
     video.classList.remove('show');
     $('kdVideoTapIndicator')?.classList.remove('kd-flash');
@@ -3699,6 +3778,8 @@ function renderProductGallery(direction=0){
     video.dataset.src='';
     video.dataset.originalSrc='';
     video.dataset.userStarted='0';
+    video.dataset.playedInCurrentSlide='0';
+    video.classList.remove('kd-video-frame-ready');
 
     mainImg.style.display='block';
     mainImg.onclick=openFullscreenProductImage;
@@ -3861,9 +3942,9 @@ function closeProduct(){
   $('imageViewerModal').classList.add('hidden');
   $('imageViewerModal').querySelector('.image-viewer-card')?.classList.remove('kd-photo-loading','kd-photo-error');
   $('modalGallery').querySelector('.product-gallery-stage')?.classList.remove('kd-video-buffering','kd-brand-wait');
-  $('modalGallery').classList.remove('kd-video-paused');
+  $('modalGallery').classList.remove('kd-video-paused','kd-video-awaiting-play');
   const v=$('modalProductVideo');
-  if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
+  if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';v.dataset.playedInCurrentSlide='0';v.classList.remove('kd-video-frame-ready');}
   resetImageZoom();
 }
 
