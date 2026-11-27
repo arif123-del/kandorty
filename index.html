@@ -3316,7 +3316,7 @@ function resetDetailPhoto(){
   ++kdDetailPhotoToken;kdDetailPhotoSource='';kdOpeningCardPhoto=null;
   const img=$('modalMainImage'),stage=$('modalGallery').querySelector('.product-gallery-stage');
   img.removeAttribute('src');
-  stage.classList.remove('kd-photo-pending');
+  stage.classList.remove('kd-photo-pending','kd-brand-wait');
   stage.style.removeProperty('--kd-opening-photo-ratio');
 }
 function showDetailPhoto(original,direction=0){
@@ -3333,7 +3333,9 @@ function showDetailPhoto(original,direction=0){
   }else if(img.naturalWidth>0&&img.naturalHeight>0){
     stage.style.setProperty('--kd-opening-photo-ratio',String(img.naturalWidth/img.naturalHeight));
   }
+  ensureKdBrandMediaLoader(stage);
   stage.classList.add('kd-photo-pending');
+  stage.classList.toggle('kd-brand-wait',!(ready?.kdDecoded && ready.complete && ready.naturalWidth>0));
   const isCurrent=()=>token===kdDetailPhotoToken&&kdDetailPhotoSource===original&&!isCurrentProductVideo()&&!$('productModal').classList.contains('hidden');
   const display=src=>{
     if(!isCurrent())return;
@@ -3341,7 +3343,7 @@ function showDetailPhoto(original,direction=0){
   };
   const finish=()=>{
     if(!isCurrent())return;
-    stage.classList.remove('kd-photo-pending');
+    stage.classList.remove('kd-photo-pending','kd-brand-wait');
     scheduleProductDotsPosition();
   };
   if(ready?.complete&&ready.naturalWidth>0){
@@ -3419,6 +3421,7 @@ function updateFullscreenProductImage(direction=0){
   const viewer=$('imageViewerModal'),img=$('imageViewerImg');
   if(!viewer||!img||!currentProductImages.length||isCurrentProductVideo())return;
   const stage=viewer.querySelector('.image-viewer-card');
+  ensureKdBrandMediaLoader(stage);
   const original=currentProductImages[currentProductImageIndex];
   const target=productPhotoPreview(original,FULLSCREEN_PRODUCT_PHOTO_WIDTH);
   const token=++kdViewerImageToken;
@@ -3529,6 +3532,7 @@ function syncProductVideoControl(){
   if(!video)return;
   const playing=!video.paused&&!video.ended;
   $('kdVideoTapSurface')?.setAttribute('aria-label',playing?(lang==='ar'?'إيقاف مؤقت':'Pause video'):(lang==='ar'?'تشغيل الفيديو':'Play video'));
+  $('modalGallery')?.classList.toggle('kd-video-paused',isCurrentProductVideo()&&!playing);
 }
 function productVideoDeliveryUrl(source){
   const raw=String(source||'').trim();
@@ -3583,10 +3587,23 @@ function bindProductVideoControl(){
   surface.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();});
   surface.addEventListener('dragstart',e=>e.preventDefault());
   video.addEventListener('contextmenu',e=>e.preventDefault());
+  const stage=$('modalGallery')?.querySelector('.product-gallery-stage');
+  const refreshVideoLoader=()=>{
+    const active=isCurrentProductVideo()&&!$('productModal').classList.contains('hidden');
+    stage?.classList.toggle('kd-video-buffering',active && video.readyState<2);
+  };
+  video.addEventListener('loadstart',refreshVideoLoader);
+  video.addEventListener('loadeddata',refreshVideoLoader);
+  video.addEventListener('canplay',refreshVideoLoader);
+  video.addEventListener('playing',()=>stage?.classList.remove('kd-video-buffering'));
+  video.addEventListener('waiting',()=>{
+    if(isCurrentProductVideo()&&!video.paused)stage?.classList.add('kd-video-buffering');
+  });
   // Some accounts cannot create an optimized video immediately. Fall back
   // once to the original CDN URL instead of leaving the slide broken.
   video.addEventListener('error',()=>{
     if(!isCurrentProductVideo()||$('productModal').classList.contains('hidden'))return;
+    stage?.classList.add('kd-video-buffering');
     const original=String(video.dataset.originalSrc||'');
     if(original && video.getAttribute('src')!==original && video.dataset.fallbackTried!=='1'){
       video.dataset.fallbackTried='1';
@@ -3595,6 +3612,7 @@ function bindProductVideoControl(){
       video.load();
       return;
     }
+    stage?.classList.remove('kd-video-buffering');
     syncProductVideoControl();
   });
   video.addEventListener('canplay',()=>{
@@ -3637,7 +3655,10 @@ function renderProductGallery(direction=0){
   gallery.classList.toggle('kd-video-selected',showingVideo);
   if(showingVideo){
     ++kdDetailPhotoToken;kdDetailPhotoSource='';
-    gallery.querySelector('.product-gallery-stage').classList.remove('kd-photo-pending');
+    const mediaStage=gallery.querySelector('.product-gallery-stage');
+    ensureKdBrandMediaLoader(mediaStage);
+    mediaStage.classList.remove('kd-photo-pending','kd-brand-wait');
+    mediaStage.classList.toggle('kd-video-buffering',video.readyState<2||video.dataset.src!==currentProductVideoUrl);
     mainImg.style.display='none';
     mainImg.onclick=null;
     video.classList.add('show');
@@ -3660,6 +3681,8 @@ function renderProductGallery(direction=0){
     }
     syncProductVideoControl();
   }else{
+    gallery.querySelector('.product-gallery-stage').classList.remove('kd-video-buffering','kd-brand-wait');
+    gallery.classList.remove('kd-video-paused');
     video.pause();
     video.classList.remove('show');
     $('kdVideoTapIndicator')?.classList.remove('kd-flash');
@@ -3832,6 +3855,8 @@ function closeProduct(){
   ++kdViewerImageToken;
   $('imageViewerModal').classList.add('hidden');
   $('imageViewerModal').querySelector('.image-viewer-card')?.classList.remove('kd-photo-loading','kd-photo-error');
+  $('modalGallery').querySelector('.product-gallery-stage')?.classList.remove('kd-video-buffering','kd-brand-wait');
+  $('modalGallery').classList.remove('kd-video-paused');
   const v=$('modalProductVideo');
   if(v){v.pause();v.removeAttribute('src');v.load();v.dataset.src='';}
   resetImageZoom();
