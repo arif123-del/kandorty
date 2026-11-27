@@ -7364,6 +7364,8 @@ function renderHomeVideo(){
     video.addEventListener('canplay',homeVideoReady);
     video.addEventListener('play',syncHomeVideoPlayButton);
     video.addEventListener('pause',syncHomeVideoPlayButton);
+    // Tap the video itself to pause/resume, never autoplay on page entry.
+    video.addEventListener('click',toggleHomeVideoByTap);
     video.addEventListener('playing',()=>{
       section.classList.remove('kd-video-buffering');
       syncHomeVideoPlayButton();
