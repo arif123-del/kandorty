@@ -2729,6 +2729,9 @@ function load(){
     snapshot=>{
       products=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
       writeFastProductCache(products);
+      // Only reconcile stale cart IDs after a successful Firestore read.
+      // A temporary network failure must not erase the customer's basket.
+      reconcileCartWithProducts();
 
       const status=$('onlineStatus');
       if(status){status.textContent='متصل';status.style.color='#16733b'}
@@ -4289,7 +4292,7 @@ function loadCommerce(){
   // Preserve this device's last verified receipt before removing the obsolete bulk cache.
   recoverLastCustomerReceipt();
   discardLegacyOrdersCache();
-  updateCartCount(); renderProfileOrders();
+  updateCartCount(); renderCart(); renderProfileOrders();
 }
 
 function getSeenOrderIds(){
@@ -5017,9 +5020,23 @@ function addToCart(id,imageIndex=0,keepProductOpen=false){
     $('cartModal').classList.remove('hidden');
   }
 }
+function reconcileCartWithProducts(){
+  const ids=new Set(products.map(p=>String(p.id)));
+  const current=Array.isArray(cart)?cart:[];
+  const cleaned=current.filter(item=>item&&ids.has(String(item.id))&&
+    Number.isSafeInteger(Number(item.qty))&&Number(item.qty)>0);
+  if(cleaned.length!==current.length){
+    cart=cleaned;
+    try{localStorage.setItem(CART_KEY,JSON.stringify(cart));}
+    catch(error){console.warn('Cart cleanup could not persist:',error);}
+  }
+  updateCartCount();
+  renderCart();
+}
 function updateCartCount(){
-  // Count units, not rows; always synchronize the menu shortcut too.
-  const n=Array.isArray(cart)?cart.reduce((sum,item)=>sum+Math.max(0,Math.floor(Number(item?.qty)||0)),0):0;
+  // Only count displayable product lines; stale IDs must never leave a "35"
+  // badge beside a completely empty basket.
+  const n=cartData().reduce((sum,row)=>sum+Math.max(0,Math.floor(Number(row.item.qty)||0)),0);
   const badge=$('cartCount');
   if(badge)badge.textContent=String(n);
   const group=$('cartFloatingGroup');
@@ -7722,7 +7739,7 @@ function touchDistance(touches){
    if(note.parentNode!==btn)btn.appendChild(note);
    const value=Array.from(String(lastNote||'').trim()).slice(0,15).join('');
    note.textContent=value;
-   note.hidden=!value;
+   note.hidden=!value||!cartData().length;
  }
  function fromSettings(){
    try{
