@@ -398,6 +398,60 @@ assert.equal(posterVM.productVideoFramePosterUrl(videoBase+'v12345/products/demo
 assert.equal(posterVM.productVideoFramePosterUrl('https://example.com/media/item.mp4'),'');
 console.log('Product paused preview now uses a still from that exact video, never a neighboring product photo.');
 
+for(const snippet of [
+  'className=\'kd-video-first-frame\'',
+  'function ensureProductVideoFirstFrame(source)',
+  'function clearProductVideoFirstFrame()',
+  "ensureProductVideoFirstFrame(currentProductVideoUrl);",
+  "stage.classList.add('kd-video-still-ready')",
+  "still.classList.add('kd-video-still-visible')",
+  "clearProductVideoFirstFrame();",
+  ".kd-video-first-frame.kd-video-still-visible"
+]){
+  assert.ok(store.includes(snippet),'Real first frame image overlay missing: '+snippet);
+}
+const stillSrc=extract(store,'let kdVideoFirstFrameToken=0;','function syncProductVideoControl(){');
+const makeClasses=()=>({
+  values:new Set(),
+  add(k){this.values.add(k);},
+  remove(k){this.values.delete(k);},
+  contains(k){return this.values.has(k);}
+});
+let firstFrame=null;
+const stillStage={
+  classList:makeClasses(),
+  querySelector:()=>firstFrame,
+  appendChild(node){firstFrame=node;}
+};
+const firstFrameVideo={dataset:{playedInCurrentSlide:'0'}};
+const frameEnv={
+  $:id=>id==='modalGallery'?{querySelector:()=>stillStage}:id==='modalProductVideo'?firstFrameVideo:null,
+  document:{
+    createElement:()=>({
+      className:'',alt:'',decoding:'',naturalWidth:1200,dataset:{},classList:makeClasses(),
+      attributes:{},setAttribute(k,v){this.attributes[k]=v;},
+      getAttribute(k){return this.attributes[k]||this[k]||null;},
+      removeAttribute(k){delete this[k];delete this.attributes[k];}
+    })
+  },
+  currentProductVideoUrl:'video-1',
+  isCurrentProductVideo:()=>true,
+  productVideoFramePosterUrl:()=>'/video-1-frame.jpg',
+  console
+};
+vm2.runInNewContext(stillSrc,frameEnv);
+frameEnv.ensureProductVideoFirstFrame('video-1');
+assert.equal(firstFrame.src,'/video-1-frame.jpg','Video still source must load');
+assert.equal(firstFrame.classList.contains('kd-video-still-visible'),false,'First frame stays hidden until loaded');
+firstFrame.onload();
+assert.equal(firstFrame.classList.contains('kd-video-still-visible'),true,'Loaded video first frame becomes visible');
+assert.equal(stillStage.classList.contains('kd-video-still-ready'),true,'Logo overlay hides once first frame is visible');
+frameEnv.clearProductVideoFirstFrame();
+assert.equal(firstFrame.classList.contains('kd-video-still-visible'),false,'Video still removed on slide switch or playback');
+assert.equal(stillStage.classList.contains('kd-video-still-ready'),false,'No stale video frame on new product');
+console.log('Real video first-frame image becomes visible after load, without showing white blank area.');
+
+
 
 
 
