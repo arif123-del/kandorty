@@ -1638,6 +1638,62 @@ body.kandorty-cart-open #cartBtn{
 #imageViewerModal #imageViewerImg{display:block!important}
 </style>
 <style id="kandorty-hide-viewer-arrows">#imageViewerModal .image-viewer-nav{display:none!important}</style>
+<style id="kandorty-branded-media-loading">
+@keyframes kdBrandBreathing{0%,100%{opacity:.72;transform:scale(.96)}50%{opacity:1;transform:scale(1)}}
+.kd-media-loader{
+ position:absolute!important;inset:0!important;z-index:13!important;
+ display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+ background:rgba(255,255,255,.97)!important;color:#65515a!important;
+ opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+ transition:opacity .2s ease,visibility .2s ease!important;
+}
+.kd-media-loader::before,.card-image-wrap.kd-card-loading::before{
+ content:'';display:block;width:min(52%,190px);height:72px;
+ background-image:var(--kd-brand-loader-logo,none);
+ background-position:center;background-repeat:no-repeat;background-size:contain;
+ animation:kdBrandBreathing 1.75s ease-in-out infinite;
+}
+.kd-media-loader::after,.card-image-wrap.kd-card-loading::after{
+ content:'جارٍ التحميل...';font:500 11px/1.5 Arial,Tahoma,sans-serif;color:#796a6d;
+}
+#productModal .product-gallery-stage.kd-brand-wait > .kd-media-loader,
+#productModal .product-gallery-stage.kd-video-buffering > .kd-media-loader,
+#imageViewerModal .image-viewer-card.kd-photo-loading > .kd-media-loader,
+#homeVideoSection.video-loading .home-video-card > .kd-media-loader,
+#homeVideoSection.kd-video-buffering .home-video-card > .kd-media-loader{
+ opacity:1!important;visibility:visible!important;
+}
+.card-image-wrap.kd-card-loading{position:relative;min-height:120px}
+.card-image-wrap.kd-card-loading::before{
+ position:absolute;left:18%;top:calc(50% - 45px);z-index:2;
+ width:64%;height:68px;background-color:rgba(255,255,255,.96);border-radius:10px;
+}
+.card-image-wrap.kd-card-loading::after{
+ position:absolute;top:calc(50% + 24px);left:0;right:0;z-index:2;
+ text-align:center;background:rgba(255,255,255,.96);
+}
+#imageViewerModal .image-viewer-card.kd-photo-loading::after{display:none!important}
+#homeVideoSection .home-video-card .kd-media-loader{z-index:4!important}
+#homeVideoSection .kd-home-video-play{
+ position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;
+ width:62px;height:62px;border:0;border-radius:50%;background:rgba(255,255,255,.94);
+ color:#a80020;font-size:26px;font-weight:900;cursor:pointer;
+ display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px #0004;
+}
+#homeVideoSection .kd-home-video-play[hidden]{display:none!important}
+#homeVideoSection.video-loading .kd-home-video-play,
+#homeVideoSection.kd-video-buffering .kd-home-video-play{display:none!important}
+#productModal #modalGallery.kd-video-selected.kd-video-paused #kdVideoTapSurface::after{
+ content:'▶';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+ width:62px;height:62px;display:grid;place-items:center;border-radius:50%;
+ color:#ab001a;font-size:27px;background:rgba(255,255,255,.94);
+ box-shadow:0 4px 18px #0005;pointer-events:none;
+}
+#productModal #modalGallery.kd-video-buffering #kdVideoTapSurface::after{display:none!important}
+@media(prefers-reduced-motion:reduce){
+ .kd-media-loader::before,.card-image-wrap.kd-card-loading::before{animation:none!important}
+}
+</style>
 <style id="kandorty-fullscreen-decoded-load">
 #imageViewerModal .image-viewer-card.kd-photo-loading #imageViewerImg{visibility:hidden!important}
 #imageViewerModal .image-viewer-card.kd-photo-loading::after{
@@ -2199,7 +2255,8 @@ html.kd-product-open body{
 <section id="homeVideoSection" class="home-video-section hero-embedded video-loading" aria-label="Kandorty video">
   <div class="container">
     <div class="home-video-card">
-      <video id="homeVideo" autoplay muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
+      <video id="homeVideo" muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen"></video>
+      <button id="kdHomeVideoPlay" class="kd-home-video-play" type="button" hidden aria-label="تشغيل الفيديو" onclick="toggleHomeVideoByTap()">▶</button>
       <div id="homeVideoOverlay" class="home-video-overlay" data-position="center" data-align="center" style="display:none">
         <div class="home-video-text-box">
           <div id="homeVideoTitle" class="home-video-title"></div>
@@ -3085,7 +3142,7 @@ function productCardPhotoHtml(p,index){
   const responsive=preview!==original
     ? ' srcset="'+[360,640,960].map(w=>esc(productPhotoPreview(original,w))+' '+w+'w').join(', ')+'" sizes="(max-width: 850px) 46vw, 24vw"'
     : '';
-  return '<img src="'+esc(preview)+'"'+responsive+' alt="" loading="'+(index<4?'eager':'lazy')+'" fetchpriority="'+(index<2?'high':'auto')+'" decoding="async" onclick="openProduct(\''+esc(p.id)+'\')" title="'+(lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view')+'">';
+  return '<img src="'+esc(preview)+'"'+responsive+' alt="" loading="'+(index<4?'eager':'lazy')+'" fetchpriority="'+(index<2?'high':'auto')+'" decoding="async" onload="this.parentElement.classList.remove(\'kd-card-loading\')" onerror="this.parentElement.classList.remove(\'kd-card-loading\')" onclick="openProduct(\''+esc(p.id)+'\')" title="'+(lang==='ar'?'اضغطي على الصورة لعرضها':'Click image to view')+'">';
 }
 function renderProductCard(p,index=0){
   const sold=isSoldOut(p);
@@ -3103,7 +3160,7 @@ function renderProductCard(p,index=0){
       ? `<button class="btn primary" onclick="openProduct('${p.id}')">${lang==='ar'?'اختاري اللون':'Choose color'}</button>`
       : `<button class="btn primary" onclick="addToCart('${p.id}',0)">${lang==='ar'?'أضيفي للسلة':'Add to cart'}</button>`);
   return `<article data-product-id="${esc(p.id)}" class="card ${sold?'sold-out':''}">
-    <div class="card-image-wrap">${soldOutBadge}${discountBadge}${imageHtml}</div>
+    <div class="card-image-wrap${p.images?.[0]?' kd-card-loading':''}">${soldOutBadge}${discountBadge}${imageHtml}</div>
     ${salesProgressHtml(p)}
     <div class="card-body"><div class="code">${esc(publicProductCode(p))}</div><div class="name">${esc(displayProductName(p))}</div>
     ${priceHtml}
@@ -3190,6 +3247,10 @@ function render(){
     if(host.children[i]!==node)host.insertBefore(node,host.children[i]||null);
   }
   Array.from(host.children).forEach(el=>{if(!keep.has(el))el.remove();});
+  host.querySelectorAll('.kd-card-loading').forEach(wrap=>{
+    const photo=wrap.querySelector('img');
+    if(photo?.complete)wrap.classList.remove('kd-card-loading');
+  });
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let currentProductImages=[];
@@ -3199,6 +3260,28 @@ let currentProductVideoUrl='';
 
 let gallerySwipeBound=false;
 let imageViewerSwipeBound=false;
+function ensureKdBrandMediaLoader(host){
+  if(!host)return null;
+  if(!document.documentElement.style.getPropertyValue('--kd-brand-loader-logo')){
+    const logo=document.querySelector('header.top img.logo');
+    if(logo?.src)document.documentElement.style.setProperty('--kd-brand-loader-logo','url("'+logo.src+'")');
+  }
+  let loader=Array.from(host.children).find(child=>child.classList?.contains('kd-media-loader'));
+  if(!loader){
+    loader=document.createElement('div');
+    loader.className='kd-media-loader';
+    loader.setAttribute('aria-hidden','true');
+    host.appendChild(loader);
+  }
+  return loader;
+}
+function installKdBrandMediaLoaders(){
+  ensureKdBrandMediaLoader(document.querySelector('#productModal .product-gallery-stage'));
+  ensureKdBrandMediaLoader(document.querySelector('#imageViewerModal .image-viewer-card'));
+  ensureKdBrandMediaLoader(document.querySelector('#homeVideoSection .home-video-card'));
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installKdBrandMediaLoaders,{once:true});
+else installKdBrandMediaLoaders();
 const productImagePreloadCache=new Map();
 const FULLSCREEN_PRODUCT_PHOTO_WIDTH=1440; // Match the detail photo and reuse downloaded bytes.
 let kdViewerImageToken=0;
