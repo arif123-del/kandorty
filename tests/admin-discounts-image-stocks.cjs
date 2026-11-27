@@ -249,6 +249,7 @@ const cartVM={
   $:id=>cartEls[id],
   localStorage:{setItem(k,value){this[k]=value;}},
   renderCart(){},
+  window:{renderCartCustomNote(){}},
   console
 };
 cartVM.cartData=()=>cartVM.cart.map(item=>({item,product:cartVM.products.find(p=>p.id===item.id)})).filter(row=>row.product);
@@ -264,6 +265,7 @@ assert.equal(cartVM.cart.length,0);
 assert.equal(cartEls.cartCount.textContent,'0','empty cart must not show 35');
 assert.equal(cartEls.cartBtn.hidden,true,'empty floating cart must be hidden');
 assert.equal(cartEls.kandortyMenuCartBtn.hidden,true,'empty menu cart shortcut must be hidden');
+assert.ok(store.includes("if(typeof window.renderCartCustomNote==='function')window.renderCartCustomNote()"),'Cart note must refresh after add/remove');
 const videoStart=store.indexOf('function productVideoDeliveryUrl(source){');
 const videoEnd=store.indexOf('function playSelectedProductVideo(){',videoStart);
 assert.ok(videoStart>=0&&videoEnd>videoStart);
