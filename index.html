@@ -7269,35 +7269,47 @@ function showHomeVideoFeedback(message,onActivate){
     if(event.key==='Enter'||event.key===' '){event.preventDefault();onActivate();}
   }:null;
 }
+function syncHomeVideoPlayButton(){
+  const video=$('homeVideo'),button=$('kdHomeVideoPlay'),section=$('homeVideoSection');
+  if(!button||!video||!section)return;
+  button.hidden=settings.homeVideoEnabled!==true ||
+    section.classList.contains('hidden') ||
+    section.classList.contains('video-loading') ||
+    section.classList.contains('kd-video-buffering') ||
+    video.readyState<2 || !video.paused;
+  button.setAttribute('aria-label',lang==='ar'?'تشغيل الفيديو':'Play video');
+}
+function toggleHomeVideoByTap(){
+  const video=$('homeVideo');
+  if(!video||settings.homeVideoEnabled!==true||video.readyState<2)return;
+  if(!video.paused){video.pause();syncHomeVideoPlayButton();return;}
+  try{
+    const play=video.play();
+    if(play&&play.catch)play.catch(error=>{
+      console.warn('Homepage video playback unavailable:',error);
+      showHomeVideoFeedback('تعذر تشغيل الفيديو على هذا الجهاز.',null);
+      syncHomeVideoPlayButton();
+    });
+  }catch(error){console.warn('Homepage video play failed:',error);}
+}
 function homeVideoReady(){
   const video=$('homeVideo'),section=$('homeVideoSection');
   if(!video||!section||settings.homeVideoEnabled!==true||video.readyState<2)return;
   clearHomeVideoTimer();
-  section.classList.remove('video-loading');
+  section.classList.remove('video-loading','kd-video-buffering');
   video.classList.add('video-ready');
   showHomeVideoFeedback('',null);
-  const url=video.getAttribute('data-current-src');
-  if(homeVideoPlayback.playAttemptedFor===url)return;
-  homeVideoPlayback.playAttemptedFor=url;
-  try{
-    const play=video.play();
-    if(play&&play.catch)play.catch(()=>{
-      showHomeVideoFeedback('▶ اضغطي لتشغيل الفيديو',()=>{
-        const tryPlay=video.play();
-        if(tryPlay&&tryPlay.catch)tryPlay.catch(()=>showHomeVideoFeedback('تعذر تشغيل الفيديو على هذا الجهاز.',null));
-      });
-    });
-  }catch(error){
-    showHomeVideoFeedback('▶ اضغطي لتشغيل الفيديو',()=>video.play());
-  }
+  // Never autoplay, even muted. The user must explicitly tap the play button.
+  syncHomeVideoPlayButton();
 }
 function loadHomeVideoCandidate(index){
   const section=$('homeVideoSection'),video=$('homeVideo');
   if(!section||!video)return;
   clearHomeVideoTimer();
   if(index>=homeVideoPlayback.urls.length){
-    section.classList.remove('video-loading');
+    section.classList.remove('video-loading','kd-video-buffering');
     video.classList.remove('video-ready');
+    syncHomeVideoPlayButton();
     showHomeVideoFeedback('تعذر تحميل الفيديو. اضغطي لإعادة المحاولة.',()=>{
       homeVideoPlayback.key='';
       renderHomeVideo();
@@ -7306,6 +7318,8 @@ function loadHomeVideoCandidate(index){
   }
   homeVideoPlayback.index=index;
   homeVideoPlayback.playAttemptedFor='';
+  video.pause();
+  section.classList.remove('kd-video-buffering');
   section.classList.add('video-loading');
   video.classList.remove('video-ready');
   showHomeVideoFeedback('',null);
@@ -7313,6 +7327,7 @@ function loadHomeVideoCandidate(index){
   video.setAttribute('data-current-src',url);
   video.src=url;
   video.load();
+  syncHomeVideoPlayButton();
   // Some Cloudinary transformations are generated on first request.
   // Avoid leaving a permanently blank homepage if one never finishes.
   homeVideoPlayback.timeout=setTimeout(()=>{
@@ -7331,19 +7346,34 @@ function renderHomeVideo(){
     homeVideoPlayback.key='';homeVideoPlayback.urls=[];
     video.pause();video.removeAttribute('src');video.removeAttribute('data-current-src');
     video.classList.remove('video-ready');video.style.display='none';
-    section.classList.remove('video-loading','placeholder-active','empty-video-slot');
+    section.classList.remove('video-loading','kd-video-buffering','placeholder-active','empty-video-slot');
+    syncHomeVideoPlayButton();
     section.classList.add('hidden');
     showHomeVideoFeedback('',null);
     return;
   }
   section.classList.remove('hidden','placeholder-active','empty-video-slot');
   video.style.display='block';
-  video.preload='auto';video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
+  video.preload='auto';video.autoplay=false;video.removeAttribute('autoplay');
+  video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
+  ensureKdBrandMediaLoader(section.querySelector('.home-video-card'));
   renderPublicHomeVideoText();
   if(!homeVideoPlayback.eventsBound){
     homeVideoPlayback.eventsBound=true;
     video.addEventListener('loadeddata',homeVideoReady);
     video.addEventListener('canplay',homeVideoReady);
+    video.addEventListener('play',syncHomeVideoPlayButton);
+    video.addEventListener('pause',syncHomeVideoPlayButton);
+    video.addEventListener('playing',()=>{
+      section.classList.remove('kd-video-buffering');
+      syncHomeVideoPlayButton();
+    });
+    video.addEventListener('waiting',()=>{
+      if(!video.paused){
+        section.classList.add('kd-video-buffering');
+        syncHomeVideoPlayButton();
+      }
+    });
     video.addEventListener('error',()=>{
       if(settings.homeVideoEnabled!==true)return;
       const i=homeVideoPlayback.index;
@@ -7359,6 +7389,7 @@ function renderHomeVideo(){
   }else if(video.readyState>=2){
     section.classList.remove('video-loading');
     video.classList.add('video-ready');
+    syncHomeVideoPlayButton();
   }
 }
 async function shareSite(){
