@@ -241,7 +241,7 @@ const makeElement=()=>({
   style:{setProperty(){}},
   classList:{toggle(){}}
 });
-const cartEls=Object.fromEntries(['cartCount','cartFloatingGroup','cartBtn','kandortyMenuCartCount','kandortyMenuCartBtn'].map(id=>[id,makeElement()]));
+const cartEls=Object.fromEntries(['cartCount','cartFloatingGroup','cartBtn','kandortyMenuCartCount','kandortyMenuCartBtn','kdHeaderCartCount'].map(id=>[id,makeElement()]));
 const cartVM={
   products:[{id:'in-store'}],
   cart:[{id:'deleted',qty:35},{id:'in-store',qty:2}],
@@ -258,6 +258,8 @@ vm2.runInNewContext(cartSrc,cartVM);
 cartVM.reconcileCartWithProducts();
 assert.equal(cartVM.cart.length,1,'stale saved product removed only after authoritative snapshot');
 assert.equal(cartEls.cartCount.textContent,'2','badge counts real items');
+assert.equal(cartEls.kdHeaderCartCount.textContent,'2','Header cart follows live valid quantities');
+assert.equal(cartEls.kdHeaderCartCount.hidden,false,'Header cart shows count for nonempty baskets');
 assert.equal(cartEls.cartBtn.hidden,false);
 cartVM.cart=[{id:'deleted',qty:35}];
 cartVM.reconcileCartWithProducts();
@@ -265,6 +267,17 @@ assert.equal(cartVM.cart.length,0);
 assert.equal(cartEls.cartCount.textContent,'0','empty cart must not show 35');
 assert.equal(cartEls.cartBtn.hidden,true,'empty floating cart must be hidden');
 assert.equal(cartEls.kandortyMenuCartBtn.hidden,true,'empty menu cart shortcut must be hidden');
+assert.equal(cartEls.kdHeaderCartCount.textContent,'0','Header cart quantity must reset to zero when empty');
+assert.equal(cartEls.kdHeaderCartCount.hidden,true,'Header cart must hide the zero badge without hiding the basket button');
+for(const required of [
+ 'id="kdHeaderCartBtn"',
+ 'id="kdHeaderCartCount"',
+ 'kandorty-header-cart-shortcut-20261127',
+ "function openHeaderCart(){",
+ "onclick=\"openHeaderCart()\"",
+ "headerCount.hidden=n===0",
+ "headerCount.textContent=String(n)"
+])assert.ok(store.includes(required),'Missing new header basket UI: '+required);
 assert.ok(store.includes("if(typeof window.renderCartCustomNote==='function')window.renderCartCustomNote()"),'Cart note must refresh after add/remove');
 const videoStart=store.indexOf('function productVideoDeliveryUrl(source){');
 const videoEnd=store.indexOf('function playSelectedProductVideo(){',videoStart);
