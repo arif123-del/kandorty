@@ -182,4 +182,35 @@ for (const snippet of [
   assert.ok(store.includes(snippet),'Storefront must enforce per-color cart limits: '+snippet);
 }
 console.log('Full product edit, customer folder fallback and color cart guards passed.');
+for(const snippet of [
+  'const FULLSCREEN_PRODUCT_PHOTO_WIDTH=1440',
+  'const target=productPhotoPreview(original,FULLSCREEN_PRODUCT_PHOTO_WIDTH)',
+  "const detail=$('modalMainImage')",
+  'if(incoming.decode)await incoming.decode()',
+  'display(target); // Only set the visible source after decoding is complete.',
+  "kdViewerImageToken",
+  "classList.add('kd-photo-loading')",
+  'kandorty-fullscreen-decoded-load',
+  'ghost.src=productPhotoPreview(',
+  "if(fullscreen && typeof updateFullscreenProductImage==='function')updateFullscreenProductImage()"
+]){
+ assert.ok(store.includes(snippet),'Fullscreen photo responsiveness regression: '+snippet);
+}
+assert.ok(!store.includes('ghost.src=fullscreen?photos()['),
+  'Do not load uncapped source in fullscreen swipe ghost.');
+assert.ok(!store.includes('if(fullscreen){img.src=url;'),
+  'Fullscreen swipe must not paint an undecoded source.');
+const photoFnStart=store.indexOf('function productPhotoPreview(src,width){');
+const photoFnEnd=store.indexOf('function productCardPhotoHtml(',photoFnStart);
+assert.ok(photoFnStart>=0&&photoFnEnd>photoFnStart);
+const previewContext={};
+require('node:vm').runInNewContext(store.slice(photoFnStart,photoFnEnd),previewContext);
+const cloudBase='https://res.cloudinary.com/kandorty/image/upload/';
+const transformed=cloudBase+'f_auto,q_auto:good,c_limit,w_1440/v12345/stock/photo.jpg';
+assert.equal(previewContext.productPhotoPreview(cloudBase+'v12345/stock/photo.jpg',1440),transformed);
+assert.equal(previewContext.productPhotoPreview(cloudBase+'f_auto/v12345/stock/photo.jpg',1440),transformed);
+assert.equal(previewContext.productPhotoPreview(cloudBase+'c_limit,w_2600/v12345/stock/photo.jpg',1440),transformed);
+assert.equal(previewContext.productPhotoPreview('https://firebasestorage.googleapis.com/v0/b/sample.jpg',1440),'https://firebasestorage.googleapis.com/v0/b/sample.jpg');
+console.log('Fullscreen photo uses decoded 1440px URLs, reuses Cloudinary transformed sources, and never swaps to progressive full originals.');
+
 
