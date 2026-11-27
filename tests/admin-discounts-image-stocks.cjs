@@ -294,6 +294,7 @@ for(const snippet of [
   'id="kdHomeVideoPlay"',
   'onclick="toggleHomeVideoByTap()"',
   'function toggleHomeVideoByTap()',
+  "video.addEventListener('click',toggleHomeVideoByTap)",
   "video.autoplay=false;video.removeAttribute('autoplay')",
   "const logo=document.querySelector('header.top img.logo')",
   "function ensureKdBrandMediaLoader(host)",
