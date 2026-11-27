@@ -295,7 +295,7 @@ for(const snippet of [
   'onclick="toggleHomeVideoByTap()"',
   'function toggleHomeVideoByTap()',
   "video.addEventListener('click',toggleHomeVideoByTap)",
-  "video.autoplay=false;video.removeAttribute('autoplay')",
+  "video.autoplay=true;video.setAttribute('autoplay','')",
   "const logo=document.querySelector('header.top img.logo')",
   "function ensureKdBrandMediaLoader(host)",
   "function installKdBrandMediaLoaders()",
@@ -310,23 +310,41 @@ for(const snippet of [
 ]){
  assert.ok(store.includes(snippet),'Missing logo media loading or no-autoplay feature: '+snippet);
 }
-assert.ok(!/<video id="homeVideo"[^>]*autoplay\b/i.test(store),
-  'Homepage video must not have autoplay attribute');
+assert.ok(/<video id="homeVideo"[^>]*autoplay\b[^>]*muted\b/i.test(store),
+  'Homepage video should autoplay muted, without sound');
 const readySrc=extract(store,'function homeVideoReady(){','function loadHomeVideoCandidate(index){');
-const readyVideo={readyState:2,classList:{add(){}},play(){throw new Error('unexpected autoplay')}};
+let autoPlayCalls=0;
+const readyVideo={
+  readyState:2, classList:{add(){}}, getAttribute:()=>'/home-video.mp4',
+  play(){autoPlayCalls++;return Promise.resolve();}
+};
 const readyStage={classList:{remove(){}}};
 let readyButtonCalls=0;
 const readyCtx={
  settings:{homeVideoEnabled:true},
+ homeVideoPlayback:{playAttemptedFor:''},
  $:id=>id==='homeVideo'?readyVideo:id==='homeVideoSection'?readyStage:null,
  clearHomeVideoTimer(){},
  showHomeVideoFeedback(){},
- syncHomeVideoPlayButton(){readyButtonCalls++;}
+ syncHomeVideoPlayButton(){readyButtonCalls++},
+ console
 };
 vm2.runInNewContext(readySrc,readyCtx);
 readyCtx.homeVideoReady();
-assert.equal(readyButtonCalls,1,'Loaded video must expose manual-play control');
-console.log('Homepage video waits for an explicit tap; Kandorty brand loader covers media preparation and disappears on ready.');
+readyCtx.homeVideoReady();
+assert.equal(autoPlayCalls,1,'Homepage video should autoplay once, not restart after repeated canplay');
+assert.equal(readyButtonCalls,2,'Playback state control should synchronize when ready');
+assert.ok(store.includes('0%,100%{opacity:.22;transform:translate3d'),
+  'Kandorty logo must be translucent and gently moving');
+assert.ok(store.includes('50%{opacity:.42;transform:translate3d'),
+  'Animated logo should pulse without becoming opaque');
+assert.ok(!store.includes("content:'جارٍ التحميل...'"),
+  'Products must not show a loading text caption');
+assert.ok(store.includes('content:none!important;display:none!important;'),
+  'Loading caption pseudo-elements must be hidden');
+assert.ok(productVideoBranch.includes('video.preload=\'auto\''),
+  'Product video should retain buffering improvements without autoplay');
+console.log('Homepage video starts muted automatically once; product media loader shows only a translucent moving Kandorty logo.');
 
 
 
