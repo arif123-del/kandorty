@@ -3503,6 +3503,7 @@ function bindProductVideoControl(){
   // Some accounts cannot create an optimized video immediately. Fall back
   // once to the original CDN URL instead of leaving the slide broken.
   video.addEventListener('error',()=>{
+    if(!isCurrentProductVideo()||$('productModal').classList.contains('hidden'))return;
     const original=String(video.dataset.originalSrc||'');
     if(original && video.getAttribute('src')!==original && video.dataset.fallbackTried!=='1'){
       video.dataset.fallbackTried='1';
@@ -3585,6 +3586,7 @@ function renderProductGallery(direction=0){
       video.load();
     }
     video.dataset.src='';
+    video.dataset.originalSrc='';
     video.dataset.userStarted='0';
 
     mainImg.style.display='block';
