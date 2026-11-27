@@ -450,6 +450,15 @@ frameEnv.clearProductVideoFirstFrame();
 assert.equal(firstFrame.classList.contains('kd-video-still-visible'),false,'Video still removed on slide switch or playback');
 assert.equal(stillStage.classList.contains('kd-video-still-ready'),false,'No stale video frame on new product');
 console.log('Real video first-frame image becomes visible after load, without showing white blank area.');
+const catalogStyle=store.split('<style id="kandorty-compact-storefront-product-cards">')[1].split('</style>')[0];
+assert.ok(catalogStyle.includes('object-fit:contain!important;'),'Catalog product photos must be contained rather than cropped');
+assert.ok(!catalogStyle.includes('object-fit:cover!important;'),'No card photo may use cover cropping');
+const uncroppedStyle=store.split('<style id="kandorty-uncropped-catalog-thumbnails-20261127">')[1]?.split('</style>')[0]||'';
+assert.ok(uncroppedStyle.includes('aspect-ratio:3 / 4!important;'),'Catalog card should use a portrait photo frame');
+assert.ok(uncroppedStyle.includes('object-fit:contain!important;'),'Complete thumbnail should be visible before tap');
+assert.ok(uncroppedStyle.includes('object-position:center center!important;'));
+console.log('Uncropped catalog thumbnails show the entire product before the card is tapped.');
+
 
 
 
