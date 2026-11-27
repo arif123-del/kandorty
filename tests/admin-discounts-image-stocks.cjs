@@ -248,7 +248,7 @@ const cartVM={
   CART_KEY:'kandorty_cart_v1',
   $:id=>cartEls[id],
   localStorage:{setItem(k,value){this[k]=value;}},
-  renderCart(){this.renderCalled=true;},
+  renderCart(){},
   console
 };
 cartVM.cartData=()=>cartVM.cart.map(item=>({item,product:cartVM.products.find(p=>p.id===item.id)})).filter(row=>row.product);
