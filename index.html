@@ -2221,7 +2221,7 @@ html.kd-product-open body{
 #products .card-image-wrap > img{
   position:absolute!important;inset:0!important;
   width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
-  aspect-ratio:auto!important;object-fit:cover!important;object-position:center center!important;
+  aspect-ratio:auto!important;object-fit:contain!important;object-position:center center!important;
 }
 #products .card-image-wrap > div:not(.sold-out-badge){height:100%!important;aspect-ratio:auto!important;}
 #products .sales-progress-box{margin-top:3px!important;padding:4px 8px!important;}
@@ -2314,6 +2314,21 @@ html.kd-product-open body{
 @media(max-width:350px){
   .top .nav.kandorty-menu-header > .logo{width:108px!important;left:calc(50% + 9px)!important}
 }
+</style>
+<style id="kandorty-uncropped-catalog-thumbnails-20261127">
+/* The complete product photo must be visible on the catalog BEFORE tapping.
+   The earlier compact card rule used object-fit:cover and cropped top/bottom. */
+#products .card-image-wrap{
+  aspect-ratio:3 / 4!important;
+  background:#faf8f8!important;
+}
+#products .card-image-wrap > img{
+  width:100%!important;height:100%!important;
+  object-fit:contain!important;object-position:center center!important;
+  background:#faf8f8!important;
+  transform:none!important;
+}
+#products .card:hover .card-image-wrap > img{transform:none!important}
 </style>
 </head>
 <body>
