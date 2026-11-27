@@ -269,6 +269,11 @@ assert.equal(cartEls.cartBtn.hidden,true,'empty floating cart must be hidden');
 assert.equal(cartEls.kandortyMenuCartBtn.hidden,true,'empty menu cart shortcut must be hidden');
 assert.equal(cartEls.kdHeaderCartCount.textContent,'0','Header cart quantity must reset to zero when empty');
 assert.equal(cartEls.kdHeaderCartCount.hidden,true,'Header cart must hide the zero badge without hiding the basket button');
+const headerBag=store.match(/<button id="kdHeaderCartBtn"[\s\S]*?<\/button>/)?.[0]||'';
+assert.ok(headerBag.includes('Minimal boutique shopping-bag icon'), 'New boutique-style bag shape is required');
+assert.ok(headerBag.includes('M5.25 8.5h13.5l1 11.5H4.25l1-11.5Z'), 'Header icon must be a bag, not the original basket');
+assert.ok(!headerBag.includes('M4 10h16l-1.5 10h-13L4 10Z'), 'The old grocery basket must be replaced');
+
 for(const required of [
  'id="kdHeaderCartBtn"',
  'id="kdHeaderCartCount"',
