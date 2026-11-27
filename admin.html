@@ -1153,11 +1153,16 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
+<label class="full" style="display:flex;align-items:center;gap:7px;font-size:13px;margin:8px 0">
+  <input type="checkbox" id="fastProductImageUpload" checked style="width:auto;flex:none">
+  <span>رفع أسرع بجودة عالية (صور المنتجات الكبيرة فقط)</span>
+</label>
+<p style="font-size:12px;color:#76545a;margin:4px 0 9px">يُخفّض حجم JPG الكبير تلقائياً إلى دقة مناسبة للمتجر (حتى 2600 بكسل لأطول ضلع). لإرسال الملف الأصلي بحجمه الكامل، أزيلي علامة الرفع السريع.</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:9px 0">
   <button id="uploadProductPhotosBtn" class="btn primary" type="button" onclick="uploadProductPhotosNow()">⬆ رفع الصور الآن</button>
 </div>
 <p style="font-size:12px;color:#76545a;margin:4px 0 9px">اختاري الصور ثم اضغطي «رفع الصور الآن» لمعرفة نتيجة الرفع قبل حفظ المنتج. بعد نجاح الرفع أدخلي كمية كل صورة ثم اضغطي «حفظ المنتج».</p>
-<p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ صور المنتجات الجديدة تُرفع بالجودة والدقة الأصلية دون تصغير أو ضغط داخل المتجر. لتحسين صورة قديمة مضغوطة، أضيفي الملف الأصلي من هاتفك.</p>
+<p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ الرفع السريع يحافظ على دقة عرض عالية للمنتج، ويترك الصورة الأصلية محفوظة في الهاتف. يمكن إيقافه لرفع الملف الأصلي دون تعديل.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
 <textarea id="imageUrls" rows="4" style="margin-top:8px" placeholder="رابط كل صورة في سطر مستقل"></textarea>
@@ -2192,16 +2197,16 @@ function loadImageFile(file){
 }
 function canvasToBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('تعذر تجهيز الصورة')),type,quality));}
 function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('تعذر تجهيز الصورة'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(blob)});}
-// New product/banner/category photos must never go through the old 62 KB
-// canvas/JPEG compressor. Store the ORIGINAL file externally and keep only
-// its HTTPS URL in Firestore. This also avoids Firestore's 1 MiB document cap.
+// Store only hosted HTTPS URLs in Firestore to avoid the 1 MiB document cap.
+// Product JPG files can opt into high-quality, 2600px fast uploads. The original
+// file stays on the user's device; banner/category images remain unmodified.
 function uploadOriginalImageToCloudinary(file,onProgress){
   return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
     xhr.open('POST','https://api.cloudinary.com/v1_1/'+
       encodeURIComponent(CLOUDINARY_CLOUD_NAME)+'/image/upload',true);
     xhr.responseType='json';
-    xhr.timeout=180000;
+    xhr.timeout=90000;
     xhr.upload.onprogress=e=>{
       if(e.lengthComputable&&typeof onProgress==='function')onProgress(e.loaded/e.total*100);
     };
@@ -2242,42 +2247,95 @@ async function uploadOriginalImageToFirebase(file,kind,onProgress){
     });
   });
 }
-async function uploadOriginalQualityImage(file,kind,onProgress){
+const PRODUCT_IMAGE_MAX_EDGE=2600;
+const FAST_IMAGE_MIN_BYTES=2500000;
+const MEDIA_PROVIDER_PREFERENCE_KEY='kandorty_media_provider_v1';
+function getMediaProviderPreference(){
+  try{return localStorage.getItem(MEDIA_PROVIDER_PREFERENCE_KEY)==='firebase'?'firebase':'cloudinary';}
+  catch(_){return 'cloudinary';}
+}
+function rememberMediaProvider(provider){
+  try{localStorage.setItem(MEDIA_PROVIDER_PREFERENCE_KEY,provider);}catch(_){}
+}
+async function makeFastProductImageFile(file){
+  const fast=$('fastProductImageUpload')?.checked===true;
+  if(!fast||!/^image\/jpeg$/i.test(file.type||'')||file.size<FAST_IMAGE_MIN_BYTES)return file;
+  let decoded=null;
+  try{
+    decoded=await loadImageFile(file);
+    const image=decoded.image;
+    const largest=Math.max(image.naturalWidth,image.naturalHeight);
+    if(!largest)return file;
+    const factor=Math.min(1,PRODUCT_IMAGE_MAX_EDGE/largest);
+    const width=Math.max(1,Math.round(image.naturalWidth*factor));
+    const height=Math.max(1,Math.round(image.naturalHeight*factor));
+    const canvas=document.createElement('canvas');
+    canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d');
+    if(!ctx)throw new Error('Canvas unavailable');
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(image,0,0,width,height);
+    const compressed=await canvasToBlob(canvas,'image/jpeg',0.91);
+    canvas.width=0;canvas.height=0;
+    // Never replace the original unless at least 15% of its bytes are saved.
+    if(compressed.size>=file.size*0.85)return file;
+    const uploadName=String(file.name||'product.jpg').replace(/\.jpe?g$/i,'')+'-web.jpg';
+    return new File([compressed],uploadName,{type:'image/jpeg',lastModified:file.lastModified});
+  }catch(error){
+    console.warn('Fast image preparation unavailable: using original photo',error);
+    return file;
+  }finally{
+    decoded?.release();
+  }
+}
+async function uploadOriginalQualityImage(file,kind,onProgress,onProvider){
   if(!['products','banners','categories'].includes(kind))throw new Error('نوع الصورة غير صالح.');
   if(!file||!file.size)throw new Error('ملف الصورة فارغ.');
   if(!isSupportedProductPhoto(file))throw new Error('اختاري صورة JPG أو PNG أو WebP أو HEIC/HEIF. هذا الملف غير مدعوم.');
-  if(file.size>15*1024*1024)throw new Error('حجم الصورة يتجاوز 15MB. اختاري صورة أصغر دون ضغطها من الموقع.');
-  let cloudError=null;
-  try{
-    return await uploadOriginalImageToCloudinary(file,onProgress);
-  }catch(error){
-    cloudError=error;
-    console.warn('Original image Cloudinary upload unavailable',error);
+  if(file.size>15*1024*1024)throw new Error('حجم الصورة يتجاوز 15MB. اختاري صورة أصغر.');
+  const providers=isSamsungHeicPhoto(file)?['cloudinary']:
+    (getMediaProviderPreference()==='firebase'?['firebase','cloudinary']:['cloudinary','firebase']);
+  const failures={};
+  for(const provider of providers){
+    try{
+      if(typeof onProvider==='function')onProvider(provider);
+      const url=provider==='firebase'
+        ?await uploadOriginalImageToFirebase(file,kind,onProgress)
+        :await uploadOriginalImageToCloudinary(file,onProgress);
+      rememberMediaProvider(provider);
+      return url;
+    }catch(error){
+      failures[provider]=String(error?.code||error?.message||'غير متاح').slice(0,150);
+      console.warn('Image upload provider failed:',provider,error);
+    }
   }
-  // Firebase Storage serves HEIC without a browser-compatible delivery format.
-  // For HEIC, use Cloudinary's browser-aware f_auto delivery instead.
   if(isSamsungHeicPhoto(file)){
-    throw new Error('فشل رفع صورة HEIC/HEIF إلى Cloudinary: '+String(cloudError?.message||'غير متاح').slice(0,150)+'. غيّري إعداد الكاميرا إلى JPG وأعيدي المحاولة.');
+    throw new Error('فشل رفع صورة HEIC/HEIF إلى Cloudinary: '+(failures.cloudinary||'غير متاح')+'. غيّري إعداد الكاميرا إلى JPG وأعيدي المحاولة.');
   }
-  try{
-    return await uploadOriginalImageToFirebase(file,kind,onProgress);
-  }catch(error){
-    console.warn('Original image Firebase Storage upload unavailable',error);
-    const cloudReason=String(cloudError?.message||'غير متاح').slice(0,150);
-    const firebaseReason=String(error?.code||error?.message||'غير متاح').slice(0,150);
-    throw new Error('تعذر رفع الصورة. Cloudinary: '+cloudReason+'؛ Firebase Storage: '+firebaseReason+'. تأكدي من الاتصال وصلاحيات رفع الملفات. الصور المختارة ما زالت محفوظة في النموذج.');
-  }
+  throw new Error('تعذر رفع الصورة. Cloudinary: '+(failures.cloudinary||'لم تتم المحاولة')+
+    '؛ Firebase Storage: '+(failures.firebase||'لم تتم المحاولة')+
+    '. الصور المختارة محفوظة في النموذج.');
 }
 function utf8Bytes(value){
   return new TextEncoder().encode(typeof value==='string'?value:JSON.stringify(value)).length;
 }
 async function prepareProductImage(file,index,total){
-  setUploadProgress(Math.round((index/total)*80),`جارٍ رفع الصورة الأصلية ${index+1}/${total} دون ضغط...`);
-  const imageUrl=await uploadOriginalQualityImage(file,'products',percent=>{
+  setUploadProgress(Math.round((index/total)*80),`جارٍ تجهيز الصورة ${index+1}/${total}...`);
+  const uploadFile=await makeFastProductImageFile(file);
+  const optimized=uploadFile!==file;
+  const savedPercent=optimized?Math.round((1-uploadFile.size/file.size)*100):0;
+  let providerName='Cloudinary';
+  const imageUrl=await uploadOriginalQualityImage(uploadFile,'products',percent=>{
     setUploadProgress(Math.round(((index+percent/100)/total)*80),
-      `جارٍ رفع الصورة ${index+1}/${total} بالجودة الأصلية... ${Math.round(percent)}%`);
+      `جارٍ رفع الصورة ${index+1}/${total} عبر ${providerName}... ${Math.round(percent)}%`);
+  },provider=>{
+    providerName=provider==='firebase'?'Firebase Storage':'Cloudinary';
+    setUploadProgress(Math.round((index/total)*80),
+      `جارٍ رفع الصورة ${index+1}/${total} عبر ${providerName}${optimized?' (حجم أقل '+savedPercent+'%)':''}...`);
   });
-  setUploadProgress(Math.round(((index+1)/total)*80),`تم رفع الصورة الأصلية ${index+1}/${total}.`);
+  setUploadProgress(Math.round(((index+1)/total)*80),
+    `تم رفع الصورة ${index+1}/${total} عبر ${providerName}${optimized?' بحجم أقل '+savedPercent+'%':''}.`);
   return imageUrl;
 }
 let productPhotoUploadBusy=false;
@@ -2503,7 +2561,7 @@ $('productForm').onsubmit=async e=>{
 
     const savedAsDiscount=isAdminDiscountProduct(confirmedProduct);
     resetForm();
-    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة بالجودة الأصلية${p.productVideoUrl?' + فيديو':''} بنجاح.`);
+    setUploadProgress(100,`تم حفظ المنتج و${images.length} صورة بجودة عالية${p.productVideoUrl?' + فيديو':''} بنجاح.`);
     showAdminTab(savedAsDiscount?'discounts':'list',
       document.querySelector(savedAsDiscount?'.admin-tabs .tab[onclick*="discounts"]':'.admin-tabs .tab[onclick*="list"]'));
     alert(`تم حفظ المنتج أونلاين مع ${images.length} صورة${p.productVideoUrl?' وفيديو المنتج':''}. ستجدينه الآن في قائمة المنتجات.`);
