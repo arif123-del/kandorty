@@ -101,6 +101,55 @@ for (const snippet of [
 }
 console.log('Direct photo upload, no duplicate upload on save, and quantity validation checks passed.');
 
+for(const snippet of [
+  'id="fastProductImageUpload"',
+  'function makeFastProductImageFile(file)',
+  'const PRODUCT_IMAGE_MAX_EDGE=2600',
+  "canvasToBlob(canvas,'image/jpeg',0.91)",
+  'compressed.size>=file.size*0.85',
+  'const providers=isSamsungHeicPhoto(file)',
+  "getMediaProviderPreference()==='firebase'",
+  'rememberMediaProvider(provider)',
+  "await makeFastProductImageFile(file)"
+]) {
+  assert.ok(admin.includes(snippet),'Fast upload opt-in/provider fallback missing: '+snippet);
+}
+// Verify opt-out, small-image pass-through, and high-res JPEG resize with
+// mocked canvas objects. No browser, backend or customer data is required.
+const fastStart=admin.indexOf('const PRODUCT_IMAGE_MAX_EDGE=2600;');
+const fastEnd=admin.indexOf('async function uploadOriginalQualityImage(',fastStart);
+assert.ok(fastStart>=0&&fastEnd>fastStart,'Fast photo preparation is isolated');
+const jpegInput={type:'image/jpeg',name:'Samsung.jpg',size:5000000,lastModified:42};
+let fastEnabled=true, canvasCalls=0;
+const fakeCanvas={
+  width:0,height:0,
+  getContext(){return {drawImage(){canvasCalls++},imageSmoothingEnabled:false,imageSmoothingQuality:''}}
+};
+const fastEnv={
+  $:()=>({checked:fastEnabled}),
+  loadImageFile:async()=>({image:{naturalWidth:3000,naturalHeight:4000},release(){}}),
+  document:{createElement:()=>fakeCanvas},
+  canvasToBlob:async()=>({size:1200000}),
+  File:class {constructor(chunks,name,options){this.name=name;this.type=options.type;this.size=chunks[0].size;}},
+  localStorage:{getItem:()=>null,setItem:()=>{}},
+  console,
+};
+require('node:vm').runInNewContext(admin.slice(fastStart,fastEnd),fastEnv);
+(async()=>{
+  const resized=await fastEnv.makeFastProductImageFile(jpegInput);
+  assert.equal(resized.size,1200000);
+  assert.equal(resized.type,'image/jpeg');
+  assert.equal(canvasCalls,1);
+  assert.equal(fakeCanvas.height,0);
+  fastEnabled=false;
+  const untouched=await fastEnv.makeFastProductImageFile(jpegInput);
+  assert.equal(untouched,jpegInput);
+  const small=await fastEnv.makeFastProductImageFile({type:'image/jpeg',size:500000});
+  assert.equal(small.size,500000);
+  console.log('Fast Samsung JPEG upload, original opt-out and fallback checks passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
+
+
 
 assert.ok(admin.includes("onerror=\"this.closest('.preview-item').classList.add('image-error')"),'Image preview must show broken-photo fallback');
 console.log('Customer file separation, order photo rendering, mobile image selection and saved-photo verification smoke checks passed.');
