@@ -1153,6 +1153,10 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
 <div class="full upload-box">
 <label for="imageFiles"><b>صور المنتج — اختاري حتى 8 صور مباشرة من الهاتف</b></label>
 <input id="imageFiles" type="file" accept="image/*" multiple aria-describedby="uploadStatus">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:9px 0">
+  <button id="uploadProductPhotosBtn" class="btn primary" type="button" onclick="uploadProductPhotosNow()">⬆ رفع الصور الآن</button>
+</div>
+<p style="font-size:12px;color:#76545a;margin:4px 0 9px">اختاري الصور ثم اضغطي «رفع الصور الآن» لمعرفة نتيجة الرفع قبل حفظ المنتج. بعد نجاح الرفع أدخلي كمية كل صورة ثم اضغطي «حفظ المنتج».</p>
 <p style="font-size:12px;color:#176047;margin:7px 0 10px">✅ صور المنتجات الجديدة تُرفع بالجودة والدقة الأصلية دون تصغير أو ضغط داخل المتجر. لتحسين صورة قديمة مضغوطة، أضيفي الملف الأصلي من هاتفك.</p>
 <details>
 <summary style="cursor:pointer;font-size:13px;color:#71666a">أو أضيفي روابط صور جاهزة (اختياري)</summary>
@@ -2210,7 +2214,8 @@ function uploadOriginalImageToCloudinary(file,onProgress){
       if(xhr.status>=200&&xhr.status<300&&url.startsWith(expected)&&data.resource_type==='image'){
         resolve(isSamsungHeicPhoto(file)?url.replace('/image/upload/','/image/upload/f_auto/'):url);
       }else{
-        reject(new Error(String(data?.error?.message||('Cloudinary HTTP '+xhr.status)).slice(0,200)));
+        const reason=String(data?.error?.message||xhr.getResponseHeader('X-Cld-Error')||('Cloudinary HTTP '+xhr.status)).slice(0,220);
+        reject(new Error(reason));
       }
     };
     const form=new FormData();
@@ -2275,6 +2280,62 @@ async function prepareProductImage(file,index,total){
   setUploadProgress(Math.round(((index+1)/total)*80),`تم رفع الصورة الأصلية ${index+1}/${total}.`);
   return imageUrl;
 }
+let productPhotoUploadBusy=false;
+async function uploadProductPhotosNow(){
+  if(productPhotoUploadBusy)return;
+  if(!auth.currentUser){
+    setUploadProgress(0,'يجب تسجيل الدخول إلى الإدارة أولاً.');
+    return;
+  }
+  if(!pendingImageFiles.length){
+    setUploadProgress(0,'اختاري صورة واحدة على الأقل من المعرض قبل الضغط على رفع الصور الآن.');
+    return;
+  }
+  capturePreviewPhotoQuantities();
+  const button=$('uploadProductPhotosBtn');
+  const picker=$('imageFiles');
+  const submit=$('productForm')?.querySelector('[type=submit]');
+  const count=pendingImageFiles.length;
+  productPhotoUploadBusy=true;
+  if(button){button.disabled=true;button.textContent='جارٍ رفع الصور...';}
+  if(picker)picker.disabled=true;
+  if(submit)submit.disabled=true;
+  let uploaded=0;
+  try{
+    while(pendingImageFiles.length){
+      const file=pendingImageFiles[0];
+      const savedQuantity=pendingPhotoQuantities.get(file);
+      const url=await prepareProductImage(file,uploaded,count);
+      // Move this successfully uploaded file into saved URLs without losing
+      // its per-color stock field. A later save does not upload it twice.
+      pendingImageFiles.shift();
+      pendingImages.push(url);
+      if(savedQuantity!==undefined)pendingPhotoQuantities.set(url,savedQuantity);
+      pendingPhotoQuantities.delete(file);
+      uploaded++;
+      previewImages();
+    }
+    setUploadProgress(100,`تم رفع ${uploaded} صورة بنجاح. أدخلي كمية كل صورة ثم اضغطي حفظ المنتج.`);
+  }catch(error){
+    console.error('Direct product photo upload failed:',error);
+    previewImages();
+    const reason=String(error?.message||'خطأ غير معروف');
+    setUploadProgress(0,`تعذر رفع الصورة ${uploaded+1}: ${reason}. تم الاحتفاظ بالصور التي لم تُرفع.`);
+    alert('فشل رفع الصورة: '+reason);
+  }finally{
+    productPhotoUploadBusy=false;
+    if(button){button.disabled=false;button.textContent='⬆ رفع الصور الآن';}
+    if(picker)picker.disabled=false;
+    if(submit)submit.disabled=false;
+  }
+}
+// HTML validation runs before onsubmit. Show a specific message when a color
+// quantity is missing rather than making the save button appear unresponsive.
+$('productForm').addEventListener('invalid',event=>{
+  if(event.target.matches('.photo-qty-input')){
+    setUploadProgress(0,'أدخلي الكمية تحت كل صورة (اكتبي 0 إذا كانت غير متوفرة)، ثم اضغطي حفظ المنتج.');
+  }
+},true);
 function calculateProductTotalStock(oldProduct,newStock){
   if(newStock===null)return null;
   const cleanNew=Math.max(0,Math.floor(Number(newStock)||0));
@@ -2297,6 +2358,7 @@ let totalStockBaselineMigrationRunning=false;
 // DRAFT REVIEW ONLY: do not infer historical totalStock from client state.
 $('productForm').onsubmit=async e=>{
   e.preventDefault();
+  if(productPhotoUploadBusy){setUploadProgress(0,'انتظري انتهاء رفع الصور أولاً.');return;}
   if(!auth.currentUser){alert('سجلي الدخول أولاً');return;}
 
   const submit=e.submitter||$('productForm').querySelector('[type=submit]');
