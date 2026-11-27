@@ -87,6 +87,20 @@ assert.equal(validPhoto({name:'photo.webp',type:'image/webp',size:5000}),true);
 assert.equal(validPhoto({name:'not-photo.pdf',type:'application/pdf',size:5000}),false);
 assert.equal(validPhoto({name:'empty.jpg',type:'image/jpeg',size:0}),false);
 console.log('Samsung gallery formats and backend upload diagnostics checks passed.');
+for (const snippet of [
+  'id="uploadProductPhotosBtn"',
+  'onclick="uploadProductPhotosNow()"',
+  'async function uploadProductPhotosNow()',
+  'pendingImages.push(url)',
+  'pendingImageFiles.shift()',
+  'if(savedQuantity!==undefined)pendingPhotoQuantities.set(url,savedQuantity)',
+  "addEventListener('invalid',event=>",
+  'if(productPhotoUploadBusy)'
+]) {
+  assert.ok(admin.includes(snippet),'Direct photo uploader or quantity guidance missing: '+snippet);
+}
+console.log('Direct photo upload, no duplicate upload on save, and quantity validation checks passed.');
+
 
 assert.ok(admin.includes("onerror=\"this.closest('.preview-item').classList.add('image-error')"),'Image preview must show broken-photo fallback');
 console.log('Customer file separation, order photo rendering, mobile image selection and saved-photo verification smoke checks passed.');
