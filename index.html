@@ -5095,6 +5095,9 @@ function updateCartCount(){
   const menuBtn=$('kandortyMenuCartBtn');
   if(menuCount)menuCount.textContent=String(n);
   if(menuBtn)menuBtn.hidden=n===0;
+  // The cart note may be created while the basket is empty; refresh it when
+  // a product is added or removed so its visibility follows the real cart.
+  if(typeof window.renderCartCustomNote==='function')window.renderCartCustomNote();
 }
 function cartData(){
   return cart.map((i,cartIndex)=>({
