@@ -214,6 +214,11 @@ assert.equal(previewContext.productPhotoPreview('https://firebasestorage.googlea
 console.log('Fullscreen photo uses decoded 1440px URLs, reuses Cloudinary transformed sources, and never swaps to progressive full originals.');
 
 const vm2=require('node:vm');
+function extract(src,first,last){
+  const a=src.indexOf(first),b=src.indexOf(last,a);
+  assert.ok(a>=0&&b>a,'Missing source under test: '+first);
+  return src.slice(a,b);
+}
 for (const snippet of [
   'function reconcileCartWithProducts()',
   'const n=cartData().reduce(',
