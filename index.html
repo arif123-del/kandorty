@@ -460,9 +460,18 @@ html{scroll-behavior:smooth}body{background:linear-gradient(180deg,#fff 0,#fffaf
   visibility:hidden !important;
   display:none !important;
 }
-#homeVideoSection.hero-embedded .hero-video-hint{
-  display:none !important;
+#homeVideoSection.hero-embedded .hero-video-hint{display:none !important;}
+#homeVideoSection.hero-embedded .hero-video-hint.kd-video-feedback{
+  display:block !important;
+  inset:auto 12px 12px 12px !important;
+  border-radius:10px !important;
+  color:#292226 !important;
+  background:rgba(255,255,255,.96) !important;
+  text-align:center !important;
+  pointer-events:auto !important;
+  cursor:pointer;
 }
+#homeVideoSection.hero-embedded.hidden{display:none!important}
 /* Keep the lower fashion area separated from the full-width video. */
 .hero-v2.hero-video-fullwidth .fashion-stage{
   width:min(1180px, calc(100% - 32px));
@@ -5692,7 +5701,7 @@ function previewAdminVideoText(){
 }
 
 function getGithubHomeVideoUrl(){
-  const raw=String(settings.homeVideoUrl||'').trim();
+  const raw=String(settings.homeVideoUrl||settings.homeVideoCloudinaryOriginalUrl||'').trim();
   if(!raw)return '';
   if(raw==='home-video.mp4'){
     const version=String(settings.homeVideoVersion||'1');
@@ -7121,64 +7130,122 @@ function mountHeroMediaSlot(){
     section.querySelector('.home-video-card')?.appendChild(hint);
   }
 }
+// The same settings document is used by admin.html and the public website.
+const homeVideoPlayback={key:'',urls:[],index:0,timeout:null,eventsBound:false,playAttemptedFor:''};
+function homeVideoCandidates(){
+  const primary=getGithubHomeVideoUrl();
+  const original=String(settings.homeVideoCloudinaryOriginalUrl||'').trim();
+  const unoptimized=/^https:\/\/res\.cloudinary\.com\//i.test(primary)
+    ?primary.replace('/video/upload/q_auto,f_auto/','/video/upload/'):primary;
+  return [...new Set([primary,original,unoptimized].filter(Boolean))];
+}
+function clearHomeVideoTimer(){
+  if(homeVideoPlayback.timeout)clearTimeout(homeVideoPlayback.timeout);
+  homeVideoPlayback.timeout=null;
+}
+function showHomeVideoFeedback(message,onActivate){
+  const hint=$('heroVideoHint');
+  if(!hint)return;
+  hint.textContent=message;
+  hint.classList.toggle('kd-video-feedback',!!message);
+  hint.classList.toggle('hidden',!message);
+  hint.onclick=onActivate||null;
+  hint.tabIndex=onActivate?0:-1;
+  hint.setAttribute('role',onActivate?'button':'status');
+  hint.onkeydown=onActivate?event=>{
+    if(event.key==='Enter'||event.key===' '){event.preventDefault();onActivate();}
+  }:null;
+}
+function homeVideoReady(){
+  const video=$('homeVideo'),section=$('homeVideoSection');
+  if(!video||!section||settings.homeVideoEnabled!==true||video.readyState<2)return;
+  clearHomeVideoTimer();
+  section.classList.remove('video-loading');
+  video.classList.add('video-ready');
+  showHomeVideoFeedback('',null);
+  const url=video.getAttribute('data-current-src');
+  if(homeVideoPlayback.playAttemptedFor===url)return;
+  homeVideoPlayback.playAttemptedFor=url;
+  try{
+    const play=video.play();
+    if(play&&play.catch)play.catch(()=>{
+      showHomeVideoFeedback('▶ اضغطي لتشغيل الفيديو',()=>{
+        const tryPlay=video.play();
+        if(tryPlay&&tryPlay.catch)tryPlay.catch(()=>showHomeVideoFeedback('تعذر تشغيل الفيديو على هذا الجهاز.',null));
+      });
+    });
+  }catch(error){
+    showHomeVideoFeedback('▶ اضغطي لتشغيل الفيديو',()=>video.play());
+  }
+}
+function loadHomeVideoCandidate(index){
+  const section=$('homeVideoSection'),video=$('homeVideo');
+  if(!section||!video)return;
+  clearHomeVideoTimer();
+  if(index>=homeVideoPlayback.urls.length){
+    section.classList.remove('video-loading');
+    video.classList.remove('video-ready');
+    showHomeVideoFeedback('تعذر تحميل الفيديو. اضغطي لإعادة المحاولة.',()=>{
+      homeVideoPlayback.key='';
+      renderHomeVideo();
+    });
+    return;
+  }
+  homeVideoPlayback.index=index;
+  homeVideoPlayback.playAttemptedFor='';
+  section.classList.add('video-loading');
+  video.classList.remove('video-ready');
+  showHomeVideoFeedback('',null);
+  const url=homeVideoPlayback.urls[index];
+  video.setAttribute('data-current-src',url);
+  video.src=url;
+  video.load();
+  // Some Cloudinary transformations are generated on first request.
+  // Avoid leaving a permanently blank homepage if one never finishes.
+  homeVideoPlayback.timeout=setTimeout(()=>{
+    if(settings.homeVideoEnabled===true&&video.readyState<2&&
+       video.getAttribute('data-current-src')===url)loadHomeVideoCandidate(index+1);
+  },12000);
+}
 function renderHomeVideo(){
-  const section=$('homeVideoSection');
-  const video=$('homeVideo');
+  const section=$('homeVideoSection'),video=$('homeVideo');
   if(!section||!video)return;
   mountHeroMediaSlot();
-  const hint=$('heroVideoHint');
-  const url=getGithubHomeVideoUrl();
-  const hasVideo=settings.homeVideoEnabled===true && !!url;
-  section.classList.remove('hidden');
-
-  if(hasVideo){
-    section.classList.remove('placeholder-active','empty-video-slot');
-    if(hint){hint.classList.add('hidden');hint.textContent='';}
-    renderPublicHomeVideoText();
-    video.style.display='block';
-    video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
-
-    const revealVideo=()=>{
-      section.classList.remove('video-loading');
-      video.classList.add('video-ready');
-      const overlay=$('homeVideoOverlay');
-      if(overlay)overlay.style.display='';
-    };
-    const keepSlotBlank=()=>{
-      section.classList.add('video-loading');
-      video.classList.remove('video-ready');
-      const overlay=$('homeVideoOverlay');
-      if(overlay)overlay.style.display='none';
-    };
-
-    if(video.getAttribute('data-current-src')!==url){
-      keepSlotBlank();
-      video.src=url;
-      video.setAttribute('data-current-src',url);
-      video.addEventListener('loadeddata',revealVideo,{once:true});
-      video.addEventListener('canplay',revealVideo,{once:true});
-      video.addEventListener('error',keepSlotBlank,{once:true});
-      video.load();
-    }else if(video.readyState>=2){
-      revealVideo();
-    }else{
-      keepSlotBlank();
-      video.addEventListener('loadeddata',revealVideo,{once:true});
-      video.addEventListener('canplay',revealVideo,{once:true});
-    }
-    try{video.play().catch(()=>{});}catch(e){}
-  }else{
-    try{video.pause()}catch(e){}
-    video.removeAttribute('src');
-    video.setAttribute('data-current-src','');
-    try{video.load()}catch(e){}
-    video.style.display='none';
-    video.classList.remove('video-ready');
-    section.classList.remove('placeholder-active','video-loading');
-    section.classList.add('empty-video-slot');
-    const overlay=$('homeVideoOverlay');
-    if(overlay)overlay.style.display='none';
-    if(hint){hint.classList.add('hidden');hint.textContent='';}
+  const urls=homeVideoCandidates();
+  const enabled=settings.homeVideoEnabled===true&&urls.length>0;
+  if(!enabled){
+    clearHomeVideoTimer();
+    homeVideoPlayback.key='';homeVideoPlayback.urls=[];
+    video.pause();video.removeAttribute('src');video.removeAttribute('data-current-src');
+    video.classList.remove('video-ready');video.style.display='none';
+    section.classList.remove('video-loading','placeholder-active','empty-video-slot');
+    section.classList.add('hidden');
+    showHomeVideoFeedback('',null);
+    return;
+  }
+  section.classList.remove('hidden','placeholder-active','empty-video-slot');
+  video.style.display='block';
+  video.preload='auto';video.loop=true;video.muted=true;video.playsInline=true;video.setAttribute('muted','');
+  renderPublicHomeVideoText();
+  if(!homeVideoPlayback.eventsBound){
+    homeVideoPlayback.eventsBound=true;
+    video.addEventListener('loadeddata',homeVideoReady);
+    video.addEventListener('canplay',homeVideoReady);
+    video.addEventListener('error',()=>{
+      if(settings.homeVideoEnabled!==true)return;
+      const i=homeVideoPlayback.index;
+      if(video.getAttribute('data-current-src')===homeVideoPlayback.urls[i]){
+        loadHomeVideoCandidate(i+1);
+      }
+    });
+  }
+  const key=JSON.stringify(urls);
+  if(homeVideoPlayback.key!==key){
+    homeVideoPlayback.key=key;homeVideoPlayback.urls=urls;
+    loadHomeVideoCandidate(0);
+  }else if(video.readyState>=2){
+    section.classList.remove('video-loading');
+    video.classList.add('video-ready');
   }
 }
 async function shareSite(){
