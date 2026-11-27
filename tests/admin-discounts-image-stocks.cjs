@@ -204,7 +204,7 @@ const photoFnStart=store.indexOf('function productPhotoPreview(src,width){');
 const photoFnEnd=store.indexOf('function productCardPhotoHtml(',photoFnStart);
 assert.ok(photoFnStart>=0&&photoFnEnd>photoFnStart);
 const previewContext={};
-vm.runInNewContext(store.slice(photoFnStart,photoFnEnd),previewContext);
+require('node:vm').runInNewContext(store.slice(photoFnStart,photoFnEnd),previewContext);
 const cloudBase='https://res.cloudinary.com/kandorty/image/upload/';
 const transformed=cloudBase+'f_auto,q_auto:good,c_limit,w_1440/v12345/stock/photo.jpg';
 assert.equal(previewContext.productPhotoPreview(cloudBase+'v12345/stock/photo.jpg',1440),transformed);
