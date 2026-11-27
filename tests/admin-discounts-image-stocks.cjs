@@ -213,4 +213,75 @@ assert.equal(previewContext.productPhotoPreview(cloudBase+'c_limit,w_2600/v12345
 assert.equal(previewContext.productPhotoPreview('https://firebasestorage.googleapis.com/v0/b/sample.jpg',1440),'https://firebasestorage.googleapis.com/v0/b/sample.jpg');
 console.log('Fullscreen photo uses decoded 1440px URLs, reuses Cloudinary transformed sources, and never swaps to progressive full originals.');
 
+const vm2=require('node:vm');
+for (const snippet of [
+  'function reconcileCartWithProducts()',
+  'const n=cartData().reduce(',
+  'reconcileCartWithProducts();',
+  'note.hidden=!value||!cartData().length;',
+  'function productVideoDeliveryUrl(source)',
+  "video.preload='auto'",
+  "video.src=productVideoDeliveryUrl(currentProductVideoUrl)",
+  'video.dataset.fallbackTried',
+  'function homeVideoCandidates()',
+  'function loadHomeVideoCandidate(index)',
+  'homeVideoCloudinaryOriginalUrl',
+  'showHomeVideoFeedback(',
+  'homeVideoPlayback.timeout=setTimeout('
+]){
+  assert.ok(store.includes(snippet),'Missing video/cart reliability fix: '+snippet);
+}
+const makeElement=()=>({
+  textContent:'',hidden:false,
+  style:{setProperty(){}},
+  classList:{toggle(){}}
+});
+const cartEls=Object.fromEntries(['cartCount','cartFloatingGroup','cartBtn','kandortyMenuCartCount','kandortyMenuCartBtn'].map(id=>[id,makeElement()]));
+const cartVM={
+  products:[{id:'in-store'}],
+  cart:[{id:'deleted',qty:35},{id:'in-store',qty:2}],
+  CART_KEY:'kandorty_cart_v1',
+  $:id=>cartEls[id],
+  localStorage:{setItem(k,value){this[k]=value;}},
+  renderCart(){this.renderCalled=true;},
+  console
+};
+cartVM.cartData=()=>cartVM.cart.map(item=>({item,product:cartVM.products.find(p=>p.id===item.id)})).filter(row=>row.product);
+const cartSrc=extract(store,'function reconcileCartWithProducts(){','function cartData(){');
+vm2.runInNewContext(cartSrc,cartVM);
+cartVM.reconcileCartWithProducts();
+assert.equal(cartVM.cart.length,1,'stale saved product removed only after authoritative snapshot');
+assert.equal(cartEls.cartCount.textContent,'2','badge counts real items');
+assert.equal(cartEls.cartBtn.hidden,false);
+cartVM.cart=[{id:'deleted',qty:35}];
+cartVM.reconcileCartWithProducts();
+assert.equal(cartVM.cart.length,0);
+assert.equal(cartEls.cartCount.textContent,'0','empty cart must not show 35');
+assert.equal(cartEls.cartBtn.hidden,true,'empty floating cart must be hidden');
+assert.equal(cartEls.kandortyMenuCartBtn.hidden,true,'empty menu cart shortcut must be hidden');
+const videoStart=store.indexOf('function productVideoDeliveryUrl(source){');
+const videoEnd=store.indexOf('function playSelectedProductVideo(){',videoStart);
+assert.ok(videoStart>=0&&videoEnd>videoStart);
+const videoVM={};
+vm2.runInNewContext(store.slice(videoStart,videoEnd),videoVM);
+const raw='https://res.cloudinary.com/test/video/upload/v12345/catalog/item.mp4';
+const optimized='https://res.cloudinary.com/test/video/upload/c_limit,w_720/q_auto:good/f_mp4/v12345/catalog/item.mp4';
+assert.equal(videoVM.productVideoDeliveryUrl(raw),optimized);
+assert.equal(videoVM.productVideoDeliveryUrl('https://res.cloudinary.com/test/video/upload/q_auto,f_auto/v12345/catalog/item.mp4'),optimized);
+assert.equal(videoVM.productVideoDeliveryUrl('https://storage.googleapis.com/catalog/clip.mp4'),'https://storage.googleapis.com/catalog/clip.mp4');
+const homeStart=store.indexOf('function homeVideoCandidates(){');
+const homeEnd=store.indexOf('function clearHomeVideoTimer(){',homeStart);
+assert.ok(homeStart>=0&&homeEnd>homeStart);
+const homeVM={
+  settings:{homeVideoCloudinaryOriginalUrl:raw},
+  getGithubHomeVideoUrl:()=>raw.replace('/video/upload/','/video/upload/q_auto,f_auto/')
+};
+vm2.runInNewContext(store.slice(homeStart,homeEnd),homeVM);
+assert.deepEqual(Array.from(homeVM.homeVideoCandidates()),[raw.replace('/video/upload/','/video/upload/q_auto,f_auto/'),raw]);
+const productVideoBranch=extract(store,'  if(showingVideo){','  }else{\n    video.pause();');
+assert.ok(!productVideoBranch.includes('playSelectedProductVideo();'),'Product video must not autoplay when selected');
+assert.ok(!productVideoBranch.includes('video.preload=\'metadata\''),'Video should preload enough data to play smoothly');
+console.log('Homepage original-video fallback, optimized product video and stale 35-cart badge regression checks passed.');
+
+
 
