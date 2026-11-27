@@ -285,10 +285,48 @@ const homeVM={
 };
 vm2.runInNewContext(store.slice(homeStart,homeEnd),homeVM);
 assert.deepEqual(Array.from(homeVM.homeVideoCandidates()),[raw.replace('/video/upload/','/video/upload/q_auto,f_auto/'),raw]);
-const productVideoBranch=extract(store,'  if(showingVideo){','  }else{\n    video.pause();');
+const productVideoBranch=extract(store,'  if(showingVideo){','  }else{\n    gallery.querySelector');
 assert.ok(!productVideoBranch.includes('playSelectedProductVideo();'),'Product video must not autoplay when selected');
 assert.ok(!productVideoBranch.includes('video.preload=\'metadata\''),'Video should preload enough data to play smoothly');
 console.log('Homepage original-video fallback, optimized product video and stale 35-cart badge regression checks passed.');
+
+for(const snippet of [
+  'id="kdHomeVideoPlay"',
+  'onclick="toggleHomeVideoByTap()"',
+  'function toggleHomeVideoByTap()',
+  "video.autoplay=false;video.removeAttribute('autoplay')",
+  "const logo=document.querySelector('header.top img.logo')",
+  "function ensureKdBrandMediaLoader(host)",
+  "function installKdBrandMediaLoaders()",
+  "stage.classList.toggle('kd-brand-wait'",
+  "stage.classList.remove('kd-photo-pending','kd-brand-wait')",
+  "mediaStage.classList.toggle('kd-video-buffering'",
+  "stage?.classList.add('kd-video-buffering')",
+  "section.classList.add('kd-video-buffering')",
+  'kandorty-branded-media-loading',
+  'kdBrandBreathing',
+  "classList.remove('kd-card-loading')"
+]){
+ assert.ok(store.includes(snippet),'Missing logo media loading or no-autoplay feature: '+snippet);
+}
+assert.ok(!/<video id="homeVideo"[^>]*autoplay\b/i.test(store),
+  'Homepage video must not have autoplay attribute');
+const readySrc=extract(store,'function homeVideoReady(){','function loadHomeVideoCandidate(index){');
+const readyVideo={readyState:2,classList:{add(){}},play(){throw new Error('unexpected autoplay')}};
+const readyStage={classList:{remove(){}}};
+let readyButtonCalls=0;
+const readyCtx={
+ settings:{homeVideoEnabled:true},
+ $:id=>id==='homeVideo'?readyVideo:id==='homeVideoSection'?readyStage:null,
+ clearHomeVideoTimer(){},
+ showHomeVideoFeedback(){},
+ syncHomeVideoPlayButton(){readyButtonCalls++;}
+};
+vm2.runInNewContext(readySrc,readyCtx);
+readyCtx.homeVideoReady();
+assert.equal(readyButtonCalls,1,'Loaded video must expose manual-play control');
+console.log('Homepage video waits for an explicit tap; Kandorty brand loader covers media preparation and disappears on ready.');
+
 
 
 
