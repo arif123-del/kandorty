@@ -375,7 +375,7 @@ const posterEnv={
   document:{createElement(){return {
     className:'',alt:'',decoding:'',attributes:{},
     setAttribute(k,v){this.attributes[k]=v;},
-    getAttribute(k){return this[k]||null;},
+    getAttribute(k){return this.attributes[k]||this[k]||null;},
     removeAttribute(k){delete this[k];}
   };}},
   currentProductImages:['product-1.jpg','product-2.jpg'],
