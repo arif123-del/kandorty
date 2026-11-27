@@ -3438,6 +3438,13 @@ function syncProductVideoControl(){
   const playing=!video.paused&&!video.ended;
   $('kdVideoTapSurface')?.setAttribute('aria-label',playing?(lang==='ar'?'إيقاف مؤقت':'Pause video'):(lang==='ar'?'تشغيل الفيديو':'Play video'));
 }
+function productVideoDeliveryUrl(source){
+  const raw=String(source||'').trim();
+  // Reuse Cloudinary's CDN, deliver a browser-compatible 720px MP4 rather
+  // than forcing mobile visitors to buffer the full uploaded video.
+  const m=raw.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/)(?:[^?#]*\/)?(v\d+\/[^?#]+)(\?[^#]*)?$/i);
+  return m?m[1]+'c_limit,w_720/q_auto:good/f_mp4/'+m[2]+(m[3]||''):raw;
+}
 function playSelectedProductVideo(){
   const video=$('modalProductVideo');
   if(!video||$('productModal').classList.contains('hidden')||!isCurrentProductVideo())return;
@@ -3467,6 +3474,7 @@ function bindProductVideoControl(){
   const toggle=()=>{
     if($('productModal').classList.contains('hidden')||!isCurrentProductVideo())return;
     const willPlay=video.paused||video.ended;
+    video.dataset.userStarted=willPlay?'1':'0';
     if(willPlay)playSelectedProductVideo();
     else video.pause();
     flashProductVideoIndicator(willPlay);
@@ -3483,7 +3491,26 @@ function bindProductVideoControl(){
   surface.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();});
   surface.addEventListener('dragstart',e=>e.preventDefault());
   video.addEventListener('contextmenu',e=>e.preventDefault());
-  ['play','playing','pause','ended','error','emptied'].forEach(name=>video.addEventListener(name,syncProductVideoControl));
+  // Some accounts cannot create an optimized video immediately. Fall back
+  // once to the original CDN URL instead of leaving the slide broken.
+  video.addEventListener('error',()=>{
+    const original=String(video.dataset.originalSrc||'');
+    if(original && video.getAttribute('src')!==original && video.dataset.fallbackTried!=='1'){
+      video.dataset.fallbackTried='1';
+      video.dataset.resumeFromFallback=video.dataset.userStarted==='1'?'1':'0';
+      video.src=original;
+      video.load();
+      return;
+    }
+    syncProductVideoControl();
+  });
+  video.addEventListener('canplay',()=>{
+    if(video.dataset.resumeFromFallback==='1'&&isCurrentProductVideo()){
+      video.dataset.resumeFromFallback='0';
+      playSelectedProductVideo();
+    }
+  });
+  ['play','playing','pause','ended','emptied'].forEach(name=>video.addEventListener(name,syncProductVideoControl));
 }
 function renderProductGallery(direction=0){
   const selectedNote=$('modalSelectedVariant');
@@ -3525,17 +3552,18 @@ function renderProductGallery(direction=0){
     // Load the product video only when the customer reaches the last media item.
     if(video.dataset.src!==currentProductVideoUrl){
       video.pause();
-      video.removeAttribute('src');
-      video.load();
       video.dataset.src=currentProductVideoUrl;
-      video.src=currentProductVideoUrl;
+      video.dataset.originalSrc=currentProductVideoUrl;
+      video.dataset.fallbackTried='0';
+      video.dataset.resumeFromFallback='0';
+      video.dataset.userStarted='0';
       video.muted=true;
       video.loop=true;
       video.playsInline=true;
-      video.preload='metadata';
-      video.load();
-      // Autoplay only on entry, never restart a video the customer paused.
-      playSelectedProductVideo();
+      video.preload='auto';
+      video.src=productVideoDeliveryUrl(currentProductVideoUrl);
+      video.load(); // A single load: do not reset the video buffer twice.
+      // Play/pause remains tap-controlled; no unsolicited autoplay.
     }
     syncProductVideoControl();
   }else{
@@ -3548,6 +3576,7 @@ function renderProductGallery(direction=0){
       video.load();
     }
     video.dataset.src='';
+    video.dataset.userStarted='0';
 
     mainImg.style.display='block';
     mainImg.onclick=openFullscreenProductImage;
