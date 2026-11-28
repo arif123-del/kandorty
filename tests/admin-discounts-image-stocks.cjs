@@ -459,9 +459,86 @@ assert.ok(uncroppedStyle.includes('object-fit:contain!important;'),'Complete thu
 assert.ok(uncroppedStyle.includes('object-position:center center!important;'));
 console.log('Uncropped catalog thumbnails show the entire product before the card is tapped.');
 
-
-
-
-
-
+// All visible categories (up to 15) have a separate share control and a
+// stable link that opens that category, not merely the store homepage.
+for(const snippet of [
+  'id="kandorty-category-sharing-style"',
+  'function categoryShareUrl(id){',
+  "url.searchParams.set('category',String(id));",
+  "url.hash='products';",
+  'async function shareCategoryCard(id){',
+  "if(typeof navigator.share==='function')",
+  "if(navigator.clipboard?.writeText)",
+  "if(error?.name==='AbortError')return;",
+  'let pendingSharedCategoryId=(()=>{',
+  "const value=new URLSearchParams(location.search).get('category')",
+  "const target=visible.find(c=>c.id===pendingSharedCategoryId)",
+  "tile.className='kd-category-share-tile'",
+  "share.className='kd-category-share-btn'",
+  "shareCategoryCard(card.id);",
+  "tile.append(btn,share)"
+]){
+  assert.ok(store.includes(snippet), 'Category sharing feature missing: '+snippet);
+}
+const shareUrlScript=extract(store,'function categoryShareUrl(id){','async function shareCategoryCard(id){');
+const categoryShareVM={URL};
+vm2.runInNewContext(shareUrlScript,categoryShareVM);
+assert.equal(categoryShareVM.categoryShareUrl('women'),
+  'https://kandorty.online/?category=women#products');
+assert.equal(categoryShareVM.categoryShareUrl('cat_special-15'),
+  'https://kandorty.online/?category=cat_special-15#products');
+const mockCards=Array.from({length:15},(_,i)=>({
+  id:'cat_'+i,titleAr:'قسم '+i,titleEn:'Section '+i,
+  subtitleAr:'',subtitleEn:'',visible:true,image:''
+}));
+const renderedTiles=[];
+const categoryGrid={
+  dataset:{},innerHTML:'',
+  appendChild(tile){renderedTiles.push(tile);}
+};
+const createCategoryNode=(tag)=>({
+  tag,className:'',dataset:{},style:{},children:[],
+  classList:{add(){},remove(){}},
+  setAttribute(key,value){this[key]=value;},
+  append(...nodes){this.children.push(...nodes);},
+});
+let categoryRendered=0;
+const categoryCtx={
+  categoryCards:mockCards,
+  MAX_KANDORTY_CATEGORIES:15,
+  currentCat:'all',
+  pendingSharedCategoryId:'cat_10',
+  sharedCategoryScrollScheduled:false,
+  kandortyDiscountView:true,
+  lang:'ar',
+  document:{
+    getElementById(id){return id==='categoryCardsGrid'?categoryGrid:null;},
+    createElement:createCategoryNode
+  },
+  $:()=>null,
+  normalizeCategoryValue:value=>value,
+  categoryBgValue:()=> 'linear-gradient(white,black)',
+  refreshCategorySelect(){},
+  render(){categoryRendered++},
+  setTimeout(){},
+  console
+};
+const categoryRenderingCode=extract(store,'function applyCategoryCards(){','function loadCategoryCards(){');
+vm2.runInNewContext(categoryRenderingCode,categoryCtx);
+categoryCtx.applyCategoryCards();
+assert.equal(renderedTiles.length,15,'Share control must be available for each of fifteen categories');
+assert.equal(categoryGrid.dataset.count,'15');
+for(let i=0;i<15;i++){
+  const tile=renderedTiles[i];
+  assert.equal(tile.className,'kd-category-share-tile');
+  assert.equal(tile.children.length,2,'A category gets separate filter and share buttons');
+  assert.equal(tile.children[0].dataset.cat,'cat_'+i);
+  assert.equal(tile.children[1].className,'kd-category-share-btn');
+  assert.equal(tile.children[1].type,'button');
+}
+assert.equal(categoryCtx.currentCat,'cat_10','Shared category deep link must activate correct section');
+assert.equal(categoryCtx.pendingSharedCategoryId,'','Resolved deep links must not override later category choices');
+assert.equal(categoryCtx.kandortyDiscountView,false,'Shared category must open regular product section');
+assert.equal(categoryCtx.sharedCategoryScrollScheduled,true,'Shared link should go directly to category products');
+console.log('All fifteen category cards have individual share buttons; shared URL opens the selected category.');
 

@@ -2330,6 +2330,39 @@ html.kd-product-open body{
 }
 #products .card:hover .card-image-wrap > img{transform:none!important}
 </style>
+<style id="kandorty-category-sharing-style">
+/* Category tiles retain their existing tap-to-filter action, while a second
+   independent button shares a deep link to that one category. */
+#categoryCardsGrid > .kd-category-share-tile{
+  position:relative;min-width:0;width:100%;display:flex;
+}
+#categoryCardsGrid > .kd-category-share-tile > .cat.category-image-card{
+  box-sizing:border-box;width:100%;height:100%;flex:1 1 auto;
+}
+#categoryCardsGrid .kd-category-share-btn{
+  position:absolute;top:10px;left:10px;right:auto;z-index:5;
+  display:inline-flex;justify-content:center;align-items:center;gap:5px;
+  min-width:44px;min-height:38px;padding:7px 10px;
+  border:1px solid rgba(255,255,255,.73);border-radius:20px;
+  background:rgba(255,255,255,.94);color:#8c102a;
+  font:700 12px/1.2 Arial,Tahoma,sans-serif;
+  box-shadow:0 3px 12px rgba(20,0,8,.14);
+  cursor:pointer;touch-action:manipulation;
+}
+#categoryCardsGrid .kd-category-share-btn svg{
+  width:17px;height:17px;display:block;flex:none;
+}
+#categoryCardsGrid .kd-category-share-btn:hover,
+#categoryCardsGrid .kd-category-share-btn:focus-visible{
+  background:#fff;outline:2px solid #b40020;outline-offset:2px;
+}
+@media(max-width:540px){
+  #categoryCardsGrid .kd-category-share-btn{
+    top:8px;left:8px;padding:6px 8px;font-size:11px;min-height:36px;
+  }
+  #categoryCardsGrid .kd-category-share-btn svg{width:16px;height:16px}
+}
+</style>
 </head>
 <body>
 <header class="top"><div class="container nav kandorty-menu-header" dir="rtl">
@@ -7668,6 +7701,15 @@ function writeCategoryCardsCache(value){
   try{localStorage.setItem(CATEGORY_CACHE_KEY,JSON.stringify({version:2,cards:value}));}catch(e){}
 }
 let categoryCards=readCategoryCardsCache();
+// A shared URL uses the saved category ID, never its changing title or
+// position. This also works for any new category up to the 15-card limit.
+let pendingSharedCategoryId=(()=>{
+  try{
+    const value=new URLSearchParams(location.search).get('category');
+    return value&&/^[a-z0-9_-]{1,80}$/i.test(value)?value.toLowerCase():'';
+  }catch(_){return '';}
+})();
+let sharedCategoryScrollScheduled=false;
 let pendingCategoryFiles={};
 
 function makeCategoryId(){
@@ -7737,14 +7779,71 @@ function chooseCategoryFilter(button,id){
   const productsEl=document.getElementById('products');
   if(productsEl)setTimeout(()=>productsEl.scrollIntoView({behavior:'smooth',block:'start'}),20);
 }
+function categoryShareUrl(id){
+  // Canonical public HTTPS URL; never copy a staging URL or unrelated query
+  // parameters into a customer-facing link.
+  const url=new URL('https://kandorty.online/');
+  url.searchParams.set('category',String(id));
+  url.hash='products';
+  return url.toString();
+}
+async function shareCategoryCard(id){
+  const card=categoryCards.find(c=>c.id===id&&c.visible!==false);
+  if(!card)return;
+  const title=(lang==='en'?card.titleEn:card.titleAr)||card.titleAr||'Kandorty';
+  const url=categoryShareUrl(card.id);
+  const text=lang==='ar'
+    ? 'شاهدي قسم '+title+' في متجر Kandorty'
+    : 'Explore '+title+' at Kandorty';
+  try{
+    if(typeof navigator.share==='function'){
+      await navigator.share({title,text,url});
+      return;
+    }
+  }catch(error){
+    if(error?.name==='AbortError')return; // User cancelled the share sheet.
+    console.warn('Native category sharing unavailable:',error);
+  }
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(url);
+      alert(lang==='ar'?'تم نسخ رابط القسم. يمكنك مشاركته الآن.':'Category link copied. You can share it now.');
+      return;
+    }
+  }catch(error){console.warn('Category link copy unavailable:',error);}
+  prompt(lang==='ar'?'انسخي رابط القسم لمشاركته:':'Copy the category link to share:',url);
+}
 function applyCategoryCards(){
   const grid=document.getElementById('categoryCardsGrid');
   const visible=categoryCards.filter(c=>c.visible!==false).slice(0,MAX_KANDORTY_CATEGORIES);
+  // Follow a shared category URL once its ID appears in the saved category
+  // settings. The first cache may lack newly created categories; the Firestore
+  // snapshot will resolve those without showing the wrong section.
+  if(pendingSharedCategoryId){
+    const target=visible.find(c=>c.id===pendingSharedCategoryId);
+    if(target){
+      currentCat=normalizeCategoryValue(target.id);
+      kandortyDiscountView=false;
+      if($('search'))$('search').value='';
+      pendingSharedCategoryId='';
+      if(!sharedCategoryScrollScheduled){
+        sharedCategoryScrollScheduled=true;
+        setTimeout(()=>{
+          render();
+          document.getElementById('kandortyProductsTitle')
+            ?.scrollIntoView({behavior:'auto',block:'start'});
+        },120);
+      }
+    }
+  }
   if(currentCat!=='all'&&!visible.some(c=>normalizeCategoryValue(c.id)===normalizeCategoryValue(currentCat)))currentCat='all';
   if(grid){
     grid.dataset.count=String(visible.length);
     grid.innerHTML='';
     visible.forEach(card=>{
+      const tile=document.createElement('div');
+      tile.className='kd-category-share-tile';
+      tile.dataset.categoryId=card.id;
       const btn=document.createElement('button');
       btn.type='button';
       btn.className='cat category-image-card';
@@ -7761,7 +7860,15 @@ function applyCategoryCards(){
       btn.append(strong,small);
       if(normalizeCategoryValue(currentCat)===normalizeCategoryValue(card.id))btn.classList.add('active');
       btn.onclick=()=>chooseCategoryFilter(btn,card.id);
-      grid.appendChild(btn);
+      const share=document.createElement('button');
+      share.type='button';
+      share.className='kd-category-share-btn';
+      share.setAttribute('aria-label','مشاركة قسم '+card.titleAr);
+      share.title=(lang==='en'?'Share ':'مشاركة ')+(lang==='en'?card.titleEn:card.titleAr);
+      share.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m0 0 4 4m-4-4L8 7"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span data-ar="مشاركة" data-en="Share">'+(lang==='en'?'Share':'مشاركة')+'</span>';
+      share.onclick=event=>{event.preventDefault();event.stopPropagation();shareCategoryCard(card.id);};
+      tile.append(btn,share);
+      grid.appendChild(tile);
     });
   }
   refreshCategorySelect();
